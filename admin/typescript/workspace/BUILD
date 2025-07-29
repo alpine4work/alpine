@@ -59,7 +59,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//server/deploy/script",
     "//server/edge",
     "//server/files/processor/test_helpers",
-    "//server/forum/realtime:post_realtime_connection_test",
+    "//server/messaging/realtime/test_helpers",
     "//server/notifications/data:notifications_table_forum_test",
     "//server/tasks/realtime:task_realtime_connection_test",
     "//shared/spaces/test_helpers",

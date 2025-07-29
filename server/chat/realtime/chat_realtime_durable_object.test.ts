@@ -1,10 +1,18 @@
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
+import {createChatForTest, getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_durable_object.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
+import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
+import {
+    deleteChatMessage,
+    sendChatMessage,
+    updateChatMessageContent,
+} from "~/shared/rpc/chat_rpc_definitions.js";
 
 const context = createTestWorkerContext();
 const {connectForTest} = ChatRealtimeDurableObject.test(context);
@@ -67,4 +75,57 @@ test("can not connect to an existing chat durable object as an account without a
     await expect(connectForTest(context.action(session3), chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
+});
+
+testMessagingRealtimeImplementation<ChatId>(context, {
+    async createRoom(sessions) {
+        const chat = await createChatForTest(sessions[0].action(), {
+            spaceId: sessions[0].space.id,
+            otherAccountIds: sessions.slice(1).map(session => session.account.id),
+        });
+
+        return {
+            key: chat.id,
+            spaceId: sessions[0].space.id,
+            createdTime: chat.createdTime,
+            messageCount: 0,
+        };
+    },
+    async connectForTest(context, roomKey) {
+        const connection = await connectForTest(context, roomKey);
+
+        return {
+            procedures: connection.procedures,
+            takeEvents: () => connection.takeEvents(),
+        };
+    },
+    createMessageModel({roomKey: chatId, index, createdTime, author, payload}) {
+        return new ChatMessageModel({
+            chatId,
+            index,
+            createdTime,
+            author,
+            payload,
+        });
+    },
+    async createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
+        const {message} = await sendChatMessage(context, {
+            chatId,
+            parentMessageIndex,
+            content,
+            fileIds,
+        });
+
+        return message;
+    },
+    async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
+        return updateChatMessageContent(context, {
+            chatId,
+            messageIndex,
+            content,
+        });
+    },
+    async deleteMessage(context, {roomKey: chatId, messageIndex}) {
+        return deleteChatMessage(context, {chatId, messageIndex});
+    },
 });

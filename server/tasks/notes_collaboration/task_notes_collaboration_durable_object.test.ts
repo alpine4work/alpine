@@ -1,6 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
+import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
@@ -13,8 +14,15 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {generateId} from "~/shared/id/id.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    createTaskComment,
+    deleteTaskComment,
+    updateTaskCommentContent,
+} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 
 const context = createTestWorkerContext();
@@ -597,4 +605,101 @@ test("can backfill task note steps but can’t update if you only have view acce
 
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
+});
+
+testMessagingRealtimeImplementation<TaskId>(context, {
+    async createRoom(sessions) {
+        const task = await TestTask.create(sessions[0]);
+        const collection = await TestTaskCollection.create(sessions[0], {access: "Public"});
+        await task.addCollection(sessions[0], collection);
+
+        return {
+            key: task.id,
+            spaceId: task.space.id,
+            createdTime: new Date(task.createdTime[0]),
+            messageCount: 0,
+        };
+    },
+    async connectForTest(context, roomKey) {
+        const connection = await connectForTest(context, roomKey);
+
+        return {
+            procedures: {
+                backfillMessages: async ({
+                    clientMessageCount: clientCommentCount,
+                    clientLastMessageChangeTime: clientLastCommentChangeTime,
+                    newMessageLimit: newCommentLimit,
+                }) => {
+                    const {
+                        commentCount: messageCount,
+                        lastCommentChangeTime: lastMessageChangeTime,
+                        newComments: newMessages,
+                        newOtherReferencedComments: newOtherReferencedMessages,
+                        commentChangesResult: messageChangesResult,
+                        typingStateByConnectionId,
+                    } = await connection.procedures.backfillComments({
+                        clientCommentCount,
+                        clientLastCommentChangeTime,
+                        newCommentLimit,
+                    });
+                    return {
+                        messageCount,
+                        lastMessageChangeTime,
+                        newMessages,
+                        newOtherReferencedMessages,
+                        messageChangesResult,
+                        typingStateByConnectionId,
+                    };
+                },
+                createMessage: ({parentMessageIndex: parentCommentIndex, content, fileIds}) =>
+                    connection.procedures.createComment({parentCommentIndex, content, fileIds}),
+                updateMessageContent: ({messageIndex: commentIndex, content}) =>
+                    connection.procedures.updateCommentContent({commentIndex, content}),
+                deleteMessage: ({messageIndex: commentIndex}) =>
+                    connection.procedures.deleteComment({commentIndex}),
+                startTypingInMessageInput: ({}) =>
+                    connection.procedures.startTypingInCommentInput({}),
+                stopTypingInMessageInput: ({}) =>
+                    connection.procedures.stopTypingInCommentInput({}),
+            },
+            takeEvents: () => {
+                return filterMapArray(connection.takeEvents(), event => {
+                    if (event.type !== "Comments") return;
+                    return event.event;
+                });
+            },
+        };
+    },
+    createMessageModel({roomKey: taskId, index, createdTime, author, payload}) {
+        return new TaskCommentModel({
+            taskId,
+            index,
+            createdTime,
+            author,
+            payload,
+        });
+    },
+    async createMessage(
+        context,
+        {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds},
+    ) {
+        const {comment} = await createTaskComment(context, {
+            taskId,
+            parentCommentIndex,
+            content,
+            fileIds,
+        });
+
+        return comment;
+    },
+    async updateMessageContent(context, {roomKey: taskId, messageIndex: commentIndex, content}) {
+        return updateTaskCommentContent(context, {
+            taskId,
+            commentIndex,
+            content,
+        });
+    },
+    async deleteMessage(context, {roomKey: taskId, messageIndex: commentIndex}) {
+        return deleteTaskComment(context, {taskId, commentIndex});
+    },
 });

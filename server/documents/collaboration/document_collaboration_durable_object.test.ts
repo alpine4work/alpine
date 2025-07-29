@@ -20,6 +20,7 @@ import {
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {attachFileAsUploader} from "~/server/files/data/files_table.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
+import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
@@ -32,12 +33,16 @@ import {emptyDocumentContentReferences} from "~/shared/documents/document_conten
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
+    DocumentCommentRoomKey,
     DocumentCommentThreadModel,
     DocumentModel,
+    decodeDocumentCommentRoomKey,
+    encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -49,6 +54,11 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
+import {
+    createDocumentComment as createDocumentCommentRpc,
+    deleteDocumentComment,
+    updateDocumentCommentContent,
+} from "~/shared/rpc/documents_rpc_definitions.js";
 
 const context = createTestWorkerContext();
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
@@ -5832,4 +5842,133 @@ test("can get presence updates across viewer/editor connections", async () => {
         ],
         rememberInvertedSteps: [],
     });
+});
+
+testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
+    async createRoom(sessions) {
+        const document = await TestDocument.create(sessions[0], {access: "Public"});
+        const {range} = await document.type(sessions[0], "hi");
+        const commentThread = await document.createCommentThread(
+            sessions[0],
+            range,
+            "Initial comment",
+        );
+
+        return {
+            key: encodeDocumentCommentRoomKey(document.id, commentThread.id),
+            spaceId: document.space.id,
+            createdTime: document.createdTime,
+            messageCount: 1,
+        };
+    },
+    async connectForTest(context, roomKey) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const connection = await connectForTest(context, documentId);
+
+        return {
+            procedures: {
+                backfillMessages: async ({
+                    clientMessageCount: clientCommentCount,
+                    clientLastMessageChangeTime: clientLastCommentChangeTime,
+                    newMessageLimit: newCommentLimit,
+                }) => {
+                    const {
+                        commentCount: messageCount,
+                        lastCommentChangeTime: lastMessageChangeTime,
+                        newComments: newMessages,
+                        newOtherReferencedComments: newOtherReferencedMessages,
+                        commentChangesResult: messageChangesResult,
+                        typingStateByConnectionId,
+                    } = await connection.procedures.backfillComments({
+                        commentThreadId,
+                        clientCommentCount,
+                        clientLastCommentChangeTime,
+                        newCommentLimit,
+                    });
+                    return {
+                        messageCount,
+                        lastMessageChangeTime,
+                        newMessages,
+                        newOtherReferencedMessages,
+                        messageChangesResult,
+                        typingStateByConnectionId,
+                    };
+                },
+                createMessage: ({parentMessageIndex: parentCommentIndex, content, fileIds}) =>
+                    connection.procedures.createComment({
+                        commentThreadId,
+                        parentCommentIndex,
+                        content,
+                        fileIds,
+                    }),
+                updateMessageContent: ({messageIndex: commentIndex, content}) =>
+                    connection.procedures.updateCommentContent({
+                        commentThreadId,
+                        commentIndex,
+                        content,
+                    }),
+                deleteMessage: ({messageIndex: commentIndex}) =>
+                    connection.procedures.deleteComment({commentThreadId, commentIndex}),
+                startTypingInMessageInput: ({}) =>
+                    connection.procedures.startTypingInCommentInput({commentThreadId}),
+                stopTypingInMessageInput: ({}) =>
+                    connection.procedures.stopTypingInCommentInput({commentThreadId}),
+            },
+            takeEvents: () => {
+                return filterMapArray(connection.takeEvents(), event => {
+                    if (event.type !== "Comments") return;
+                    if (event.commentThreadId !== commentThreadId) return;
+                    return event.event;
+                });
+            },
+        };
+    },
+    createMessageModel({roomKey, index, createdTime, author, payload}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return new DocumentCommentModel({
+            documentId,
+            commentThreadId,
+            index,
+            createdTime,
+            author,
+            payload,
+        });
+    },
+    async createMessage(
+        context,
+        {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {comment} = await createDocumentCommentRpc(context, {
+            documentId,
+            commentThreadId,
+            parentCommentIndex,
+            content,
+            fileIds,
+        });
+
+        return comment;
+    },
+    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return updateDocumentCommentContent(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            content,
+        });
+    },
+    async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return deleteDocumentComment(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+        });
+    },
 });

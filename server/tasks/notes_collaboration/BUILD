@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//server/cloudflare/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/messaging/realtime/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
     ],
