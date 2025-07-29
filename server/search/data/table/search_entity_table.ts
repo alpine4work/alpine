@@ -7,7 +7,6 @@ import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_c
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     authorizeOwnAccountAccess,
@@ -42,6 +41,7 @@ import {
     initialOrderKey,
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Id, assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,

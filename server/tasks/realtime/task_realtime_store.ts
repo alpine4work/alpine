@@ -1,6 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
@@ -51,6 +50,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {
     AccountId,
     SpaceId,

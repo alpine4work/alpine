@@ -5,7 +5,6 @@ import murmurhash from "murmurhash";
 import {dirname, join as joinPath} from "path";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchHighlightClause} from "~/server/opensearch/opensearch_highlight_clause.js";
 import {
     OpensearchIndex,
@@ -45,6 +44,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";

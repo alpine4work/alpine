@@ -34,8 +34,6 @@ import {
     ActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -133,6 +131,8 @@ import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {decodeIdInto, encodeId, generateId, getMinId, idByteLength, isId} from "~/shared/id/id.js";
 import {
     AccountId,

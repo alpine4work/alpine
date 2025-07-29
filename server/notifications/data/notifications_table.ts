@@ -61,8 +61,6 @@ import {
     getPostAuthorAndChannelPreviewIfPossible,
     getPostNotificationSubscribers,
 } from "~/server/forum/data/forum_table.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {
     NotificationCreateChatMessageEvent,
     NotificationCreateDocumentCommentEvent,
@@ -124,6 +122,8 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";

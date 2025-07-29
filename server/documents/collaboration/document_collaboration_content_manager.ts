@@ -5,7 +5,6 @@ import {
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
@@ -42,6 +41,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,

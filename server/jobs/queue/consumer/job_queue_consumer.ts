@@ -9,7 +9,6 @@ import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_con
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {
     JobQueueName,
@@ -31,6 +30,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();

@@ -4,7 +4,6 @@ import type {FeatureExtractionPipeline} from "@xenova/transformers";
 import fsSync from "fs";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {createTransformersModel} from "~/server/language_models/core/create_transformers_model.js";
 import {createTransformersTokenizer} from "~/server/language_models/core/create_transformers_tokenizer.js";
 import {
@@ -15,6 +14,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 assertAssignableTypes<typeof AllMiniLmL6V2LanguageModel, LanguageModelBaseClass>();

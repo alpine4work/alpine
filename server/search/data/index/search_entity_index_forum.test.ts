@@ -5,8 +5,6 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createPost, updateChannelName, updatePostContent} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {
     fallbackGetSearchEntityBaseIfPossibleTestCounter,
     getSearchEntityIndexesForTest,
@@ -39,12 +37,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 

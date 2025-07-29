@@ -16,7 +16,6 @@ import {
     getPostContentAndChannelPreviewIfExists,
     maxChannelContributionCount,
 } from "~/server/forum/data/forum_table.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {
     SearchEntityDependencyId,
@@ -78,6 +77,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {
     AccountId,
     ChannelId,

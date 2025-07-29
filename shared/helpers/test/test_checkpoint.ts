@@ -1,18 +1,16 @@
-import jsonStableStringify from "json-stable-stringify";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {
+    StringifiableValueForDeepEqualCheck,
+    stringifyForDeepEqualCheck,
+} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 
 /**
  * A test helper for emulating race conditions. You can add a `waitForTest()`
  * checkpoint call to your code and then in a test call `pauseForTest()`. The
  * request will wait until your test unpauses.
  */
-export class TestCheckpoint<
-    // We set `SchemaSerializedValue` as the bound so that `Key` is
-    // JSON stringifiable.
-    Key extends SchemaSerializedValue,
-> {
+export class TestCheckpoint<Key extends StringifiableValueForDeepEqualCheck> {
     private _promiseResolverByKey = new Map<string, PromiseResolver<PromiseResolver<void>>>();
 
     constructor() {
@@ -52,7 +50,7 @@ export class TestCheckpoint<
     public async waitForTest(key: Key): Promise<void> {
         if (!import.meta.jest) return;
 
-        const keyString = jsonStableStringify(key);
+        const keyString = stringifyForDeepEqualCheck(key);
         const promiseResolver1 = this._promiseResolverByKey.get(keyString);
         if (!promiseResolver1) return;
 
@@ -87,7 +85,7 @@ export class TestCheckpoint<
         unpause: () => void;
         stopPausing: () => void;
     }> {
-        const keyString = jsonStableStringify(key);
+        const keyString = stringifyForDeepEqualCheck(key);
 
         assert(import.meta.jest);
         assert(!this._promiseResolverByKey.has(keyString), "Request already paused");

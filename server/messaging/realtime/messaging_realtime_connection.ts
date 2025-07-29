@@ -3,13 +3,13 @@ import {
     WorkerSessionActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";

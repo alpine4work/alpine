@@ -13,7 +13,6 @@ import {
     getChannelPreviewIfPossible,
     getPostContentAndChannelPreviewIfPossible,
 } from "~/server/forum/data/forum_table.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
@@ -131,6 +130,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";

@@ -38,8 +38,6 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {addFeedCandidateEntry} from "~/server/feed/data/feed_table.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -130,6 +128,8 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {
     assertId,

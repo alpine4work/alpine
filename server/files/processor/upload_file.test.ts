@@ -18,7 +18,6 @@ import {
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -46,6 +45,7 @@ import {
 } from "~/shared/id/chronological_id.js";
 import {assertId, isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const jpegTestFixturePath = joinPath(

@@ -3,8 +3,6 @@ import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_con
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {
     OpensearchBulkCommandBase,
@@ -83,6 +81,8 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {

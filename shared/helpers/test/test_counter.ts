@@ -1,17 +1,15 @@
-import jsonStableStringify from "json-stable-stringify";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {
+    StringifiableValueForDeepEqualCheck,
+    stringifyForDeepEqualCheck,
+} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 
 /**
  * A test helper for determining how often a given operation happens over the
  * course of a test. Useful for testing performance optimizations where you
  * want to make sure we're not calling some expensive piece of code.
  */
-export class TestCounter<
-    // We set `SchemaSerializedValue` as the bound so that `Key` is
-    // JSON stringifiable.
-    Key extends SchemaSerializedValue | void,
-> {
+export class TestCounter<Key extends StringifiableValueForDeepEqualCheck | void> {
     private _count = 0;
     private _countByKey = new Map<string, number>();
 
@@ -50,7 +48,7 @@ export class TestCounter<
 
         this._count += n;
 
-        const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
+        const keyString = key !== undefined ? stringifyForDeepEqualCheck(key) : "undefined";
         const count = this._countByKey.get(keyString);
 
         // If there is no count, we aren't recording the count for this request. Don't
@@ -70,7 +68,7 @@ export class TestCounter<
     public recordForTest(key: Key): {getCount: () => number} {
         assert(import.meta.jest);
 
-        const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
+        const keyString = key !== undefined ? stringifyForDeepEqualCheck(key) : "undefined";
 
         if (!this._countByKey.has(keyString)) {
             this._countByKey.set(keyString, 0);

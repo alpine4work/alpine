@@ -4,7 +4,6 @@ import {
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
@@ -50,6 +49,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,

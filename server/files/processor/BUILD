@@ -17,6 +17,7 @@ ts_project(
         "//server/edge:upload_file_testonly",
         "//server/files/processor/test_helpers",
         "//server/spaces/test_helpers",
+        "//shared/test_helpers",
     ],
     tests = {
         "resize_file_test": {

@@ -8,7 +8,6 @@ import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {MessagingRealtimeConnection} from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
@@ -43,6 +42,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     DocumentCommentThreadId,
