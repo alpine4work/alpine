@@ -62,6 +62,7 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {
+    SearchActionContextModules,
     SearchSessionActionContext,
     SearchSessionActionContextModules,
     SearchSystemActionContext,
@@ -2101,15 +2102,32 @@ type SearchEntityModelBaseResult =
       }
     | {isPrivate: true};
 
+type SearchEntityIndexDoc = {
+    readonly id: SearchEntityIdForKeywordIndex;
+    readonly routing: SpaceId;
+    readonly version: OpensearchClientDocVersion | null;
+    readonly fields: {
+        readonly title?: ReadonlyArray<string>;
+        readonly titleVersion?: ReadonlyArray<SearchEntityTitleVersion>;
+        readonly media?: ReadonlyArray<SearchEntityMedia>;
+        readonly "accessPolicy.accountGrantAccountIds"?: ReadonlyArray<AccountId>;
+        readonly "accessPolicy.defaultGrantType"?: ReadonlyArray<"Space">;
+    };
+};
+
 const SearchEntityCache = new ContextCache<
     `${SpaceId}:${SearchDynamicEntityId}`,
-    SearchEntityModelBaseResult | null
->({whenActorChanges: "SafelyReset"});
+    SearchEntityIndexDoc | null
+>({
+    // We load the data from OpenSearch completely independently of the actor. So
+    // it's safe to share the cache when the actor changes.
+    whenActorChanges: "DangerouslyShare",
+});
 
 const SearchEntityBatcher = new ContextBatcher<
-    SearchSessionActionContextModules & {tasks: TaskContextModuleBase},
-    {spaceId: SpaceId; entityId: SearchDynamicEntityId; seen: ReadonlySet<SearchEntityId>},
-    SearchEntityModelBaseResult | null
+    SearchActionContextModules,
+    {spaceId: SpaceId; entityId: SearchDynamicEntityId},
+    SearchEntityIndexDoc | null
 >(async (context, inputs) => {
     const commands = inputs.map(({spaceId, entityId}) => {
         return new OpensearchGetDocWithoutSourceCommand(
@@ -2131,83 +2149,7 @@ const SearchEntityBatcher = new ContextBatcher<
     const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
     const docsById = docsByIdByIndex.get(SearchEntityKeywordIndex) ?? emptyMap;
 
-    return runAllPromises(
-        commands.map(async (command, index) => {
-            const {spaceId, seen} = inputs[index]!;
-            const doc = docsById.get(command.id);
-
-            // Make sure the doc we get is from the right space. Providing a `routing`
-            // value to OpenSearch only makes sure our request goes to the right node. If
-            // space A and space B are saved on the same OpenSearch node and an attacker
-            // requests document in space B from their space A then OpenSearch will
-            // return the doc even though the `routing` value doesn't exactly match since
-            // `routing` puts the request on the node that shares space A and space B.
-            //
-            // So for security make sure we check the routing value is exactly equal to our
-            // `SpaceId`!
-            if (doc && doc.routing !== spaceId) {
-                return null;
-            }
-
-            if (!doc) {
-                const entityId = fromSearchEntityIdForKeywordIndex(commands[index]!.id);
-
-                if (!isSearchMentionEntityId(entityId)) return null;
-
-                // If we couldn't a specific search entity that might be because the search
-                // entity hasn't been indexed in OpenSearch yet. Document indexing, for
-                // example, is throttled since updates to a document happen many times per
-                // minute (even once per keystroke). That means right after a document is
-                // created it won't show up in the OpenSearch index until the throttled
-                // indexing job runs (10s throttle + indexing time).
-                //
-                // Instead of not showing the document to the user in a mention or in the
-                // author's search affinity list (which would be a very bad UX since how else
-                // will the user find documents they just created but accidentally navigated
-                // away from?) we read the document from DynamoDB (where the document will
-                // definitely exist) if the document is not found in the OpenSearch index.
-                //
-                // If the entity WAS found in the OpenSearch index but its access policy
-                // doesn't allow us to read it then we don't check DynamoDB since we expect the
-                // same result.
-                return fallbackGetSearchEntityBaseIfPossible(
-                    // Expect strong read consistency since if we can't find the entity in
-                    // OpenSearch that implies it was just created so we're running the risk of
-                    // eventual consistency lag anyway.
-                    context.dynamo.expectStrongReadConsistency(),
-                    spaceId,
-                    entityId,
-                    seen,
-                );
-            }
-
-            const entityId = fromSearchEntityIdForKeywordIndex(doc.id);
-
-            const isAccessAuthorized =
-                doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
-                doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
-                    context.actor.getAccountId(),
-                );
-
-            if (!isAccessAuthorized) return {isPrivate: true};
-
-            const title = doc.fields.title?.[0] ?? null;
-            const titleVersion = doc.fields.titleVersion?.[0] ?? null;
-            const docMedia = doc.fields.media?.[0] ?? null;
-
-            const media = docMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, docMedia)
-                : null;
-
-            return {
-                isPrivate: false,
-                id: entityId,
-                title,
-                titleVersion,
-                media,
-            };
-        }),
-    );
+    return commands.map(command => docsById.get(command.id) ?? null);
 });
 
 export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
@@ -2416,9 +2358,74 @@ async function getSearchEntityBaseIfPossible(
 ): Promise<SearchEntityModelBaseResult | null> {
     await authorizeSpaceAccess(context, spaceId);
 
-    return SearchEntityCache.get(context, `${spaceId}:${entityId}`, () => {
-        return context.batch.execute(SearchEntityBatcher, {spaceId, entityId, seen});
+    const doc = await SearchEntityCache.get(context, `${spaceId}:${entityId}`, () => {
+        return context.batch.execute(SearchEntityBatcher, {spaceId, entityId});
     });
+
+    // Make sure the doc we get is from the right space. Providing a `routing`
+    // value to OpenSearch only makes sure our request goes to the right node. If
+    // space A and space B are saved on the same OpenSearch node and an attacker
+    // requests document in space B from their space A then OpenSearch will
+    // return the doc even though the `routing` value doesn't exactly match since
+    // `routing` puts the request on the node that shares space A and space B.
+    //
+    // So for security make sure we check the routing value is exactly equal to our
+    // `SpaceId`!
+    if (doc && doc.routing !== spaceId) {
+        return null;
+    }
+
+    if (!doc) {
+        if (!isSearchMentionEntityId(entityId)) return null;
+
+        // If we couldn't a specific search entity that might be because the search
+        // entity hasn't been indexed in OpenSearch yet. Document indexing, for
+        // example, is throttled since updates to a document happen many times per
+        // minute (even once per keystroke). That means right after a document is
+        // created it won't show up in the OpenSearch index until the throttled
+        // indexing job runs (10s throttle + indexing time).
+        //
+        // Instead of not showing the document to the user in a mention or in the
+        // author's search affinity list (which would be a very bad UX since how else
+        // will the user find documents they just created but accidentally navigated
+        // away from?) we read the document from DynamoDB (where the document will
+        // definitely exist) if the document is not found in the OpenSearch index.
+        //
+        // If the entity WAS found in the OpenSearch index but its access policy
+        // doesn't allow us to read it then we don't check DynamoDB since we expect the
+        // same result.
+        return fallbackGetSearchEntityBaseIfPossible(
+            // Expect strong read consistency since if we can't find the entity in
+            // OpenSearch that implies it was just created so we're running the risk of
+            // eventual consistency lag anyway.
+            context.dynamo.expectStrongReadConsistency(),
+            spaceId,
+            entityId,
+            seen,
+        );
+    }
+
+    const isAccessAuthorized =
+        doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
+        doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(context.actor.getAccountId());
+
+    if (!isAccessAuthorized) return {isPrivate: true};
+
+    const title = doc.fields.title?.[0] ?? null;
+    const titleVersion = doc.fields.titleVersion?.[0] ?? null;
+    const docMedia = doc.fields.media?.[0] ?? null;
+
+    const media = docMedia
+        ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, docMedia)
+        : null;
+
+    return {
+        isPrivate: false,
+        id: entityId,
+        title,
+        titleVersion,
+        media,
+    };
 }
 
 /**
