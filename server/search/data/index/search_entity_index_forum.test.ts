@@ -44,22 +44,10 @@ import {SearchEntityResultModel} from "~/shared/search/search_entity_result_mode
 import {standardSearchOptions} from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
-
-/**
- * Run all timers and any promises passed until `context.process.waitUntil()`
- * until there are no timers or `context.process.waitUntil()` promises.
- */
-async function runAllTimersAndWaitForTestTasks() {
-    await ProcessContextModule.waitForTestTasks();
-
-    while (import.meta.jest.getTimerCount() > 0) {
-        import.meta.jest.runAllTimers();
-        await ProcessContextModule.waitForTestTasks();
-    }
-}
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();

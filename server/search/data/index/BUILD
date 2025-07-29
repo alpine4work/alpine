@@ -11,6 +11,7 @@ ts_project(
         "//server/spaces/test_helpers",
         "//server/spaces/add_account",
         "//server/tasks/test_helpers",
+        "//shared/test_helpers",
     ],
     tests = {
         "search_entity_index_test": {

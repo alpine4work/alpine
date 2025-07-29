@@ -5,6 +5,7 @@ ts_project(
     testonly = True,
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/context",
         "//shared/helpers",
     ],
 )

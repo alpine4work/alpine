@@ -5,6 +5,7 @@ import {FileEntityId, FileEntityIdSchema, isFileEntityId} from "~/shared/files/f
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {isId} from "~/shared/id/id.js";
 import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {
@@ -33,6 +34,13 @@ export const ContentReferencedIdsSchema = Schema.object({
     fileIds: Schema.set(Schema.id<FileId>()),
     fileEntityIds: Schema.set(FileEntityIdSchema),
 });
+
+export const emptyContentReferencedIds: ContentReferencedIds = {
+    accountIds: emptySet,
+    searchEntityIds: emptySet,
+    fileIds: emptySet,
+    fileEntityIds: emptySet,
+};
 
 /**
  * Is the provided `ContentReferencedIds` object empty?

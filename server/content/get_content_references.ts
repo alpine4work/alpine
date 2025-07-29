@@ -109,6 +109,13 @@ export async function getContentReferences(
     // model and again in `printNotificationEventAlertContentBody()` when we print
     // for push notifications.
     //
+    // Another example, when a new message is created our messaging realtime
+    // services need to load the content references from the perspective of
+    // multiple accounts. We call an RPC like `getChatMessageReferences()` multiple
+    // times in a batched request using `/api/rpc/_batchByActor`. In this case,
+    // ideally we want to load the underlying data once and then apply different
+    // permission rules depending on the actor on top of that.
+    //
     // File preloading is not cached. If the caller explicitly opts in with
     // `withPreloadedFiles` then they shouldn't expect results to be cached.
     const [accounts, searchEntities, fileReferences, fileEntities] = await runAllPromises([

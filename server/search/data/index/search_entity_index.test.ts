@@ -70,19 +70,7 @@ import {
 } from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
-
-/**
- * Run all timers and any promises passed until `context.process.waitUntil()`
- * until there are no timers or `context.process.waitUntil()` promises.
- */
-async function runAllTimersAndWaitForTestTasks() {
-    await ProcessContextModule.waitForTestTasks();
-
-    while (import.meta.jest.getTimerCount() > 0) {
-        import.meta.jest.runAllTimers();
-        await ProcessContextModule.waitForTestTasks();
-    }
-}
+import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();

@@ -1,25 +1,43 @@
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+
+export const contextCacheMissTestCounter = new TestCounter<string | number>();
 
 /**
  * A context module used for caching values for the lifetime of a context. Used
  * in conjunction with `ContextCache`.
  */
 export class CacheContextModule extends ContextModuleBase implements ForkableContextModuleBase {
-    private readonly _caches = new DefaultMap<ContextCache<any, any>, Map<any, Promise<any>>>(
-        () => new Map(),
-    );
+    private readonly _sharedCaches: Map<ContextCache<any, any>, Map<any, Promise<any>>> | null =
+        null;
+
+    private readonly _caches = new Map<ContextCache<any, any>, Map<any, Promise<any>>>();
+
+    constructor(sharedCaches: Map<ContextCache<any, any>, Map<any, Promise<any>>> | null = null) {
+        super();
+        this._sharedCaches = sharedCaches;
+    }
 
     /**
      * Get the map storing values for this cache. This should only be called by
      * `ContextCache`. It needs to be public so TypeScript doesn't complain.
      */
-    public _getCacheMap<Key, Value>(cache: ContextCache<Key, Value>): Map<Key, Promise<Value>> {
-        return this._caches.getOrSetDefault(cache);
+    public _getCacheMap<Key extends string | number, Value>(
+        cache: ContextCache<Key, Value>,
+    ): Map<Key, Promise<Value>> {
+        if (cache.whenActorChanges !== "DangerouslyShare") {
+            return getOrSetDefaultMapValue(this._caches, cache, () => new Map());
+        } else {
+            return getOrSetDefaultMapValue(
+                this._sharedCaches ?? this._caches,
+                cache,
+                () => new Map(),
+            );
+        }
     }
 
     public fork() {
@@ -35,14 +53,7 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
      * for more info.
      */
     public forkForChangedActor() {
-        const module = new CacheContextModule();
-
-        for (const [cache, cacheMap] of this._caches) {
-            if (cache.whenActorChanges === "SafelyReset") continue;
-            module._caches.set(cache, cacheMap);
-        }
-
-        return module;
+        return new CacheContextModule(this._sharedCaches ?? this._caches);
     }
 }
 
@@ -52,7 +63,7 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
  *
  * You typically use this to implement caching while serving a single request.
  */
-export class ContextCache<Key, Value> {
+export class ContextCache<Key extends string | number, Value> {
     /**
      * What should happen to the cache when the actor changes? Should we share
      * the cache's contents with the new action or should we reset the cache? The
@@ -88,7 +99,11 @@ export class ContextCache<Key, Value> {
         getDefault: () => Promise<Value>,
     ): Promise<Value> {
         const cacheMap = context.cache._getCacheMap(this);
-        return getOrSetDefaultMapValue(cacheMap, key, () => getDefault());
+
+        return getOrSetDefaultMapValue(cacheMap, key, () => {
+            if (import.meta.jest) contextCacheMissTestCounter.incrementForTest(key);
+            return getDefault();
+        });
     }
 
     /**

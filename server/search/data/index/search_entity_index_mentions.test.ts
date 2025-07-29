@@ -20,7 +20,6 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {
@@ -34,21 +33,9 @@ import {generateId} from "~/shared/id/id.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {SearchMentionEntityId, SearchMentionEntityType} from "~/shared/search/search_entity_id.js";
 import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
-
-/**
- * Run all timers and any promises passed until `context.process.waitUntil()`
- * until there are no timers or `context.process.waitUntil()` promises.
- */
-async function runAllTimersAndWaitForTestTasks() {
-    await ProcessContextModule.waitForTestTasks();
-
-    while (import.meta.jest.getTimerCount() > 0) {
-        import.meta.jest.runAllTimers();
-        await ProcessContextModule.waitForTestTasks();
-    }
-}
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
