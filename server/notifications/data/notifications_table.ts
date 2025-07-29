@@ -103,7 +103,7 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -755,350 +755,363 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 },
             },
             ChatEntry: {
-                async build(context, item) {
-                    const [author, references, {chatAccountCount}, otherChatAccount] =
-                        await runAllPromises([
-                            getAccount(context, item.spaceId, item.latestMessage.authorId),
-                            getMessageContentReferencesForNode(
-                                context,
-                                item.spaceId,
-                                item.latestMessage.contentSnippet,
-                            ),
-                            authorizeChatAccessForAccount(
-                                context,
-                                item.chatId,
-                                item.latestMessage.authorId,
-                            ),
-                            item.otherAccountId
-                                ? getAccount(context, item.spaceId, item.otherAccountId)
-                                : null,
-                        ]);
+                build(context, item) {
+                    return protectInboxEntryModelBuilder(context, item, async context => {
+                        const [author, references, {chatAccountCount}, otherChatAccount] =
+                            await runAllPromises([
+                                getAccount(context, item.spaceId, item.latestMessage.authorId),
+                                getMessageContentReferencesForNode(
+                                    context,
+                                    item.spaceId,
+                                    item.latestMessage.contentSnippet,
+                                ),
+                                authorizeChatAccessForAccount(
+                                    context,
+                                    item.chatId,
+                                    item.latestMessage.authorId,
+                                ),
+                                item.otherAccountId
+                                    ? getAccount(context, item.spaceId, item.otherAccountId)
+                                    : null,
+                            ]);
 
-                    return new InboxChatEntryModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        chatId: item.chatId,
-                        chatAccountCount,
-                        loudNotificationCount: item.loudNotificationCount,
-                        isArchived: item.isArchived,
-                        latestMessage: {
-                            author,
-                            createdTime: item.latestMessage.createdTime,
-                            contentTextSnippet: printContentSingleLineTextSnippetForServer({
-                                doc: item.latestMessage.contentSnippet,
-                                references,
-                            }),
-                            isStickyMention: item.latestMessage.isStickyMention,
-                            clerical: item.latestMessage.clerical,
-                        },
-                        otherChatAccount,
+                        return new InboxChatEntryModel({
+                            spaceId: item.spaceId,
+                            accountId: item.accountId,
+                            chatId: item.chatId,
+                            chatAccountCount,
+                            loudNotificationCount: item.loudNotificationCount,
+                            isArchived: item.isArchived,
+                            latestMessage: {
+                                author,
+                                createdTime: item.latestMessage.createdTime,
+                                contentTextSnippet: printContentSingleLineTextSnippetForServer({
+                                    doc: item.latestMessage.contentSnippet,
+                                    references,
+                                }),
+                                isStickyMention: item.latestMessage.isStickyMention,
+                                clerical: item.latestMessage.clerical,
+                            },
+                            otherChatAccount,
+                        });
                     });
                 },
             },
             PostCommentsEntry: {
-                async build(context, item) {
-                    const [
-                        {hasPostAccess, channel, postAuthor},
-                        latestComment,
-                        otherCommentAuthor,
-                        postContentSnippetIfMentioned,
-                    ] = await runAllPromises([
-                        getPostAuthorAndChannelPreviewIfPossible(context, item.postId).then(
-                            async postResult => {
-                                // We expect the post referenced by our `PostCommentsEntry` to exist.
-                                assert(postResult);
+                build(context, item) {
+                    return protectInboxEntryModelBuilder(context, item, async context => {
+                        const [
+                            {hasPostAccess, channel, postAuthor},
+                            latestComment,
+                            otherCommentAuthor,
+                            postContentSnippetIfMentioned,
+                        ] = await runAllPromises([
+                            getPostAuthorAndChannelPreviewIfPossible(context, item.postId).then(
+                                async postResult => {
+                                    // We expect the post referenced by our `PostCommentsEntry` to exist.
+                                    assert(postResult);
 
-                                if (postResult.ok) {
-                                    return {
-                                        hasPostAccess: true,
-                                        channel: {
-                                            isPrivate: false as const,
-                                            channel: postResult.value.channel,
-                                        },
-                                        postAuthor: postResult.value.author,
-                                    };
-                                } else {
-                                    return {
-                                        hasPostAccess: false,
-                                        channel: {isPrivate: true as const},
-                                        // If an account has `PostCommentsEntry` in their inbox then that means at one
-                                        // point in time they had access to the post and were subscribed to the post.
-                                        // And at one point in time they knew who the post author was. Given the post
-                                        // author never changes we're ok showing the actor the post author again even
-                                        // though they've lost access to the post.
-                                        //
-                                        // That way the inbox entry retains some structure even after the account has
-                                        // lost access to the channel a post was in.
-                                        postAuthor:
-                                            await dangerouslyGetPostAuthorWithoutAuthorization(
-                                                context,
-                                                item.postId,
-                                            ),
-                                    };
-                                }
-                            },
-                        ),
-                        item.latestComment
-                            ? runAllObjectPromises({
-                                  comment: item.latestComment,
-                                  author: getAccount(
-                                      context,
-                                      item.spaceId,
-                                      item.latestComment.authorId,
-                                  ),
-                                  references: getMessageContentReferencesForNode(
-                                      context,
-                                      item.spaceId,
-                                      item.latestComment.contentSnippet,
-                                  ),
-                              })
-                            : null,
-                        item.otherCommentAuthorId
-                            ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
-                            : null,
-                        item.postContentSnippetIfMentioned
-                            ? runAllObjectPromises({
-                                  doc: item.postContentSnippetIfMentioned,
-                                  references: getContentReferencesForNode(
-                                      context,
-                                      item.spaceId,
-                                      FilePostAuthorizer.bind({type: "Post", postId: item.postId}),
-                                      item.postContentSnippetIfMentioned,
-                                  ),
-                              })
-                            : null,
-                    ]);
-
-                    return new InboxPostCommentsEntryModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        postId: item.postId,
-                        channel,
-                        postAuthor,
-                        loudNotificationCount: item.loudNotificationCount,
-                        isArchived: item.isArchived,
-                        postCreatedTime: item.postCreatedTime,
-                        postContentTextSnippetIfMentioned:
-                            // If the actor lost access to the post then don't show them the post content
-                            // snippet. They may have already seen this content in a push notification so
-                            // it's not necessarily a permissions violation to show it again but a user
-                            // removing another user's access from a channel would probably expect the
-                            // content to be hidden.
-                            hasPostAccess && postContentSnippetIfMentioned
-                                ? printContentSingleLineTextSnippetForServer(
-                                      postContentSnippetIfMentioned,
-                                  )
+                                    if (postResult.ok) {
+                                        return {
+                                            hasPostAccess: true,
+                                            channel: {
+                                                isPrivate: false as const,
+                                                channel: postResult.value.channel,
+                                            },
+                                            postAuthor: postResult.value.author,
+                                        };
+                                    } else {
+                                        return {
+                                            hasPostAccess: false,
+                                            channel: {isPrivate: true as const},
+                                            // If an account has `PostCommentsEntry` in their inbox then that means at one
+                                            // point in time they had access to the post and were subscribed to the post.
+                                            // And at one point in time they knew who the post author was. Given the post
+                                            // author never changes we're ok showing the actor the post author again even
+                                            // though they've lost access to the post.
+                                            //
+                                            // That way the inbox entry retains some structure even after the account has
+                                            // lost access to the channel a post was in.
+                                            postAuthor:
+                                                await dangerouslyGetPostAuthorWithoutAuthorization(
+                                                    context,
+                                                    item.postId,
+                                                ),
+                                        };
+                                    }
+                                },
+                            ),
+                            item.latestComment
+                                ? runAllObjectPromises({
+                                      comment: item.latestComment,
+                                      author: getAccount(
+                                          context,
+                                          item.spaceId,
+                                          item.latestComment.authorId,
+                                      ),
+                                      references: getMessageContentReferencesForNode(
+                                          context,
+                                          item.spaceId,
+                                          item.latestComment.contentSnippet,
+                                      ),
+                                  })
                                 : null,
-                        latestComment: latestComment
-                            ? {
-                                  author: latestComment.author,
-                                  createdTime: latestComment.comment.createdTime,
-                                  contentTextSnippet: hasPostAccess
-                                      ? // If the actor lost access to the post then don't show them the latest comment
-                                        // snippet. They may have already seen this content in a push notification so
-                                        // it's not necessarily a permissions violation to show it again but a user
-                                        // removing another user's access from a channel would probably expect the
-                                        // content to be hidden.
-                                        //
-                                        // We continue returning the author, created time, and whether the last comment
-                                        // was a mention because the user has already theoretically seen these things
-                                        // (via push notification) and otherwise the notification loses all structure.
-                                        printContentSingleLineTextSnippetForServer({
-                                            doc: latestComment.comment.contentSnippet,
-                                            references: latestComment.references,
-                                        })
-                                      : "",
-                                  isStickyMention: latestComment.comment.isStickyMention,
-                              }
-                            : null,
-                        otherCommentAuthor,
+                            item.otherCommentAuthorId
+                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                                : null,
+                            item.postContentSnippetIfMentioned
+                                ? runAllObjectPromises({
+                                      doc: item.postContentSnippetIfMentioned,
+                                      references: getContentReferencesForNode(
+                                          context,
+                                          item.spaceId,
+                                          FilePostAuthorizer.bind({
+                                              type: "Post",
+                                              postId: item.postId,
+                                          }),
+                                          item.postContentSnippetIfMentioned,
+                                      ),
+                                  })
+                                : null,
+                        ]);
+
+                        return new InboxPostCommentsEntryModel({
+                            spaceId: item.spaceId,
+                            accountId: item.accountId,
+                            postId: item.postId,
+                            channel,
+                            postAuthor,
+                            loudNotificationCount: item.loudNotificationCount,
+                            isArchived: item.isArchived,
+                            postCreatedTime: item.postCreatedTime,
+                            postContentTextSnippetIfMentioned:
+                                // If the actor lost access to the post then don't show them the post content
+                                // snippet. They may have already seen this content in a push notification so
+                                // it's not necessarily a permissions violation to show it again but a user
+                                // removing another user's access from a channel would probably expect the
+                                // content to be hidden.
+                                hasPostAccess && postContentSnippetIfMentioned
+                                    ? printContentSingleLineTextSnippetForServer(
+                                          postContentSnippetIfMentioned,
+                                      )
+                                    : null,
+                            latestComment: latestComment
+                                ? {
+                                      author: latestComment.author,
+                                      createdTime: latestComment.comment.createdTime,
+                                      contentTextSnippet: hasPostAccess
+                                          ? // If the actor lost access to the post then don't show them the latest comment
+                                            // snippet. They may have already seen this content in a push notification so
+                                            // it's not necessarily a permissions violation to show it again but a user
+                                            // removing another user's access from a channel would probably expect the
+                                            // content to be hidden.
+                                            //
+                                            // We continue returning the author, created time, and whether the last comment
+                                            // was a mention because the user has already theoretically seen these things
+                                            // (via push notification) and otherwise the notification loses all structure.
+                                            printContentSingleLineTextSnippetForServer({
+                                                doc: latestComment.comment.contentSnippet,
+                                                references: latestComment.references,
+                                            })
+                                          : "",
+                                      isStickyMention: latestComment.comment.isStickyMention,
+                                  }
+                                : null,
+                            otherCommentAuthor,
+                        });
                     });
                 },
             },
             ChannelPostsEntry: {
-                async build(context, item) {
-                    const otherPostAuthorId = iterableFind(
-                        item.postAuthorIds,
-                        accountId => accountId !== item.latestPost.authorId,
-                    );
+                build(context, item) {
+                    return protectInboxEntryModelBuilder(context, item, async context => {
+                        const otherPostAuthorId = iterableFind(
+                            item.postAuthorIds,
+                            accountId => accountId !== item.latestPost.authorId,
+                        );
 
-                    const [
-                        channelResult,
-                        latestPostAuthor,
-                        latestPostContentSnippetReferences,
-                        otherPostAuthor,
-                    ] = await runAllPromises([
-                        getChannelPreviewIfPossible(context, item.channelId),
-                        getAccount(context, item.spaceId, item.latestPost.authorId),
-                        getContentReferencesForNode(
-                            context,
-                            item.spaceId,
-                            FilePostAuthorizer.bind({
-                                type: "Post",
-                                // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
-                                // this date. So if we have a channel posts entry where `postId` is null then
-                                // use the first post in `item.postIds` and hope it's right. Getting this wrong
-                                // shouldn't matter since posts created before this date also won't have
-                                // attached files since files weren't implemented yet.
-                                postId:
-                                    item.latestPost.postId ??
-                                    assertExists(iterableFirst(item.postIds)),
-                            }),
-                            item.latestPost.contentSnippet,
-                        ),
-                        otherPostAuthorId
-                            ? getAccount(context, item.spaceId, otherPostAuthorId)
-                            : null,
-                    ]);
+                        const [
+                            channelResult,
+                            latestPostAuthor,
+                            latestPostContentSnippetReferences,
+                            otherPostAuthor,
+                        ] = await runAllPromises([
+                            getChannelPreviewIfPossible(context, item.channelId),
+                            getAccount(context, item.spaceId, item.latestPost.authorId),
+                            getContentReferencesForNode(
+                                context,
+                                item.spaceId,
+                                FilePostAuthorizer.bind({
+                                    type: "Post",
+                                    // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
+                                    // this date. So if we have a channel posts entry where `postId` is null then
+                                    // use the first post in `item.postIds` and hope it's right. Getting this wrong
+                                    // shouldn't matter since posts created before this date also won't have
+                                    // attached files since files weren't implemented yet.
+                                    postId:
+                                        item.latestPost.postId ??
+                                        assertExists(iterableFirst(item.postIds)),
+                                }),
+                                item.latestPost.contentSnippet,
+                            ),
+                            otherPostAuthorId
+                                ? getAccount(context, item.spaceId, otherPostAuthorId)
+                                : null,
+                        ]);
 
-                    // Channel must exist if we have a `ChannelPostsEntry` in our inbox.
-                    assert(channelResult);
+                        // Channel must exist if we have a `ChannelPostsEntry` in our inbox.
+                        assert(channelResult);
 
-                    return new InboxChannelPostsEntryModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        loudNotificationCount: item.loudNotificationCount,
-                        isArchived: item.isArchived,
-                        channel: channelResult.value
-                            ? {isPrivate: false, channel: channelResult.value}
-                            : {isPrivate: true, channelId: item.channelId},
-                        bucketGeneration: item.bucketGeneration,
-                        postCount: item.postIds.size,
-                        postAuthorCount: item.postAuthorIds.size,
-                        latestPost: {
-                            author: latestPostAuthor,
-                            createdTime: item.latestPost.createdTime,
-                            contentTextSnippet: channelResult.ok
-                                ? printContentSingleLineTextSnippetForServer({
-                                      doc: item.latestPost.contentSnippet,
-                                      references: latestPostContentSnippetReferences,
-                                  })
-                                : "",
-                        },
-                        otherPostAuthor,
+                        return new InboxChannelPostsEntryModel({
+                            spaceId: item.spaceId,
+                            accountId: item.accountId,
+                            loudNotificationCount: item.loudNotificationCount,
+                            isArchived: item.isArchived,
+                            channel: channelResult.value
+                                ? {isPrivate: false, channel: channelResult.value}
+                                : {isPrivate: true, channelId: item.channelId},
+                            bucketGeneration: item.bucketGeneration,
+                            postCount: item.postIds.size,
+                            postAuthorCount: item.postAuthorIds.size,
+                            latestPost: {
+                                author: latestPostAuthor,
+                                createdTime: item.latestPost.createdTime,
+                                contentTextSnippet: channelResult.ok
+                                    ? printContentSingleLineTextSnippetForServer({
+                                          doc: item.latestPost.contentSnippet,
+                                          references: latestPostContentSnippetReferences,
+                                      })
+                                    : "",
+                            },
+                            otherPostAuthor,
+                        });
                     });
                 },
             },
             DocumentCommentThreadEntry: {
-                async build(context, item) {
-                    const [
-                        documentResult,
-                        firstCommentAuthor,
-                        latestCommentAuthor,
-                        latestCommentContentSnippetReferences,
-                        otherCommentAuthor,
-                    ] = await runAllPromises([
-                        getDocumentPreviewIfPossible(context, item.documentId),
-                        getAccount(context, item.spaceId, item.firstCommentAuthorId),
-                        getAccount(context, item.spaceId, item.latestComment.authorId),
-                        getMessageContentReferencesForNode(
-                            context,
-                            item.spaceId,
-                            item.latestComment.contentSnippet,
-                        ),
-                        item.otherCommentAuthorId
-                            ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
-                            : null,
-                    ]);
+                build(context, item) {
+                    return protectInboxEntryModelBuilder(context, item, async context => {
+                        const [
+                            documentResult,
+                            firstCommentAuthor,
+                            latestCommentAuthor,
+                            latestCommentContentSnippetReferences,
+                            otherCommentAuthor,
+                        ] = await runAllPromises([
+                            getDocumentPreviewIfPossible(context, item.documentId),
+                            getAccount(context, item.spaceId, item.firstCommentAuthorId),
+                            getAccount(context, item.spaceId, item.latestComment.authorId),
+                            getMessageContentReferencesForNode(
+                                context,
+                                item.spaceId,
+                                item.latestComment.contentSnippet,
+                            ),
+                            item.otherCommentAuthorId
+                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                                : null,
+                        ]);
 
-                    // The document referenced by our inbox entry must exist. Even after deleting
-                    // documents we leave a stub.
-                    assert(documentResult);
+                        // The document referenced by our inbox entry must exist. Even after deleting
+                        // documents we leave a stub.
+                        assert(documentResult);
 
-                    return new InboxDocumentCommentThreadEntryModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        loudNotificationCount: item.loudNotificationCount,
-                        isArchived: item.isArchived,
-                        document: documentResult.ok
-                            ? {isPrivate: false, document: documentResult.value}
-                            : {isPrivate: true, documentId: item.documentId},
-                        commentThreadId: item.commentThreadId,
-                        firstCommentAuthor,
-                        latestComment: {
-                            author: latestCommentAuthor,
-                            createdTime: item.latestComment.createdTime,
-                            contentTextSnippet: documentResult.ok
-                                ? // If the actor lost access to the document then don't show them the latest
-                                  // comment snippet. They may have already seen this content in a push
-                                  // notification so it's not necessarily a permissions violation to show it
-                                  // again but a user removing another user's access from a document would
-                                  // probably expect the content to be hidden.
-                                  //
-                                  // We continue returning the author, created time, and whether the last comment
-                                  // was a mention because the user has already theoretically seen these things
-                                  // (via push notification) and otherwise the notification loses all structure.
-                                  printContentSingleLineTextSnippetForServer({
-                                      doc: item.latestComment.contentSnippet,
-                                      references: latestCommentContentSnippetReferences,
-                                  })
-                                : "",
-                            isStickyMention: item.latestComment.isStickyMention,
-                        },
-                        otherCommentAuthor,
+                        return new InboxDocumentCommentThreadEntryModel({
+                            spaceId: item.spaceId,
+                            accountId: item.accountId,
+                            loudNotificationCount: item.loudNotificationCount,
+                            isArchived: item.isArchived,
+                            document: documentResult.ok
+                                ? {isPrivate: false, document: documentResult.value}
+                                : {isPrivate: true, documentId: item.documentId},
+                            commentThreadId: item.commentThreadId,
+                            firstCommentAuthor,
+                            latestComment: {
+                                author: latestCommentAuthor,
+                                createdTime: item.latestComment.createdTime,
+                                contentTextSnippet: documentResult.ok
+                                    ? // If the actor lost access to the document then don't show them the latest
+                                      // comment snippet. They may have already seen this content in a push
+                                      // notification so it's not necessarily a permissions violation to show it
+                                      // again but a user removing another user's access from a document would
+                                      // probably expect the content to be hidden.
+                                      //
+                                      // We continue returning the author, created time, and whether the last comment
+                                      // was a mention because the user has already theoretically seen these things
+                                      // (via push notification) and otherwise the notification loses all structure.
+                                      printContentSingleLineTextSnippetForServer({
+                                          doc: item.latestComment.contentSnippet,
+                                          references: latestCommentContentSnippetReferences,
+                                      })
+                                    : "",
+                                isStickyMention: item.latestComment.isStickyMention,
+                            },
+                            otherCommentAuthor,
+                        });
                     });
                 },
             },
             DocumentNewCommentThreadsEntry: {
-                async build(context, item) {
-                    const otherCommentThreadAuthorId = iterableFind(
-                        item.commentThreadAuthorIds,
-                        accountId => accountId !== item.firstComment.authorId,
-                    );
+                build(context, item) {
+                    return protectInboxEntryModelBuilder(context, item, async context => {
+                        const otherCommentThreadAuthorId = iterableFind(
+                            item.commentThreadAuthorIds,
+                            accountId => accountId !== item.firstComment.authorId,
+                        );
 
-                    const [
-                        documentResult,
-                        firstCommentAuthor,
-                        firstCommentContentSnippetReferences,
-                        otherCommentThreadAuthor,
-                    ] = await runAllPromises([
-                        getDocumentPreviewIfPossible(context, item.documentId),
-                        getAccount(context, item.spaceId, item.firstComment.authorId),
-                        getMessageContentReferencesForNode(
-                            context,
-                            item.spaceId,
-                            item.firstComment.contentSnippet,
-                        ),
-                        otherCommentThreadAuthorId
-                            ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
-                            : null,
-                    ]);
+                        const [
+                            documentResult,
+                            firstCommentAuthor,
+                            firstCommentContentSnippetReferences,
+                            otherCommentThreadAuthor,
+                        ] = await runAllPromises([
+                            getDocumentPreviewIfPossible(context, item.documentId),
+                            getAccount(context, item.spaceId, item.firstComment.authorId),
+                            getMessageContentReferencesForNode(
+                                context,
+                                item.spaceId,
+                                item.firstComment.contentSnippet,
+                            ),
+                            otherCommentThreadAuthorId
+                                ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
+                                : null,
+                        ]);
 
-                    // The document referenced by our inbox entry must exist. Even after deleting
-                    // documents we leave a stub.
-                    assert(documentResult);
+                        // The document referenced by our inbox entry must exist. Even after deleting
+                        // documents we leave a stub.
+                        assert(documentResult);
 
-                    return new InboxDocumentNewCommentThreadsEntryModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        loudNotificationCount: item.loudNotificationCount,
-                        isArchived: item.isArchived,
-                        document: documentResult.ok
-                            ? {isPrivate: false, document: documentResult.value}
-                            : {isPrivate: true, documentId: item.documentId},
-                        bucketGeneration: item.bucketGeneration,
-                        commentThreadCount: item.commentThreadIds.size,
-                        commentThreadAuthorCount: item.commentThreadAuthorIds.size,
-                        firstComment: {
-                            author: firstCommentAuthor,
-                            createdTime: item.firstComment.createdTime,
-                            contentTextSnippet: documentResult.ok
-                                ? // If the actor lost access to the document then don't show them the latest
-                                  // comment snippet. They may have already seen this content in a push
-                                  // notification so it's not necessarily a permissions violation to show it
-                                  // again but a user removing another user's access from a document would
-                                  // probably expect the content to be hidden.
-                                  //
-                                  // We continue returning the author, created time, and whether the last comment
-                                  // was a mention because the user has already theoretically seen these things
-                                  // (via push notification) and otherwise the notification loses all structure.
-                                  printContentSingleLineTextSnippetForServer({
-                                      doc: item.firstComment.contentSnippet,
-                                      references: firstCommentContentSnippetReferences,
-                                  })
-                                : "",
-                        },
-                        otherCommentThreadAuthor,
+                        return new InboxDocumentNewCommentThreadsEntryModel({
+                            spaceId: item.spaceId,
+                            accountId: item.accountId,
+                            loudNotificationCount: item.loudNotificationCount,
+                            isArchived: item.isArchived,
+                            document: documentResult.ok
+                                ? {isPrivate: false, document: documentResult.value}
+                                : {isPrivate: true, documentId: item.documentId},
+                            bucketGeneration: item.bucketGeneration,
+                            commentThreadCount: item.commentThreadIds.size,
+                            commentThreadAuthorCount: item.commentThreadAuthorIds.size,
+                            firstComment: {
+                                author: firstCommentAuthor,
+                                createdTime: item.firstComment.createdTime,
+                                contentTextSnippet: documentResult.ok
+                                    ? // If the actor lost access to the document then don't show them the latest
+                                      // comment snippet. They may have already seen this content in a push
+                                      // notification so it's not necessarily a permissions violation to show it
+                                      // again but a user removing another user's access from a document would
+                                      // probably expect the content to be hidden.
+                                      //
+                                      // We continue returning the author, created time, and whether the last comment
+                                      // was a mention because the user has already theoretically seen these things
+                                      // (via push notification) and otherwise the notification loses all structure.
+                                      printContentSingleLineTextSnippetForServer({
+                                          doc: item.firstComment.contentSnippet,
+                                          references: firstCommentContentSnippetReferences,
+                                      })
+                                    : "",
+                            },
+                            otherCommentThreadAuthor,
+                        });
                     });
                 },
             },
@@ -1106,61 +1119,63 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             // The Task owner object is either the assignee or creator of the task. Since
             // tasks can be reassigned the "owner" of the task can constantly change over time.
             TaskEntry: {
-                async build(context, item) {
-                    const [taskOwnerResult, latestComment, otherCommentAuthor] =
-                        await runAllPromises([
-                            getTaskOwnerIfPossible(context, item.taskId),
-                            runAllObjectPromises({
-                                comment: item.latestComment,
-                                author: getAccount(
-                                    context,
-                                    item.spaceId,
-                                    item.latestComment.authorId,
-                                ),
-                                references: getMessageContentReferencesForNode(
-                                    context,
-                                    item.spaceId,
-                                    item.latestComment.contentSnippet,
-                                ),
-                            }),
-                            item.otherCommentAuthorId
-                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
-                                : null,
-                        ]);
+                build(context, item) {
+                    return protectInboxEntryModelBuilder(context, item, async context => {
+                        const [taskOwnerResult, latestComment, otherCommentAuthor] =
+                            await runAllPromises([
+                                getTaskOwnerIfPossible(context, item.taskId),
+                                runAllObjectPromises({
+                                    comment: item.latestComment,
+                                    author: getAccount(
+                                        context,
+                                        item.spaceId,
+                                        item.latestComment.authorId,
+                                    ),
+                                    references: getMessageContentReferencesForNode(
+                                        context,
+                                        item.spaceId,
+                                        item.latestComment.contentSnippet,
+                                    ),
+                                }),
+                                item.otherCommentAuthorId
+                                    ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                                    : null,
+                            ]);
 
-                    return new InboxTaskEntryModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        task: !taskOwnerResult.ok
-                            ? {isPrivate: true, taskId: item.taskId}
-                            : {
-                                  isPrivate: false,
-                                  taskId: item.taskId,
-                                  taskOwner: taskOwnerResult.value,
-                              },
-                        loudNotificationCount: item.loudNotificationCount,
-                        isArchived: item.isArchived,
-                        latestComment: {
-                            author: latestComment.author,
-                            createdTime: latestComment.comment.createdTime,
-                            contentTextSnippet: taskOwnerResult.ok
-                                ? // If the actor lost access to the task then don't show them the latest
-                                  // comment snippet. They may have already seen this content in a push
-                                  // notification so it's not necessarily a permissions violation to show it
-                                  // again but a user removing another user's access from a task would
-                                  // probably expect the content to be hidden.
-                                  //
-                                  // We continue returning the author, created time, and whether the last comment
-                                  // was a mention because the user has already theoretically seen these things
-                                  // (via push notification) and otherwise the notification loses all structure.
-                                  printContentSingleLineTextSnippetForServer({
-                                      doc: latestComment.comment.contentSnippet,
-                                      references: latestComment.references,
-                                  })
-                                : "",
-                            isStickyMention: latestComment.comment.isStickyMention,
-                        },
-                        otherCommentAuthor,
+                        return new InboxTaskEntryModel({
+                            spaceId: item.spaceId,
+                            accountId: item.accountId,
+                            task: !taskOwnerResult.ok
+                                ? {isPrivate: true, taskId: item.taskId}
+                                : {
+                                      isPrivate: false,
+                                      taskId: item.taskId,
+                                      taskOwner: taskOwnerResult.value,
+                                  },
+                            loudNotificationCount: item.loudNotificationCount,
+                            isArchived: item.isArchived,
+                            latestComment: {
+                                author: latestComment.author,
+                                createdTime: latestComment.comment.createdTime,
+                                contentTextSnippet: taskOwnerResult.ok
+                                    ? // If the actor lost access to the task then don't show them the latest
+                                      // comment snippet. They may have already seen this content in a push
+                                      // notification so it's not necessarily a permissions violation to show it
+                                      // again but a user removing another user's access from a task would
+                                      // probably expect the content to be hidden.
+                                      //
+                                      // We continue returning the author, created time, and whether the last comment
+                                      // was a mention because the user has already theoretically seen these things
+                                      // (via push notification) and otherwise the notification loses all structure.
+                                      printContentSingleLineTextSnippetForServer({
+                                          doc: latestComment.comment.contentSnippet,
+                                          references: latestComment.references,
+                                      })
+                                    : "",
+                                isStickyMention: latestComment.comment.isStickyMention,
+                            },
+                            otherCommentAuthor,
+                        });
                     });
                 },
             },
@@ -1211,6 +1226,44 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
         );
     },
 });
+
+/**
+ * When you're building an `InboxEntryModel` it should be with an actor
+ * representing the account the inbox entry is for to make sure we don't
+ * include data the account with access to the inbox isn't allowed to see!
+ *
+ * This function throws an error if the wrong account is trying to access an
+ * inbox entry and if we have a system actor (e.g. while processing
+ * the notification event job) then we impersonate the account associated with
+ * the inbox entry to avoid loading data with a system permission level.
+ */
+function protectInboxEntryModelBuilder<Value>(
+    context: ServerContentActionContext,
+    {accountId}: {accountId: AccountId},
+    action: (context: ServerContentActionContext) => Promise<Value>,
+): Promise<Value> {
+    switch (context.actor.type) {
+        case "Anonymous": {
+            throw new PermissionDeniedError("Can’t read inbox as an anonymous actor");
+        }
+        case "System": {
+            return impersonateAccountAsSystemContext(
+                context.actor.authorizeSystem(),
+                accountId,
+                action,
+            );
+        }
+        case "Session":
+        case "ImpersonatedAccount": {
+            if (context.actor.getAccountId() !== accountId) {
+                throw new PermissionDeniedError("Can only read inbox for our own account");
+            }
+            return action(context);
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+}
 
 const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "ChatEntry"},

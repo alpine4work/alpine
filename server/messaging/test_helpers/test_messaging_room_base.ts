@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {
     TestContext,
     TestSessionActionContext,
@@ -11,6 +12,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
+    assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 
@@ -67,7 +69,7 @@ export abstract class TestMessagingRoomBase {
 
     protected async _actuallyCreateMessage(
         session: TestSession,
-        content: string | MessageContent = (
+        content: string | Node = (
             this.constructor as typeof TestMessagingRoomBase
         ).createDefaultMessageContent(),
         {parent, files}: TestMessagingRoomCreateMessageOptions = {},
@@ -85,7 +87,10 @@ export abstract class TestMessagingRoomBase {
 
         const {index, createdTime} = await this._createMessage(session.action(), {
             parentMessageIndex: parent?.index ?? null,
-            content: typeof content === "string" ? createSimpleMessageContent(content) : content,
+            content:
+                typeof content === "string"
+                    ? createSimpleMessageContent(content)
+                    : assertMessageContent(content),
             fileIds: files
                 ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                 : [],
@@ -98,7 +103,7 @@ export abstract class TestMessagingRoomBase {
 export abstract class TestMessageRoomBase extends TestMessagingRoomBase {
     public sendMessage(
         session: TestSession,
-        content?: string | MessageContent,
+        content?: string | Node,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {
         return this._actuallyCreateMessage(session, content, options);
@@ -112,7 +117,7 @@ export abstract class TestCommentRoomBase extends TestMessageRoomBase {
 
     public createComment(
         session: TestSession,
-        content?: string | MessageContent,
+        content?: string | Node,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {
         return this._actuallyCreateMessage(session, content, options);

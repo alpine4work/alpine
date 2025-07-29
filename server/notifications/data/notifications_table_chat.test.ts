@@ -1,8 +1,11 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {processSendShareNotificationJob} from "~/server/chat/data/chat_table.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {isServerActionContext} from "~/server/context/is_server_action_context.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {
     archiveInboxEntry,
     getInboxEntries,
@@ -20,18 +23,24 @@ import {
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
-    MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
     emptyMessageContent,
+    MessageContentProsemirrorSchema as schema,
 } from "~/shared/messaging/message_content_schema.js";
-import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxChatEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
+import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
@@ -67,6 +76,33 @@ const context = createTestContext({
         } else {
             // Noop for other jobs...
         }
+    },
+    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
+        const entityIdObject = parseSearchDynamicEntityId(entityId);
+        if (entityIdObject.type !== "Document") {
+            throw new UnimplementedError(
+                quote`Loading search entity for ${entityIdObject.type} is unimplemented`,
+            );
+        }
+
+        assert(isServerActionContext(context));
+
+        const documentResult = await getDocumentPreviewIfPossible(
+            context,
+            entityIdObject.documentId,
+        );
+        if (!documentResult) return null;
+        if (!documentResult.ok) return {isPrivate: true};
+
+        return {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                id: entityId,
+                title: documentResult.value.getTitle(),
+                titleVersion: {type: "Integer", version: documentResult.value.version},
+                media: null,
+            }),
+        };
     },
 });
 
@@ -3947,10 +3983,10 @@ for (const [currentProcessingType, processingMultiple] of [
             const message4 = await chat.sendMessage(
                 session1,
                 assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Test comment 4 "),
-                            MessageContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Test comment 4 "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: session2.account.id,
@@ -4050,10 +4086,10 @@ for (const [currentProcessingType, processingMultiple] of [
             const message7 = await chat.sendMessage(
                 session1,
                 assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Test comment 7 "),
-                            MessageContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Test comment 7 "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: session2.account.id,
@@ -4291,10 +4327,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 notification: {
                     accountIds: [session2.account.id],
                     content: assertMessageContent(
-                        MessageContentProsemirrorSchema.node("doc", null, [
-                            MessageContentProsemirrorSchema.node("paragraph", null, [
-                                MessageContentProsemirrorSchema.text("Hello "),
-                                MessageContentProsemirrorSchema.node("mention", {
+                        schema.node("doc", null, [
+                            schema.node("paragraph", null, [
+                                schema.text("Hello "),
+                                schema.node("mention", {
                                     mention: cast<ContentMention>({
                                         type: "Account",
                                         accountId: session2.account.id,
@@ -4530,16 +4566,12 @@ for (const [currentProcessingType, processingMultiple] of [
             const message1 = await chat.sendMessage(
                 scenario.session2,
                 assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Yes"),
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [schema.text("Yes")]),
+                        schema.node("paragraph", {}, [
+                            schema.text("But actually this other thing"),
                         ]),
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("But actually this other thing"),
-                        ]),
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("And one final thing!"),
-                        ]),
+                        schema.node("paragraph", {}, [schema.text("And one final thing!")]),
                     ]),
                 ),
             );
@@ -4584,13 +4616,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const message2 = await chat.sendMessage(
                 scenario.session2,
                 assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Yes"),
-                        ]),
-                        MessageContentProsemirrorSchema.node("paragraph", {}, []),
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("But actually this other thing"),
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [schema.text("Yes")]),
+                        schema.node("paragraph", {}, []),
+                        schema.node("paragraph", {}, [
+                            schema.text("But actually this other thing"),
                         ]),
                     ]),
                 ),
@@ -4631,6 +4661,202 @@ for (const [currentProcessingType, processingMultiple] of [
                     afterCursor: null,
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
+        });
+
+        test("private entity in mention isn’t included in chat notification", async () => {
+            const space = await TestSpace.create(context);
+
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const chat = await TestChat.get(session1, session2, session3);
+            const document = await TestDocument.create(session2, {title: "TOP SECRET"});
+
+            const message = await chat.sendMessage(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Can you see this? "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: `Document:${document.id}`,
+                            }),
+                        }),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 3,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        author: await session1.get(),
+                        createdTime: message.createdTime,
+                        contentTextSnippet: "Can you see this? TOP SECRET",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: expect.any(AccountModel),
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(session3.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session3.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 3,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        author: await session1.get(),
+                        createdTime: message.createdTime,
+                        contentTextSnippet: "Can you see this? Private document",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: expect.any(AccountModel),
+                }),
+            ]);
+
+            expect(
+                new Map(
+                    filterMapArray(
+                        TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts(),
+                        ({url, body = {}}) => {
+                            const match = url.match(
+                                /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
+                            );
+                            if (!match) return;
+
+                            // Ignore any realtime updates `session1` received.
+                            if (match[1] === session1.account.id) return;
+
+                            return [
+                                match[1],
+                                MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
+                                    body,
+                                ),
+                            ];
+                        },
+                    ),
+                ),
+            ).toEqual(
+                new Map([
+                    [
+                        session2.account.id,
+                        {
+                            readTime: expect.any(Date),
+                            eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxModel({
+                                            spaceId: space.id,
+                                            accountId: session2.account.id,
+                                            loudNotificationCount: 1,
+                                            entryCount: 1,
+                                            lastZeroEntryCountTime: null,
+                                        }),
+                                    },
+                                },
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxChatEntryModel({
+                                            isArchived: false,
+                                            spaceId: space.id,
+                                            accountId: session2.account.id,
+                                            chatId: chat.id,
+                                            chatAccountCount: 3,
+                                            loudNotificationCount: 1,
+                                            latestMessage: {
+                                                author: await session1.get(),
+                                                createdTime: message.createdTime,
+                                                contentTextSnippet: "Can you see this? TOP SECRET",
+                                                isStickyMention: false,
+                                            },
+                                            otherChatAccount: expect.any(AccountModel),
+                                        }),
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                    [
+                        session3.account.id,
+                        {
+                            readTime: expect.any(Date),
+                            eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxModel({
+                                            spaceId: space.id,
+                                            accountId: session3.account.id,
+                                            loudNotificationCount: 1,
+                                            entryCount: 1,
+                                            lastZeroEntryCountTime: null,
+                                        }),
+                                    },
+                                },
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxChatEntryModel({
+                                            isArchived: false,
+                                            spaceId: space.id,
+                                            accountId: session3.account.id,
+                                            chatId: chat.id,
+                                            chatAccountCount: 3,
+                                            loudNotificationCount: 1,
+                                            latestMessage: {
+                                                author: await session1.get(),
+                                                createdTime: message.createdTime,
+                                                contentTextSnippet:
+                                                    "Can you see this? Private document",
+                                                isStickyMention: false,
+                                            },
+                                            otherChatAccount: expect.any(AccountModel),
+                                        }),
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                ]),
+            );
         });
     });
 }

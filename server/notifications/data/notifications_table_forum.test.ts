@@ -1,7 +1,11 @@
 import {addMinutes, subMinutes} from "date-fns";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {isServerActionContext} from "~/server/context/is_server_action_context.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {subscribeToChannel} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
@@ -29,15 +33,18 @@ import {getSpaceAccountsCacheForTest, removeSpaceAccount} from "~/server/spaces/
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
-    PostContentProsemirrorSchema,
     assertPostContent,
+    PostContentProsemirrorSchema as schema,
 } from "~/shared/forum/post_content_schema.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -48,6 +55,10 @@ import {
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
+import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
@@ -82,6 +93,33 @@ const context = createTestContext({
         } else {
             // Noop for other jobs...
         }
+    },
+    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
+        const entityIdObject = parseSearchDynamicEntityId(entityId);
+        if (entityIdObject.type !== "Document") {
+            throw new UnimplementedError(
+                quote`Loading search entity for ${entityIdObject.type} is unimplemented`,
+            );
+        }
+
+        assert(isServerActionContext(context));
+
+        const documentResult = await getDocumentPreviewIfPossible(
+            context,
+            entityIdObject.documentId,
+        );
+        if (!documentResult) return null;
+        if (!documentResult.ok) return {isPrivate: true};
+
+        return {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                id: entityId,
+                title: documentResult.value.getTitle(),
+                titleVersion: {type: "Integer", version: documentResult.value.version},
+                media: null,
+            }),
+        };
     },
 });
 
@@ -8228,17 +8266,17 @@ for (const [currentProcessingType, processingMultiple] of [
             await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session1.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -8247,17 +8285,17 @@ for (const [currentProcessingType, processingMultiple] of [
             const post2 = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session2.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -8266,17 +8304,17 @@ for (const [currentProcessingType, processingMultiple] of [
             const post3 = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session3.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -8385,17 +8423,17 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session2.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -8475,17 +8513,17 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session2.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -8625,17 +8663,17 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session2.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -8725,17 +8763,17 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", {}, [
-                        PostContentProsemirrorSchema.node("paragraph", {}, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: scenario.session2.account.id,
                                     isShort: false,
                                 }),
                             }),
-                            PostContentProsemirrorSchema.text("!"),
+                            schema.text("!"),
                         ]),
                     ]),
                 ),
@@ -11223,10 +11261,10 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", null, [
-                        PostContentProsemirrorSchema.node("paragraph", null, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", null, [
+                        schema.node("paragraph", null, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: session2.account.id,
@@ -11323,10 +11361,10 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", null, [
-                        PostContentProsemirrorSchema.node("paragraph", null, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", null, [
+                        schema.node("paragraph", null, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: session2.account.id,
@@ -11406,10 +11444,10 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(
                 session1,
                 assertPostContent(
-                    PostContentProsemirrorSchema.node("doc", null, [
-                        PostContentProsemirrorSchema.node("paragraph", null, [
-                            PostContentProsemirrorSchema.text("Hello "),
-                            PostContentProsemirrorSchema.node("mention", {
+                    schema.node("doc", null, [
+                        schema.node("paragraph", null, [
+                            schema.text("Hello "),
+                            schema.node("mention", {
                                 mention: cast<ContentMention>({
                                     type: "Account",
                                     accountId: session2.account.id,
@@ -11705,16 +11743,10 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const post = await channel.createPost(
                 scenario.session1,
-                PostContentProsemirrorSchema.node("doc", {}, [
-                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                        PostContentProsemirrorSchema.text("Yes"),
-                    ]),
-                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                        PostContentProsemirrorSchema.text("But actually this other thing"),
-                    ]),
-                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                        PostContentProsemirrorSchema.text("And one final thing!"),
-                    ]),
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [schema.text("Yes")]),
+                    schema.node("paragraph", {}, [schema.text("But actually this other thing")]),
+                    schema.node("paragraph", {}, [schema.text("And one final thing!")]),
                 ]),
             );
 
@@ -11755,6 +11787,422 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
             ]);
+        });
+
+        test("private entity in mention isn’t included in channel post notification", async () => {
+            const space = await TestSpace.create(context);
+
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const channel = await TestChannel.create(session1);
+            const document = await TestDocument.create(session2, {title: "TOP SECRET"});
+
+            await subscribeToChannel(session2.action(), channel.id);
+            await subscribeToChannel(session3.action(), channel.id);
+
+            const post = await channel.createPost(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Can you see this? "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: `Document:${document.id}`,
+                            }),
+                        }),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: "Can you see this? TOP SECRET",
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(session3.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session3.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: "Can you see this? Private document",
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                new Map(
+                    filterMapArray(
+                        TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts(),
+                        ({url, body = {}}) => {
+                            const match = url.match(
+                                /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
+                            );
+                            if (!match) return;
+
+                            return [
+                                match[1],
+                                MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
+                                    body,
+                                ),
+                            ];
+                        },
+                    ),
+                ),
+            ).toEqual(
+                new Map([
+                    [
+                        session2.account.id,
+                        {
+                            readTime: expect.any(Date),
+                            eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxModel({
+                                            spaceId: space.id,
+                                            accountId: session2.account.id,
+                                            loudNotificationCount: 0,
+                                            entryCount: 1,
+                                            lastZeroEntryCountTime: null,
+                                        }),
+                                    },
+                                },
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxChannelPostsEntryModel({
+                                            isArchived: false,
+                                            spaceId: space.id,
+                                            accountId: session2.account.id,
+                                            loudNotificationCount: 0,
+                                            channel: {
+                                                isPrivate: false,
+                                                channel: await channel.getPreview(),
+                                            },
+                                            bucketGeneration: 0,
+                                            postCount: 1,
+                                            postAuthorCount: 1,
+                                            latestPost: {
+                                                author: await session1.get(),
+                                                createdTime: post.createdTime,
+                                                contentTextSnippet: "Can you see this? TOP SECRET",
+                                            },
+                                            otherPostAuthor: null,
+                                        }),
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                    [
+                        session3.account.id,
+                        {
+                            readTime: expect.any(Date),
+                            eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxModel({
+                                            spaceId: space.id,
+                                            accountId: session3.account.id,
+                                            loudNotificationCount: 0,
+                                            entryCount: 1,
+                                            lastZeroEntryCountTime: null,
+                                        }),
+                                    },
+                                },
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxChannelPostsEntryModel({
+                                            isArchived: false,
+                                            spaceId: space.id,
+                                            accountId: session3.account.id,
+                                            loudNotificationCount: 0,
+                                            channel: {
+                                                isPrivate: false,
+                                                channel: await channel.getPreview(),
+                                            },
+                                            bucketGeneration: 0,
+                                            postCount: 1,
+                                            postAuthorCount: 1,
+                                            latestPost: {
+                                                author: await session1.get(),
+                                                createdTime: post.createdTime,
+                                                contentTextSnippet:
+                                                    "Can you see this? Private document",
+                                            },
+                                            otherPostAuthor: null,
+                                        }),
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                ]),
+            );
+        });
+
+        test("private entity in mention isn’t included in post comments notification", async () => {
+            const space = await TestSpace.create(context);
+
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const channel = await TestChannel.create(session1);
+            const document = await TestDocument.create(session2, {title: "TOP SECRET"});
+
+            const post = await channel.createPost(session1);
+
+            await post.createComment(session2, "Subscribe");
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.createComment(session3, "Subscribe");
+            await ProcessContextModule.waitForTestTasks();
+
+            // Ignore any previous broadcasts.
+            TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts();
+
+            const comment = await post.createComment(
+                session1,
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Can you see this? "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: `Document:${document.id}`,
+                            }),
+                        }),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: expect.any(AccountModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment.createdTime,
+                        contentTextSnippet: "Can you see this? TOP SECRET",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: expect.any(AccountModel),
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(session3.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session3.account.id,
+                    postId: post.id,
+                    postAuthor: expect.any(AccountModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment.createdTime,
+                        contentTextSnippet: "Can you see this? Private document",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            expect(
+                new Map(
+                    filterMapArray(
+                        TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts(),
+                        ({url, body = {}}) => {
+                            const match = url.match(
+                                /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
+                            );
+                            if (!match) return;
+
+                            // Ignore any realtime updates `session1` received.
+                            if (match[1] === session1.account.id) return;
+
+                            return [
+                                match[1],
+                                MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
+                                    body,
+                                ),
+                            ];
+                        },
+                    ),
+                ),
+            ).toEqual(
+                new Map([
+                    [
+                        session2.account.id,
+                        {
+                            readTime: expect.any(Date),
+                            eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxPostCommentsEntryModel({
+                                            isArchived: false,
+                                            spaceId: space.id,
+                                            accountId: session2.account.id,
+                                            postId: post.id,
+                                            postAuthor: expect.any(AccountModel),
+                                            channel: {
+                                                isPrivate: false,
+                                                channel: expect.any(ChannelPreviewModel),
+                                            },
+                                            loudNotificationCount: 0,
+                                            postCreatedTime: post.createdTime,
+                                            postContentTextSnippetIfMentioned: null,
+                                            latestComment: {
+                                                author: await session1.get(),
+                                                createdTime: comment.createdTime,
+                                                contentTextSnippet: "Can you see this? TOP SECRET",
+                                                isStickyMention: false,
+                                            },
+                                            otherCommentAuthor: expect.any(AccountModel),
+                                        }),
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                    [
+                        session3.account.id,
+                        {
+                            readTime: expect.any(Date),
+                            eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxModel({
+                                            spaceId: space.id,
+                                            accountId: session3.account.id,
+                                            loudNotificationCount: 0,
+                                            entryCount: 1,
+                                            lastZeroEntryCountTime: null,
+                                        }),
+                                    },
+                                },
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: new InboxPostCommentsEntryModel({
+                                            isArchived: false,
+                                            spaceId: space.id,
+                                            accountId: session3.account.id,
+                                            postId: post.id,
+                                            postAuthor: expect.any(AccountModel),
+                                            channel: {
+                                                isPrivate: false,
+                                                channel: expect.any(ChannelPreviewModel),
+                                            },
+                                            loudNotificationCount: 0,
+                                            postCreatedTime: post.createdTime,
+                                            postContentTextSnippetIfMentioned: null,
+                                            latestComment: {
+                                                author: await session1.get(),
+                                                createdTime: comment.createdTime,
+                                                contentTextSnippet:
+                                                    "Can you see this? Private document",
+                                                isStickyMention: false,
+                                            },
+                                            otherCommentAuthor: null,
+                                        }),
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                ]),
+            );
         });
     });
 }

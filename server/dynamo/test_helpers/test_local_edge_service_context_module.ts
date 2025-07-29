@@ -53,6 +53,15 @@ export class TestLocalEdgeServiceContextModule
         return durableObjectBroadcasts;
     }
 
+    public static takeDurableObjectBroadcasts(): ReadonlyArray<{
+        readonly url: `/api/durable-objects/${string}`;
+        readonly body: SchemaSerializedValue | null | undefined;
+    }> {
+        const broadcasts = durableObjectBroadcasts;
+        durableObjectBroadcasts = [];
+        return broadcasts;
+    }
+
     public fork() {
         return new TestLocalEdgeServiceContextModule();
     }
