@@ -3,11 +3,6 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {TestSessionActionContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
-    TestSessionItem,
-    createTestSession,
-} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {
     CreateMessageFunction,
     DeleteMessageFunction,
     UpdateMessageContentFunction,
@@ -15,10 +10,11 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {RoomInterface} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentWithReferences,
     createSimpleMessageContent,
@@ -61,7 +57,7 @@ export function testMessagingRealtimeImplementation<
 >(
     context: TestWorkerContext,
     {
-        createRoom: _createRoom,
+        createRoom,
         createRealtimeConnection,
         createMessageModel,
         createMessage,
@@ -70,11 +66,12 @@ export function testMessagingRealtimeImplementation<
     }: {
         createRoom: (
             context: TestSessionActionContext,
-            spaceId: SpaceId,
-            sessions: Array<TestSessionItem>,
+            space: TestSpace,
+            sessions: Array<TestSpaceSession>,
         ) => Promise<RoomInterface<RoomKey>>;
         createRealtimeConnection: (options: {
             spaceId: SpaceId;
+            accountId: AccountId;
             roomKey: RoomKey;
             sendEvent: (
                 context: WorkerProcessContext,
@@ -98,11 +95,6 @@ export function testMessagingRealtimeImplementation<
         deleteMessage: DeleteMessageFunction<RoomKey>;
     },
 ) {
-    const space = createTestSpace(context);
-    const session1 = createTestSession(context, space);
-    const session2 = createTestSession(context, space);
-    const session3 = createTestSession(context, space);
-
     const content1 = createSimpleMessageContent("test1");
     const content2 = createSimpleMessageContent("test2");
     const content3 = createSimpleMessageContent("test3");
@@ -120,10 +112,6 @@ export function testMessagingRealtimeImplementation<
         references: emptyContentReferences,
     };
 
-    const createRoom = (context: TestSessionActionContext, spaceId: SpaceId) => {
-        return _createRoom(context, spaceId, [session1, session2, session3]);
-    };
-
     // TODO(calebmer): I want to convert this test to using
     // `WebSocketServerTestConnection` (our WebSocket server test harness) but it
     // was written before this utility was available. For now, coincidentally these
@@ -133,7 +121,12 @@ export function testMessagingRealtimeImplementation<
 
     describe("Realtime messaging implementation", () => {
         test("will backfill messages when requested", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -160,6 +153,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -185,11 +179,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -202,11 +192,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -219,11 +205,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -259,11 +241,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -276,11 +254,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -301,7 +275,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.action(session2),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -316,11 +290,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -333,11 +303,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -360,7 +326,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -375,6 +346,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -383,6 +355,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -391,6 +364,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -462,11 +436,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -485,11 +455,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -508,11 +474,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -545,11 +507,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -568,11 +526,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -591,11 +545,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -629,11 +579,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -646,11 +592,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -679,7 +621,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections when those messages are added during backfill", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -694,6 +641,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -702,6 +650,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -710,6 +659,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -760,7 +710,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session3.accountId,
+                    session3.account.id,
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
@@ -798,11 +748,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -821,11 +767,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -859,11 +801,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -882,11 +820,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -923,11 +857,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -944,11 +874,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -971,7 +897,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages our connection when those messages are added during backfill", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -986,6 +917,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -994,6 +926,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -1002,6 +935,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -1052,7 +986,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session3.accountId,
+                    session3.account.id,
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
@@ -1090,11 +1024,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1113,11 +1043,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1154,11 +1080,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1181,7 +1103,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections in order", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1189,6 +1116,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -1197,6 +1125,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -1205,6 +1134,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -1255,7 +1185,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.action(session2),
+                    context.action(session3),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1281,7 +1211,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
-                    session1.accountId,
+                    session1.account.id,
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
@@ -1339,11 +1269,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1360,11 +1286,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1381,11 +1303,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1410,7 +1328,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections in order even if it is wacky", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1418,6 +1341,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -1426,6 +1350,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -1434,6 +1359,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -1484,7 +1410,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.action(session2),
+                    context.action(session3),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1510,7 +1436,7 @@ export function testMessagingRealtimeImplementation<
 
             const pause1Promise =
                 messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
-                    session1.accountId,
+                    session1.account.id,
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
@@ -1534,7 +1460,7 @@ export function testMessagingRealtimeImplementation<
 
             const pause2Promise =
                 messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
-                    session2.accountId,
+                    session2.account.id,
                 );
 
             const connection2CreateMessagePromise = connection2.procedures.createMessage(
@@ -1585,11 +1511,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1606,11 +1528,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1627,11 +1545,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1656,7 +1570,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections in order only after backfill", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1665,6 +1584,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -1673,6 +1593,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -1681,6 +1602,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -1689,6 +1611,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection4 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection4Messages.push(message),
                 sendEventToOthers,
@@ -1740,7 +1663,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.action(session2),
+                    context.action(session3),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1768,7 +1691,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
-                    session1.accountId,
+                    session1.account.id,
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
@@ -1821,11 +1744,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1842,11 +1761,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1873,11 +1788,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1894,11 +1805,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 1,
-                        author: await getAccount(
-                            context.action(session2),
-                            space.id,
-                            session2.accountId,
-                        ),
+                        author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1915,11 +1822,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 2,
-                        author: await getAccount(
-                            context.action(session3),
-                            space.id,
-                            session3.accountId,
-                        ),
+                        author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1940,11 +1843,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -1969,13 +1868,19 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will ignore new messages if they are part of the backfill", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(2);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2] = sessions;
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -1984,6 +1889,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -2019,7 +1925,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
-                    session1.accountId,
+                    session1.account.id,
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
@@ -2056,11 +1962,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -2090,11 +1992,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -2116,13 +2014,19 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will ignore new messages if they are queued but part of the backfill", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(2);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2] = sessions;
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -2131,6 +2035,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -2166,7 +2071,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise1 =
                 messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
-                    session1.accountId,
+                    session1.account.id,
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
@@ -2188,7 +2093,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise2 =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session2.accountId,
+                    session2.account.id,
                 );
 
             const connection2BackfillPromise = connection2.procedures.backfillMessages(
@@ -2217,11 +2122,7 @@ export function testMessagingRealtimeImplementation<
                     message: createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -2247,11 +2148,7 @@ export function testMessagingRealtimeImplementation<
                     createMessageModel({
                         roomKey: room.key,
                         index: 0,
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
+                        author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
@@ -2277,7 +2174,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will backfill changes when requested", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -2315,6 +2217,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -2393,7 +2296,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.action(session2),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: deletedMessage1.deletedTime,
@@ -2464,7 +2367,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.action(session2),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: deletedMessage1.deletedTime,
@@ -2496,7 +2399,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send changes from other connections", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -2525,6 +2433,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -2533,6 +2442,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -2541,6 +2451,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -2731,7 +2642,12 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send changes from other connections when those changes are added during backfill", async () => {
-            const room = await createRoom(context.action(session1), space.id);
+            const space = await TestSpace.create(context);
+            const sessions = await space.createSessions(3);
+
+            const room = await createRoom(context.action(sessions[0]), space, sessions);
+
+            const [session1, session2, session3] = sessions;
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -2760,6 +2676,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection1 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session1.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection1Events.push(message),
                 sendEventToOthers,
@@ -2768,6 +2685,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection2 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session2.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection2Events.push(message),
                 sendEventToOthers,
@@ -2776,6 +2694,7 @@ export function testMessagingRealtimeImplementation<
 
             const connection3 = createRealtimeConnection({
                 spaceId: space.id,
+                accountId: session3.account.id,
                 roomKey: room.key,
                 sendEvent: (context, message) => connection3Events.push(message),
                 sendEventToOthers,
@@ -2826,7 +2745,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session3.accountId,
+                    session3.account.id,
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(

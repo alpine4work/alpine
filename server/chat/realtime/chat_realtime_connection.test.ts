@@ -23,15 +23,15 @@ type TestChatRealtimeConnection = {
 };
 
 testMessagingRealtimeImplementation<ChatId, TestChatRealtimeConnection>(context, {
-    async createRoom(context, spaceId, sessions) {
+    async createRoom(context, space, sessions) {
         const chat = await createChatForTest(context, {
-            spaceId,
-            otherAccountIds: sessions.map(session => session.accountId),
+            spaceId: space.id,
+            otherAccountIds: sessions.map(session => session.account.id),
         });
 
         return {
             key: chat.id,
-            spaceId,
+            spaceId: space.id,
             createdTime: chat.createdTime,
             messageCount: 0,
         };

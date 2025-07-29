@@ -24,9 +24,9 @@ type TestPostRealtimeConnection = {
 };
 
 testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context, {
-    async createRoom(context, spaceId) {
+    async createRoom(context, space) {
         const channel = await createChannel(context, {
-            spaceId,
+            spaceId: space.id,
             name: "Test",
         });
 
@@ -37,7 +37,7 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
 
         return {
             key: post.id,
-            spaceId,
+            spaceId: space.id,
             createdTime: post.createdTime,
             messageCount: 0,
         };
