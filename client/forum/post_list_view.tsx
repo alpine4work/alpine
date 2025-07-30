@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
@@ -67,6 +66,7 @@ import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {feedCreateSectionMinHeight} from "~/client/styles/feed_shared_styles.js";
 import {
     feedEntryHeight,
+    postContentViewCommentMargin,
     postContentViewMinHeightPx,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
@@ -79,13 +79,7 @@ import {
     messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
-import {
-    colorSchemeVars,
-    contentStyles,
-    forumStyles,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollView,
@@ -111,6 +105,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {
@@ -375,12 +370,15 @@ function PostListView(
     //
     // - It's a challenging UI problem to have a sticky comment input while also
     //   avoiding the keyboard and tab bar.
-    // - Because there's less space on mobile, it may be harder to mentally stay
-    //   aware of the fact that you're looking at a comment section in the middle
-    //   of a feed of posts. Opening in a new route with a post-specific header
-    //   lets the user stay focused.
-    if (platform === "mobile" && !isPostView) {
-        assert(!posts.hasOpenPostComments(), "Posts can’t have open comments on mobile");
+    // - Because there's less space in peeks/mobile, it may be harder to mentally
+    //   stay aware of the fact that you're looking at a comment section in the
+    //   middle of a feed of posts. Opening in a new route with a post-specific
+    //   header lets the user stay focused.
+    if (routeLayout === "narrow" && !isPostView) {
+        assert(
+            !posts.hasOpenPostComments(),
+            "Posts can’t have open comments on narrow route layouts",
+        );
     }
 
     const availablePostWidth = useMemo(() => {
@@ -689,9 +687,26 @@ function PostListView(
     });
 
     // Manages which comment `<PostCommentInput>` is currently replying to.
-    const [replyingToPostCommentIndexByPostId, setReplyingToPostCommentIndexByPostId] = useState<
-        ReadonlyMap<PostId, number>
-    >(new Map());
+    const [replyingToPostCommentIndexByPostId, setReplyingToPostCommentIndexByPostId] =
+        useState<ReadonlyMap<PostId, number>>(emptyMap);
+
+    const [isShowingAllContentByPostId, setIsShowingAllContentByPostId] =
+        useState<ReadonlyMap<PostId, true>>(emptyMap);
+
+    // If we stop editing a post that was previously collapsed, we should now be
+    // showing the post's entire content.
+    if (
+        postEditing.state.isEditing &&
+        isShowingAllContentByPostId.get(postEditing.state.postId) !== true
+    ) {
+        const {postId} = postEditing.state;
+
+        setIsShowingAllContentByPostId(oldIsShowingAllContentByPostId => {
+            const newIsShowingAllContentByPostId = new Map(oldIsShowingAllContentByPostId);
+            newIsShowingAllContentByPostId.set(postId, true);
+            return newIsShowingAllContentByPostId;
+        });
+    }
 
     // A comment to highlight for the user. We currently highlight comments with a
     // little wiggle animation (see `wiggle_animation.css.ts` for more information).
@@ -918,7 +933,7 @@ function PostListView(
             messageEditing.state.isEditing ||
             // Comments aren't expandable on mobile (unless we're in a post view) so don't
             // allow file dropping.
-            (platform === "mobile" && !isPostView),
+            (routeLayout === "narrow" && !isPostView),
         onDrop: event => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();
@@ -1021,6 +1036,36 @@ function PostListView(
         );
     }, [hasAside]);
 
+    const topBorder = useMemo(() => {
+        return (
+            <div
+                className={sprinkles({
+                    position: "absolute",
+                    left: "0",
+                    right: "0",
+                    height: routeLayout === "narrow" ? "border" : "border-thick",
+                    backgroundColor: "grey-5",
+                })}
+                style={{top: routeLayout === "narrow" ? 0 : -1}}
+            />
+        );
+    }, [routeLayout]);
+
+    const bottomBorder = useMemo(() => {
+        return (
+            <div
+                className={sprinkles({
+                    position: "absolute",
+                    left: "0",
+                    right: "0",
+                    height: routeLayout === "narrow" ? "border" : "border-thick",
+                    backgroundColor: "grey-5",
+                })}
+                style={{bottom: routeLayout === "narrow" ? 0 : -1}}
+            />
+        );
+    }, [routeLayout]);
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
@@ -1110,16 +1155,21 @@ function PostListView(
                                         minWidth: 0,
                                     }}
                                 >
-                                    {hasHeader && index === 1 && (
+                                    {hasHeader &&
+                                        index === 1 &&
                                         // This is the first post in a `<PostListView>` with a `header` so we
                                         // need to draw a border between the first `<PostListView>` and the
                                         // `header`.
+                                        topBorder}
+                                    {!isPostView && item.postCommentsState === "Closed" ? (
+                                        bottomBorder
+                                    ) : (
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
                                                 left: "0",
                                                 right: "0",
-                                                top: "0",
+                                                bottom: "0",
                                                 height: "border",
                                                 paddingX: screenPaddingX,
                                             })}
@@ -1133,29 +1183,6 @@ function PostListView(
                                             />
                                         </div>
                                     )}
-                                    <div
-                                        className={sprinkles({
-                                            position: "absolute",
-                                            left: "0",
-                                            right: "0",
-                                            bottom: "0",
-                                            height: "border",
-                                            paddingX: screenPaddingX,
-                                        })}
-                                    >
-                                        <div
-                                            className={classNames(
-                                                sprinkles({
-                                                    height: "full",
-                                                    width: "full",
-                                                    backgroundColor: "grey-5",
-                                                }),
-                                                item.postCommentsState !== "Closed" &&
-                                                    !isPostView &&
-                                                    forumStyles.dashedBorderClassName,
-                                            )}
-                                        />
-                                    </div>
                                     <PostContentView
                                         post={item.post}
                                         postComments={item.postComments}
@@ -1184,6 +1211,29 @@ function PostListView(
                                             assertExists(viewRef.current).scrollToKeyIfExists(
                                                 `PostContent:${item.post.id}`,
                                                 {withAnchor: true},
+                                            );
+                                        }}
+                                        isShowingAllContent={
+                                            isShowingAllContentByPostId.get(item.post.id) === true
+                                        }
+                                        onIsShowingAllContentChange={isShowingAllContent => {
+                                            setIsShowingAllContentByPostId(
+                                                oldIsShowingAllContentByPostId => {
+                                                    const newIsShowingAllContentByPostId = new Map(
+                                                        oldIsShowingAllContentByPostId,
+                                                    );
+                                                    if (isShowingAllContent) {
+                                                        newIsShowingAllContentByPostId.set(
+                                                            item.post.id,
+                                                            true,
+                                                        );
+                                                    } else {
+                                                        newIsShowingAllContentByPostId.delete(
+                                                            item.post.id,
+                                                        );
+                                                    }
+                                                    return newIsShowingAllContentByPostId;
+                                                },
                                             );
                                         }}
                                     />
@@ -1351,7 +1401,9 @@ function PostListView(
                                                 minWidth: 0,
                                             }}
                                         >
-                                            {item.postCommentIndex === 0 && <Spacer space="6" />}
+                                            {item.postCommentIndex === 0 && (
+                                                <Spacer space={postContentViewCommentMargin} />
+                                            )}
                                             {messageNode}
                                             {isPostView &&
                                                 // -2 instead of -1 since when `isPostView` is true we don't
@@ -1397,7 +1449,7 @@ function PostListView(
                                     }}
                                 >
                                     {item.postComments.getMessageCountIncludingOptimisticMessages() ===
-                                        0 && <Spacer space="6" />}
+                                        0 && <Spacer space={postContentViewCommentMargin} />}
                                     <MessagingTypingIndicators
                                         typingStateByConnectionId={item.typingStateByConnectionId}
                                         shouldAddMarginBottom={
@@ -1437,7 +1489,7 @@ function PostListView(
                     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
                     // post in a new route. Supplemental sanity check to the assert at the beginning
                     // of this component.
-                    assert(platform !== "mobile");
+                    assert(routeLayout !== "narrow");
 
                     const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
                         item.post.id,
@@ -1573,35 +1625,7 @@ function PostListView(
                                             }}
                                         >
                                             {inputNode}
-                                            <div
-                                                className={sprinkles({
-                                                    position: "absolute",
-                                                    left: "0",
-                                                    right: "0",
-                                                    bottom: "0",
-                                                    height: "border",
-                                                    paddingX: screenPaddingX,
-                                                })}
-                                            >
-                                                <div
-                                                    className={sprinkles({
-                                                        height: "full",
-                                                        width: "full",
-                                                    })}
-                                                    style={{
-                                                        // Draw border with `box-shadow` so it doesn't contribute to layout.
-                                                        //
-                                                        // `box-shadow` is drawn 1px below the comment input since:
-                                                        //
-                                                        // 1. The border shouldn't be visible while the comment input is
-                                                        //    sticky.
-                                                        // 2. The space between the comment input and bottom border is
-                                                        //    small enough that 1px difference is noticeable to the
-                                                        //    trained eye.
-                                                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                                                    }}
-                                                />
-                                            </div>
+                                            {bottomBorder}
                                         </div>
                                         {asideSpacer}
                                         {sideBarRightSpacer}
@@ -1683,53 +1707,18 @@ function PostListView(
                                         position: "relative",
                                         width: "full",
                                         maxWidth: contentStyles.contentMaxWidth,
-                                        overflow: "hidden",
                                     })}
                                     style={{
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasHeader && index === 1 && (
+                                    {hasHeader &&
+                                        index === 1 &&
                                         // This is the first post in a `<PostListView>` with a `header` so we
                                         // need to draw a border between the first `<PostListView>` and the
                                         // `header`.
-                                        <div
-                                            className={sprinkles({
-                                                position: "absolute",
-                                                left: "0",
-                                                right: "0",
-                                                top: "0",
-                                                height: "border",
-                                                paddingX: screenPaddingX,
-                                            })}
-                                        >
-                                            <div
-                                                className={sprinkles({
-                                                    height: "full",
-                                                    width: "full",
-                                                    backgroundColor: "grey-5",
-                                                })}
-                                            />
-                                        </div>
-                                    )}
-                                    <div
-                                        className={sprinkles({
-                                            position: "absolute",
-                                            left: "0",
-                                            right: "0",
-                                            bottom: "0",
-                                            height: "border",
-                                            paddingX: screenPaddingX,
-                                        })}
-                                    >
-                                        <div
-                                            className={sprinkles({
-                                                height: "full",
-                                                width: "full",
-                                                backgroundColor: "grey-5",
-                                            })}
-                                        />
-                                    </div>
+                                        topBorder}
+                                    {bottomBorder}
                                     <FeedEntryView
                                         entry={item.entry}
                                         availableWidth={availablePostWidth}
@@ -1757,11 +1746,14 @@ function PostListView(
             spacingScale,
             withSafeAreaInsetTop,
             hasHeader,
+            topBorder,
+            bottomBorder,
             postEditing,
             shouldNotShowChannelId,
             availablePostWidth,
             initialScrollForFirstPost,
             idBase,
+            isShowingAllContentByPostId,
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
@@ -1769,11 +1761,11 @@ function PostListView(
             highlightPostComment,
             handleJumpToPostComment,
             header,
-            platform,
             replyingToPostCommentIndexByPostId,
             inputRefByPostId,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
+            platform,
             onUpdatePostComments,
         ],
     );
@@ -1945,7 +1937,7 @@ function PostListView(
                             {extraChildren}
                         </>
                     }
-                    extraChildrenOutsideContentElement={({contentHeight}) => (
+                    extraChildrenOutsideContentElement={({contentHeight}) =>
                         // Our items all have a bottom border. This is good when there's less content
                         // than room to scroll since it creates a clear shape for the last item in the
                         // list.
@@ -1959,27 +1951,34 @@ function PostListView(
                         // enough content to scroll. Otherwise the bottom border needs to be visible to
                         // visually contain the last item. To debug this it's helpful to switch the
                         // `backgroundColor` to `red-30` or something similar.
-                        <div
-                            className={sprinkles({
-                                position: "absolute",
-                                left: "0",
-                                right: "0",
-                                top: "0",
-                            })}
-                            style={{height: `max(100%, ${contentHeight}px)`}}
-                        >
+                        //
+                        // NOTE(calebmer): Don't cover the bottom border if we're in a post view. Since
+                        // the only item may be a `<PostContentView>` with a sticky
+                        // `<PostCommentInput>`. We want to make sure the `grey-5` border renders above
+                        // the `<PostCommentInput>` when we're scrolled to the bottom.
+                        !isPostView && (
                             <div
                                 className={sprinkles({
                                     position: "absolute",
                                     left: "0",
                                     right: "0",
-                                    bottom: "0",
-                                    height: "1",
-                                    backgroundColor: "grey-0",
+                                    top: "0",
                                 })}
-                            />
-                        </div>
-                    )}
+                                style={{height: `max(100%, ${contentHeight}px)`}}
+                            >
+                                <div
+                                    className={sprinkles({
+                                        position: "absolute",
+                                        left: "0",
+                                        right: "0",
+                                        bottom: "0",
+                                        height: "1",
+                                        backgroundColor: "grey-0",
+                                    })}
+                                />
+                            </div>
+                        )
+                    }
                 />
                 {isPostView &&
                     (() => {

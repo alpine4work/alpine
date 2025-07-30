@@ -10,7 +10,7 @@ import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/core/s
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 
 export const feedViewSideBarLeftFlex = postViewFlex * 0.4;
-export const feedViewSideBarRightMaxWidth = "4";
+export const feedViewSideBarRightMaxWidth = "48";
 export const feedViewSideBarRightFlex = postViewFlex * 0.1;
 
 export const feedViewSideBarPaddingLeft = "1";

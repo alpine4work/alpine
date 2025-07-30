@@ -27,7 +27,7 @@ import {MobileSettingsRowsShimmer} from "~/client/shimmer/internal/mobile_settin
 import {SpaceGeneralSettingsRouteShimmer} from "~/client/shimmer/internal/space_general_settings_route_shimmer.js";
 import {SpacePeopleSettingsRouteShimmer} from "~/client/shimmer/internal/space_people_settings_route_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
-import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
+import {PostShimmer, PostShimmerFooter, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
 import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
@@ -69,12 +69,16 @@ import {
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
+    postContentViewCommentMargin,
+    postContentViewInnerMarginY,
+    postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
     postFauxInputCreateButtonInnerButtonHeight,
     postFauxInputCreateButtonMarginTop,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
+    postViewContentPaddingTop,
     postViewFlex,
     postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
@@ -535,10 +539,10 @@ function FeedRouteShimmer() {
                         <Spacer space={feedCreateSectionForYouHeadingMarginBottom} />
                         <Box
                             position="absolute"
-                            left={screenPaddingX}
-                            right={screenPaddingX}
-                            height="border"
-                            borderBottom="grey-5"
+                            left="0"
+                            right="0"
+                            height={routeLayout === "narrow" ? "border" : "border-thick"}
+                            backgroundColor="grey-5"
                             style={{bottom: -1}}
                         />
                     </Box>
@@ -567,7 +571,7 @@ function ChannelRouteShimmer() {
     return (
         <Box width="full" display="flex" justifyContent="center">
             <Box width="full" maxWidth={contentStyles.contentMaxWidth} style={{flex: postViewFlex}}>
-                <Box paddingX={screenPaddingX}>
+                <Box position="relative" paddingX={screenPaddingX}>
                     <Box height="safe-area-inset-top" />
                     <Box
                         display="flex"
@@ -589,28 +593,27 @@ function ChannelRouteShimmer() {
                             flexDirection="column"
                             gap={channelViewHeaderSectionGap}
                         >
-                            <Box>
-                                <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
-                                    <TextShimmer
-                                        width="16"
-                                        fontSize={channelViewMetadataSectionTitleFontSize}
-                                        color="grey-5"
-                                    />
-                                </Box>
-                                <Box
-                                    className={pulseAnimationClassName}
-                                    position="relative"
-                                    zIndex="0"
-                                    display="flex"
-                                >
-                                    <ChannelRouteContributorsAccountAvatarShimmer
-                                        zIndex="40"
-                                        isFirst
-                                    />
-                                    <ChannelRouteContributorsAccountAvatarShimmer zIndex="30" />
-                                    <ChannelRouteContributorsAccountAvatarShimmer zIndex="20" />
-                                    <ChannelRouteContributorsAccountAvatarShimmer zIndex="10" />
-                                </Box>
+                            <Box
+                                className={pulseAnimationClassName}
+                                position="relative"
+                                zIndex="0"
+                                display="flex"
+                            >
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="40" isFirst />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="30" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="20" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="10" />
+                            </Box>
+                            <Box marginBottom="-1.5">
+                                <TextShimmer fontSize="75" width="10" />
+                                <Spacer space="1" />
+                                <TextShimmer
+                                    fontSize={{
+                                        ...fontSizes["100"],
+                                        lineHeight: contentStyles.paragraphFontSize.lineHeight,
+                                    }}
+                                    width="48"
+                                />
                             </Box>
                         </Box>
                     )}
@@ -643,7 +646,15 @@ function ChannelRouteShimmer() {
                             Post
                         </Box>
                     </Box>
-                    <Box height={postContentViewOuterMarginY} borderBottom="grey-5" />
+                    <Box height={postContentViewOuterMarginY} />
+                    <Box
+                        position="absolute"
+                        left="0"
+                        right="0"
+                        height={routeLayout === "narrow" ? "border" : "border-thick"}
+                        backgroundColor="grey-5"
+                        style={{bottom: -1}}
+                    />
                 </Box>
                 <PostShimmer />
                 <PostShimmer />
@@ -1669,16 +1680,31 @@ function PostRouteShimmer() {
                     </Box>
                 )}
                 <Box
+                    position="relative"
                     flexShrink="0"
                     width="full"
                     maxWidth={contentStyles.contentMaxWidth}
                     marginX="center"
+                    style={{paddingBottom: postContentViewOuterMarginBottom}}
                 >
-                    <PostShimmer withoutHeader={true}>
+                    <Box
+                        paddingX={screenPaddingX}
+                        paddingBottom={postContentViewInnerMarginY}
+                        style={{paddingTop: postViewContentPaddingTop}}
+                    >
                         <ContentParagraphShimmer3 />
-                    </PostShimmer>
+                    </Box>
+                    <PostShimmerFooter />
+                    <Box
+                        position="absolute"
+                        left={screenPaddingX}
+                        right={screenPaddingX}
+                        bottom="0"
+                        height="border"
+                        backgroundColor="grey-5"
+                    />
                 </Box>
-                <Box style={{height: spacing[messageViewMarginY]}} />
+                <Spacer space={postContentViewCommentMargin} />
                 <MessageShimmer width="32" heightLines={1} />
                 <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
                 <MessageShimmer width="96" heightLines={1} shouldMergeWithPreviousMessage={true} />

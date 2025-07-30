@@ -1,5 +1,6 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
@@ -16,20 +17,19 @@ import {screenPaddingX} from "~/shared/design/core/spacing.js";
 
 export function PostShimmer({
     children,
-    withoutHeader = false,
     withoutPulseAnimation = false,
 }: {
     children?: ReactNode;
-    withoutHeader?: boolean;
     withoutPulseAnimation?: boolean;
 }) {
     const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
 
     return (
         <Box
             ref={useCoordinatedShimmerAnimations()}
             position="relative"
-            paddingTop={!withoutHeader ? postContentViewOuterMarginY : undefined}
+            paddingTop={postContentViewOuterMarginY}
             display="flex"
             flexDirection="column"
             style={{
@@ -41,35 +41,15 @@ export function PostShimmer({
                 position="absolute"
                 left="0"
                 right="0"
-                bottom="0"
-                height="border"
-                paddingX={screenPaddingX}
-            >
-                <Box height="full" width="full" backgroundColor="grey-5" />
-            </Box>
-            {!withoutHeader && <PostShimmerHeader withoutPulseAnimation={withoutPulseAnimation} />}
+                height={routeLayout === "narrow" ? "border" : "border-thick"}
+                backgroundColor="grey-5"
+                style={{bottom: routeLayout === "narrow" ? 0 : -1}}
+            />
+            <PostShimmerHeader withoutPulseAnimation={withoutPulseAnimation} />
             <Box flexGrow="1" paddingX={screenPaddingX} paddingY={postContentViewInnerMarginY}>
                 {children}
             </Box>
-            <Box
-                flexShrink="0"
-                marginX={screenPaddingX}
-                height={postContentViewFooterHeight}
-                display="flex"
-                alignItems="center"
-            >
-                <TextShimmer
-                    fontSize="75"
-                    width="20"
-                    withoutPulseAnimation={withoutPulseAnimation}
-                />
-                <Box flexGrow="1" />
-                <TextShimmer
-                    fontSize="75"
-                    width="20"
-                    withoutPulseAnimation={withoutPulseAnimation}
-                />
-            </Box>
+            <PostShimmerFooter withoutPulseAnimation={withoutPulseAnimation} />
         </Box>
     );
 }
@@ -109,6 +89,22 @@ export function PostShimmerHeader({
                     withoutPulseAnimation={withoutPulseAnimation}
                 />
             </Box>
+        </Box>
+    );
+}
+
+export function PostShimmerFooter({withoutPulseAnimation}: {withoutPulseAnimation?: boolean}) {
+    return (
+        <Box
+            flexShrink="0"
+            marginX={screenPaddingX}
+            height={postContentViewFooterHeight}
+            display="flex"
+            alignItems="center"
+        >
+            <TextShimmer fontSize="75" width="20" withoutPulseAnimation={withoutPulseAnimation} />
+            <Box flexGrow="1" />
+            <TextShimmer fontSize="75" width="20" withoutPulseAnimation={withoutPulseAnimation} />
         </Box>
     );
 }

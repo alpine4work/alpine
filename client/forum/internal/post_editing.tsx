@@ -14,7 +14,6 @@ import {PostId} from "~/shared/id/types/id_types.js";
 export type PostEditingState =
     | {
           readonly isEditing: false;
-          readonly lastEditedPostId: PostId | null;
       }
     | ({
           readonly isEditing: true;
@@ -90,20 +89,14 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
         case "CancelEditing": {
             if (!state.isEditing) return state;
 
-            return {
-                isEditing: false,
-                lastEditedPostId: state.postId,
-            };
+            return {isEditing: false};
         }
         case "MaybeCancelEditing": {
             if (!state.isEditing || state.isSaving || state.confirmationDialog !== null)
                 return state;
 
             if (state.contentEditorState.getDoc() === state.initialContent) {
-                return {
-                    isEditing: false,
-                    lastEditedPostId: state.postId,
-                };
+                return {isEditing: false};
             } else {
                 return {
                     ...state,
@@ -137,10 +130,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             if (!state.isEditing || !state.isSaving) return state;
 
             if (action.shouldCancelEditing) {
-                return {
-                    isEditing: false,
-                    lastEditedPostId: state.postId,
-                };
+                return {isEditing: false};
             } else {
                 return {
                     ...omitObject(state, ["isAwaitingSaveRef", "savePromiseResolver"]),
@@ -181,7 +171,7 @@ export function usePostEditing({
 
     const [state, dispatch] = useReducer<
         (state: PostEditingState, action: PostEditingAction) => PostEditingState
-    >(reduce, {isEditing: false, lastEditedPostId: null});
+    >(reduce, {isEditing: false});
 
     const onUpdatePostContent = useEvent(_onUpdatePostContent);
 

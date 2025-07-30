@@ -66,6 +66,8 @@ export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOut
 
 export const postContentViewFooterButtonIconSize = "4";
 
+export const postContentViewCommentMargin = "6";
+
 // On desktop there's a bit of extra margin bottom below the navigation bar and
 // post content so that when the user edits their post the focus ring won't be
 // clipped by the navigation bar.
@@ -76,6 +78,14 @@ export const postViewNavigationBarSpace = {
         postContentViewInnerMarginY,
     ),
 };
+
+export const postViewContentPaddingTopRem =
+    parseRemLength(postContentViewInnerMarginY) -
+    (parseRemLength(navigationBarStyles.navigationBarHeight) -
+        parseRemLength(postContentViewHeaderHeight)) /
+        2;
+
+export const postViewContentPaddingTop: RemLength = `${postViewContentPaddingTopRem}rem`;
 
 const getPostContentViewMinHeightWithoutHeaderBasePx = (spacingScale: SpacingScale) =>
     convertRemLengthToPx(postContentViewInnerMarginY, spacingScale) +

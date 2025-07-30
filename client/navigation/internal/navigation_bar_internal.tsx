@@ -202,7 +202,6 @@ export function NavigationBar({
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
     const navigationBarContentCoverRef = useRef<HTMLDivElement>(null);
-    const navigationBarBorderRef = useRef<HTMLDivElement>(null);
     const navigationBarContentRef = useRef<NavigationBarContentRef>(null);
 
     const [scrollDirectionStateFromState, setScrollDirectionState] = useState<ScrollDirectionState>(
@@ -270,10 +269,10 @@ export function NavigationBar({
         () => {
             let navigationBarContainerElement: HTMLDivElement | undefined;
             let navigationBarBackgroundElement: HTMLDivElement | undefined;
-            let navigationBarBorderElement: HTMLDivElement | undefined;
             let navigationBarContent: NavigationBarContentRef | undefined;
             let navigationBarContentElement: HTMLElement | undefined;
             let navigationBarTitleElement: HTMLElement | undefined;
+            let safeAreaInsetTopPx: number | undefined;
 
             let scrollDebounceTimeout: Timeout | null = null;
 
@@ -284,6 +283,7 @@ export function NavigationBar({
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarContentElement ??= navigationBarContent.getElement();
+                safeAreaInsetTopPx ??= getElementSafeAreaInsetTopPx(navigationBarContentElement);
 
                 if (withoutDisappearingTitle) return null;
                 if (getTitleBoundaryElement === undefined) return null;
@@ -312,20 +312,17 @@ export function NavigationBar({
 
                 // If our scroll view has safe area then don't include the safe area in the
                 // scroll offset. The scroll offset starts below our safe area.
-                titleBoundaryOffset -= Math.max(
-                    0,
-                    navigationBarBackgroundElement.clientHeight -
-                        navigationBarContentElement.clientHeight,
-                );
+                titleBoundaryOffset -= safeAreaInsetTopPx;
 
                 return titleBoundaryOffset;
             };
 
             const initialize = (element: HTMLElement) => {
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
-                navigationBarBorderElement ??= assertExists(navigationBarBorderRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
+                navigationBarContentElement ??= navigationBarContent.getElement();
                 navigationBarTitleElement ??= navigationBarContent.getTitleElement();
+                safeAreaInsetTopPx ??= getElementSafeAreaInsetTopPx(navigationBarContentElement);
 
                 // Immediately finish any animations when scrolling begins.
                 if (animationControlsRef.current) {
@@ -417,10 +414,10 @@ export function NavigationBar({
                     }
                 }
 
-                const isNavigationBarBorderVisible =
+                const isNavigationBarBackgroundVisible =
                     scrollOffset - navigationBarScrollOffset >= 1 && isNavigationBarTitleVisible;
 
-                navigationBarBorderElement.style.display = isNavigationBarBorderVisible
+                navigationBarBackgroundElement.style.display = isNavigationBarBackgroundVisible
                     ? "block"
                     : "none";
             };
@@ -441,14 +438,12 @@ export function NavigationBar({
             const onScroll = (element: HTMLElement) => {
                 navigationBarContainerElement ??= assertExists(navigationBarContainerRef.current);
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
-                navigationBarBorderElement ??= assertExists(navigationBarBorderRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarContentElement ??= navigationBarContent.getElement();
                 navigationBarTitleElement ??= navigationBarContent.getTitleElement();
+                safeAreaInsetTopPx ??= getElementSafeAreaInsetTopPx(navigationBarContentElement);
 
-                const doesNavigationBarHaveSafeAreaInsetTop =
-                    navigationBarBackgroundElement.clientHeight >
-                    navigationBarContentElement.clientHeight;
+                const doesNavigationBarHaveSafeAreaInsetTop = safeAreaInsetTopPx > 0;
 
                 // Web code only: I've observed in mobile Safari if focus changes because the
                 // focused element was removed from the DOM a `focusout` event is not
@@ -619,17 +614,16 @@ export function NavigationBar({
                         }
                     }
 
-                    const lastIsNavigationBarBorderVisible =
+                    const lastIsNavigationBarBackgroundVisible =
                         lastScrollOffset - lastNavigationBarScrollOffset >= 1 &&
                         lastIsNavigationBarTitleVisible;
-                    const isNavigationBarBorderVisible =
+                    const isNavigationBarBackgroundVisible =
                         scrollOffset - navigationBarScrollOffset >= 1 &&
                         isNavigationBarTitleVisible;
 
-                    if (lastIsNavigationBarBorderVisible !== isNavigationBarBorderVisible) {
-                        navigationBarBorderElement.style.display = isNavigationBarBorderVisible
-                            ? "block"
-                            : "none";
+                    if (lastIsNavigationBarBackgroundVisible !== isNavigationBarBackgroundVisible) {
+                        navigationBarBackgroundElement.style.display =
+                            isNavigationBarBackgroundVisible ? "block" : "none";
                     }
                 }
 
@@ -708,9 +702,8 @@ export function NavigationBar({
                         // thread and not the web thread. This causes some jankiness as JavaScript is
                         // behind native so opacity may not be updated in a timely manner.
                         //
-                        // I'd love to move these opacity updates (this opacity update and the
-                        // `navigationBarBackgroundElement` opacity update) to [CSS scroll-driven
-                        // animations][1] when they're available in WebKit.
+                        // I'd love to move this opacity update to [CSS scroll-driven animations][1]
+                        // when they're available in WebKit.
                         //
                         // [1]: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_scroll-driven_animations
                         navigationBarContentElement.style.opacity = `${
@@ -748,17 +741,16 @@ export function NavigationBar({
                         }
                     }
 
-                    const lastIsNavigationBarBorderVisible =
+                    const lastIsNavigationBarBackgroundVisible =
                         lastScrollOffset - lastNavigationBarScrollOffset >= 1 &&
                         lastIsNavigationBarTitleVisible;
-                    const isNavigationBarBorderVisible =
+                    const isNavigationBarBackgroundVisible =
                         scrollOffset - navigationBarScrollOffset >= 1 &&
                         isNavigationBarTitleVisible;
 
-                    if (lastIsNavigationBarBorderVisible !== isNavigationBarBorderVisible) {
-                        navigationBarBorderElement.style.display = isNavigationBarBorderVisible
-                            ? "block"
-                            : "none";
+                    if (lastIsNavigationBarBackgroundVisible !== isNavigationBarBackgroundVisible) {
+                        navigationBarBackgroundElement.style.display =
+                            isNavigationBarBackgroundVisible ? "block" : "none";
                     }
                 }
 
@@ -923,7 +915,6 @@ export function NavigationBar({
         if (!scrollDirectionState.animateNavigationBar) return;
 
         const navigationBarElement = assertExists(navigationBarRef.current);
-        const navigationBarBackgroundElement = assertExists(navigationBarBackgroundRef.current);
         const navigationBarContent = assertExists(navigationBarContentRef.current);
         const navigationBarContentElement = navigationBarContent.getElement();
         const navigationBarTitleElement = navigationBarContent.getTitleElement();
@@ -935,7 +926,7 @@ export function NavigationBar({
         } = scrollDirectionState.animateNavigationBar;
 
         const doesNavigationBarHaveSafeAreaInsetTop =
-            navigationBarBackgroundElement.clientHeight > navigationBarContentElement.clientHeight;
+            getElementSafeAreaInsetTopPx(navigationBarContentElement) > 0;
 
         const timelineDefinition: Parameters<typeof timeline>[0] = [
             [navigationBarElement, {y: [-translateY, 0]}, {easing: "ease-in-out"}],
@@ -1053,6 +1044,9 @@ export function NavigationBar({
                     <Box position="relative" zIndex="0" paddingTop="safe-area-inset">
                         <Box
                             ref={navigationBarBackgroundRef}
+                            // Start with `display: none`. `onScroll` will change it to `display: block`
+                            // when we scroll.
+                            display="none"
                             position="absolute"
                             zIndex="-10"
                             top="0"
@@ -1071,10 +1065,6 @@ export function NavigationBar({
                                 </Box>
                             )}
                             <Box
-                                ref={navigationBarBorderRef}
-                                // Start with `display: none`. `onScroll` will change it to `display: block`
-                                // when we scroll.
-                                display="none"
                                 position="absolute"
                                 height="border"
                                 // It's subtle, but `grey-5-translucent` ends up looking a lot nicer

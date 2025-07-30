@@ -6,7 +6,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferences>({
     content,
     contentSnippet,
-    initiallyShowAll,
+    initiallyShowAllContent,
     ...props
 }: Omit<ContentViewProps<Content>, "onSeeMoreContent" | "onSeeLessContent"> & {
     /**
@@ -17,14 +17,50 @@ export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferenc
     /**
      * Are we initially showing all content?
      */
-    initiallyShowAll?: boolean;
+    initiallyShowAllContent?: boolean;
 }) {
     const isContentSnippetTruncated = content.doc.nodeSize !== contentSnippet.doc.nodeSize;
 
     const [isShowingAllContent, setIsShowingAllContent] = useState(
-        initiallyShowAll || !isContentSnippetTruncated,
+        initiallyShowAllContent || !isContentSnippetTruncated,
     );
     if (!isShowingAllContent && !isContentSnippetTruncated) setIsShowingAllContent(true);
+
+    return (
+        <ContentViewWithSeeMoreToggleBase
+            {...props}
+            content={content}
+            contentSnippet={contentSnippet}
+            isShowingAllContent={isShowingAllContent}
+            onIsShowingAllContentChange={setIsShowingAllContent}
+        />
+    );
+}
+
+export function ContentViewWithSeeMoreToggleBase<Content extends ContentWithReferences>({
+    content,
+    contentSnippet,
+    isShowingAllContent: isShowingAllContentFromProps,
+    onIsShowingAllContentChange,
+    ...props
+}: Omit<ContentViewProps<Content>, "onSeeMoreContent" | "onSeeLessContent"> & {
+    /**
+     * The content to render.
+     */
+    contentSnippet: Content;
+
+    /**
+     * Are we showing `content` (true) or `contentSnippet` (false)?
+     */
+    isShowingAllContent: boolean;
+
+    /**
+     * Update `isShowingAllContent` to true or false.
+     */
+    onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
+}) {
+    const isContentSnippetTruncated = content.doc.nodeSize !== contentSnippet.doc.nodeSize;
+    const isShowingAllContent = isShowingAllContentFromProps || !isContentSnippetTruncated;
 
     const fixScrollAfterSeeLessContentRef = useRef<{
         targetElement: HTMLElement;
@@ -56,7 +92,7 @@ export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferenc
             content={isContentSnippetTruncated && !isShowingAllContent ? contentSnippet : content}
             onSeeMoreContent={
                 isContentSnippetTruncated && !isShowingAllContent
-                    ? () => setIsShowingAllContent(true)
+                    ? () => onIsShowingAllContentChange(true)
                     : undefined
             }
             onSeeLessContent={
@@ -82,7 +118,7 @@ export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferenc
                               };
                           }
 
-                          setIsShowingAllContent(false);
+                          onIsShowingAllContentChange(false);
                       }
                     : undefined
             }

@@ -5,7 +5,7 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
-import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
+import {ContentViewWithSeeMoreToggleBase} from "~/client/content/content_view_with_see_more_toggle.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {getContentReferencesForClientPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
@@ -45,14 +45,15 @@ import {
     postContentViewMinHeightPx,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
+    postViewContentPaddingTop,
     postViewMinHeightPx,
-    postViewNavigationBarSpace,
     screenPaddingXWithoutPostContentViewInnerMarginY,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     colorSchemeVars,
     contentStyles,
     contentViewStyles,
+    navigationBarStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
@@ -103,6 +104,8 @@ export function PostContentView({
     onTogglePostComments,
     onLoadInitialPostComments,
     onScrollToIfNotVisible,
+    isShowingAllContent,
+    onIsShowingAllContentChange,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
@@ -116,6 +119,8 @@ export function PostContentView({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
     onScrollToIfNotVisible: () => void;
+    isShowingAllContent: boolean;
+    onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -203,11 +208,6 @@ export function PostContentView({
         }
     }, [isPostView, platform, post.content.doc, post.content.references, routeLayout]);
 
-    const isPostSnippetTruncated = post.content.doc.nodeSize !== postSnippet?.doc.nodeSize;
-
-    const [isShowingAllContent, setIsShowingAllContent] = useState(!isPostSnippetTruncated);
-    if (!isShowingAllContent && !isPostSnippetTruncated) setIsShowingAllContent(true);
-
     const fileAttachmentTarget = useMemo(
         (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
         [post.id],
@@ -288,7 +288,7 @@ export function PostContentView({
         >
             {isPostView ? (
                 <Box paddingTop="safe-area-inset">
-                    <Box style={{height: postViewNavigationBarSpace[platform]}} />
+                    <Box height={navigationBarStyles.navigationBarHeight} />
                 </Box>
             ) : (
                 <>
@@ -341,22 +341,20 @@ export function PostContentView({
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({padding: postContentViewInnerMarginY})}
+                            style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
                             availableWidth={availableWidth}
                         />
                     ) : (
-                        <ContentViewWithSeeMoreToggle
+                        <ContentViewWithSeeMoreToggleBase
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({padding: postContentViewInnerMarginY})}
+                            style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
                             availableWidth={availableWidth}
                             content={post.content}
                             contentSnippet={postSnippet}
-                            // If we were editing this post then show all content instead of collapsing
-                            // back into the truncated snippet.
-                            initiallyShowAll={
-                                !postEditing.state.isEditing &&
-                                postEditing.state.lastEditedPostId === post.id
-                            }
+                            isShowingAllContent={isShowingAllContent}
+                            onIsShowingAllContentChange={onIsShowingAllContentChange}
                         />
                     )
                 ) : (
@@ -395,7 +393,7 @@ function PostContentViewFooter({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
-    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
 
@@ -428,7 +426,7 @@ function PostContentViewFooter({
                         height={postContentViewFooterButtonHeight}
                         paddingX="1.5"
                         icon={
-                            platform === "mobile" ? (
+                            routeLayout === "narrow" ? (
                                 <ChatCircleDots
                                     size={spacing[postContentViewFooterButtonIconSize]}
                                 />
@@ -466,7 +464,7 @@ function PostContentViewFooter({
                         iconPlacement="start"
                         pressErrorTitle="Couldn’t open comments"
                         onPress={async () => {
-                            if (platform === "mobile") {
+                            if (routeLayout === "narrow") {
                                 await navigate(`/s/${post.spaceId}/posts/${post.id}`);
                                 return;
                             }
@@ -726,7 +724,17 @@ function PostContentViewEditor({
 
     return (
         <>
-            <Box style={{padding: subtractRemLengths(postContentViewInnerMarginY, "2")}}>
+            <Box
+                style={{
+                    padding: subtractRemLengths(postContentViewInnerMarginY, "2"),
+                    paddingTop: isPostView ? 0 : undefined,
+                    // `postViewContentPaddingTop` minus `2` is negative which is why we use
+                    // `marginTop`.
+                    marginTop: isPostView
+                        ? subtractRemLengths(postViewContentPaddingTop, "2")
+                        : undefined,
+                }}
+            >
                 <FocusRing
                     // Don't render a focus ring around the post if a node is selected since the
                     // node will have a blue focus ring. We don't want both focus rings to clash.
