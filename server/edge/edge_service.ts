@@ -1,6 +1,9 @@
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
-import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {
+    WorkerRpcContextBatcher,
+    WorkerRpcContextModule,
+} from "~/server/cloudflare/context/worker_rpc_context_module.js";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
 import {fetchFile} from "~/server/edge/fetch_file.js";
@@ -22,6 +25,7 @@ import {
     createTraceServerResponseHandleSpanName,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -688,17 +692,20 @@ async function actuallyHandleFetch(
                 const createContext = ({sessionId, accountId}: SessionTokenPayload) =>
                     Context.new({
                         tracer: new TracerContextModule(span),
+                        batch: new BatchContextModule(),
                         actor: WorkerSessionActorContextModule.dangerouslyNew(
                             "AppService",
                             sessionId,
                             accountId,
                         ),
-                        rpc: new WorkerRpcContextModule({
-                            protocol: url.protocol,
-                            host: url.host,
-                            tokenAgent,
-                            cookieJar: new CookieJar(),
-                        }),
+                        rpc: new WorkerRpcContextModule(
+                            new WorkerRpcContextBatcher({
+                                protocol: url.protocol,
+                                host: url.host,
+                                tokenAgent,
+                                cookieJar: new CookieJar(),
+                            }),
+                        ),
                     });
 
                 switch (route.type) {

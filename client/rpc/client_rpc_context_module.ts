@@ -4,10 +4,9 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchCallErrorOutputSchema,
-    RpcHttpBatchCallEventOutputSchema,
     RpcHttpBatchCallInputSchema,
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
@@ -96,7 +95,7 @@ function scheduleRpcCall(call: RpcCall): void {
     scheduledRpcCallBatch.push(call);
 }
 
-async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
+async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
     assert(callBatch.length > 0);
 
     // If this function throws any error, we want to reject all calls in our
@@ -141,6 +140,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                                   calls: callBatch.map(call => ({
                                       name: call.name,
                                       input: call.input,
+                                      tracerContext: call.span.getPropagationContext(),
                                   })),
                               }),
                           ),
@@ -187,83 +187,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
 
                     throw output.error;
                 } else {
-                    const decoder = new TextDecoder();
-                    const reader = assertExists(response.body).getReader();
-
-                    async function* read(): AsyncIterableIterator<string> {
-                        let unfinishedString = "";
-
-                        while (true) {
-                            const result = await reader.read();
-
-                            if (result.value) {
-                                const chunkString = decoder.decode(result.value, {
-                                    stream: !result.done,
-                                });
-
-                                // If there's a newline in the output that means the content preceding the
-                                // newline has at least one valid event maybe more.
-                                let newLineIndex = chunkString.lastIndexOf("\n");
-
-                                if (newLineIndex !== -1) {
-                                    newLineIndex += unfinishedString.length;
-                                }
-
-                                unfinishedString =
-                                    unfinishedString.length === 0
-                                        ? chunkString
-                                        : unfinishedString + chunkString;
-
-                                if (newLineIndex !== -1) {
-                                    const finishedString = unfinishedString.slice(0, newLineIndex);
-                                    unfinishedString = unfinishedString.slice(newLineIndex + 1);
-
-                                    yield* finishedString.split("\n");
-                                }
-                            }
-
-                            if (result.done) {
-                                break;
-                            }
-                        }
-
-                        // Once we're done reading, we assume the last string is also valid JSON.
-                        // Unless the string is empty. Then we assume it's a trailing newline.
-                        if (unfinishedString.length !== 0) {
-                            yield unfinishedString;
-                        }
-                    }
-
-                    for await (const eventString of read()) {
-                        const event = RpcHttpBatchCallEventOutputSchema.deserialize(
-                            JSON.parse(eventString),
-                        );
-
-                        const call = callBatch[event.index];
-                        const callOutput = event.call;
-
-                        if (!call) {
-                            throw new InternalError(
-                                "Batch request included output for an unknown call",
-                            );
-                        }
-
-                        // If anything throws while processing the output for a single call,
-                        // reject only that call's promise.
-                        if (!callOutput.ok) {
-                            call.outputPromiseResolver.reject(callOutput.error);
-                        } else {
-                            call.outputPromiseResolver.resolve(callOutput.output);
-                        }
-                    }
-
-                    for (const call of callBatch) {
-                        if (!call.outputPromiseResolver.isSettled()) {
-                            call.outputPromiseResolver.reject(
-                                new InternalError("Batch request didn’t include output for call"),
-                            );
-                        }
-                    }
+                    await deserializeRpcBatchResponse(callBatch, response);
                 }
             },
         );

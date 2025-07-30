@@ -4,6 +4,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -16,6 +17,13 @@ type WorkerActionContextModulesBase = WorkerProcessContextModules & {
      * are not shared across actions.
      */
     cache: CacheContextModule;
+
+    /**
+     * Action-level batching. Allows us to batch multiple requests made in the
+     * current synchronous context into one network request to some backend
+     * service.
+     */
+    batch: BatchContextModule;
 
     /**
      * Allow executing RPCs in an action. You may only execute RPCs within the

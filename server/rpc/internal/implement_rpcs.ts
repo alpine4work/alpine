@@ -1,8 +1,11 @@
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {RpcServerActionContext} from "~/server/rpc/rpc_server_action_context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
@@ -11,13 +14,23 @@ import {
     RpcDefinitionOutputType,
 } from "~/shared/rpc/rpc_definition.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+
+export type RpcExecuteOptions = {
+    replaceTracerPropagationContext?: TracerSpanPropagationContext;
+};
 
 export type RpcImplementation<Input, Output> = {
     execute(
         context: RpcServerActionContext,
         input: SchemaSerializedValue,
+        options?: RpcExecuteOptions,
     ): Promise<SchemaSerializedValue>;
-    executeWithoutSerialization(context: RpcServerActionContext, input: Input): Promise<Output>;
+    executeWithoutSerialization(
+        context: RpcServerActionContext,
+        input: Input,
+        options?: RpcExecuteOptions,
+    ): Promise<Output>;
 };
 
 type RpcImplementationOptions<Input, Output> = {
@@ -93,10 +106,47 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
             const executeWithoutSerialization = (
                 context: RpcServerActionContext,
                 input: Input,
+                options?: RpcExecuteOptions,
             ): Promise<Output> => {
-                return context.tracer.withSpan(
+                const tracerBase = context.tracer.getTracer();
+                const tracer = tracerBase.getRoot();
+
+                // `tracerBase instanceof TracerSpan` doesn't work because in `AppService`, due
+                // to our hot reloading setup, `tracerBase` may come from a different
+                // JavaScript runtime.
+                const parentSpan = hasOwnProperty(tracerBase, "traceId")
+                    ? (tracerBase as TracerSpan)
+                    : null;
+
+                // Create a span manually. If `replaceTracerPropagationContext` is set then we
+                // want to use the `traceId`/`parentId` of the span in `context` but we want to
+                // use the propagated data from `replaceTracerPropagationContext`.
+                //
+                // This is important for when `WorkerRpcContextModule` calls
+                // `/api/rpc/_batchByActor` because we want to use the right
+                // `context.accountId` for each call. We don't want to use the
+                // `context.accountId` of the first call which happens to be the span parent.
+                const {span, finishSpan} = TracerSpan._start(
+                    tracer,
+                    // Inherit the parent span's clock if available.
+                    parentSpan?.clock ?? new MonotonicClock(tracer.getNonMonotonicClock()),
                     `Handle: RPC ${definition.name}`,
-                    async (context, span) => {
+                    parentSpan === null
+                        ? options?.replaceTracerPropagationContext ?? null
+                        : {
+                              traceId: parentSpan.traceId,
+                              parentId: parentSpan._getSpanId(),
+                              propagatedEventData: options?.replaceTracerPropagationContext
+                                  ? undefined
+                                  : parentSpan._getPropagatedEventData(),
+                              propagatedEventFlatData: options?.replaceTracerPropagationContext
+                                  ? options?.replaceTracerPropagationContext.data
+                                  : parentSpan._getPropagatedEventFlatData(),
+                          },
+                );
+
+                return context.with({tracer: new TracerContextModule(span)}, async context => {
+                    try {
                         span.addPropagatedDataForChildrenOnly({
                             context: {
                                 handler: `RPC ${definition.name}`,
@@ -122,28 +172,34 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
                         }
 
                         const output = (await implementation(context, input)) as Output;
+                        finishSpan();
                         return output;
-                    },
-                );
+                    } catch (error) {
+                        span.addException(error);
+                        finishSpan();
+                        throw error;
+                    }
+                });
             };
 
             const execute = async (
                 context: RpcServerActionContext,
                 serializedInput: SchemaSerializedValue,
+                options?: RpcExecuteOptions,
             ): Promise<SchemaSerializedValue> => {
                 const input = definition.inputSchema.deserialize(serializedInput);
-                const output = await executeWithoutSerialization(context, input);
+                const output = await executeWithoutSerialization(context, input, options);
                 return definition.outputSchema.serialize(output);
             };
 
             return {
                 execute,
-                executeWithoutSerialization: (context, input) => {
+                executeWithoutSerialization: (context, input, options) => {
                     // Make sure the input is well formed beyond complying with the TypeScript
                     // types without doing a full serialization/deserialization.
                     definition.inputSchema.validate?.(input);
 
-                    return executeWithoutSerialization(context, input);
+                    return executeWithoutSerialization(context, input, options);
                 },
             };
         },

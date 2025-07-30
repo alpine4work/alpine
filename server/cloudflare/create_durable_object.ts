@@ -9,7 +9,10 @@ import {
     WorkerProcessContext,
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
-import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {
+    WorkerRpcContextBatcher,
+    WorkerRpcContextModule,
+} from "~/server/cloudflare/context/worker_rpc_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
@@ -20,6 +23,7 @@ import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
 } from "~/server/web_socket/web_socket_server.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -118,8 +122,9 @@ export function createDurableObject<
 } {
     return class DurableObjectWrapper {
         private readonly _state: DurableObjectState;
-        private _tokenAgent: TokenAgent | Promise<TokenAgent>;
         private readonly _cookieJar: CookieJar;
+        private _tokenAgent: TokenAgent | Promise<TokenAgent>;
+        private _rpcBatcher: WorkerRpcContextBatcher | null = null;
         private readonly _tracer: TracerRoot;
         private readonly _processContext: WorkerProcessContext;
         private _object: {
@@ -158,6 +163,10 @@ export function createDurableObject<
             if (!tokenAgentSecret)
                 throw new InternalError("Missing `TOKEN_AGENT_SECRET` env variable");
 
+            // Cookie jar for sharing cookies across requests made from this Durable
+            // Object instance.
+            this._cookieJar = new CookieJar();
+
             const tokenAgentPromise = runAllPromises([
                 TokenAgentPublicSide.new({
                     serviceName,
@@ -179,10 +188,6 @@ export function createDurableObject<
 
             // When the token agent has resolved, we don't need to await it anymore.
             void tokenAgentPromise.then(tokenAgent => (this._tokenAgent = tokenAgent));
-
-            // Cookie jar for sharing cookies across requests made from this Durable
-            // Object instance.
-            this._cookieJar = new CookieJar();
 
             this._tracer = createServerTracer({
                 serviceName,
@@ -252,6 +257,13 @@ export function createDurableObject<
                             ? await this._tokenAgent
                             : this._tokenAgent;
 
+                    this._rpcBatcher ??= new WorkerRpcContextBatcher({
+                        protocol: url.protocol,
+                        host: url.host,
+                        tokenAgent,
+                        cookieJar: this._cookieJar,
+                    });
+
                     const actorContextModule = await createWorkerActorContextModule(
                         tokenAgent,
                         authorizationHeaderToken,
@@ -269,13 +281,9 @@ export function createDurableObject<
                             // this request.
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
+                            batch: new BatchContextModule(),
                             actor: actorContextModule,
-                            rpc: new WorkerRpcContextModule({
-                                protocol: url.protocol,
-                                host: url.host,
-                                tokenAgent,
-                                cookieJar: this._cookieJar,
-                            }),
+                            rpc: new WorkerRpcContextModule(this._rpcBatcher),
                             fork: new ForkActionContextModule(),
                         },
                         async actionContext => {
