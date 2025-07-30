@@ -9,7 +9,16 @@ export type OriginalTracerSpan = {
 // Original tracer spans are stored in a `WeakMap` instead of our `ErrorBase`
 // constructor to support error objects that were not created by our
 // `ErrorBase` constructor.
-const originalTracerSpanByError = new WeakMap<object, OriginalTracerSpan>();
+const originalTracerSpanByError =
+    process.env.NODE_ENV !== "development"
+        ? new WeakMap<object, OriginalTracerSpan>()
+        : // In development, because of our Vite hot reloading setup, this file may be
+          // imported twice. So to correctly track original tracer spans we need a shared
+          // global.
+          ((globalThis as any).__originalTracerSpanByError ??= new WeakMap<
+              object,
+              OriginalTracerSpan
+          >());
 
 export function getErrorOriginalTracerSpan(error: unknown): OriginalTracerSpan | undefined {
     if (typeof error !== "object" || error === null) return undefined;

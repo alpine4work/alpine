@@ -14,6 +14,7 @@ import {Color} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
 import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 
@@ -113,7 +114,7 @@ export function ErrorDisplayMessageRenderer({
         }, [context, error, reportingContext, withoutReporting]);
     }
 
-    const debugColor = "grey-40";
+    const debugColor = "grey-30";
 
     return (
         <Box
@@ -185,7 +186,7 @@ export function ErrorDisplayMessageRenderer({
                     {isSingleLine && " "}
                     <Box
                         display={isSingleLine ? "inline" : "block"}
-                        paddingTop="2"
+                        paddingTop={!isSingleLine ? "2.5" : undefined}
                         color={
                             colorSchemeOverride === "light"
                                 ? `${debugColor}-const`
@@ -195,9 +196,9 @@ export function ErrorDisplayMessageRenderer({
                         }
                         fontSize={
                             {
-                                "75": "50" as const,
-                                "100": "50" as const,
-                                "200": "75" as const,
+                                "75": "25" as const,
+                                "100": "25" as const,
+                                "200": "50" as const,
                             }[fontSize]
                         }
                         style={{
@@ -212,6 +213,26 @@ export function ErrorDisplayMessageRenderer({
                         }}
                     >
                         {isSingleLine && "("}Error code: {getErrorCode(error)}
+                        {!isSingleLine &&
+                            error instanceof ErrorBase &&
+                            (() => {
+                                const originalTracerSpan = getErrorOriginalTracerSpan(error);
+                                if (!originalTracerSpan) return;
+
+                                return (
+                                    <>
+                                        , trace:{" "}
+                                        <span
+                                            style={{
+                                                // eslint-disable-next-line string-quotes
+                                                fontFeatureSettings: '"calt" off',
+                                            }}
+                                        >
+                                            {originalTracerSpan.traceId}
+                                        </span>
+                                    </>
+                                );
+                            })()}
                         {isSingleLine && ")"}
                     </Box>
                 </>
