@@ -6,6 +6,7 @@ ts_project(
     visibility = [
         "//server/files/processor:__pkg__",
         "//server/jobs/queue:__pkg__",
+        "//admin/lambda/local:__pkg__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-sqs",
