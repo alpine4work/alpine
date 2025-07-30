@@ -34,6 +34,7 @@ import {
     TaskRealtimeUpdateEventConnection,
 } from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -50,6 +51,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -96,11 +98,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
+            batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
         action: (context: TaskSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
-    public readonly sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
+    public readonly sendEvent: (
+        context: ServerProcessContext,
+        event: TaskRealtimeEvent,
+    ) => SafeFloatingPromise<void>;
     private readonly _closeWithError: (context: ServerProcessContext, error: unknown) => void;
     private readonly _resetAuthorizationTimer: (context: ServerProcessContext) => void;
 
@@ -136,11 +142,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
+                batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: TaskSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
-        sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
+        sendEvent: (
+            context: ServerProcessContext,
+            event: TaskRealtimeEvent,
+        ) => SafeFloatingPromise<void>;
         closeWithError: (context: ServerProcessContext, error: unknown) => void;
         resetAuthorizationTimer: (context: ServerProcessContext) => void;
     }) {
@@ -251,6 +261,14 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             const event = await eventBuilder.finishAndBuildEvent(context);
             if (event !== null) this.sendEvent(context, event);
         });
+    }
+
+    public async transformEvent(
+        context: ServerSessionActionContext,
+        eventStub: TaskRealtimeEvent,
+    ): Promise<TaskRealtimeEvent> {
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        return eventStub;
     }
 
     private _subscribeToQuery(

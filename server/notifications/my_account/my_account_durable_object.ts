@@ -16,6 +16,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MyAccountBroadcastInboxRealtimeEventTransactionSchema,
+    MyAccountEvent,
     MyAccountProtocol,
 } from "~/shared/notifications/my_account_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -33,6 +34,8 @@ class MyAccountDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof MyAccountProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        MyAccountEvent,
         MyAccountConnection
     >;
 
@@ -77,6 +80,8 @@ class MyAccountDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof MyAccountProtocol,
+            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+            MyAccountEvent,
             MyAccountConnection
         >(this._processContext, MyAccountProtocol, () => {
             return new MyAccountConnection({

@@ -146,8 +146,8 @@ export function createFileProcessorServiceServer(
 
         const baseActionContext = processContext.clone({
             tracer: new TracerContextModule(span),
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
         });
 
         const actorContextModule = await createDynamoActorContextModule(

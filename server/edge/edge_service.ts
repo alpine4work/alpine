@@ -692,7 +692,7 @@ async function actuallyHandleFetch(
                 const createContext = ({sessionId, accountId}: SessionTokenPayload) =>
                     Context.new({
                         tracer: new TracerContextModule(span),
-                        batch: new BatchContextModule(),
+                        batch: BatchContextModule.new(),
                         actor: WorkerSessionActorContextModule.dangerouslyNew(
                             "AppService",
                             sessionId,

@@ -25,6 +25,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
@@ -97,7 +98,7 @@ function createNavigateFunction(
 
         if (typeof to === "function") {
             const result = to(router.state.location);
-            if (!result) return Promise.resolve() as SafeFloatingPromise<void>;
+            if (!result) return voidSafeFloatingPromise;
             return Array.isArray(result) ? navigate(...result) : navigate(result);
         }
 

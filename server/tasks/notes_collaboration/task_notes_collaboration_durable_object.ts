@@ -15,7 +15,10 @@ import {NotFoundError} from "~/shared/error/error.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
+import {
+    TaskNotesCollaborationEvent,
+    TaskNotesCollaborationProtocol,
+} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 type TaskNotesCollaborationDurableObjectRoute = "Main" | "NotFound";
@@ -33,6 +36,8 @@ class TaskNotesCollaborationDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof TaskNotesCollaborationProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskNotesCollaborationEvent,
         TaskNotesCollaborationConnection
     >;
 
@@ -106,6 +111,8 @@ class TaskNotesCollaborationDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof TaskNotesCollaborationProtocol,
+            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+            TaskNotesCollaborationEvent,
             TaskNotesCollaborationConnection
         >(
             this._processContext,

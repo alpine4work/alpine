@@ -1203,6 +1203,11 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     null,
     SchemaSerializedObjectValue | null
 > {
+    // Reading DynamoDB items doesn't depend on the actor. Authorization happens
+    // before we start issuing raw DynamoDB actions. It's safe to share batched IO
+    // across actor changes.
+    public override readonly whenActorChanges = "DangerouslyShare";
+
     private readonly _client: DynamoClientInternal;
     private readonly _consistency: DynamoReadConsistency;
 
@@ -1591,6 +1596,11 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     DynamoClientWriteItemBatchAction,
     void
 > {
+    // Writing DynamoDB items doesn't depend on the actor. Authorization happens
+    // before we start issuing raw DynamoDB actions. It's safe to share batched IO
+    // across actor changes.
+    public override readonly whenActorChanges = "DangerouslyShare";
+
     private readonly _client: DynamoClientInternal;
 
     constructor(client: DynamoClientInternal) {

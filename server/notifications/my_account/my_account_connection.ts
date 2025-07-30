@@ -5,7 +5,7 @@ import {
 import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
+import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 
 export class MyAccountConnection {
     private readonly _accountId: AccountId;
@@ -30,4 +30,12 @@ export class MyAccountConnection {
         WorkerSessionActionContextModules,
         typeof MyAccountProtocol
     > = {};
+
+    public async transformEvent(
+        context: WorkerSessionActionContext,
+        eventStub: MyAccountEvent,
+    ): Promise<MyAccountEvent> {
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        return eventStub;
+    }
 }

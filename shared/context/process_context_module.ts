@@ -5,6 +5,7 @@ import {DeadlineExceededError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 // We grab the original `setTimeout` here since we want to set a timeout
 // without being affected by Jest fake timers.
@@ -33,7 +34,9 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      *
      * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
      */
-    public waitUntil(action: Promise<unknown> | (() => Promise<unknown>)): void {
+    public waitUntil(
+        action: Promise<unknown> | (() => Promise<unknown>),
+    ): SafeFloatingPromise<void> {
         const promise = typeof action === "function" ? action() : action;
 
         // @ts-expect-error: This `_waitUntil()` method exists on the `Context` object
@@ -42,6 +45,8 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
         this._context._waitUntil(promise);
 
         this._waitUntil(promise);
+
+        return promise as SafeFloatingPromise<void>;
     }
 
     public fork() {

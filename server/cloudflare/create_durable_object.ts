@@ -81,9 +81,11 @@ export function createDurableObject<
                 WorkerProcessContextModules,
                 WorkerSessionActionContextModules,
                 WebSocketProtocolBase,
+                any,
                 WebSocketServerConnectionBase<
                     WorkerProcessContextModules,
                     WorkerSessionActionContextModules,
+                    any,
                     any
                 >
             >
@@ -280,8 +282,8 @@ export function createDurableObject<
                             // Replace the tracer context module with one that uses our span for
                             // this request.
                             tracer: new TracerContextModule(span),
-                            cache: new CacheContextModule(),
-                            batch: new BatchContextModule(),
+                            cache: CacheContextModule.new(),
+                            batch: BatchContextModule.new(),
                             actor: actorContextModule,
                             rpc: new WorkerRpcContextModule(this._rpcBatcher),
                             fork: new ForkActionContextModule(),

@@ -15,6 +15,7 @@ import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_serv
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     backfillPostComments,
@@ -37,7 +38,10 @@ export class PostRealtimeConnection {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         postId: PostId;
-        sendEvent: (context: WorkerProcessContext, event: PostRealtimeEvent) => void;
+        sendEvent: (
+            context: WorkerProcessContext,
+            event: PostRealtimeEvent,
+        ) => SafeFloatingPromise<void>;
         sendEventToOthers: (context: WorkerProcessContext, event: PostRealtimeEvent) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeConnection>;
     }) {
@@ -112,6 +116,14 @@ export class PostRealtimeConnection {
         stopTypingInCommentInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
     };
+
+    public async transformEvent(
+        context: WorkerSessionActionContext,
+        eventStub: PostRealtimeEvent,
+    ): Promise<PostRealtimeEvent> {
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        return eventStub;
+    }
 
     public async handleClose(context: WorkerProcessContext) {
         return this._connection.handleClose(context);

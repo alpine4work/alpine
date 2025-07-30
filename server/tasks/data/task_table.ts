@@ -1050,8 +1050,8 @@ export async function runIndexEveryTaskActionStep1Of2(
             mutexes[i++ % mutexes.length]!.withLock(() =>
                 indexTaskActionTransactionAssumingItsCommitted(
                     context.clone({
-                        cache: new CacheContextModule(),
-                        batch: new BatchContextModule(),
+                        cache: CacheContextModule.new(),
+                        batch: BatchContextModule.new(),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             serviceName,
                             item.spaceId,
@@ -1114,8 +1114,8 @@ export async function runIndexEveryTaskActionStep2Of2(
                 () =>
                     indexTaskActionTransactionAssumingItsCommitted(
                         context.clone({
-                            cache: new CacheContextModule(),
-                            batch: new BatchContextModule(),
+                            cache: CacheContextModule.new(),
+                            batch: BatchContextModule.new(),
                             actor: DynamoSystemActorContextModule.dangerouslyNew(
                                 serviceName,
                                 item.spaceId,

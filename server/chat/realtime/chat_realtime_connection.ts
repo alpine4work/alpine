@@ -15,6 +15,7 @@ import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_serv
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     backfillChatMessages,
@@ -37,7 +38,10 @@ export class ChatRealtimeConnection {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         chatId: ChatId;
-        sendEvent: (context: WorkerProcessContext, event: ChatRealtimeEvent) => void;
+        sendEvent: (
+            context: WorkerProcessContext,
+            event: ChatRealtimeEvent,
+        ) => SafeFloatingPromise<void>;
         sendEventToOthers: (context: WorkerProcessContext, event: ChatRealtimeEvent) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
@@ -79,6 +83,14 @@ export class ChatRealtimeConnection {
         stopTypingInMessageInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
     };
+
+    public async transformEvent(
+        context: WorkerSessionActionContext,
+        eventStub: ChatRealtimeEvent,
+    ): Promise<ChatRealtimeEvent> {
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        return eventStub;
+    }
 
     public async handleClose(context: WorkerProcessContext) {
         return this._connection.handleClose(context);

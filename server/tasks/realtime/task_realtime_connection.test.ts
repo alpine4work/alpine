@@ -77,6 +77,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {
+    TaskRealtimeEvent,
     TaskRealtimeProtocol,
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
@@ -98,6 +99,8 @@ function createWebSocketServer(space: TestSpace) {
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >(
         context,
@@ -182,6 +185,8 @@ async function testSubscribe(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
     input: WebSocketProtocolProceduresType<typeof TaskRealtimeProtocol>["subscribe"]["input"],
@@ -199,6 +204,8 @@ async function testSubscribeToQuery(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
     input:
@@ -227,6 +234,8 @@ async function testSubscribeToTask(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
     input: WebSocketProtocolProceduresType<typeof TaskRealtimeProtocol>["subscribeToTask"]["input"],
@@ -244,6 +253,8 @@ async function testSubscribeToCollection(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
     input: WebSocketProtocolProceduresType<
@@ -263,6 +274,8 @@ async function testLoadMoreQueryTasks(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
     input:
@@ -283,6 +296,8 @@ function testTakeEvents(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
 ) {

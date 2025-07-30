@@ -16,18 +16,33 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * [1]: https://www.npmjs.com/package/dataloader
  */
 export class BatchContextModule extends ContextModuleBase implements ForkableContextModuleBase {
-    private readonly _batchByBatcher = new Map<ContextBatcherBase<any, any, any, any>, any>();
+    private readonly _sharedBatches: Map<ContextBatcherBase<any, any, any, any>, any> | null = null;
+    private readonly _batches = new Map<ContextBatcherBase<any, any, any, any>, any>();
+
+    private constructor(sharedBatches: Map<ContextBatcherBase<any, any, any, any>, any> | null) {
+        super();
+        this._sharedBatches = sharedBatches;
+    }
+
+    public static new() {
+        return new BatchContextModule(null);
+    }
 
     public execute<Modules extends {[key: string]: ContextModuleBase}, Batch, Input, Output>(
         this: ContextModuleBase<Modules> & BatchContextModule,
         batcher: ContextBatcherBase<Modules, Batch, Input, Output>,
         input: Input,
     ): Promise<Output> {
-        const batch = getOrSetDefaultMapValue(this._batchByBatcher, batcher, () => {
+        const batches =
+            batcher.whenActorChanges === "DangerouslyShare"
+                ? this._sharedBatches ?? this._batches
+                : this._batches;
+
+        const batch = getOrSetDefaultMapValue(batches, batcher, () => {
             const batch = batcher.newBatch();
 
             schedulePostPromiseJob(() => {
-                this._batchByBatcher.delete(batcher);
+                batches.delete(batcher);
                 batcher.executeBatch(this._context, batch);
             });
 
@@ -40,7 +55,17 @@ export class BatchContextModule extends ContextModuleBase implements ForkableCon
     public fork() {
         // Create a new batch context for our fork. Do not share IO with the
         // parent action.
-        return new BatchContextModule();
+        return new BatchContextModule(null);
+    }
+
+    /**
+     * Create a new `BatchContextModule` and share any batches that set
+     * `whenActorChanges: "DangerouslyShare"` between this batch context module and
+     * the new batch context module. See the documentation on `whenActorChanges`
+     * for more info.
+     */
+    public forkForChangedActor() {
+        return new BatchContextModule(this._sharedBatches ?? this._batches);
     }
 }
 
@@ -50,6 +75,26 @@ export abstract class ContextBatcherBase<
     Input,
     Output,
 > {
+    /**
+     * What should happen to the batcher when the actor changes? Should we share
+     * IO across different actors or have separate batches? The actor may change
+     * within an action through a `dangerouslyEscalateToSystemContext()` call or an
+     * `impersonateAccountAsSystemContext()` call.
+     *
+     * If the value is `DangerouslyShare` then batched IO will be shared between the
+     * action context for the old actor and new actor. If we add to the batch as
+     * the old actor the same batch can be added to by the new actor and vice
+     * versa. You should only use `DangerouslyShare` if batch loading doesn't
+     * depend on the actor! This option is the most performant since we batch more
+     * stuff.
+     *
+     * If the value is `SafelyReset` then we keep batches separate and if we add
+     * to this new actor's batch it won't be shared with the old actor. This option
+     * is safer since if we execute a batch with a system actor then a session
+     * actor won't accidentally have system permissions.
+     */
+    public abstract readonly whenActorChanges: "DangerouslyShare" | "SafelyReset";
+
     public abstract newBatch(): Batch;
     public abstract addToBatch(batch: Batch, input: Input): Promise<Output>;
     public abstract executeBatch(context: Context<Modules>, batch: Batch): void;
@@ -75,18 +120,22 @@ export class ContextBatcher<
     Input,
     Output
 > {
+    public override readonly whenActorChanges: "DangerouslyShare" | "SafelyReset";
+
     private readonly _execute: (
         context: Context<Modules>,
         inputs: ReadonlyArray<Input>,
     ) => Promise<ReadonlyArray<Output>>;
 
     constructor(
+        {whenActorChanges}: {whenActorChanges: "DangerouslyShare" | "SafelyReset"},
         execute: (
             context: Context<Modules>,
             inputs: ReadonlyArray<Input>,
         ) => Promise<ReadonlyArray<Output>>,
     ) {
         super();
+        this.whenActorChanges = whenActorChanges;
         this._execute = execute;
     }
 

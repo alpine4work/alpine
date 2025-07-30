@@ -41,6 +41,8 @@ class DocumentCollaborationDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        DocumentCollaborationEvent,
         DocumentCollaborationConnection
     >;
 
@@ -48,6 +50,8 @@ class DocumentCollaborationDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        DocumentCollaborationEvent,
         DocumentCollaborationConnection
     >;
 
@@ -124,6 +128,8 @@ class DocumentCollaborationDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof DocumentCollaborationProtocol,
+            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+            DocumentCollaborationEvent,
             DocumentCollaborationConnection
         >(
             this._processContext,
@@ -170,6 +176,8 @@ class DocumentCollaborationDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof DocumentCollaborationProtocol,
+            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+            DocumentCollaborationEvent,
             DocumentCollaborationConnection
         >(
             this._processContext,

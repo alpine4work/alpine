@@ -338,7 +338,7 @@ const ContextImplementation = class Context {
                         // useful to completely change the context module (e.g. swapping actor types).
                         //
                         // An example of how this is unsound: We use this function to allow replacing a
-                        // system actor with an impersonated account actor. Let's say we a system
+                        // system actor with an impersonated account actor. Let's say we have a system
                         // action context with a hypothetical `context.admin` module. Where the `admin`
                         // module depends on a specific property of the system actor context module
                         // (let's pretend the system actor context module has a method called

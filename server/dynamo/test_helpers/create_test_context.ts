@@ -193,6 +193,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
+            batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
         action: (context: TestSystemActionContext) => Promise<Value>,
@@ -385,6 +386,7 @@ export function createTestContext(
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
+            batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
         action: (context: TestSystemActionContext) => Promise<Value>,
@@ -396,7 +398,7 @@ export function createTestContext(
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
-                batch: new BatchContextModule(),
+                batch: context.batch.forkForChangedActor(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
                     spaceId,
@@ -408,8 +410,8 @@ export function createTestContext(
 
     const createUnknownAnonymousContext = (): TestUnknownActionContext => {
         return processContext.clone({
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
             actor: new DynamoUnknownActorContextModule(async () =>
                 DynamoAnonymousActorContextModule.dangerouslyNew("Test"),
             ),
@@ -428,8 +430,8 @@ export function createTestContext(
         } = {},
     ): TestSessionActionContext => {
         return processContext.clone({
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
             actor: DynamoSessionActorContextModule.dangerouslyNew(
                 serviceName,
                 Session.test(session),
@@ -448,8 +450,8 @@ export function createTestContext(
         } = {},
     ): TestSystemActionContext => {
         return processContext.clone({
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
             actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
         });
     };
@@ -461,8 +463,8 @@ export function createTestContext(
         serviceName?: ActorServiceName;
     } = {}): TestAnonymousActionContext => {
         return processContext.clone({
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
             actor: DynamoAnonymousActorContextModule.dangerouslyNew(serviceName),
         });
     };
@@ -478,8 +480,8 @@ export function createTestContext(
         } = {},
     ): TestImpersonatedAccountActionContext => {
         return processContext.clone({
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
             actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
                 DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
                 accountId,
@@ -489,8 +491,8 @@ export function createTestContext(
 
     const withCache = () => {
         return processContext.clone({
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
         });
     };
 

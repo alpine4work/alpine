@@ -12,6 +12,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -62,6 +63,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<ServerActi
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
+            batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
         action: (context: TaskSystemActionContext) => Promise<Value>,
@@ -75,6 +77,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<ServerActi
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
+                batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: TaskSystemActionContext) => Promise<Value>,
@@ -224,6 +227,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
+                batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: TaskSystemActionContext) => Promise<Value>,
@@ -550,6 +554,7 @@ export class TestTaskContextModule extends TaskContextModuleBase {
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
+                batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: TaskSystemActionContext) => Promise<Value>,

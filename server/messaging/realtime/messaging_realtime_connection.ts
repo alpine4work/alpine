@@ -10,6 +10,7 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -115,7 +116,7 @@ export class MessagingRealtimeConnection<
     private readonly _sendEvent: (
         context: WorkerProcessContext,
         event: MessagingRealtimeEvent<Message>,
-    ) => void;
+    ) => SafeFloatingPromise<void>;
     private readonly _sendEventToOthers: (
         context: WorkerProcessContext,
         event: MessagingRealtimeEvent<Message>,
@@ -180,7 +181,10 @@ export class MessagingRealtimeConnection<
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         roomKey: RoomKey;
-        sendEvent: (context: WorkerProcessContext, event: MessagingRealtimeEvent<Message>) => void;
+        sendEvent: (
+            context: WorkerProcessContext,
+            event: MessagingRealtimeEvent<Message>,
+        ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
             event: MessagingRealtimeEvent<Message>,

@@ -63,7 +63,7 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskRealtimeEvent, TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetCollectionOutput,
@@ -178,6 +178,7 @@ export async function run({
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
+            batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
         action: (context: TaskSystemActionContext) => Promise<Value>,
@@ -192,7 +193,7 @@ export async function run({
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
-                batch: new BatchContextModule(),
+                batch: context.batch.forkForChangedActor(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
                     spaceId,
@@ -208,6 +209,8 @@ export async function run({
                 ServerProcessContextModules,
                 TaskRealtimeSessionActionContextModules,
                 typeof TaskRealtimeProtocol,
+                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+                TaskRealtimeEvent,
                 TaskRealtimeConnection
             >(
                 processContext,
@@ -250,8 +253,8 @@ export async function run({
 
         const baseActionContext = processContext.clone({
             tracer: new TracerContextModule(span),
-            cache: new CacheContextModule(),
-            batch: new BatchContextModule(),
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
         });
 
         const actorContextModule = await createDynamoActorContextModule(

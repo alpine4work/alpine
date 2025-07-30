@@ -14,6 +14,7 @@ import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
     ChannelBroadcastRealtimeEventTransactionSchema,
+    ChannelRealtimeEvent,
     ChannelRealtimeProtocol,
 } from "~/shared/forum/channel_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -33,6 +34,8 @@ class ChannelRealtimeDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof ChannelRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        ChannelRealtimeEvent,
         ChannelRealtimeConnection
     >;
 
@@ -79,6 +82,8 @@ class ChannelRealtimeDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof ChannelRealtimeProtocol,
+            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+            ChannelRealtimeEvent,
             ChannelRealtimeConnection
         >(this._processContext, ChannelRealtimeProtocol, () => {
             return new ChannelRealtimeConnection({

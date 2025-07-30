@@ -14,6 +14,7 @@ import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
     PostBroadcastRealtimeEventTransactionSchema,
+    PostRealtimeEvent,
     PostRealtimeProtocol,
 } from "~/shared/forum/post_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -33,6 +34,8 @@ class PostRealtimeDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof PostRealtimeProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        PostRealtimeEvent,
         PostRealtimeConnection
     >;
 
@@ -79,6 +82,8 @@ class PostRealtimeDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof PostRealtimeProtocol,
+            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+            PostRealtimeEvent,
             PostRealtimeConnection
         >(
             this._processContext,

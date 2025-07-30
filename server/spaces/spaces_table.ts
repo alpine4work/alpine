@@ -37,6 +37,7 @@ import {
     AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -1631,6 +1632,7 @@ export async function impersonateAccountAsSystemContext<
         actor: DynamoSystemActorContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
+        batch: BatchContextModule;
         dynamo: DynamoContextModule;
     },
     Value,
@@ -1641,7 +1643,11 @@ export async function impersonateAccountAsSystemContext<
         context: Context<
             Replace<
                 Modules,
-                {cache: CacheContextModule; actor: DynamoImpersonatedAccountActorContextModule}
+                {
+                    cache: CacheContextModule;
+                    batch: BatchContextModule;
+                    actor: DynamoImpersonatedAccountActorContextModule;
+                }
             >
         >,
     ) => Promise<Value>,
@@ -1657,6 +1663,7 @@ export async function impersonateAccountAsSystemContext<
     return context.with(
         {
             cache: context.cache.forkForChangedActor(),
+            batch: context.batch.forkForChangedActor(),
             actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
                 context.actor,
                 accountId,

@@ -138,7 +138,7 @@ export class TestSpace {
     public async addAccountIfNotExists(account: TestAccount | TestSession, role?: SpaceRole) {
         if (
             await isAccountMemberOfSpaceWithoutAuthorization(
-                this.context.clone({cache: new CacheContextModule()}),
+                this.context.clone({cache: CacheContextModule.new()}),
                 this.id,
                 account instanceof TestSession ? account.account.id : account.id,
             )

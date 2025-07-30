@@ -823,8 +823,8 @@ export class JobQueueConsumer<
                 >(
                     {
                         tracer: new TracerContextModule(span),
-                        cache: new CacheContextModule(),
-                        batch: new BatchContextModule(),
+                        cache: CacheContextModule.new(),
+                        batch: BatchContextModule.new(),
                         // We're ok dangerously creating a space system actor here since we use AWS IAM
                         // policies to only allow our services to send messages to our SQS queue. So we
                         // can trust job objects to not be malicious.
@@ -869,8 +869,8 @@ export class JobQueueConsumer<
                 >(
                     {
                         tracer: new TracerContextModule(span),
-                        cache: new CacheContextModule(),
-                        batch: new BatchContextModule(),
+                        cache: CacheContextModule.new(),
+                        batch: BatchContextModule.new(),
                     },
                     actionContext =>
                         this._processMaintenanceJob(

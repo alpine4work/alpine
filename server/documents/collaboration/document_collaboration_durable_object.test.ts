@@ -28,7 +28,10 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
+import {
+    DocumentCollaborationEvent,
+    DocumentCollaborationProtocol,
+} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -80,6 +83,8 @@ function waitForPersistence(
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        DocumentCollaborationEvent,
         DocumentCollaborationConnection
     >,
     version: number,
@@ -5770,7 +5775,9 @@ test("can get presence updates across viewer/editor connections", async () => {
             connectionId: connection1.id,
             state: {
                 version: 5,
-                selection: ContentSelectionWrapper.fromJSON({type: "text", anchor: 5, head: 5}),
+                selection: ContentSelectionWrapper.new(
+                    TextSelection.near((await document.get()).content.doc.resolve(5)),
+                ),
             },
         },
     ]);
@@ -5790,7 +5797,9 @@ test("can get presence updates across viewer/editor connections", async () => {
             connectionId: connection2.id,
             state: {
                 version: 5,
-                selection: ContentSelectionWrapper.fromJSON({type: "text", anchor: 7, head: 7}),
+                selection: ContentSelectionWrapper.new(
+                    TextSelection.near((await document.get()).content.doc.resolve(7)),
+                ),
             },
         },
     ]);

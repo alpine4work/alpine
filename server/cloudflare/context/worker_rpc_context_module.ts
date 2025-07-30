@@ -105,6 +105,11 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
     Omit<RpcCall, "outputPromiseResolver">,
     SchemaSerializedValue
 > {
+    // It's ok to share the batch when the actor changes because our batcher
+    // specifically handles calls with different actors. By using the endpoint
+    // `/api/rpc/_batchByActor` which accepts multiple authentication tokens.
+    public override readonly whenActorChanges = "DangerouslyShare";
+
     private readonly _protocol: string;
     private readonly _host: string;
     private readonly _tokenAgent: TokenAgent;

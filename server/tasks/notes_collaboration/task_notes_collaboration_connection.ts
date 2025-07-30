@@ -21,6 +21,7 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {TaskId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     authorizeTaskAccess,
@@ -54,7 +55,10 @@ export class TaskNotesCollaborationConnection {
         contentManager: TaskNotesCollaborationContentManager;
         closeWithError: (context: WorkerProcessContext, error: unknown) => void;
         connectionId: WebSocketConnectionId;
-        sendEvent: (context: WorkerProcessContext, event: TaskNotesCollaborationEvent) => void;
+        sendEvent: (
+            context: WorkerProcessContext,
+            event: TaskNotesCollaborationEvent,
+        ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
             event: TaskNotesCollaborationEvent,
@@ -263,6 +267,14 @@ export class TaskNotesCollaborationConnection {
                 return {};
             }),
     };
+
+    public async transformEvent(
+        context: WorkerSessionActionContext,
+        eventStub: TaskNotesCollaborationEvent,
+    ): Promise<TaskNotesCollaborationEvent> {
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        return eventStub;
+    }
 }
 
 const createMessage: CreateMessageFunction<TaskId, TaskCommentModel> = async (

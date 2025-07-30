@@ -287,6 +287,7 @@ export async function run({
                     tracer: TracerContextModule;
                     actor: DynamoActorContextModule;
                     cache: CacheContextModule;
+                    batch: BatchContextModule;
                 }>,
                 spaceId: SpaceId,
                 action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
@@ -301,7 +302,7 @@ export async function run({
                     {
                         tracer: new TracerContextModule(context.tracer.getTracer()),
                         cache: context.cache.forkForChangedActor(),
-                        batch: new BatchContextModule(),
+                        batch: context.batch.forkForChangedActor(),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             context.actor.serviceName,
                             spaceId,
@@ -347,6 +348,7 @@ export async function run({
                 context: Context<{
                     tracer: TracerContextModule;
                     cache: CacheContextModule;
+                    batch: BatchContextModule;
                 }>,
                 spaceId: SpaceId,
                 action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
@@ -361,7 +363,7 @@ export async function run({
                     {
                         tracer: new TracerContextModule(context.tracer.getTracer()),
                         cache: context.cache.forkForChangedActor(),
-                        batch: new BatchContextModule(),
+                        batch: context.batch.forkForChangedActor(),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             // Maintenance jobs don't have an actor. Escalating to a system context isn't
                             // actually dangerous, it's a de-escalation of permission. Say our actor's

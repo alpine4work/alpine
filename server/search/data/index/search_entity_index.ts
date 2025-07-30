@@ -2128,29 +2128,36 @@ const SearchEntityBatcher = new ContextBatcher<
     SearchActionContextModules,
     {spaceId: SpaceId; entityId: SearchDynamicEntityId},
     SearchEntityIndexDoc | null
->(async (context, inputs) => {
-    const commands = inputs.map(({spaceId, entityId}) => {
-        return new OpensearchGetDocWithoutSourceCommand(
-            SearchEntityKeywordIndex,
-            spaceId,
-            intoSearchEntityIdForKeywordIndex(spaceId, entityId),
-            {
-                storedFields: [
-                    "title",
-                    "titleVersion",
-                    "media",
-                    "accessPolicy.accountGrantAccountIds",
-                    "accessPolicy.defaultGrantType",
-                ],
-            },
-        );
-    });
+>(
+    {
+        // Loading search entities doesn't depend on the actor so it's ok to
+        // dangerously share the search entity batch across actors.
+        whenActorChanges: "DangerouslyShare",
+    },
+    async (context, inputs) => {
+        const commands = inputs.map(({spaceId, entityId}) => {
+            return new OpensearchGetDocWithoutSourceCommand(
+                SearchEntityKeywordIndex,
+                spaceId,
+                intoSearchEntityIdForKeywordIndex(spaceId, entityId),
+                {
+                    storedFields: [
+                        "title",
+                        "titleVersion",
+                        "media",
+                        "accessPolicy.accountGrantAccountIds",
+                        "accessPolicy.defaultGrantType",
+                    ],
+                },
+            );
+        });
 
-    const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
-    const docsById = docsByIdByIndex.get(SearchEntityKeywordIndex) ?? emptyMap;
+        const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
+        const docsById = docsByIdByIndex.get(SearchEntityKeywordIndex) ?? emptyMap;
 
-    return commands.map(command => docsById.get(command.id) ?? null);
-});
+        return commands.map(command => docsById.get(command.id) ?? null);
+    },
+);
 
 export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
     new TestCounter<SearchMentionEntityId>();

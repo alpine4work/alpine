@@ -38,11 +38,13 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     DocumentCommentThreadId,
@@ -79,7 +81,7 @@ export class DocumentCollaborationConnection {
     private readonly _sendEvent: (
         context: WorkerProcessContext,
         message: DocumentCollaborationEvent,
-    ) => void;
+    ) => SafeFloatingPromise<void>;
     private readonly _sendEventToOthers: (
         context: WorkerProcessContext,
         message: DocumentCollaborationEvent,
@@ -107,7 +109,10 @@ export class DocumentCollaborationConnection {
         withoutComments: boolean;
         connectionId: WebSocketConnectionId;
         contentManager: DocumentCollaborationContentManager;
-        sendEvent: (context: WorkerProcessContext, message: DocumentCollaborationEvent) => void;
+        sendEvent: (
+            context: WorkerProcessContext,
+            message: DocumentCollaborationEvent,
+        ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
             message: DocumentCollaborationEvent,
@@ -676,6 +681,14 @@ export class DocumentCollaborationConnection {
         },
     };
 
+    public async transformEvent(
+        context: WorkerSessionActionContext,
+        eventStub: DocumentCollaborationEvent,
+    ): Promise<DocumentCollaborationEvent> {
+        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+        return eventStub;
+    }
+
     public handleClose(context: WorkerProcessContext) {
         context.process.waitUntil(
             // Make sure we run in the queue in case we're wrapping up message handling. We
@@ -748,8 +761,8 @@ export class DocumentCollaborationConnection {
             spaceId: this._contentManager.spaceId,
             roomKey: encodeDocumentCommentRoomKey(this._contentManager.id, commentThreadId),
             sendEvent: (context, event) => {
-                if (this.withoutComments) return;
-                this._sendEvent(context, {type: "Comments", commentThreadId, event});
+                if (this.withoutComments) return voidSafeFloatingPromise;
+                return this._sendEvent(context, {type: "Comments", commentThreadId, event});
             },
             sendEventToOthers: (context, event) => {
                 this._sendEventToOthers(context, {type: "Comments", commentThreadId, event});

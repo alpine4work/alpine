@@ -17,6 +17,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -79,6 +80,7 @@ export async function loadTaskRealtimeQueries(
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
+                batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: TaskSystemActionContext) => Promise<Value>,

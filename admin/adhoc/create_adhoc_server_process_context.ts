@@ -140,8 +140,8 @@ export async function createAdhocServerProcessContext({
             const actionContext = context.clone<
                 Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules>
             >({
-                cache: new CacheContextModule(),
-                batch: new BatchContextModule(),
+                cache: CacheContextModule.new(),
+                batch: BatchContextModule.new(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew("Adhoc", spaceId),
             });
 
@@ -154,8 +154,8 @@ export async function createAdhocServerProcessContext({
             const actionContext = context.clone<
                 Omit<ServerSessionActionContextModules, keyof ServerProcessContextModules>
             >({
-                cache: new CacheContextModule(),
-                batch: new BatchContextModule(),
+                cache: CacheContextModule.new(),
+                batch: BatchContextModule.new(),
                 actor: DynamoSessionActorContextModule.dangerouslyNew("Adhoc", session),
             });
 

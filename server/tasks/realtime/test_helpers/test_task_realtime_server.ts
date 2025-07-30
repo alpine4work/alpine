@@ -18,6 +18,7 @@ import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -269,6 +270,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
+                batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
             action: (context: TaskSystemActionContext) => Promise<Value>,

@@ -5,6 +5,8 @@ import {
     WebSocketConnectionProcedures,
     WebSocketServer,
 } from "~/server/web_socket/web_socket_server.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -63,6 +65,8 @@ type TestSessionActionContext = Context<TestSessionActionContextModules>;
 
 type TestSessionActionContextModules = TestProcessContextModules & {
     actor: SessionActorContextModule;
+    cache: CacheContextModule;
+    batch: BatchContextModule;
     fork: ForkActionContextModule;
 };
 
@@ -82,11 +86,16 @@ function action(accountId: AccountId): Context<TestSessionActionContextModules> 
             sessionIdByAccountId.getOrSetDefault(accountId),
             accountId,
         ),
+        cache: CacheContextModule.new(),
+        batch: BatchContextModule.new(),
         fork: new ForkActionContextModule(),
     });
 }
 
 test("authorizes on connection", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
     const TestProtocol = defineWebSocketProtocol({
         procedures: {},
         events: {Test: Schema.object({type: Schema.value("Test")})},
@@ -100,12 +109,18 @@ test("authorizes on connection", async () => {
         public async authorize() {
             authorizationCount++;
         }
+
+        public async transformEvent(context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            return {type: "Test"};
+        }
     }
 
     const server = new WebSocketServer<
         TestProcessContextModules,
         TestSessionActionContextModules,
         typeof TestProtocol,
+        TestEventStub,
         TestConnection
     >(processContext, TestProtocol, () => new TestConnection());
 
@@ -125,6 +140,9 @@ test("authorizes on connection", async () => {
 });
 
 test("if authorization fails then connection closes", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
     const TestProtocol = defineWebSocketProtocol({
         procedures: {},
         events: {Test: Schema.object({type: Schema.value("Test")})},
@@ -138,12 +156,18 @@ test("if authorization fails then connection closes", async () => {
         public async authorize() {
             throw authorizationError;
         }
+
+        public async transformEvent(context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            return {type: "Test"};
+        }
     }
 
     const server = new WebSocketServer<
         TestProcessContextModules,
         TestSessionActionContextModules,
         typeof TestProtocol,
+        TestEventStub,
         TestConnection
     >(processContext, TestProtocol, () => new TestConnection());
 
@@ -181,6 +205,9 @@ test("if authorization fails then connection closes", async () => {
 });
 
 test("authorization is renewed every two minutes when procedure is called", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
     const TestProtocol = defineWebSocketProtocol({
         procedures: {
             echo: {
@@ -210,12 +237,18 @@ test("authorization is renewed every two minutes when procedure is called", asyn
             await wait(100);
             authorizationFinishCount++;
         }
+
+        public async transformEvent(context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            return {type: "Test"};
+        }
     }
 
     const server = new WebSocketServer<
         TestProcessContextModules,
         TestSessionActionContextModules,
         typeof TestProtocol,
+        TestEventStub,
         TestConnection
     >(processContext, TestProtocol, () => new TestConnection());
 
@@ -399,6 +432,9 @@ test("authorization is renewed every two minutes when procedure is called", asyn
 });
 
 test("authorization is renewed every two minutes when event is sent", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
     const TestProtocol = defineWebSocketProtocol({
         procedures: {
             echo: {
@@ -428,12 +464,18 @@ test("authorization is renewed every two minutes when event is sent", async () =
             await wait(100);
             authorizationFinishCount++;
         }
+
+        public async transformEvent(context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            return {type: "Test"};
+        }
     }
 
     const server = new WebSocketServer<
         TestProcessContextModules,
         TestSessionActionContextModules,
         typeof TestProtocol,
+        TestEventStub,
         TestConnection
     >(processContext, TestProtocol, () => new TestConnection());
 
@@ -475,7 +517,7 @@ test("authorization is renewed every two minutes when event is sent", async () =
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     await waitMacrotask();
     expect(messages).toEqual([{type: "Event", event: {type: "Test"}}]);
@@ -500,7 +542,7 @@ test("authorization is renewed every two minutes when event is sent", async () =
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     // Test that event is sent before authorization finishes
     await waitMacrotask();
@@ -527,7 +569,7 @@ test("authorization is renewed every two minutes when event is sent", async () =
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     // Test that authorization is reused
     await waitMacrotask();
@@ -557,7 +599,7 @@ test("authorization is renewed every two minutes when event is sent", async () =
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     // Test that event is NOT sent before authorization finishes
     await waitMacrotask();
@@ -584,6 +626,9 @@ test("authorization is renewed every two minutes when event is sent", async () =
 });
 
 test("authorization error will close the connection", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
     const TestProtocol = defineWebSocketProtocol({
         procedures: {
             echo: {
@@ -619,12 +664,18 @@ test("authorization error will close the connection", async () => {
                 throw authorizationError;
             }
         }
+
+        public async transformEvent(context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            return {type: "Test"};
+        }
     }
 
     const server = new WebSocketServer<
         TestProcessContextModules,
         TestSessionActionContextModules,
         typeof TestProtocol,
+        TestEventStub,
         TestConnection
     >(processContext, TestProtocol, () => new TestConnection());
 
@@ -671,7 +722,7 @@ test("authorization error will close the connection", async () => {
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     await waitMacrotask();
     expect(messages).toEqual([{type: "Event", event: {type: "Test"}}]);
@@ -696,7 +747,7 @@ test("authorization error will close the connection", async () => {
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     await waitMacrotask();
     expect(messages).toEqual([
@@ -737,7 +788,7 @@ test("authorization error will close the connection", async () => {
         {type: "Event", event: {type: "Test"}},
     ]);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     await waitMacrotask();
     expect(messages).toEqual([
@@ -762,7 +813,7 @@ test("authorization error will close the connection", async () => {
         {type: "ClosingWithError", error: authorizationError},
     ]);
 
-    server.sendEventToAll(processContext, {type: "Test"});
+    server.sendEventToAll(processContext, {type: "TestStub"});
 
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
@@ -783,6 +834,9 @@ test("authorization error will close the connection", async () => {
 });
 
 test("authorization function is called with the correct actor when triggering authorization in a different connection", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
     const TestProtocol = defineWebSocketProtocol({
         procedures: {
             sendEventToOthers: {
@@ -805,16 +859,13 @@ test("authorization function is called with the correct actor when triggering au
     class TestConnection {
         private readonly _sendEventToOthers: (
             context: TestProcessContext,
-            event: WebSocketProtocolEventType<typeof TestProtocol>,
+            event: TestEventStub,
         ) => void;
 
         constructor({
             sendEventToOthers,
         }: {
-            sendEventToOthers: (
-                context: TestProcessContext,
-                event: WebSocketProtocolEventType<typeof TestProtocol>,
-            ) => void;
+            sendEventToOthers: (context: TestProcessContext, event: TestEventStub) => void;
         }) {
             this._sendEventToOthers = sendEventToOthers;
         }
@@ -824,7 +875,7 @@ test("authorization function is called with the correct actor when triggering au
             typeof TestProtocol
         > = {
             sendEventToOthers: async (context, {}) => {
-                this._sendEventToOthers(context, {type: "Test"});
+                this._sendEventToOthers(context, {type: "TestStub"});
                 return {};
             },
         };
@@ -841,12 +892,18 @@ test("authorization function is called with the correct actor when triggering au
                 throw authorizationError;
             }
         }
+
+        public async transformEvent(context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            return {type: "Test"};
+        }
     }
 
     const server = new WebSocketServer<
         TestProcessContextModules,
         TestSessionActionContextModules,
         typeof TestProtocol,
+        TestEventStub,
         TestConnection
     >(
         processContext,

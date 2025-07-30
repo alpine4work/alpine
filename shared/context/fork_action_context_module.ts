@@ -2,6 +2,7 @@ import {Context, ContextModulesDependencies} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
@@ -165,45 +166,78 @@ export class ForkActionContextModuleDetachedForker<
     public async withFork<Value>(
         spanName: string,
         action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
+    ): Promise<Value>;
+    public async withFork<Value>(
+        spanName: string,
+        modules: Partial<Modules>,
+        action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
+    ): Promise<Value>;
+    public async withFork<Value>(
+        spanName: string,
+        modulesOrAction:
+            | Partial<Modules>
+            | ((context: Context<Modules>, span: TracerSpan) => Promise<Value>),
+        optionalAction?: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
     ): Promise<Value> {
-        const {span, finishSpan} = this._propagationContext
+        const span = this._propagationContext
             ? this._tracer.startSpanFromPropagationContextAsLinked(
                   spanName,
                   this._propagationContext,
               )
             : this._tracer.startSpan(spanName);
 
-        try {
-            const forkedModules: {[key: string]: ContextModuleBase} = {
-                tracer: new TracerContextModule(span),
-            };
+        let modules: Partial<Modules> | undefined;
+        let action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>;
 
-            for (const [key, module] of Object.entries(this._baseForkedModules)) {
-                // We manually add a new `TracerContextModule` with the new span.
-                if (key === "tracer") continue;
-
-                forkedModules[key] = module.fork();
-            }
-
-            const value = await Context.with<Modules, Value>(
-                forkedModules as Modules & ContextModulesDependencies<Modules>,
-                context => action(context, span),
-            );
-
-            finishSpan();
-            return value;
-        } catch (error) {
-            span.addException(error);
-            finishSpan();
-            throw error;
+        if (optionalAction === undefined) {
+            assert(typeof modulesOrAction === "function");
+            action = modulesOrAction;
+        } else {
+            assert(typeof modulesOrAction !== "function");
+            modules = modulesOrAction;
+            action = optionalAction;
         }
+
+        return this._withForkFromCustomSpan(span, modules, action);
     }
 
     /**
      * Fork a new action off our original action's context.
      */
-    public async withForkFromCustomSpan<Value>(
+    public withForkFromCustomSpan<Value>(
+        span: {span: TracerSpan; finishSpan: () => void},
+        action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
+    ): Promise<Value>;
+    public withForkFromCustomSpan<Value>(
+        span: {span: TracerSpan; finishSpan: () => void},
+        modules: Partial<Modules>,
+        action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
+    ): Promise<Value>;
+    public withForkFromCustomSpan<Value>(
+        span: {span: TracerSpan; finishSpan: () => void},
+        modulesOrAction:
+            | Partial<Modules>
+            | ((context: Context<Modules>, span: TracerSpan) => Promise<Value>),
+        optionalAction?: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
+    ): Promise<Value> {
+        let modules: Partial<Modules> | undefined;
+        let action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>;
+
+        if (optionalAction === undefined) {
+            assert(typeof modulesOrAction === "function");
+            action = modulesOrAction;
+        } else {
+            assert(typeof modulesOrAction !== "function");
+            modules = modulesOrAction;
+            action = optionalAction;
+        }
+
+        return this._withForkFromCustomSpan(span, modules, action);
+    }
+
+    private async _withForkFromCustomSpan<Value>(
         {span, finishSpan}: {span: TracerSpan; finishSpan: () => void},
+        modules: Partial<Modules> | undefined,
         action: (context: Context<Modules>, span: TracerSpan) => Promise<Value>,
     ): Promise<Value> {
         try {
@@ -223,9 +257,30 @@ export class ForkActionContextModuleDetachedForker<
                 tracer: new TracerContextModule(span),
             };
 
+            if (modules !== undefined) {
+                for (const [key, module] of Object.entries(modules)) {
+                    // We manually add a new `TracerContextModule` with the new span.
+                    if (key === "tracer") continue;
+
+                    // If we're replacing a forked module then double check the new module has the
+                    // same type as the forked module. This helps make sure our TypeScript types are
+                    // correct.
+                    assert(
+                        this._baseForkedModules[key] &&
+                            module instanceof this._baseForkedModules[key]!.constructor,
+                        "If replacing a forked context module, the new context module should be a subclass of the forked context module",
+                    );
+
+                    // @ts-expect-error
+                    forkedModules[key] = module;
+                }
+            }
+
             for (const [key, module] of Object.entries(this._baseForkedModules)) {
                 // We manually add a new `TracerContextModule` with the new span.
                 if (key === "tracer") continue;
+
+                if (modules !== undefined && hasOwnProperty(modules, key)) continue;
 
                 forkedModules[key] = module.fork();
             }

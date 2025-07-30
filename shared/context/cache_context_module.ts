@@ -12,14 +12,16 @@ export const contextCacheMissTestCounter = new TestCounter<string | number>();
  * in conjunction with `ContextCache`.
  */
 export class CacheContextModule extends ContextModuleBase implements ForkableContextModuleBase {
-    private readonly _sharedCaches: Map<ContextCache<any, any>, Map<any, Promise<any>>> | null =
-        null;
-
+    private readonly _sharedCaches: Map<ContextCache<any, any>, Map<any, Promise<any>>> | null;
     private readonly _caches = new Map<ContextCache<any, any>, Map<any, Promise<any>>>();
 
-    constructor(sharedCaches: Map<ContextCache<any, any>, Map<any, Promise<any>>> | null = null) {
+    private constructor(sharedCaches: Map<ContextCache<any, any>, Map<any, Promise<any>>> | null) {
         super();
         this._sharedCaches = sharedCaches;
+    }
+
+    public static new() {
+        return new CacheContextModule(null);
     }
 
     /**
@@ -43,7 +45,7 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
     public fork() {
         // Cache is not reused when we fork! Fork may be long after the original action
         // so we want a cache with a new lifetime.
-        return new CacheContextModule();
+        return new CacheContextModule(null);
     }
 
     /**
@@ -74,8 +76,8 @@ export class ContextCache<Key extends string | number, Value> {
      * If the value is `DangerouslyShare` then the cache will be shared between the
      * action context for the old actor and new actor. If we add to the cache as
      * the old actor it can be read as the new actor and vice versa. You should
-     * only use `Share` if cache values don't depend on the actor! This option is
-     * the most performant since we get more cache hits.
+     * only use `DangerouslyShare` if cache values don't depend on the actor! This
+     * option is the most performant since we get more cache hits.
      *
      * If the value is `SafelyReset` then we create a new, empty, cache for the new
      * context and if we write a value to this new cache it won't be propagated

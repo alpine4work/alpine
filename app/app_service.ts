@@ -300,6 +300,7 @@ async function createAppService({
                         tracer: TracerContextModule;
                         actor: DynamoActorContextModule;
                         cache: CacheContextModule;
+                        batch: BatchContextModule;
                     }>,
                     spaceId: SpaceId,
                     action: (context: AppServiceSystemActionContext) => Promise<Value>,
@@ -314,7 +315,7 @@ async function createAppService({
                         {
                             tracer: new TracerContextModule(context.tracer.getTracer()),
                             cache: context.cache.forkForChangedActor(),
-                            batch: new BatchContextModule(),
+                            batch: context.batch.forkForChangedActor(),
                             actor: DynamoSystemActorContextModule.dangerouslyNew(
                                 context.actor.serviceName,
                                 spaceId,
@@ -340,8 +341,8 @@ async function createAppService({
                         tracer: new TracerContextModule(span),
                         rpc: new LocalRpcContextModule(),
                         loader: loaderContextModule,
-                        cache: new CacheContextModule(),
-                        batch: new BatchContextModule(),
+                        cache: CacheContextModule.new(),
+                        batch: BatchContextModule.new(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
                         content: new ContentContextModule(),
                         tasks: new TaskContextModule({
