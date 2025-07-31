@@ -83,8 +83,8 @@ export function ChannelViewContributorsSection({
                             // If we have any removed accounts then sort them to the end of the array.
                             // Prefer showing accounts that are still a part of the space.
                             .sort((account1, account2) => {
-                                if (account1.space.removal) return -1;
-                                if (account2.space.removal) return 1;
+                                if (account1.space.state.type !== "Active") return -1;
+                                if (account2.space.state.type !== "Active") return 1;
                                 return 0;
                             })
                             .slice(0, renderedMaxChannelTopContributorCount)

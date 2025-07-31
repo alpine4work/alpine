@@ -394,8 +394,8 @@ const currentAccount = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });
@@ -407,8 +407,8 @@ const otherAccount = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });

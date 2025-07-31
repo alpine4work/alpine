@@ -13,8 +13,8 @@ test("merge account pile media", () => {
         nameVersion: 0,
         space: {
             version: 0,
-            joinedTime: new Date(),
-            removal: null,
+            addedTime: new Date(),
+            state: {type: "Active"},
             role: "Member",
         },
     });
@@ -26,8 +26,8 @@ test("merge account pile media", () => {
         nameVersion: 0,
         space: {
             version: 0,
-            joinedTime: new Date(),
-            removal: null,
+            addedTime: new Date(),
+            state: {type: "Active"},
             role: "Member",
         },
     });
@@ -39,8 +39,8 @@ test("merge account pile media", () => {
         nameVersion: 0,
         space: {
             version: 0,
-            joinedTime: new Date(),
-            removal: null,
+            addedTime: new Date(),
+            state: {type: "Active"},
             role: "Member",
         },
     });
@@ -52,8 +52,8 @@ test("merge account pile media", () => {
         nameVersion: 0,
         space: {
             version: 0,
-            joinedTime: new Date(),
-            removal: null,
+            addedTime: new Date(),
+            state: {type: "Active"},
             role: "Member",
         },
     });
@@ -65,8 +65,8 @@ test("merge account pile media", () => {
         nameVersion: 0,
         space: {
             version: 0,
-            joinedTime: new Date(),
-            removal: null,
+            addedTime: new Date(),
+            state: {type: "Active"},
             role: "Member",
         },
     });

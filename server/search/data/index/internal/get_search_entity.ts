@@ -1053,7 +1053,7 @@ async function getAccountSearchEntity(
             defaultGrantType: "Space",
         },
 
-        createdTime: account.initialData.space.joinedTime,
+        createdTime: account.initialData.space.addedTime,
 
         title: account.initialData.name,
         titleVersion: {type: "Integer", version: account.initialData.nameVersion},

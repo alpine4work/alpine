@@ -5,9 +5,26 @@ import {
 } from "~/shared/accounts/account_model_without_space.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {
+    SpaceAccountStateSchemas,
+    SpaceAccountStateType,
+} from "~/shared/spaces/space_account_state.js";
 import {SpaceRoleSchema} from "~/shared/spaces/space_model.js";
 
 export type AccountModelData = SchemaType<typeof AccountModelDataSchema>;
+export type AccountModelDataSpaceState = SchemaType<typeof AccountModelDataSpaceStateSchema>;
+
+type AccountModelDataState<T extends SpaceAccountStateType> = AccountModelData & {
+    space: AccountModelData["space"] & {
+        state: SchemaType<(typeof SpaceAccountStateSchemas)[T]>;
+    };
+};
+
+export type AccountModelDataWithRemovedState = AccountModelDataState<"Removed">;
+export type AccountModelDataWithActiveState = AccountModelDataState<"Active">;
+export type AccountModelDataWithInvitePendingState = AccountModelDataState<"InvitePending">;
+
+export const AccountModelDataSpaceStateSchema = Schema.union(SpaceAccountStateSchemas);
 
 // We don't include the `SpaceId` in `SpaceAccountModel`. You should know what
 // the `SpaceId` is from the context this account is in.
@@ -15,8 +32,10 @@ export const AccountModelDataSchema = AccountModelWithoutSpaceDataSchema.merge(
     Schema.object({
         space: Schema.object({
             version: Schema.integer,
-            joinedTime: Schema.date,
-            removal: Schema.object({time: Schema.date}).nullable(),
+            addedTime: Schema.date.originalPropertyKey("joinedTime"),
+            state: AccountModelDataSpaceStateSchema.defaultVariant("Removed").originalPropertyKey(
+                "removal",
+            ),
             role: SpaceRoleSchema.default("Member"),
         }),
     }),
@@ -143,12 +162,13 @@ export class AccountModel implements AccountModelWithoutSpace {
             ...AccountModelWithoutSpace.getUnknown().initialData,
             space: {
                 version: 0,
-                joinedTime: new Date(0),
-                removal: null,
+                addedTime: new Date(0),
+                state: {
+                    type: "Active",
+                },
                 role: "Member",
             },
         });
-
         return this._unknown;
     }
 }

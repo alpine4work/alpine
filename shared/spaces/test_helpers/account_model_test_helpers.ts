@@ -16,9 +16,9 @@ export function createTestAccountModel({
         nameVersion: 0,
         space: {
             version: 0,
-            removal: null,
+            state: {type: "Active"},
             role: "Member",
-            joinedTime: new Date("2025-01-01T00:00:00Z"),
+            addedTime: new Date("2025-01-01T00:00:00Z"),
         },
     });
 }

@@ -29,7 +29,11 @@ import {
 } from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {
+    AccountModel,
+    AccountModelData,
+    AccountModelDataWithRemovedState,
+} from "~/shared/spaces/account_model.js";
 import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -99,13 +103,13 @@ export default function SpacePeopleSettingsRoute() {
 
     const {activeAccounts, removedAccounts, ownerAccount} = useMemo(() => {
         const activeAccounts: Array<AccountModelData> = [];
-        const removedAccounts: Array<AccountModelData> = [];
+        const removedAccounts: Array<AccountModelDataWithRemovedState> = [];
         let ownerAccount: AccountModelData | undefined;
 
         for (const account of allAccountsDatas) {
-            if (account.space.removal) {
-                removedAccounts.push(account);
-            } else {
+            if (account.space.state.type === "Removed") {
+                removedAccounts.push(account as AccountModelDataWithRemovedState);
+            } else if (account.space.state.type === "Active") {
                 activeAccounts.push(account);
             }
 
@@ -116,11 +120,11 @@ export default function SpacePeopleSettingsRoute() {
         assert(ownerAccount, "Missing owner account");
 
         activeAccounts.sort((account1, account2) =>
-            compareAsc(account1.space.joinedTime, account2.space.joinedTime),
+            compareAsc(account1.space.addedTime, account2.space.addedTime),
         );
 
         removedAccounts.sort((account1, account2) =>
-            compareDesc(account1.space.removal!.time, account2.space.removal!.time),
+            compareDesc(account1.space.state.removedTime, account2.space.state.removedTime),
         );
 
         return {

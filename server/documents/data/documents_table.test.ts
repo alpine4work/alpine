@@ -7721,8 +7721,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: 0,
                                 space: {
                                     version: 0,
-                                    joinedTime: expect.any(Date),
-                                    removal: null,
+                                    addedTime: expect.any(Date),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -7736,10 +7736,13 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: 0,
                                 space: {
                                     version: 1,
-                                    joinedTime: expect.any(Date),
-                                    removal: expect.objectContaining({
-                                        time: expect.any(Date),
-                                    }),
+                                    addedTime: expect.any(Date),
+                                    state: {
+                                        type: "Removed",
+                                        removedTime: expect.any(Date),
+                                        oldAccountData: (await session3.account.get()).initialData,
+                                        reason: "ActionByAdmin",
+                                    },
                                     role: "Member",
                                 },
                             }),
@@ -7886,8 +7889,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: 0,
                                 space: {
                                     version: 0,
-                                    joinedTime: expect.any(Date),
-                                    removal: null,
+                                    addedTime: expect.any(Date),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -7901,10 +7904,13 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: 0,
                                 space: {
                                     version: 1,
-                                    joinedTime: expect.any(Date),
-                                    removal: expect.objectContaining({
-                                        time: expect.any(Date),
-                                    }),
+                                    addedTime: expect.any(Date),
+                                    state: {
+                                        type: "Removed",
+                                        removedTime: expect.any(Date),
+                                        oldAccountData: (await session3.account.get()).initialData,
+                                        reason: "ActionByAdmin",
+                                    },
                                     role: "Member",
                                 },
                             }),
@@ -7995,8 +8001,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: -1073741824,
                                 space: {
                                     version: -1073741824,
-                                    joinedTime: new Date(0),
-                                    removal: null,
+                                    addedTime: new Date(0),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -8010,8 +8016,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: -1073741824,
                                 space: {
                                     version: -1073741823,
-                                    joinedTime: new Date(0),
-                                    removal: null,
+                                    addedTime: new Date(0),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -8094,8 +8100,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: -1073741824,
                                 space: {
                                     version: -1073741824,
-                                    joinedTime: new Date(0),
-                                    removal: null,
+                                    addedTime: new Date(0),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -8109,8 +8115,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: -1073741824,
                                 space: {
                                     version: -1073741823,
-                                    joinedTime: new Date(0),
-                                    removal: null,
+                                    addedTime: new Date(0),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -8194,8 +8200,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: 0,
                                 space: {
                                     version: 0,
-                                    joinedTime: expect.any(Date),
-                                    removal: null,
+                                    addedTime: expect.any(Date),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -8209,10 +8215,13 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: 0,
                                 space: {
                                     version: 1,
-                                    joinedTime: expect.any(Date),
-                                    removal: expect.objectContaining({
-                                        time: expect.any(Date),
-                                    }),
+                                    addedTime: expect.any(Date),
+                                    state: {
+                                        type: "Removed",
+                                        removedTime: expect.any(Date),
+                                        oldAccountData: (await session3.account.get()).initialData,
+                                        reason: "ActionByAdmin",
+                                    },
                                     role: "Member",
                                 },
                             }),
@@ -8295,8 +8304,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: -1073741824,
                                 space: {
                                     version: -1073741824,
-                                    joinedTime: new Date(0),
-                                    removal: null,
+                                    addedTime: new Date(0),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),
@@ -8310,8 +8319,8 @@ test("can get a document with references as actors that don’t have access to t
                                 nameVersion: -1073741824,
                                 space: {
                                     version: -1073741823,
-                                    joinedTime: new Date(0),
-                                    removal: null,
+                                    addedTime: new Date(0),
+                                    state: {type: "Active"},
                                     role: "Member",
                                 },
                             }),

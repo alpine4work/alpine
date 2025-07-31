@@ -34,7 +34,6 @@ import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountModelWithoutSpace,
     AccountModelWithoutSpaceData,
-    AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -73,11 +72,16 @@ import {
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    AccountModel,
+    AccountModelDataSpaceState,
+    AccountModelDataSpaceStateSchema,
+} from "~/shared/spaces/account_model.js";
 import {
     SpaceAccountSettings,
     SpaceAccountSettingsSchema,
 } from "~/shared/spaces/space_account_settings.js";
+import {spaceAccountStateDefault} from "~/shared/spaces/space_account_state.js";
 import {spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel, SpaceRole, SpaceRoleSchema, hasSpaceRole} from "~/shared/spaces/space_model.js";
 
@@ -150,37 +154,32 @@ const SpacesTable = DynamoTableSchema.new({
                         role: SpaceRoleSchema.default("Member"),
 
                         /**
-                         * The time at which the account joined the space.
+                         * The timestamp when the account was invited to the space.
+                         * This is set when we create an entry in the `Account` sort range.
                          */
-                        joinedTime: Schema.date,
+                        addedTime: Schema.date.originalPropertyKey("joinedTime"),
 
                         /**
-                         * If non-null then the account was removed from the space. Removed accounts no
-                         * longer have access to the space but still show up everywhere in the space
-                         * they were previously referenced.
+                         * The state of the account's membership in this space.
+                         *
+                         * As of 2025-07-30, this used to be removal?: { time: Date } to mark
+                         * an account as removed, but we needed to support more account states.
+                         *
+                         * We use a transform() here instead of a default() to ensure
+                         * that our TS types are not nullable, while still supporting
+                         * null as "active" in the database.
+                         *
+                         * We also use a defaultVariant() to ensure that if there was an object
+                         * stored previously, we assign it the "Removed" type.
                          */
-                        removal: Schema.object({
-                            /**
-                             * When was the account removed from the space?
-                             */
-                            time: Schema.date,
-
-                            /**
-                             * We maintain a copy of the account's data when they're removed from the space
-                             * since if the account updates any properties like their `name` or account
-                             * avatar we shouldn't update those properties in spaces the account was
-                             * removed from.
-                             *
-                             * This:
-                             *
-                             * 1. Prevents accounts from having any influence on spaces from which they
-                             *    were removed
-                             * 2. Preserve history for those who remain in the space
-                             */
-                            oldAccountData: AccountModelWithoutSpaceDataSchema,
-                        })
+                        state: AccountModelDataSpaceStateSchema.defaultVariant("Removed")
                             .nullable()
-                            .default(null),
+                            .transform<AccountModelDataSpaceState>({
+                                serialize: value => value,
+                                deserialize: value => (!value ? spaceAccountStateDefault : value),
+                            })
+                            .default(spaceAccountStateDefault)
+                            .originalPropertyKey("removal"),
                     }),
                 },
 
@@ -351,7 +350,7 @@ export async function seedTestSpaces(
         accountId: adminAccountId,
     });
 
-    if (!spaceAccountItem || spaceAccountItem.removal) {
+    if (!spaceAccountItem || spaceAccountItem.state.type !== "Active") {
         try {
             await internalAddSpaceAccountWithoutAuthorization(context, {
                 spaceId: defaultSpaceId,
@@ -593,7 +592,10 @@ async function internalAddSpaceAccountWithoutAuthorization(
             ? new Set(accountSpacesItem.spaceIds)
             : new Set();
 
-        if (accountSpaceIds.has(spaceId) || (spaceAccountItem && !spaceAccountItem.removal)) {
+        if (
+            accountSpaceIds.has(spaceId) ||
+            (spaceAccountItem && spaceAccountItem.state.type !== "Removed")
+        ) {
             throw new FailedPreconditionError("Account is already a member of space");
         }
 
@@ -636,14 +638,18 @@ async function internalAddSpaceAccountWithoutAuthorization(
                   spaceId,
                   accountId,
                   role,
-                  joinedTime: currentTime,
-                  removal: null,
+                  addedTime: currentTime,
+                  state: {
+                      type: "Active",
+                  },
               })
             : SpacesTable.transactionDirectlyUpdateItem({
                   ...spaceAccountItem,
                   role,
                   // The account was previously a member of the space and is being added back.
-                  removal: null,
+                  state: {
+                      type: "Active",
+                  },
               });
 
         await addSpaceAccountBeforeExecuteTestCheckpoint.waitForTest(`${spaceId}:${accountId}`);
@@ -752,7 +758,11 @@ function removeSpaceAccountWithoutAuthorization(
             ? new Set(accountSpacesItem.spaceIds)
             : new Set();
 
-        if (!accountSpaceIds.has(spaceId) || !spaceAccountItem || spaceAccountItem.removal) {
+        if (
+            !accountSpaceIds.has(spaceId) ||
+            !spaceAccountItem ||
+            spaceAccountItem.state.type !== "Active"
+        ) {
             throw new FailedPreconditionError("Account is not a member of the space");
         }
 
@@ -765,9 +775,11 @@ function removeSpaceAccountWithoutAuthorization(
         const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
             ...spaceAccountItem,
             role: "Member",
-            removal: {
-                time: currentTime,
+            state: {
+                type: "Removed",
+                removedTime: currentTime,
                 oldAccountData: account?.initialData,
+                reason: "ActionByAdmin",
             },
         });
 
@@ -836,23 +848,43 @@ function createAccountModelFromItem(
     item: SpaceAccountItem,
     account: AccountModelWithoutSpace | null,
 ): AccountModel {
-    // Shouldn't pass in an `AccountModel` if the space account member was removed.
-    // Instead we'll use the account data from the space account object.
     let accountData: AccountModelWithoutSpaceData;
-    if (item.removal) {
-        assert(account === null);
-        accountData = item.removal.oldAccountData;
-    } else {
-        assert(account !== null);
-        accountData = account.initialData;
+    let spaceAccountState: AccountModelDataSpaceState;
+
+    switch (item.state.type) {
+        case "Active": {
+            assert(account !== null);
+            accountData = account.initialData;
+            spaceAccountState = {
+                type: "Active",
+            };
+            break;
+        }
+        case "InvitePending": {
+            // If the account is pending, we should use the pending account data that was
+            // given when the account was invited.
+            accountData = item.state.pendingAccountData;
+            spaceAccountState = item.state;
+            break;
+        }
+        case "Removed": {
+            // If the account was removed, we should use the old account data that was
+            // present when the account was removed.
+            assert(account === null);
+            accountData = item.state.oldAccountData;
+            spaceAccountState = item.state;
+            break;
+        }
+        default:
+            throw exhaustive(item.state);
     }
 
     return new AccountModel({
         ...accountData,
         space: {
             version: item.updateLockVersion ?? 0,
-            joinedTime: item.joinedTime,
-            removal: item.removal ? {time: item.removal.time} : null,
+            addedTime: item.addedTime,
+            state: spaceAccountState,
             role: item.role,
         },
     });
@@ -1193,7 +1225,7 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                 },
             }),
             async item => {
-                if (item.removal) {
+                if (item.state.type !== "Active") {
                     return createAccountModelFromItem(item, null);
                 }
 
@@ -1266,7 +1298,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
         );
 
     const accountFromCache1 = accountsCacheData?.accountById.get(accountId as AccountId);
-    if (accountFromCache1 && accountFromCache1.initialData.space.removal === null) {
+    if (accountFromCache1 && accountFromCache1.initialData.space.state.type === "Active") {
         // If we have a role expectation and the cached role matches, return true
         if (hasSpaceRole(accountFromCache1.initialData.space.role, expectedRole)) {
             return true;
@@ -1280,7 +1312,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
         context,
         `${spaceId}:${accountId}`,
     );
-    if (accountFromCache2 && accountFromCache2.initialData.space.removal === null) {
+    if (accountFromCache2 && accountFromCache2.initialData.space.state.type === "Active") {
         if (hasSpaceRole(accountFromCache2.initialData.space.role, expectedRole)) {
             return true;
         }
@@ -1302,7 +1334,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             allowsEventualReadConsistency: true,
         },
     );
-    if (item1 && !item1.removal) {
+    if (item1 && item1.state.type === "Active") {
         if (hasSpaceRole(item1.role, expectedRole)) {
             return true;
         }
@@ -1320,7 +1352,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             consistency: "Strong",
         },
     );
-    if (item2 && !item2.removal) {
+    if (item2 && item2.state.type === "Active") {
         if (hasSpaceRole(item2.role, expectedRole)) {
             return true;
         }
@@ -1765,8 +1797,8 @@ const AccountModelContextCache = new DynamoContextCache<
  *
  * If the account does not exist, we return null. If the account does exist but
  * is not a member of the provided space we don't return null! Instead we
- * return an `AccountModel` with `AccountModel.initialData.space.removal`
- * set to true.
+ * return an `AccountModel` with `AccountModel.initialData.space.state.type"`
+ * as Removed
  *
  * Do not use this method for authorization purposes. Since we return an
  * `AccountModel` even if the account is removed. Instead use
@@ -1859,8 +1891,8 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
         nameVersion: accountData.nameVersion + smiMinValue,
         space: {
             version: accountData.space.version + smiMinValue,
-            joinedTime: new Date(0),
-            removal: null,
+            addedTime: new Date(0),
+            state: {type: "Active"},
             role: "Member",
         },
     });
@@ -1921,7 +1953,7 @@ async function getAccountIfExistsWithoutAuthorization(
 
             if (!spaceAccountItem) return null;
 
-            if (spaceAccountItem.removal) {
+            if (spaceAccountItem.state.type !== "Active") {
                 return createAccountModelFromItem(spaceAccountItem, null);
             } else {
                 // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
@@ -2269,8 +2301,8 @@ export async function updateSpaceAccountRole(
             }),
         ]);
 
-        if (!spaceAccountItem || spaceAccountItem.removal) {
-            throw new NotFoundError("Account is not a member of the space");
+        if (!spaceAccountItem || spaceAccountItem.state.type !== "Active") {
+            throw new NotFoundError("Account is not an active member of the space");
         }
 
         if (hasSpaceRole(spaceAccountItem.role, "Owner")) {
@@ -2402,8 +2434,8 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
             );
         }
 
-        if (newSpaceAccountItem.removal) {
-            throw new FailedPreconditionError("Can’t move space owner role to removed account");
+        if (newSpaceAccountItem.state.type !== "Active") {
+            throw new FailedPreconditionError("Can’t move space owner role to an inactive account");
         }
 
         // when `oldOwnerAccountId === newOwnerAccountId`, we don't need to update
@@ -2450,4 +2482,42 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
             oldOwnerAccount,
         };
     });
+}
+
+export async function setSpaceAccountStateForTest(
+    context: ServerActionContext,
+    {
+        spaceId,
+        accountId,
+        state,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        state: AccountModelDataSpaceState;
+    },
+) {
+    assert(import.meta.jest);
+    const [spaceAccountItem, account] = await runAllPromises([
+        getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+            consistency: "Strong",
+        }),
+        dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
+            consistency: "Strong",
+        }),
+    ]);
+    if (!spaceAccountItem) {
+        throw new NotFoundError("Account not found in space");
+    }
+    if (!account) {
+        throw new NotFoundError("Account not found");
+    }
+    const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
+        ...spaceAccountItem,
+        state,
+    });
+    await DynamoTableSchema.executeTransaction(context, [updateSpaceAccountItemTransactionEntry]);
+    return createAccountModelFromItem(
+        updateSpaceAccountItemTransactionEntry.newItem,
+        state.type === "Removed" ? null : account,
+    );
 }

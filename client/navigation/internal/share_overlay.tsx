@@ -531,7 +531,8 @@ export function ShareOverlayAccountGrants({
                                         return {accountId, accountGrant, account, accountData};
                                     },
                                 ),
-                                ({accountData}) => !accountData || !accountData.space.removal,
+                                ({accountData}) =>
+                                    !accountData || accountData.space.state.type !== "Removed",
                             ),
                         ),
                     ),
@@ -602,7 +603,7 @@ function ShareOverlayAccountGrant({
                     <Box
                         fontSize="100"
                         fontStyle="truncate-semi-bold"
-                        color={accountData.space.removal ? "grey-60" : "grey-100"}
+                        color={accountData.space.state.type === "Active" ? "grey-100" : "grey-60"}
                     >
                         {accountData.name}
                     </Box>

@@ -4,6 +4,7 @@ import {
     createSpaceForTest,
     getSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
+    setSpaceAccountStateForTest,
 } from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -15,6 +16,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 let testSpaceCount = 1;
@@ -102,7 +104,15 @@ export class TestSpace {
     public async createSession(
         account?:
             | TestAccount
-            | {id?: AccountId; name?: string; hasInternalAccess?: boolean; role?: SpaceRole},
+            | {
+                  id?: AccountId;
+                  name?: string;
+                  hasInternalAccess?: boolean;
+                  role?: SpaceRole;
+                  state?:
+                      | AccountModelDataSpaceState
+                      | ((account: TestAccount) => Promise<AccountModelDataSpaceState>);
+              },
     ): Promise<TestSpaceSession> {
         let role: SpaceRole | undefined;
         let actualAccount: TestAccount;
@@ -119,6 +129,22 @@ export class TestSpace {
             this.addAccountIfNotExists(actualAccount, role),
         ]);
 
+        if (account && "state" in account && account.state) {
+            const accountState: AccountModelDataSpaceState =
+                typeof account.state === "function"
+                    ? await account.state(actualAccount)
+                    : account.state;
+
+            // Active is default, so we don't need to set it.
+            if (accountState.type !== "Active") {
+                await setSpaceAccountStateForTest(this.systemAction(), {
+                    accountId: actualAccount.id,
+                    spaceId: this.id,
+                    state: accountState,
+                });
+            }
+        }
+
         return session;
     }
 
@@ -132,6 +158,17 @@ export class TestSpace {
             spaceId: this.id,
             accountId: account instanceof TestSession ? account.account.id : account.id,
             role: role ?? "Member",
+        });
+    }
+
+    public async setAccountState(
+        account: TestAccount | TestSession,
+        state: AccountModelDataSpaceState,
+    ) {
+        await setSpaceAccountStateForTest(this.systemAction(), {
+            accountId: account instanceof TestSession ? account.account.id : account.id,
+            spaceId: this.id,
+            state,
         });
     }
 

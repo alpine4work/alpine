@@ -37,7 +37,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 entity: {
                     id: `Account:${session.account.id}`,
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
-                    createdTime: (await session.get()).initialData.space.joinedTime,
+                    createdTime: (await session.get()).initialData.space.addedTime,
                     title: "Caleb Meredith",
                     titleVersion: {type: "Integer", version: 0},
                     body: null,

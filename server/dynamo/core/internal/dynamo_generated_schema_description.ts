@@ -9035,47 +9035,109 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Nullable",
                                             "schema": {
-                                                "type": "Object",
-                                                "propertySchemaByKey": {
-                                                    "time": {
-                                                        "valueSchema": {
-                                                            "type": "Date"
-                                                        },
-                                                        "optional": false
-                                                    },
-                                                    "oldAccountData": {
-                                                        "valueSchema": {
-                                                            "type": "Object",
-                                                            "propertySchemaByKey": {
-                                                                "id": {
-                                                                    "valueSchema": {
-                                                                        "type": "Id"
-                                                                    },
-                                                                    "optional": false
+                                                "type": "Union",
+                                                "typeKey": "type",
+                                                "variantSchemaByTypeValue": {
+                                                    "Active": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "Active"
                                                                 },
-                                                                "version": {
-                                                                    "valueSchema": {
-                                                                        "type": "Integer"
-                                                                    },
-                                                                    "optional": false
-                                                                },
-                                                                "name": {
-                                                                    "valueSchema": {
-                                                                        "type": "String"
-                                                                    },
-                                                                    "optional": false
-                                                                },
-                                                                "nameVersion": {
-                                                                    "valueSchema": {
-                                                                        "type": "Integer"
-                                                                    },
-                                                                    "optional": false
-                                                                }
+                                                                "optional": false
                                                             }
-                                                        },
-                                                        "optional": false
+                                                        }
+                                                    },
+                                                    "Removed": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "Removed"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "time": {
+                                                                "valueSchema": {
+                                                                    "type": "Date"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "oldAccountData": {
+                                                                "valueSchema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "id": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "version": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "name": {
+                                                                            "valueSchema": {
+                                                                                "type": "String"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "nameVersion": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    },
+                                                                    "referenceId": "b9ed3c15"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "reason": {
+                                                                "valueSchema": {
+                                                                    "type": "Enum",
+                                                                    "values": [
+                                                                        "ActionByAdmin",
+                                                                        "InviteRejectedAsSpam"
+                                                                    ]
+                                                                },
+                                                                "optional": true
+                                                            }
+                                                        }
+                                                    },
+                                                    "InvitePending": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "InvitePending"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "invitedTime": {
+                                                                "valueSchema": {
+                                                                    "type": "Date"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "pendingAccountData": {
+                                                                "valueSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "b9ed3c15"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
                                                     }
-                                                }
+                                                },
+                                                "defaultTypeValue": "Removed"
                                             }
                                         },
                                         "optional": true

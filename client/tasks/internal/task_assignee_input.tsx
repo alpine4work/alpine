@@ -233,7 +233,9 @@ function TaskAssigneeInput(
                   //
                   // TODO(calebmer): When searching, removed accounts should rank lower. How do
                   // we give them a lower score while still allowing users to find them?
-                  allItems.filter(item => !item.accountData || !item.accountData.space.removal)
+                  allItems.filter(
+                      item => !item.accountData || item.accountData.space.state.type === "Active",
+                  )
                 : itemsSearchIndex.search(inputValue).map(({item}) => item),
 
         [allItems, inputState, inputValue, itemsSearchIndex],

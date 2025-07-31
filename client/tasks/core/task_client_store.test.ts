@@ -63,8 +63,8 @@ const account1 = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: new Date(),
-        removal: null,
+        addedTime: new Date(),
+        state: {type: "Active"},
         role: "Member",
     },
 });

@@ -484,7 +484,9 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                       // TODO(calebmer): When searching, removed accounts should rank lower. How do
                       // we give them a lower score while still allowing users to find them?
                       allItems.filter(
-                          item => item.type !== "Account" || !item.accountData.space.removal,
+                          item =>
+                              item.type !== "Account" ||
+                              item.accountData.space.state.type === "Active",
                       )
                     : itemsSearchIndex.search(searchInputValue).map(({item}) => item),
         };

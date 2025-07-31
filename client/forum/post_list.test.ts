@@ -45,8 +45,8 @@ const account1 = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });
@@ -57,8 +57,8 @@ const account2 = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });
@@ -69,8 +69,8 @@ const account3 = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });
@@ -81,8 +81,8 @@ const account4 = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });
@@ -93,8 +93,8 @@ const account5 = new AccountModel({
     nameVersion: 0,
     space: {
         version: 0,
-        joinedTime: createdTime,
-        removal: null,
+        addedTime: createdTime,
+        state: {type: "Active"},
         role: "Member",
     },
 });
