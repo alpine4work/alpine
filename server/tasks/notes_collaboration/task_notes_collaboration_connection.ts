@@ -6,10 +6,13 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
+    CreateMessageModelFunction,
     DeleteMessageFunction,
+    GetMessageReferencesFunction,
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
@@ -20,14 +23,17 @@ import {
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {TaskId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     authorizeTaskAccess,
     backfillTaskComments,
     createTaskComment,
     deleteTaskComment,
+    getTaskCommentReferences,
     getTaskNotesContentReferences,
     updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
@@ -36,6 +42,12 @@ import {
     TaskNotesCollaborationEvent,
     TaskNotesCollaborationProtocol,
 } from "~/shared/tasks/task_notes_collaboration_protocol.js";
+
+export type TaskNotesCollaborationEventStub =
+    // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+    | (TaskNotesCollaborationEvent & {readonly type: "UpdateNotesContentWithoutPersistence"})
+    | {readonly type: "Comments"; readonly event: MessagingRealtimeEventStub}
+    | (TaskNotesCollaborationEvent & {readonly type: "PersistedContent"});
 
 export class TaskNotesCollaborationConnection {
     private readonly _contentManager: TaskNotesCollaborationContentManager;
@@ -46,6 +58,7 @@ export class TaskNotesCollaborationConnection {
 
     constructor({
         connectionId,
+        accountId,
         contentManager,
         closeWithError,
         sendEvent,
@@ -55,13 +68,14 @@ export class TaskNotesCollaborationConnection {
         contentManager: TaskNotesCollaborationContentManager;
         closeWithError: (context: WorkerProcessContext, error: unknown) => void;
         connectionId: WebSocketConnectionId;
+        accountId: AccountId;
         sendEvent: (
             context: WorkerProcessContext,
-            event: TaskNotesCollaborationEvent,
+            event: TaskNotesCollaborationEventStub,
         ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
-            event: TaskNotesCollaborationEvent,
+            event: TaskNotesCollaborationEventStub,
         ) => void;
         iterateOtherConnections: () => Iterable<TaskNotesCollaborationConnection>;
     }) {
@@ -77,6 +91,7 @@ export class TaskNotesCollaborationConnection {
         this._messagingConnection = new MessagingRealtimeConnection({
             connectionId,
             spaceId: contentManager.spaceId,
+            accountId,
             roomKey: contentManager.taskId,
 
             sendEvent: (context, event) => sendEvent(context, {type: "Comments", event}),
@@ -92,6 +107,8 @@ export class TaskNotesCollaborationConnection {
             updateMessageContent,
             deleteMessage,
             backfillMessages,
+            getMessageReferences,
+            createMessageModel,
         });
     }
 
@@ -270,10 +287,25 @@ export class TaskNotesCollaborationConnection {
 
     public async transformEvent(
         context: WorkerSessionActionContext,
-        eventStub: TaskNotesCollaborationEvent,
+        eventStub: TaskNotesCollaborationEventStub,
     ): Promise<TaskNotesCollaborationEvent> {
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        return eventStub;
+        switch (eventStub.type) {
+            case "UpdateNotesContentWithoutPersistence": {
+                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+                return eventStub;
+            }
+            case "Comments": {
+                return {
+                    type: "Comments",
+                    event: await this._messagingConnection.transformEvent(context, eventStub.event),
+                };
+            }
+            case "PersistedContent": {
+                return eventStub;
+            }
+            default:
+                throw exhaustive(eventStub);
+        }
     }
 }
 
@@ -339,4 +371,37 @@ const backfillMessages: BackfillMessagesFunction<TaskId, TaskCommentModel> = asy
         messageChangesResult: commentChangesResult,
         extra: null,
     };
+};
+
+const getMessageReferences: GetMessageReferencesFunction<TaskId> = async (
+    context,
+    {spaceId, roomKey: taskId, referencedIds},
+) => {
+    const {references} = await getTaskCommentReferences(context, {spaceId, taskId, referencedIds});
+    return references;
+};
+
+const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> = ({
+    roomKey: taskId,
+    message,
+    references,
+}) => {
+    return new TaskCommentModel({
+        taskId,
+        index: message.index,
+        createdTime: message.createdTime,
+        author: references.author,
+        payload: {
+            type: "Content",
+            parentMessageIndex: message.payload.parentMessageIndex,
+            content: {
+                doc: message.payload.content,
+                references: references.contentReferences,
+            },
+            contentUpdatedTime: message.payload.contentUpdatedTime,
+            files: message.payload.fileIds.map(fileId =>
+                assertExists(references.fileById.get(fileId)),
+            ),
+        },
+    });
 };

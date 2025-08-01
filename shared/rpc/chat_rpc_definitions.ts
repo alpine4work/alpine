@@ -1,9 +1,12 @@
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageReferencedIdsSchema,
+    MessageReferencesSchema,
+} from "~/shared/messaging/message_references.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -71,7 +74,6 @@ export const updateChatMessageContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
-        contentReferences: ContentReferencesSchema,
     },
 });
 
@@ -108,5 +110,17 @@ export const backfillChatMessages = defineRpc({
                 type: Schema.value("Unavailable"),
             }),
         }),
+    },
+});
+
+export const getChatMessageReferences = defineRpc({
+    name: "getChatMessageReferences",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        chatId: Schema.id<ChatId>(),
+        referencedIds: MessageReferencedIdsSchema,
+    },
+    output: {
+        references: MessageReferencesSchema,
     },
 });

@@ -12,6 +12,10 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageReferencedIdsSchema,
+    MessageReferencesSchema,
+} from "~/shared/messaging/message_references.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -194,7 +198,6 @@ export const updateTaskCommentContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
-        contentReferences: ContentReferencesSchema,
     },
 });
 
@@ -231,5 +234,17 @@ export const backfillTaskComments = defineRpc({
                 type: Schema.value("Unavailable"),
             }),
         }),
+    },
+});
+
+export const getTaskCommentReferences = defineRpc({
+    name: "getTaskCommentReferences",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        taskId: Schema.id<TaskId>(),
+        referencedIds: MessageReferencedIdsSchema,
+    },
+    output: {
+        references: MessageReferencesSchema,
     },
 });

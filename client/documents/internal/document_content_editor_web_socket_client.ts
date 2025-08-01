@@ -29,6 +29,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {SchemaType} from "~/shared/schema/schema.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
@@ -145,10 +146,39 @@ export class DocumentContentEditorWebSocketClient {
         );
         this._state = new ValueStore(initialState);
 
-        this.procedures = pickObject(
-            this._client.procedures,
-            DocumentContentEditorWebSocketClient.procedureNames,
-        );
+        this.procedures = {
+            ...pickObject(
+                this._client.procedures,
+                DocumentContentEditorWebSocketClient.procedureNames,
+            ),
+            backfillComments: async (
+                input: SchemaType<
+                    (typeof DocumentCollaborationProtocol)["procedureSchemas"]["backfillComments"]["inputSchema"]
+                >,
+            ) => {
+                const output = await this._client.procedures.backfillComments(input);
+
+                // We keep comment threads up-to-date with best effort. There are likely a
+                // handful of rare correctness bugs. For instance, we don't backfill comment
+                // counts! So if you miss a new comment while the page is loading you may see an
+                // old comment count. However, the UI will eventually converge to the correct
+                // comment count on the next realtime message or `backfillComments()` RPC call.
+                // However the UI may not converge on the right set of comment authors since
+                // the full author list is not included in realtime events unlike the full
+                // comment count. We consider this acceptable.
+                this._dispatch({
+                    type: "Extra",
+                    extra: {
+                        type: "UpdateCommentThreadReference",
+                        commentThreadId: input.commentThreadId,
+                        commentCount: output.commentCount,
+                        addCommentAuthor: null,
+                    },
+                });
+
+                return output;
+            },
+        };
     }
 
     private _dispatchBatch(actions: ReadonlyArray<DocumentContentEditorAction>) {
@@ -407,10 +437,10 @@ export class DocumentContentEditorWebSocketClient {
                     // handful of rare correctness bugs. For instance, we don't backfill comment
                     // counts! So if you miss a new comment while the page is loading you may see an
                     // old comment count. However, the UI will eventually converge to the correct
-                    // comment count on the next realtime message. However the UI may not converge
-                    // on the right set of comment authors since the full author list is not
-                    // included in realtime events unlike the full comment count. We consider
-                    // this acceptable.
+                    // comment count on the next realtime message or `backfillComments()` RPC call.
+                    // However the UI may not converge on the right set of comment authors since
+                    // the full author list is not included in realtime events unlike the full
+                    // comment count. We consider this acceptable.
                     if (event.event.type === "NewMessage") {
                         this._dispatch({
                             type: "Extra",

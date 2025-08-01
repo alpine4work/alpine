@@ -1,8 +1,6 @@
-import {
-    getContentReferences,
-    getMessageContentReferencesForNode,
-} from "~/server/content/get_content_references.js";
+import {getContentReferences} from "~/server/content/get_content_references.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {
@@ -214,18 +212,11 @@ export default implementRpcs(definitions, {
     updateTaskCommentContent: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            const {spaceId, contentUpdatedTime} = await updateTaskCommentContent(
+            const {contentUpdatedTime} = await updateTaskCommentContent(
                 context.actor.authorizeSession(),
                 input,
             );
-
-            const contentReferences = await getMessageContentReferencesForNode(
-                context,
-                spaceId,
-                input.content,
-            );
-
-            return {contentUpdatedTime, contentReferences};
+            return {contentUpdatedTime};
         },
     },
 
@@ -240,6 +231,19 @@ export default implementRpcs(definitions, {
         visibility: ["TaskNotesCollaborationService"],
         execute: (context, input) => {
             return backfillTaskComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getTaskCommentReferences: {
+        visibility: ["TaskNotesCollaborationService"],
+        execute: async (context, {spaceId, taskId, referencedIds}) => {
+            const references = await getMessageReferences(
+                context.actor.authorizeSession(),
+                spaceId,
+                FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
+                referencedIds,
+            );
+            return {references};
         },
     },
 });

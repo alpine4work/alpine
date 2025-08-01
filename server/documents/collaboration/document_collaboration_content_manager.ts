@@ -4,15 +4,13 @@ import {
     WorkerSessionActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {DocumentCollaborationEventStub} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {
-    DocumentCollaborationEvent,
-    DocumentCollaborationPresenceState,
-} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferencedIds,
     getDocumentContentReferencedIdsForSteps,
@@ -95,7 +93,7 @@ export class DocumentCollaborationContentManager {
     public readonly stepCache: DocumentCollaborationStepCache;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
-        event: DocumentCollaborationEvent,
+        event: DocumentCollaborationEventStub,
     ) => void;
     private readonly _resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
@@ -176,7 +174,10 @@ export class DocumentCollaborationContentManager {
         id: DocumentId;
         initialVersion: number;
         initialContent: DocumentContent;
-        sendEventToAll: (context: WorkerProcessContext, event: DocumentCollaborationEvent) => void;
+        sendEventToAll: (
+            context: WorkerProcessContext,
+            event: DocumentCollaborationEventStub,
+        ) => void;
         resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
         killProcess: (context: WorkerProcessContext) => void;
     }) {

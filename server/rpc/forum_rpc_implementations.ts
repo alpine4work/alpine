@@ -1,4 +1,3 @@
-import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     FilePostAuthorizer,
     addAccountGrantsToChannelAccessPolicy,
@@ -30,6 +29,7 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
@@ -290,21 +290,11 @@ export default implementRpcs(definitions, {
     updatePostCommentContent: {
         visibility: ["PostRealtimeService"],
         execute: async (context, input) => {
-            const {spaceId, contentUpdatedTime} = await updatePostCommentContent(
+            const {contentUpdatedTime} = await updatePostCommentContent(
                 context.actor.authorizeSession(),
                 input,
             );
-
-            const contentReferences = await getMessageContentReferencesForNode(
-                context,
-                spaceId,
-                input.content,
-            );
-
-            return {
-                contentUpdatedTime,
-                contentReferences,
-            };
+            return {contentUpdatedTime};
         },
     },
 
@@ -319,6 +309,19 @@ export default implementRpcs(definitions, {
         visibility: ["PostRealtimeService"],
         execute: (context, input) => {
             return backfillPostComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getPostCommentReferences: {
+        visibility: ["PostRealtimeService"],
+        execute: async (context, {spaceId, postId, referencedIds}) => {
+            const references = await getMessageReferences(
+                context.actor.authorizeSession(),
+                spaceId,
+                FilePostAuthorizer.bind({type: "PostComments", postId}),
+                referencedIds,
+            );
+            return {references};
         },
     },
 

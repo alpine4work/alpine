@@ -44,6 +44,13 @@ export type TestContentContextModuleOptions<Modules extends {[key: string]: Cont
               entityId: SearchMentionEntityId,
           ) => Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null>)
         | null;
+    getFileEntityIfPossible?:
+        | ((
+              context: Context<Modules>,
+              spaceId: SpaceId,
+              entityId: FileEntityId,
+          ) => Promise<Result<FileEntityModel, ErrorBase> | null>)
+        | null;
 };
 
 export class TestContentContextModule<
@@ -57,11 +64,23 @@ export class TestContentContextModule<
           ) => Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null>)
         | null;
 
-    constructor({getSearchEntityIfPossible = null}: TestContentContextModuleOptions<Modules> = {}) {
+    private readonly _getFileEntityIfPossible:
+        | ((
+              context: Context<Modules>,
+              spaceId: SpaceId,
+              entityId: FileEntityId,
+          ) => Promise<Result<FileEntityModel, ErrorBase> | null>)
+        | null;
+
+    constructor({
+        getSearchEntityIfPossible = null,
+        getFileEntityIfPossible = null,
+    }: TestContentContextModuleOptions<Modules> = {}) {
         super();
         assert(process.env.NODE_ENV === "test");
 
         this._getSearchEntityIfPossible = getSearchEntityIfPossible;
+        this._getFileEntityIfPossible = getFileEntityIfPossible;
     }
 
     public override getSearchEntityIfPossible(spaceId: SpaceId, entityId: SearchMentionEntityId) {
@@ -73,13 +92,19 @@ export class TestContentContextModule<
         return this._getSearchEntityIfPossible(this._context, spaceId, entityId);
     }
 
-    public override getFileEntityIfPossible(): never {
-        throw new UnimplementedError(
-            "`TestContentContextModule.getFileEntityIfPossible()` can’t be implemented in unit tests because we want to limit unit test dependencies to just what we need",
-        );
+    public override getFileEntityIfPossible(spaceId: SpaceId, entityId: FileEntityId) {
+        if (this._getFileEntityIfPossible === null) {
+            throw new UnimplementedError(
+                "`TestContentContextModule.getFileEntityIfPossible()` can’t be implemented in unit tests because we want to limit unit test dependencies to just what we need",
+            );
+        }
+        return this._getFileEntityIfPossible(this._context, spaceId, entityId);
     }
 
     public fork() {
-        return new TestContentContextModule();
+        return new TestContentContextModule({
+            getSearchEntityIfPossible: this._getSearchEntityIfPossible,
+            getFileEntityIfPossible: this._getFileEntityIfPossible,
+        });
     }
 }

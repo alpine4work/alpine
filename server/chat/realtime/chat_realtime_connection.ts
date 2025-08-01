@@ -7,19 +7,24 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
+    CreateMessageModelFunction,
     DeleteMessageFunction,
+    GetMessageReferencesFunction,
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     backfillChatMessages,
     deleteChatMessage,
+    getChatMessageReferences,
     sendChatMessage,
     updateChatMessageContent,
 } from "~/shared/rpc/chat_rpc_definitions.js";
@@ -30,6 +35,7 @@ export class ChatRealtimeConnection {
     constructor({
         connectionId,
         spaceId,
+        accountId,
         chatId,
         sendEvent,
         sendEventToOthers,
@@ -37,17 +43,22 @@ export class ChatRealtimeConnection {
     }: {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
+        accountId: AccountId;
         chatId: ChatId;
         sendEvent: (
             context: WorkerProcessContext,
-            event: ChatRealtimeEvent,
+            event: MessagingRealtimeEventStub,
         ) => SafeFloatingPromise<void>;
-        sendEventToOthers: (context: WorkerProcessContext, event: ChatRealtimeEvent) => void;
+        sendEventToOthers: (
+            context: WorkerProcessContext,
+            event: MessagingRealtimeEventStub,
+        ) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
         this._connection = new MessagingRealtimeConnection({
             connectionId,
             spaceId,
+            accountId,
             roomKey: chatId,
 
             sendEvent,
@@ -59,6 +70,8 @@ export class ChatRealtimeConnection {
             updateMessageContent,
             deleteMessage,
             backfillMessages,
+            getMessageReferences,
+            createMessageModel,
         });
     }
 
@@ -86,10 +99,9 @@ export class ChatRealtimeConnection {
 
     public async transformEvent(
         context: WorkerSessionActionContext,
-        eventStub: ChatRealtimeEvent,
+        eventStub: MessagingRealtimeEventStub,
     ): Promise<ChatRealtimeEvent> {
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        return eventStub;
+        return this._connection.transformEvent(context, eventStub);
     }
 
     public async handleClose(context: WorkerProcessContext) {
@@ -140,4 +152,41 @@ const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = asy
     });
 
     return {...result, extra: null};
+};
+
+const getMessageReferences: GetMessageReferencesFunction<ChatId> = async (
+    context,
+    {spaceId, roomKey: chatId, referencedIds},
+) => {
+    const {references} = await getChatMessageReferences(context, {
+        spaceId,
+        chatId,
+        referencedIds,
+    });
+    return references;
+};
+
+const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> = ({
+    roomKey: chatId,
+    message,
+    references,
+}) => {
+    return new ChatMessageModel({
+        chatId,
+        index: message.index,
+        createdTime: message.createdTime,
+        author: references.author,
+        payload: {
+            type: "Content",
+            parentMessageIndex: message.payload.parentMessageIndex,
+            content: {
+                doc: message.payload.content,
+                references: references.contentReferences,
+            },
+            contentUpdatedTime: message.payload.contentUpdatedTime,
+            files: message.payload.fileIds.map(fileId =>
+                assertExists(references.fileById.get(fileId)),
+            ),
+        },
+    });
 };

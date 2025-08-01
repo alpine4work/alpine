@@ -1,7 +1,10 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
-import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
+import {
+    testMessagingRealtimeImplementation,
+    testMessagingRealtimeImplementationContextOptions,
+} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TaskNotesCollaborationDurableObject} from "~/server/tasks/notes_collaboration/task_notes_collaboration_durable_object.js";
@@ -25,7 +28,7 @@ import {
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 
-const context = createTestWorkerContext();
+const context = createTestWorkerContext(testMessagingRealtimeImplementationContextOptions);
 const {connectForTest} = TaskNotesCollaborationDurableObject.test(context);
 
 function textSlice(text: string) {

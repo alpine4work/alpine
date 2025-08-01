@@ -3,7 +3,10 @@ import {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_du
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
+import {
+    testMessagingRealtimeImplementation,
+    testMessagingRealtimeImplementationContextOptions,
+} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
@@ -14,7 +17,7 @@ import {
     updateChatMessageContent,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 
-const context = createTestWorkerContext();
+const context = createTestWorkerContext(testMessagingRealtimeImplementationContextOptions);
 const {connectForTest} = ChatRealtimeDurableObject.test(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);

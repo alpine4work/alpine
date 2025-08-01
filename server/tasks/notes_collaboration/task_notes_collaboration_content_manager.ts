@@ -1,6 +1,7 @@
 import {Step} from "prosemirror-transform";
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {TaskNotesCollaborationEventStub} from "~/server/tasks/notes_collaboration/task_notes_collaboration_connection.js";
 import {
     getContentReferencedIdsForSteps,
     isEmptyContentReferencedIds,
@@ -15,7 +16,6 @@ import {
     getTaskNotesContentReferences,
     updateTaskNotesContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {TaskNotesCollaborationEvent} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContent, isTaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
@@ -27,7 +27,7 @@ export class TaskNotesCollaborationContentManager {
     public readonly taskId: TaskId;
     private readonly _sendEventToAll: (
         context: WorkerProcessContext,
-        event: TaskNotesCollaborationEvent,
+        event: TaskNotesCollaborationEventStub,
     ) => void;
     private readonly _killProcess: (context: WorkerProcessContext, error: unknown) => void;
 
@@ -69,7 +69,10 @@ export class TaskNotesCollaborationContentManager {
         taskId: TaskId;
         initialVersion: number;
         initialContent: TaskNotesContent;
-        sendEventToAll: (context: WorkerProcessContext, event: TaskNotesCollaborationEvent) => void;
+        sendEventToAll: (
+            context: WorkerProcessContext,
+            event: TaskNotesCollaborationEventStub,
+        ) => void;
         killProcess: (context: WorkerProcessContext, error: unknown) => void;
     }) {
         this.spaceId = spaceId;

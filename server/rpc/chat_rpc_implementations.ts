@@ -8,8 +8,8 @@ import {
     sendChatMessage,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
-import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
@@ -84,18 +84,12 @@ export default implementRpcs(definitions, {
     updateChatMessageContent: {
         visibility: ["ChatRealtimeService"],
         execute: async (context, input) => {
-            const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
-                updateChatMessageContent(context.actor.authorizeSession(), input),
-                authorizeChatAccess(context.actor.authorizeSession(), input.chatId).then(
-                    ({spaceId}) =>
-                        getMessageContentReferencesForNode(context, spaceId, input.content),
-                ),
-            ]);
+            const {contentUpdatedTime} = await updateChatMessageContent(
+                context.actor.authorizeSession(),
+                input,
+            );
 
-            return {
-                contentUpdatedTime,
-                contentReferences,
-            };
+            return {contentUpdatedTime};
         },
     },
 
@@ -110,6 +104,19 @@ export default implementRpcs(definitions, {
         visibility: ["ChatRealtimeService"],
         execute: (context, input) => {
             return backfillChatMessages(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getChatMessageReferences: {
+        visibility: ["ChatRealtimeService"],
+        execute: async (context, {spaceId, chatId, referencedIds}) => {
+            const references = await getMessageReferences(
+                context.actor.authorizeSession(),
+                spaceId,
+                FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
+                referencedIds,
+            );
+            return {references};
         },
     },
 });

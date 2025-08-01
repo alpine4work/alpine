@@ -9,12 +9,14 @@ import {
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {authorizePostAccessForDurableObject} from "~/server/forum/realtime/authorize_post_access_for_durable_object.js";
-import {PostRealtimeConnection} from "~/server/forum/realtime/post_realtime_connection.js";
+import {
+    PostRealtimeConnection,
+    PostRealtimeEventStub,
+} from "~/server/forum/realtime/post_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
     PostBroadcastRealtimeEventTransactionSchema,
-    PostRealtimeEvent,
     PostRealtimeProtocol,
 } from "~/shared/forum/post_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -34,8 +36,7 @@ class PostRealtimeDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof PostRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        PostRealtimeEvent,
+        PostRealtimeEventStub,
         PostRealtimeConnection
     >;
 
@@ -82,16 +83,16 @@ class PostRealtimeDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof PostRealtimeProtocol,
-            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-            PostRealtimeEvent,
+            PostRealtimeEventStub,
             PostRealtimeConnection
         >(
             this._processContext,
             PostRealtimeProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
+            ({accountId, connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
                 return new PostRealtimeConnection({
                     connectionId,
                     spaceId,
+                    accountId,
                     postId,
                     sendEvent,
                     sendEventToOthers,

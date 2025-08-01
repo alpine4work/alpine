@@ -1,6 +1,5 @@
 import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
-import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {
     createDynamoGeneralRealtimeBackfillResultSchema,
     createDynamoGeneralRealtimeEventSchema,
@@ -19,6 +18,10 @@ import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageReferencedIdsSchema,
+    MessageReferencesSchema,
+} from "~/shared/messaging/message_references.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -325,7 +328,6 @@ export const updatePostCommentContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
-        contentReferences: ContentReferencesSchema,
     },
 });
 
@@ -362,6 +364,18 @@ export const backfillPostComments = defineRpc({
                 type: Schema.value("Unavailable"),
             }),
         }),
+    },
+});
+
+export const getPostCommentReferences = defineRpc({
+    name: "getPostCommentReferences",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        postId: Schema.id<PostId>(),
+        referencedIds: MessageReferencedIdsSchema,
+    },
+    output: {
+        references: MessageReferencesSchema,
     },
 });
 

@@ -8,13 +8,13 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
+import {
+    DocumentCollaborationConnection,
+    DocumentCollaborationEventStub,
+} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {DocumentCollaborationContentManager} from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {
-    DocumentCollaborationEvent,
-    DocumentCollaborationProtocol,
-} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -41,8 +41,7 @@ class DocumentCollaborationDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        DocumentCollaborationEvent,
+        DocumentCollaborationEventStub,
         DocumentCollaborationConnection
     >;
 
@@ -50,8 +49,7 @@ class DocumentCollaborationDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        DocumentCollaborationEvent,
+        DocumentCollaborationEventStub,
         DocumentCollaborationConnection
     >;
 
@@ -128,13 +126,13 @@ class DocumentCollaborationDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof DocumentCollaborationProtocol,
-            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-            DocumentCollaborationEvent,
+            DocumentCollaborationEventStub,
             DocumentCollaborationConnection
         >(
             this._processContext,
             DocumentCollaborationProtocol,
             ({
+                accountId,
                 connectionId,
                 sendEvent,
                 sendEventToOthers,
@@ -144,6 +142,7 @@ class DocumentCollaborationDurableObject {
                 return new DocumentCollaborationConnection({
                     withoutComments: false,
                     connectionId,
+                    accountId,
                     contentManager: this._contentManager,
                     sendEvent,
                     sendEventToOthers: (context, event) => {
@@ -176,13 +175,13 @@ class DocumentCollaborationDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof DocumentCollaborationProtocol,
-            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-            DocumentCollaborationEvent,
+            DocumentCollaborationEventStub,
             DocumentCollaborationConnection
         >(
             this._processContext,
             DocumentCollaborationProtocol,
             ({
+                accountId,
                 connectionId,
                 sendEvent,
                 sendEventToOthers,
@@ -192,6 +191,7 @@ class DocumentCollaborationDurableObject {
                 return new DocumentCollaborationConnection({
                     withoutComments: true,
                     connectionId,
+                    accountId,
                     contentManager: this._contentManager,
                     sendEvent,
                     sendEventToOthers: (context, event) => {
@@ -255,7 +255,7 @@ class DocumentCollaborationDurableObject {
         this._destroyCallback();
     }
 
-    private _sendEventToAll(context: WorkerProcessContext, event: DocumentCollaborationEvent) {
+    private _sendEventToAll(context: WorkerProcessContext, event: DocumentCollaborationEventStub) {
         this._webSocketServer.sendEventToAll(context, event);
 
         if (this._webSocketServerWithoutComments.hasConnections()) {
@@ -269,8 +269,8 @@ class DocumentCollaborationDurableObject {
 }
 
 function stripDocumentCollaborationEventComments(
-    event: DocumentCollaborationEvent,
-): DocumentCollaborationEvent | null {
+    event: DocumentCollaborationEventStub,
+): DocumentCollaborationEventStub | null {
     // Code style: Manually recreate the event objects so that we can be absolutely
     // sure comment data isn't slipping into `eventWithoutComments`. Especially
     // when we add new fields in the future, we want TypeScript to error and the

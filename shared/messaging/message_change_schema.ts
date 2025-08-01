@@ -22,7 +22,11 @@ export const MessageChangeSchema = Schema.union({
     Delete: MessageDeleteChangeSchema,
 });
 
-export function getMessageChangeTime(change: MessageChange): Date {
+export function getMessageChangeTime(
+    change:
+        | {readonly type: "UpdateContent"; readonly contentUpdatedTime: Date}
+        | {readonly type: "Delete"; readonly deletedTime: Date},
+): Date {
     switch (change.type) {
         case "UpdateContent":
             return change.contentUpdatedTime;

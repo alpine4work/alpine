@@ -3,23 +3,35 @@ import {
     WorkerSessionActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {ContentReferences} from "~/shared/content/content_references.js";
+import {
+    MessagingRealtimeEventStub,
+    MessagingRealtimeEventStubChange,
+    MessagingRealtimeEventStubNewMessage,
+} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
+import {
+    getContentReferencedIdsForNode,
+    isEmptyContentReferencedIds,
+} from "~/shared/content/content_referenced_ids.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
+import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageReferencedIds, MessageReferences} from "~/shared/messaging/message_references.js";
 import {
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * Create a new message in a room.
@@ -49,7 +61,6 @@ export type UpdateMessageContentFunction<RoomKey extends string> = (
     },
 ) => Promise<{
     contentUpdatedTime: Date;
-    contentReferences: ContentReferences;
 }>;
 
 /**
@@ -99,10 +110,38 @@ export type BackfillMessagesFunction<
     extra: BackfillMessagesExtra;
 }>;
 
+/**
+ * Get message references using the permissions associated with the session
+ * actor.
+ */
+export type GetMessageReferencesFunction<RoomKey extends string> = (
+    context: WorkerSessionActionContext,
+    options: {
+        spaceId: SpaceId;
+        roomKey: RoomKey;
+        referencedIds: MessageReferencedIds;
+    },
+) => Promise<MessageReferences>;
+
+/**
+ * Create a message model instance of the right type for the messaging surface.
+ */
+export type CreateMessageModelFunction<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> = (options: {
+    roomKey: RoomKey;
+    message: MessagingRealtimeEventStubNewMessage;
+    references: MessageReferences & {author: AccountModel};
+}) => Message;
+
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 export const messagingRealtimeCreateMessageBeforeSendTestCheckpoint =
+    new TestCheckpoint<AccountId>();
+
+export const messagingRealtimeUpdateMessageContentBeforeSendTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 export class MessagingRealtimeConnection<
@@ -111,15 +150,16 @@ export class MessagingRealtimeConnection<
     BackfillMessagesExtra = null,
 > {
     private readonly _connectionId: WebSocketConnectionId;
-    private readonly _spaceId: SpaceId;
+    public readonly spaceId: SpaceId;
+    public readonly accountId: AccountId;
     public readonly roomKey: RoomKey;
     private readonly _sendEvent: (
         context: WorkerProcessContext,
-        event: MessagingRealtimeEvent<Message>,
+        event: MessagingRealtimeEventStub,
     ) => SafeFloatingPromise<void>;
     private readonly _sendEventToOthers: (
         context: WorkerProcessContext,
-        event: MessagingRealtimeEvent<Message>,
+        event: MessagingRealtimeEventStub,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<
         MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
@@ -132,33 +172,22 @@ export class MessagingRealtimeConnection<
         Message,
         BackfillMessagesExtra
     >;
+    public readonly _getMessageReferences: GetMessageReferencesFunction<RoomKey>;
+    private readonly _createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
 
     /**
-     * True while we are backfilling messages.
+     * We want to send `NewMessage` events to our client in order so that the
+     * client never has a gap in its state while users are actively typing
+     * messages. Since sending events is asynchronous we need a mutex to make sure
+     * there's only one function updating the queue at a time.
      */
-    private _isBackfilling = false;
-
-    /**
-     * The next message index we will send to our client. If set then we will
-     * send messages to clients in strict chronological order. If null then we
-     * will send messages to clients when we get them.
-     *
-     * This "chaos" mode where messages are sent in any order is how the connection
-     * starts but then we go into strict sequential mode after the first backfill.
-     */
-    private _nextMessageIndexToSend: number | null = null;
-
-    /**
-     * Messages with indexes ahead of `_nextMessageIndexToSend` which we will
-     * attempt to send after `_nextMessageIndexToSend` has been updated.
-     */
-    private _queuedNewMessages: Array<Message> = [];
-
-    /**
-     * Message changes that have been queued while we were backfilling. If we are
-     * not backfilling this should always be an empty array.
-     */
-    private _queuedMessageChanges: Array<MessageChange> = [];
+    private readonly _queuedMessagesState = new MutexValue<{
+        readonly nextMessageIndexToSend: number | null;
+        readonly queuedMessages: ReadonlyArray<MessagingRealtimeEventStubNewMessage>;
+    }>({
+        nextMessageIndexToSend: null,
+        queuedMessages: [],
+    });
 
     /**
      * If we should show a typing indicator for this realtime connection then there
@@ -169,6 +198,7 @@ export class MessagingRealtimeConnection<
     constructor({
         connectionId,
         spaceId,
+        accountId,
         roomKey,
         sendEvent,
         sendEventToOthers,
@@ -177,17 +207,20 @@ export class MessagingRealtimeConnection<
         updateMessageContent,
         deleteMessage,
         backfillMessages,
+        getMessageReferences,
+        createMessageModel,
     }: {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
+        accountId: AccountId;
         roomKey: RoomKey;
         sendEvent: (
             context: WorkerProcessContext,
-            event: MessagingRealtimeEvent<Message>,
+            event: MessagingRealtimeEventStub,
         ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
-            event: MessagingRealtimeEvent<Message>,
+            event: MessagingRealtimeEventStub,
         ) => void;
         iterateOtherConnections: () => Iterable<
             MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
@@ -196,9 +229,12 @@ export class MessagingRealtimeConnection<
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
         backfillMessages: BackfillMessagesFunction<RoomKey, Message, BackfillMessagesExtra>;
+        getMessageReferences: GetMessageReferencesFunction<RoomKey>;
+        createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
     }) {
         this._connectionId = connectionId;
-        this._spaceId = spaceId;
+        this.spaceId = spaceId;
+        this.accountId = accountId;
         this.roomKey = roomKey;
         this._sendEvent = sendEvent;
         this._sendEventToOthers = sendEventToOthers;
@@ -207,9 +243,11 @@ export class MessagingRealtimeConnection<
         this._updateMessageContent = updateMessageContent;
         this._deleteMessage = deleteMessage;
         this._backfillMessages = backfillMessages;
+        this._getMessageReferences = getMessageReferences;
+        this._createMessageModel = createMessageModel;
     }
 
-    private static _sendNewMessageAndClearTypingState<
+    private static async _sendNewMessageAndClearTypingState<
         RoomKey extends string,
         Message extends MessageModel<RoomKey>,
         BackfillMessagesExtra,
@@ -217,117 +255,139 @@ export class MessagingRealtimeConnection<
         context: WorkerActionContext,
         fromConnection: MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>,
         toConnection: MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>,
-        message: Message,
+        message: MessagingRealtimeEventStubNewMessage,
         oldFromConnectionTypingState: MessagingTypingState | null,
     ) {
-        // If the connection is backfilling or we received this message out of order,
-        // queue it for later. If we have not received a message yet then we want to
-        // send it and start waiting for the message after it.
-        if (
-            toConnection._isBackfilling ||
-            (toConnection._nextMessageIndexToSend !== null &&
-                message.index !== toConnection._nextMessageIndexToSend)
-        ) {
-            if (
-                toConnection._nextMessageIndexToSend === null ||
-                message.index > toConnection._nextMessageIndexToSend
-            ) {
-                // If the message needs to be queued for sending later, we still want to
-                // immediately send our typing state update. In case another typing state
-                // update happens later we don't want to clobber the update from this function.
-                if (
+        await toConnection._queuedMessagesState.withLock(async stateRef => {
+            const {nextMessageIndexToSend} = stateRef.current;
+
+            // If the connection is backfilling or we received this message out of order,
+            // queue it for later. If we have not received a message yet then we want to
+            // send it and start waiting for the message after it.
+            if (nextMessageIndexToSend !== null && message.index !== nextMessageIndexToSend) {
+                if (message.index > nextMessageIndexToSend) {
+                    // If the message needs to be queued for sending later, we still want to
+                    // immediately send our typing state update. In case another typing state
+                    // update happens later we don't want to clobber the update from this function.
+                    if (
+                        fromConnection._connectionId !== toConnection._connectionId &&
+                        oldFromConnectionTypingState !== null
+                    ) {
+                        toConnection._sendEvent(context, {
+                            type: "UpdateOtherTypingState",
+                            connectionId: fromConnection._connectionId,
+                            typingState: null,
+                        });
+                    }
+
+                    stateRef.current = {
+                        nextMessageIndexToSend,
+                        queuedMessages: [...stateRef.current.queuedMessages, message],
+                    };
+                }
+                return;
+            }
+
+            await toConnection._sendEvent(context, {
+                type: "NewMessage",
+                message,
+                updateOtherTypingState:
                     fromConnection._connectionId !== toConnection._connectionId &&
                     oldFromConnectionTypingState !== null
-                ) {
-                    toConnection._sendEvent(context, {
-                        type: "UpdateOtherTypingState",
-                        connectionId: fromConnection._connectionId,
-                        typingState: null,
-                    });
-                }
+                        ? {
+                              connectionId: fromConnection._connectionId,
+                              typingState: null,
+                          }
+                        : null,
+            });
 
-                toConnection._queuedNewMessages.push(message);
-            }
-            return;
-        }
+            stateRef.current = {
+                nextMessageIndexToSend: message.index + 1,
+                queuedMessages: stateRef.current.queuedMessages,
+            };
 
-        toConnection._sendEvent(context, {
-            type: "NewMessage",
-            message,
-            updateOtherTypingState:
-                fromConnection._connectionId !== toConnection._connectionId &&
-                oldFromConnectionTypingState !== null
-                    ? {
-                          connectionId: fromConnection._connectionId,
-                          typingState: null,
-                      }
-                    : null,
+            await toConnection._flushQueuedMessages(context, stateRef);
         });
-
-        // If `_nextMessageIndexToSend` is null and the client hasn't backfilled then
-        // we send messages in whatever order we receive them. Since we don't know if
-        // we missed an earlier message. If we did miss an earlier message then the
-        // connection would stall and send no new messages.
-        if (toConnection._nextMessageIndexToSend !== null)
-            toConnection._nextMessageIndexToSend = message.index + 1;
-
-        // Flush any queued messages now that our next message index has moved forward.
-        toConnection._flushQueuedMessages(context);
     }
 
-    private _flushQueuedMessages(context: WorkerActionContext) {
-        // If this is null then nothing should be queued.
-        if (this._nextMessageIndexToSend === null) return;
+    /**
+     * Flush messages in `queuedMessagesState`. Must call this function inside a
+     * `queuedMessagesState` lock.
+     */
+    private async _flushQueuedMessages(
+        context: WorkerActionContext,
+        stateRef: {
+            current: {
+                readonly nextMessageIndexToSend: number | null;
+                readonly queuedMessages: ReadonlyArray<MessagingRealtimeEventStubNewMessage>;
+            };
+        },
+    ) {
+        let {nextMessageIndexToSend, queuedMessages} = stateRef.current;
 
-        while (true) {
-            const oldQueuedMessageLength = this._queuedNewMessages.length;
+        if (nextMessageIndexToSend === null) return;
 
-            this._queuedNewMessages = this._queuedNewMessages.filter(message => {
-                assert(this._nextMessageIndexToSend !== null);
+        let loop = true;
+        while (loop) {
+            loop = false;
+
+            const sendMessages: Array<MessagingRealtimeEventStubNewMessage> = [];
+
+            queuedMessages = queuedMessages.filter(message => {
+                assert(nextMessageIndexToSend !== null);
 
                 // This is the next message for our client! Send it.
-                if (message.index === this._nextMessageIndexToSend) {
-                    this._sendEvent(context, {
-                        type: "NewMessage",
-                        message,
-                        updateOtherTypingState: null,
-                    });
-                    this._nextMessageIndexToSend = message.index + 1;
+                if (message.index === nextMessageIndexToSend) {
+                    // Loop again after processing some message from our queue. We may have a queue
+                    // that looks like this: `[3, 1, 2]`. In that case 1 and 2 may be processed in
+                    // the first iteration while 3 is processed in the second iteration.
+                    loop = true;
+
+                    sendMessages.push(message);
+                    nextMessageIndexToSend = message.index + 1;
                     return false;
                 }
 
                 // If the message is in the past, we will never flush it so throw it away.
-                if (message.index < this._nextMessageIndexToSend) {
+                if (message.index < nextMessageIndexToSend) {
                     return false;
                 }
 
                 return true;
             });
 
-            // Exit the loop once we've processed all messages from our queue that can be
-            // processed. We may have a queue that looks like this: `[3, 1, 2]`. In that
-            // case 1 and 2 may be processed in the first iteration while 3 is processed in
-            // the second iteration.
-            if (oldQueuedMessageLength === this._queuedNewMessages.length) break;
+            // Send messages sequentially in the order they were pushed.
+            for (const sendMessage of sendMessages) {
+                await this._sendEvent(context, {
+                    type: "NewMessage",
+                    message: sendMessage,
+                    updateOtherTypingState: null,
+                });
+            }
         }
+
+        // Make sure we update state.
+        stateRef.current = {nextMessageIndexToSend, queuedMessages};
     }
 
-    private _sendMessageChange(context: WorkerActionContext, messageChange: MessageChange) {
-        // Wait until we are done backfilling to send any message changes...
-        if (this._isBackfilling) {
-            this._queuedMessageChanges.push(messageChange);
-            return;
-        }
-
+    private _sendMessageChange(
+        context: WorkerActionContext,
+        messageChange: MessagingRealtimeEventStubChange,
+    ) {
+        // It's ok to send message change events even while we're backfilling. Since on
+        // the frontend `MessageList` holds onto message changes even if the change
+        // effects a message the client hasn't loaded yet.
+        //
+        // So if a message change occurs for a message we're currently backfilling, the
+        // client will receive the change first then the backfill and will apply the
+        // change to the backfilled message.
         this._sendEvent(context, {
             type: "ChangeMessage",
             change: messageChange,
         });
     }
 
-    private readonly _backfillMutex = new Mutex();
-
-    public backfillMessages(
+    public async backfillMessages(
         context: WorkerSessionActionContext,
         {
             clientMessageCount,
@@ -354,22 +414,17 @@ export class MessagingRealtimeConnection<
         typingStateByConnectionId: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
         extra: BackfillMessagesExtra;
     }> {
-        // Execute our backfills sequentially so that our internal state is left in a
-        // good state.
-        return this._backfillMutex.withLock(async () => {
-            this._isBackfilling = true;
-            this._nextMessageIndexToSend = null;
-            this._queuedNewMessages = [];
-            this._queuedMessageChanges = [];
+        assert(this.accountId === context.actor.getAccountId());
 
-            const {
-                messageCount,
-                lastMessageChangeTime,
-                newMessages,
-                newOtherReferencedMessages,
-                messageChangesResult,
-                extra,
-            } = await this._backfillMessages(context, {
+        const {
+            messageCount,
+            lastMessageChangeTime,
+            newMessages,
+            newOtherReferencedMessages,
+            messageChangesResult,
+            extra,
+        } = await this._queuedMessagesState.withLock(async stateRef => {
+            const result = await this._backfillMessages(context, {
                 roomKey: this.roomKey,
                 clientMessageCount,
                 clientLastMessageChangeTime,
@@ -380,54 +435,44 @@ export class MessagingRealtimeConnection<
                 context.actor.getAccountId(),
             );
 
-            this._isBackfilling = false;
-
-            this._nextMessageIndexToSend = messageCount;
-            this._flushQueuedMessages(context);
-
-            // Send only the queued changes that occur after our backfill.
-            for (const messageChange of this._queuedMessageChanges) {
-                if (
-                    !lastMessageChangeTime ||
-                    getMessageChangeTime(messageChange) > lastMessageChangeTime
-                ) {
-                    this._sendEvent(context, {
-                        type: "ChangeMessage",
-                        change: messageChange,
-                    });
-                }
-            }
-            this._queuedMessageChanges = [];
-
-            return {
-                messageCount,
-                lastMessageChangeTime,
-                newMessages,
-                newOtherReferencedMessages,
-                messageChangesResult,
-                // NOTE(calebmer): In the following case:
-                //
-                // 1. Backfill starts for connection B
-                // 2. Connection A updates their typing state
-                // 3. Backfill response for connection B is created with connection A's
-                //    typing state
-                //
-                // We shouldn't have race conditions if connection A updates their typing state
-                // a second time after 3 because the rest of the code to send our call result
-                // is synchronous. So we will send the backfill response and then later send
-                // connection A's typing state update. If you add asynchronous execution
-                // between the point where we send the backfill response and construct the
-                // typing state backfill, you may have added a race condition bug.
-                typingStateByConnectionId: new Map(
-                    filterMapIterable(this._iterateOtherConnections(), connection => {
-                        const typingState = connection._typingState.getWithoutLock();
-                        if (typingState === null) return;
-                        return [connection._connectionId, typingState];
-                    }),
-                ),
-                extra,
+            stateRef.current = {
+                nextMessageIndexToSend: result.messageCount,
+                queuedMessages: stateRef.current.queuedMessages,
             };
+
+            await this._flushQueuedMessages(context, stateRef);
+
+            return result;
         });
+
+        return {
+            messageCount,
+            lastMessageChangeTime,
+            newMessages,
+            newOtherReferencedMessages,
+            messageChangesResult,
+            // NOTE(calebmer): In the following case:
+            //
+            // 1. Backfill starts for connection B
+            // 2. Connection A updates their typing state
+            // 3. Backfill response for connection B is created with connection A's
+            //    typing state
+            //
+            // We shouldn't have race conditions if connection A updates their typing state
+            // a second time after 3 because the rest of the code to send our call result
+            // is synchronous. So we will send the backfill response and then later send
+            // connection A's typing state update. If you add asynchronous execution
+            // between the point where we send the backfill response and construct the
+            // typing state backfill, you may have added a race condition bug.
+            typingStateByConnectionId: new Map(
+                filterMapIterable(this._iterateOtherConnections(), connection => {
+                    const typingState = connection._typingState.getWithoutLock();
+                    if (typingState === null) return;
+                    return [connection._connectionId, typingState];
+                }),
+            ),
+            extra,
+        };
     }
 
     public async createMessage(
@@ -442,10 +487,13 @@ export class MessagingRealtimeConnection<
             fileIds: ReadonlyArray<FileId | FileEntityId>;
         },
     ): Promise<{}> {
+        assert(this.accountId === context.actor.getAccountId());
+
         // TODO(calebmer): What if we sent clients an optimistic "message created"
         // event before we confirmed the message was saved in the database? This would
         // improve user perceived messaging latency.
-        const newMessage = await this._createMessage(context, {
+
+        const {index, createdTime} = await this._createMessage(context, {
             roomKey: this.roomKey,
             parentMessageIndex,
             content,
@@ -461,21 +509,45 @@ export class MessagingRealtimeConnection<
             const oldTypingState = typingStateRef.current;
             typingStateRef.current = null;
 
-            MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
-                context,
-                this,
-                this,
-                newMessage,
-                oldTypingState,
-            );
+            const authorId = context.actor.getAccountId();
 
-            for (const connection of this._iterateOtherConnections()) {
+            const message: MessagingRealtimeEventStubNewMessage = {
+                index,
+                authorId,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex,
+                    content,
+                    contentUpdatedTime: null,
+                    fileIds,
+                },
+                referencedIds: {
+                    authorId,
+                    contentReferencedIds: getContentReferencedIdsForNode(content),
+                    fileIds: new Set(fileIds),
+                },
+            };
+
+            context.process.waitUntil(
                 MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
                     context,
                     this,
-                    connection,
-                    newMessage,
+                    this,
+                    message,
                     oldTypingState,
+                ),
+            );
+
+            for (const connection of this._iterateOtherConnections()) {
+                context.process.waitUntil(
+                    MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
+                        context,
+                        this,
+                        connection,
+                        message,
+                        oldTypingState,
+                    ),
                 );
             }
         });
@@ -493,26 +565,29 @@ export class MessagingRealtimeConnection<
             content: MessageContent;
         },
     ): Promise<{}> {
-        const {contentUpdatedTime, contentReferences} = await this._updateMessageContent(context, {
+        assert(this.accountId === context.actor.getAccountId());
+
+        const {contentUpdatedTime} = await this._updateMessageContent(context, {
             roomKey: this.roomKey,
             messageIndex,
             content,
         });
 
-        const messageChange: MessageChange = {
+        await messagingRealtimeUpdateMessageContentBeforeSendTestCheckpoint.waitForTest(
+            context.actor.getAccountId(),
+        );
+
+        const change: MessagingRealtimeEventStubChange = {
             type: "UpdateContent",
             index: messageIndex,
-            content: {
-                doc: content,
-                references: contentReferences,
-            },
+            content,
             contentUpdatedTime,
         };
 
-        this._sendMessageChange(context, messageChange);
+        this._sendMessageChange(context, change);
 
         for (const connection of this._iterateOtherConnections())
-            connection._sendMessageChange(context, messageChange);
+            connection._sendMessageChange(context, change);
 
         return {};
     }
@@ -521,6 +596,8 @@ export class MessagingRealtimeConnection<
         context: WorkerSessionActionContext,
         {messageIndex}: {messageIndex: number},
     ): Promise<{}> {
+        assert(this.accountId === context.actor.getAccountId());
+
         const {deletedTime} = await this._deleteMessage(context, {
             roomKey: this.roomKey,
             messageIndex,
@@ -545,11 +622,13 @@ export class MessagingRealtimeConnection<
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         input: {},
     ): Promise<{}> {
+        assert(this.accountId === context.actor.getAccountId());
+
         await this._typingState.withLock(async typingStateRef => {
             if (typingStateRef.current !== null) return;
 
             const {account} = await getAccount(context, {
-                spaceId: this._spaceId,
+                spaceId: this.spaceId,
                 accountId: context.actor.getAccountId(),
             });
 
@@ -592,6 +671,77 @@ export class MessagingRealtimeConnection<
         });
 
         return {};
+    }
+
+    public async transformEvent(
+        context: WorkerSessionActionContext,
+        eventStub: MessagingRealtimeEventStub,
+    ): Promise<MessagingRealtimeEvent<Message>> {
+        assert(this.accountId === context.actor.getAccountId());
+
+        switch (eventStub.type) {
+            case "UpdateOtherTypingState": {
+                return eventStub;
+            }
+            case "NewMessage": {
+                const references = await this._getMessageReferences(context, {
+                    spaceId: this.spaceId,
+                    roomKey: this.roomKey,
+                    referencedIds: eventStub.message.referencedIds,
+                });
+
+                return {
+                    type: "NewMessage",
+                    message: this._createMessageModel({
+                        roomKey: this.roomKey,
+                        message: eventStub.message,
+                        references: references as MessageReferences & {author: AccountModel},
+                    }),
+                    updateOtherTypingState: eventStub.updateOtherTypingState,
+                };
+            }
+            case "ChangeMessage": {
+                switch (eventStub.change.type) {
+                    case "Delete": {
+                        return {type: "ChangeMessage", change: eventStub.change};
+                    }
+                    case "UpdateContent": {
+                        const contentReferencedIds = getContentReferencedIdsForNode(
+                            eventStub.change.content,
+                        );
+
+                        const references = !isEmptyContentReferencedIds(contentReferencedIds)
+                            ? await this._getMessageReferences(context, {
+                                  spaceId: this.spaceId,
+                                  roomKey: this.roomKey,
+                                  referencedIds: {
+                                      authorId: null,
+                                      contentReferencedIds,
+                                      fileIds: emptySet,
+                                  },
+                              })
+                            : {contentReferences: emptyContentReferences};
+
+                        return {
+                            type: "ChangeMessage",
+                            change: {
+                                type: "UpdateContent",
+                                index: eventStub.change.index,
+                                content: {
+                                    doc: eventStub.change.content,
+                                    references: references.contentReferences,
+                                },
+                                contentUpdatedTime: eventStub.change.contentUpdatedTime,
+                            },
+                        };
+                    }
+                    default:
+                        throw exhaustive(eventStub.change);
+                }
+            }
+            default:
+                throw exhaustive(eventStub);
+        }
     }
 
     public handleClose(context: WorkerProcessContext) {

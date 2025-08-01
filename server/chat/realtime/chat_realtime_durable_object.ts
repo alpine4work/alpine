@@ -10,8 +10,9 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -29,8 +30,7 @@ class ChatRealtimeDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof ChatRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        ChatRealtimeEvent,
+        MessagingRealtimeEventStub,
         ChatRealtimeConnection
     >;
 
@@ -77,16 +77,16 @@ class ChatRealtimeDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof ChatRealtimeProtocol,
-            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-            ChatRealtimeEvent,
+            MessagingRealtimeEventStub,
             ChatRealtimeConnection
         >(
             this._processContext,
             ChatRealtimeProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
+            ({accountId, connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) => {
                 return new ChatRealtimeConnection({
                     connectionId,
                     spaceId,
+                    accountId,
                     chatId,
                     sendEvent,
                     sendEventToOthers,

@@ -10,7 +10,6 @@ import {
 import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
-    DynamoActorContextModule,
     DynamoAnonymousActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
     DynamoSessionActorContextModule,
@@ -43,7 +42,7 @@ import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_se
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
-import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
+import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
@@ -191,7 +190,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     readonly escalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor: DynamoActorContextModule;
+            actor: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -384,7 +383,7 @@ export function createTestContext(
     const escalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor: DynamoActorContextModule;
+            actor: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,

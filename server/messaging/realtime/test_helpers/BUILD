@@ -9,6 +9,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//server/cloudflare",
         "//server/cloudflare/test_helpers",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/helpers",
         "//server/messaging/realtime",
@@ -17,5 +18,6 @@ ts_project(
         "//shared/content",
         "//shared/context",
         "//shared/helpers",
+        "//shared/test_helpers",
     ],
 )

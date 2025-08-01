@@ -1,7 +1,4 @@
-import {
-    getContentReferences,
-    getMessageContentReferencesForNode,
-} from "~/server/content/get_content_references.js";
+import {getContentReferences} from "~/server/content/get_content_references.js";
 import {
     FileDocumentAuthorizer,
     authorizeDocumentAccess,
@@ -26,6 +23,7 @@ import {
     createMessagePayloadModel,
     getMessageContentPayloadModelFile,
 } from "~/server/messaging/helpers/create_message_payload_model.js";
+import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
@@ -240,18 +238,11 @@ export default implementRpcs(definitions, {
     updateDocumentCommentContent: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
-                updateDocumentCommentContent(context.actor.authorizeSession(), input),
-                authorizeDocumentAccess(
-                    context.actor.authorizeSession(),
-                    input.documentId,
-                    "Comment",
-                ).then(({spaceId}) =>
-                    getMessageContentReferencesForNode(context, spaceId, input.content),
-                ),
-            ]);
-
-            return {contentUpdatedTime, contentReferences};
+            const {contentUpdatedTime} = await updateDocumentCommentContent(
+                context.actor.authorizeSession(),
+                input,
+            );
+            return {contentUpdatedTime};
         },
     },
 
@@ -266,6 +257,19 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: (context, input) => {
             return backfillDocumentComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getDocumentCommentReferences: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, {spaceId, documentId, referencedIds}) => {
+            const references = await getMessageReferences(
+                context.actor.authorizeSession(),
+                spaceId,
+                FileDocumentAuthorizer.bind({type: "DocumentComments", documentId}),
+                referencedIds,
+            );
+            return {references};
         },
     },
 

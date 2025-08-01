@@ -3,7 +3,10 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {PostRealtimeDurableObject} from "~/server/forum/realtime/post_realtime_durable_object.js";
-import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
+import {
+    testMessagingRealtimeImplementation,
+    testMessagingRealtimeImplementationContextOptions,
+} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
@@ -16,7 +19,7 @@ import {
     updatePostCommentContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
-const context = createTestWorkerContext();
+const context = createTestWorkerContext(testMessagingRealtimeImplementationContextOptions);
 const {connectForTest} = PostRealtimeDurableObject.test(context);
 const space = createTestSpace(context);
 const session = createTestSession(context, space);

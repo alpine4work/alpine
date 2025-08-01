@@ -8,7 +8,12 @@ import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
-import {MessagingRealtimeConnection} from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {
+    CreateMessageModelFunction,
+    GetMessageReferencesFunction,
+    MessagingRealtimeConnection,
+} from "~/server/messaging/realtime/messaging_realtime_connection.js";
+import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
@@ -40,6 +45,8 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
@@ -47,6 +54,7 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
@@ -60,6 +68,7 @@ import {
     backfillDocumentComments,
     createDocumentComment,
     deleteDocumentComment,
+    getDocumentCommentReferences,
     getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
@@ -73,18 +82,31 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
     new TestCheckpoint<{documentId: DocumentId; commentThreadId: DocumentCommentThreadId}>();
 
+export type DocumentCollaborationEventStub =
+    // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+    | (DocumentCollaborationEvent & {readonly type: "UpdateContentWithoutPersistence"})
+    | (DocumentCollaborationEvent & {readonly type: "PersistedContent"})
+    | (DocumentCollaborationEvent & {readonly type: "UpdateOtherPresenceState"})
+    | (DocumentCollaborationEvent & {readonly type: "Error"})
+    | {
+          readonly type: "Comments";
+          readonly commentThreadId: DocumentCommentThreadId;
+          readonly event: MessagingRealtimeEventStub;
+      };
+
 export class DocumentCollaborationConnection {
     public readonly withoutComments: boolean;
     public readonly connectionId: WebSocketConnectionId;
+    private readonly _accountId: AccountId;
 
     private readonly _contentManager: DocumentCollaborationContentManager;
     private readonly _sendEvent: (
         context: WorkerProcessContext,
-        message: DocumentCollaborationEvent,
+        message: DocumentCollaborationEventStub,
     ) => SafeFloatingPromise<void>;
     private readonly _sendEventToOthers: (
         context: WorkerProcessContext,
-        message: DocumentCollaborationEvent,
+        message: DocumentCollaborationEventStub,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
     public readonly resetAuthorizationTimer: (context: WorkerProcessContext) => void;
@@ -99,6 +121,7 @@ export class DocumentCollaborationConnection {
     constructor({
         withoutComments,
         connectionId,
+        accountId,
         contentManager,
         sendEvent,
         sendEventToOthers,
@@ -108,14 +131,15 @@ export class DocumentCollaborationConnection {
     }: {
         withoutComments: boolean;
         connectionId: WebSocketConnectionId;
+        accountId: AccountId;
         contentManager: DocumentCollaborationContentManager;
         sendEvent: (
             context: WorkerProcessContext,
-            message: DocumentCollaborationEvent,
+            message: DocumentCollaborationEventStub,
         ) => SafeFloatingPromise<void>;
         sendEventToOthers: (
             context: WorkerProcessContext,
-            message: DocumentCollaborationEvent,
+            message: DocumentCollaborationEventStub,
         ) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
         resetAuthorizationTimer: (context: WorkerProcessContext) => void;
@@ -123,6 +147,7 @@ export class DocumentCollaborationConnection {
     }) {
         this.withoutComments = withoutComments;
         this.connectionId = connectionId;
+        this._accountId = accountId;
         this._contentManager = contentManager;
         this._sendEvent = sendEvent;
         this._sendEventToOthers = sendEventToOthers;
@@ -683,10 +708,32 @@ export class DocumentCollaborationConnection {
 
     public async transformEvent(
         context: WorkerSessionActionContext,
-        eventStub: DocumentCollaborationEvent,
+        eventStub: DocumentCollaborationEventStub,
     ): Promise<DocumentCollaborationEvent> {
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        return eventStub;
+        switch (eventStub.type) {
+            case "UpdateContentWithoutPersistence": {
+                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+                return eventStub;
+            }
+            case "PersistedContent":
+            case "UpdateOtherPresenceState":
+            case "Error": {
+                return eventStub;
+            }
+            case "Comments": {
+                const connection = await this._getCommentThreadConnection(
+                    eventStub.commentThreadId,
+                );
+
+                return {
+                    type: "Comments",
+                    commentThreadId: eventStub.commentThreadId,
+                    event: await connection.transformEvent(context, eventStub.event),
+                };
+            }
+            default:
+                throw exhaustive(eventStub);
+        }
     }
 
     public handleClose(context: WorkerProcessContext) {
@@ -759,6 +806,7 @@ export class DocumentCollaborationConnection {
         return new MessagingRealtimeConnection({
             connectionId: this.connectionId,
             spaceId: this._contentManager.spaceId,
+            accountId: this._accountId,
             roomKey: encodeDocumentCommentRoomKey(this._contentManager.id, commentThreadId),
             sendEvent: (context, event) => {
                 if (this.withoutComments) return voidSafeFloatingPromise;
@@ -902,6 +950,8 @@ export class DocumentCollaborationConnection {
                     extra: {commentThread},
                 };
             },
+            getMessageReferences,
+            createMessageModel,
         });
     });
 
@@ -969,3 +1019,44 @@ export class DocumentCollaborationConnection {
         };
     }
 }
+
+const getMessageReferences: GetMessageReferencesFunction<DocumentCommentRoomKey> = async (
+    context,
+    {spaceId, roomKey, referencedIds},
+) => {
+    const [documentId] = decodeDocumentCommentRoomKey(roomKey);
+
+    const {references} = await getDocumentCommentReferences(context, {
+        spaceId,
+        documentId,
+        referencedIds,
+    });
+    return references;
+};
+
+const createMessageModel: CreateMessageModelFunction<
+    DocumentCommentRoomKey,
+    DocumentCommentModel
+> = ({roomKey, message, references}) => {
+    const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+    return new DocumentCommentModel({
+        documentId,
+        commentThreadId,
+        index: message.index,
+        createdTime: message.createdTime,
+        author: references.author,
+        payload: {
+            type: "Content",
+            parentMessageIndex: message.payload.parentMessageIndex,
+            content: {
+                doc: message.payload.content,
+                references: references.contentReferences,
+            },
+            contentUpdatedTime: message.payload.contentUpdatedTime,
+            files: message.payload.fileIds.map(fileId =>
+                assertExists(references.fileById.get(fileId)),
+            ),
+        },
+    });
+};

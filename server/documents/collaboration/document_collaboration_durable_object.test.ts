@@ -4,7 +4,10 @@ import {AddMarkStep, DocAttrStep, RemoveMarkStep, ReplaceStep} from "prosemirror
 import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
-import {DocumentCollaborationConnection} from "~/server/documents/collaboration/document_collaboration_connection.js";
+import {
+    DocumentCollaborationConnection,
+    DocumentCollaborationEventStub,
+} from "~/server/documents/collaboration/document_collaboration_connection.js";
 import {
     documentCollaborationContentManagerBeforePersist1TestCheckpoint,
     documentCollaborationContentManagerBeforePersist2TestCheckpoint,
@@ -20,7 +23,10 @@ import {
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {attachFileAsUploader} from "~/server/files/data/files_table.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
-import {testMessagingRealtimeImplementation} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
+import {
+    testMessagingRealtimeImplementation,
+    testMessagingRealtimeImplementationContextOptions,
+} from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
@@ -28,10 +34,7 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    DocumentCollaborationEvent,
-    DocumentCollaborationProtocol,
-} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {
@@ -63,7 +66,7 @@ import {
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 
-const context = createTestWorkerContext();
+const context = createTestWorkerContext(testMessagingRealtimeImplementationContextOptions);
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
 
 function massageDocument(document: DocumentModel) {
@@ -83,8 +86,7 @@ function waitForPersistence(
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DocumentCollaborationProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        DocumentCollaborationEvent,
+        DocumentCollaborationEventStub,
         DocumentCollaborationConnection
     >,
     version: number,
@@ -1818,12 +1820,33 @@ test("can create comments in comment threads", async () => {
         },
     ]);
 
+    await connection1.procedures.backfillComments({
+        commentThreadId,
+        clientCommentCount: 0,
+        clientLastCommentChangeTime: null,
+        newCommentLimit: 100,
+    });
+
+    await connection2.procedures.backfillComments({
+        commentThreadId,
+        clientCommentCount: 0,
+        clientLastCommentChangeTime: null,
+        newCommentLimit: 100,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+
     await connection1.procedures.createComment({
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
     });
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(connection1.takeEvents()).toEqual([
         {
@@ -1998,6 +2021,8 @@ test("can create comments in comment threads", async () => {
         content: createSimpleMessageContent("Test message content 3"),
         fileIds: [],
     });
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(connection1.takeEvents()).toEqual([
         {
@@ -2257,6 +2282,8 @@ test("if comment thread is persisting we will wait to create messages but respon
 
     unpause();
     await createMessagePromise;
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(connection1.takeEvents()).toEqual([
         {
@@ -2548,6 +2575,8 @@ test("if comment thread update message hasn’t been processed we will wait to r
 
     unpause2();
     await createMessagePromise;
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(connection1.takeEvents()).toEqual([
         {
@@ -5213,6 +5242,35 @@ test("viewer receives update events without comment data", async () => {
             unresolveCommentThreadIds: [],
         },
     ]);
+
+    await connection1.procedures.backfillComments({
+        commentThreadId,
+        clientCommentCount: 0,
+        clientLastCommentChangeTime: null,
+        newCommentLimit: 100,
+    });
+
+    await connection2.procedures.backfillComments({
+        commentThreadId,
+        clientCommentCount: 0,
+        clientLastCommentChangeTime: null,
+        newCommentLimit: 100,
+    });
+
+    await expect(
+        connection3.procedures.backfillComments({
+            commentThreadId,
+            clientCommentCount: 0,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).rejects.toThrow("Can’t see document comments");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+    expect(connection3.takeEvents()).toEqual([]);
 
     await connection2.procedures.createComment({
         commentThreadId,

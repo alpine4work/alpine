@@ -41,8 +41,10 @@ assertAssignableTypes<TestWorkerContext, TestContext>();
 assertAssignableTypes<TestWorkerSessionActionContext, WorkerSessionActionContext>();
 assertAssignableTypes<TestWorkerSystemActionContext, WorkerSystemActionContext>();
 
-export function createTestWorkerContext(): TestWorkerContext {
-    const baseContext = createTestContext();
+export function createTestWorkerContext(
+    options?: Parameters<typeof createTestContext>[0],
+): TestWorkerContext {
+    const baseContext = createTestContext(options);
 
     const context: TestWorkerContext = Object.assign(baseContext.cloneWithHelpers({}), {
         action: ((session, options) => {
