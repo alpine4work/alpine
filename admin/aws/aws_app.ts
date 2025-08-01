@@ -9,6 +9,7 @@ import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
@@ -50,6 +51,7 @@ async function addAwsResources(
     const ecsCluster = new AwsEcsCluster(stack, vpc);
     const opensearch = await AwsOpensearch.new(stack, vpc);
     const sqs = AwsSqs.new(stack);
+    const ses = new AwsSes(stack);
 
     new AwsCronJobs(stack, sqs);
 
@@ -70,6 +72,7 @@ async function addAwsResources(
         dynamo,
         opensearch,
         sqs,
+        ses,
         taskRealtimeService,
     });
 

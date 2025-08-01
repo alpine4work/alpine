@@ -21,6 +21,7 @@ import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
+import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -35,6 +36,7 @@ export class AwsAppService extends Construct {
             dynamo,
             opensearch,
             sqs,
+            ses,
             taskRealtimeService,
         }: {
             vpc: Vpc;
@@ -43,6 +45,7 @@ export class AwsAppService extends Construct {
             dynamo: AwsDynamo;
             opensearch: AwsOpensearch;
             sqs: AwsSqs;
+            ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
         },
     ) {
@@ -268,9 +271,10 @@ export class AwsAppService extends Construct {
         dynamo.grantReadWriteData(taskDefinition.taskRole);
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
+        ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
 
-        // `AppService` sends transactional emails. Like a one-time-password sign
-        // in email.
+        // This is here for historical reasons, as we used to send email from cyberworlds.dev.
+        // It should be removed at some point in the future.
         taskDefinition.addToTaskRolePolicy(
             new PolicyStatement({
                 actions: ["ses:SendEmail"],
