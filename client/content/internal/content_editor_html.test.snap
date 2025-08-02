@@ -2838,7 +2838,7 @@ exports[`account long mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem; height: 1.75rem; background-color: #a6a6ab"
+              style="width: 1.75rem; height: 1.75rem; background-color: #fbcf88"
             >
               <span
                 aria-hidden="true"
@@ -2899,7 +2899,7 @@ exports[`account short mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem; height: 1.75rem; background-color: #a6a6ab"
+              style="width: 1.75rem; height: 1.75rem; background-color: #fbcf88"
             >
               <span
                 aria-hidden="true"

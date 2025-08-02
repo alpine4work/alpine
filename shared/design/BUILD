@@ -21,6 +21,7 @@ ts_project(
         "//:node_modules/@lume/kiwi",
         "//:node_modules/@types/react",
         "//shared/helpers:helpers_core",
+        "//shared/id",
     ],
 )
 
