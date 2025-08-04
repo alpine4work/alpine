@@ -209,7 +209,9 @@ export async function run({
                 ServerProcessContextModules,
                 TaskRealtimeSessionActionContextModules,
                 typeof TaskRealtimeProtocol,
-                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
+                // We don't need a custom stub type since `TaskRealtimeConnection` is already
+                // designed to call `sendEvent()` on a per-connection basis with correct
+                // permissions.
                 TaskRealtimeEvent,
                 TaskRealtimeConnection
             >(

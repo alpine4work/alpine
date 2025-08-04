@@ -99,7 +99,6 @@ function createWebSocketServer(space: TestSpace) {
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >(
@@ -185,7 +184,6 @@ async function testSubscribe(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
@@ -204,7 +202,6 @@ async function testSubscribeToQuery(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
@@ -234,7 +231,6 @@ async function testSubscribeToTask(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
@@ -253,7 +249,6 @@ async function testSubscribeToCollection(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
@@ -274,7 +269,6 @@ async function testLoadMoreQueryTasks(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
@@ -296,7 +290,6 @@ function testTakeEvents(
         ServerProcessContextModules,
         ServerSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,

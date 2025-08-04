@@ -5,7 +5,20 @@ import {
 import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
+import {
+    DynamoGeneralRealtimeInboxItemEvent,
+    MyAccountEvent,
+    MyAccountProtocol,
+} from "~/shared/notifications/my_account_protocol.js";
+
+export type MyAccountEventStub = {
+    readonly type: "InboxRealtimeEventTransaction";
+    readonly readTime: Date;
+    // We have the full event (references and all) in the stub because when
+    // `AppService` creates the event they create it with the inbox recipient's
+    // permissions.
+    readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeInboxItemEvent>;
+};
 
 export class MyAccountConnection {
     private readonly _accountId: AccountId;
@@ -33,9 +46,8 @@ export class MyAccountConnection {
 
     public async transformEvent(
         context: WorkerSessionActionContext,
-        eventStub: MyAccountEvent,
+        eventStub: MyAccountEventStub,
     ): Promise<MyAccountEvent> {
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         return eventStub;
     }
 }

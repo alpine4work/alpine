@@ -8,7 +8,10 @@ import {
     WorkerProcessContextModules,
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
-import {MyAccountConnection} from "~/server/notifications/my_account/my_account_connection.js";
+import {
+    MyAccountConnection,
+    MyAccountEventStub,
+} from "~/server/notifications/my_account/my_account_connection.js";
 import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
@@ -16,7 +19,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MyAccountBroadcastInboxRealtimeEventTransactionSchema,
-    MyAccountEvent,
     MyAccountProtocol,
 } from "~/shared/notifications/my_account_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -34,8 +36,7 @@ class MyAccountDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof MyAccountProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        MyAccountEvent,
+        MyAccountEventStub,
         MyAccountConnection
     >;
 
@@ -80,8 +81,7 @@ class MyAccountDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof MyAccountProtocol,
-            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-            MyAccountEvent,
+            MyAccountEventStub,
             MyAccountConnection
         >(this._processContext, MyAccountProtocol, () => {
             return new MyAccountConnection({

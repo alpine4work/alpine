@@ -267,7 +267,6 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         context: ServerSessionActionContext,
         eventStub: TaskRealtimeEvent,
     ): Promise<TaskRealtimeEvent> {
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
         return eventStub;
     }
 
