@@ -293,6 +293,12 @@ function ContentFileImageDesktopViewerInner({
         imageContentElement.style.transform = "scale(1)";
         imageContentElement.style.willChange = "transform";
 
+        // NOTE (rmtobin, #desktop-webkit-weirdness): This avoids a bug in Safari where images
+        // rendered with a very large height/width and very small transform: scale value plus
+        // object-fit values that maintain aspect ratio are distorted.
+        // See https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/e31jfwc3pcr3dk8pjac93qnhrr
+        imageContentElement.style.objectFit = "fill";
+
         imageElement.appendChild(imageContentElement);
 
         // Wait for the browser to paint before calling `setIsLoaded(true)`. That way
