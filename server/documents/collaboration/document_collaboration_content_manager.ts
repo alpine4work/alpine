@@ -91,10 +91,10 @@ export class DocumentCollaborationContentManager {
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
     public readonly stepCache: DocumentCollaborationStepCache;
-    private readonly _sendEventToAll: (
+    private readonly _sendEventToAllAndWait: (
         context: WorkerProcessContext,
         event: DocumentCollaborationEventStub,
-    ) => void;
+    ) => Promise<void>;
     private readonly _resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
     private readonly _killProcess: (context: WorkerProcessContext) => void;
 
@@ -166,7 +166,7 @@ export class DocumentCollaborationContentManager {
         id,
         initialVersion,
         initialContent,
-        sendEventToAll,
+        sendEventToAllAndWait,
         resetAllAuthorizationTimers,
         killProcess,
     }: {
@@ -174,10 +174,10 @@ export class DocumentCollaborationContentManager {
         id: DocumentId;
         initialVersion: number;
         initialContent: DocumentContent;
-        sendEventToAll: (
+        sendEventToAllAndWait: (
             context: WorkerProcessContext,
             event: DocumentCollaborationEventStub,
-        ) => void;
+        ) => Promise<void>;
         resetAllAuthorizationTimers: (context: WorkerProcessContext) => void;
         killProcess: (context: WorkerProcessContext) => void;
     }) {
@@ -189,7 +189,7 @@ export class DocumentCollaborationContentManager {
         });
         this._persistedVersion = initialVersion;
         this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
-        this._sendEventToAll = sendEventToAll;
+        this._sendEventToAllAndWait = sendEventToAllAndWait;
         this._resetAllAuthorizationTimers = resetAllAuthorizationTimers;
         this._killProcess = killProcess;
     }
@@ -515,7 +515,7 @@ export class DocumentCollaborationContentManager {
                                 if (intentionallyUpdateAccessPolicy)
                                     this._resetAllAuthorizationTimers(context);
 
-                                this._sendEventToAll(context, {
+                                await this._sendEventToAllAndWait(context, {
                                     type: "PersistedContent",
                                     newVersion: oldVersion + nextSteps.length,
                                     updatedCommentThreads,
@@ -537,7 +537,7 @@ export class DocumentCollaborationContentManager {
                                     optimisticCommentThread.persistedPromiseResolver.reject(error);
                                 }
 
-                                this._sendEventToAll(context, {
+                                await this._sendEventToAllAndWait(context, {
                                     type: "Error",
                                     error,
                                 });
@@ -599,86 +599,68 @@ export class DocumentCollaborationContentManager {
 
         if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
 
-        const {
-            referencedIds: stepsContentReferencedIds,
-            references: stepsContentReferences,
-            resolvedCommentThreadIds: stepsResolvedCommentThreadIds,
-        } = await this.getContentReferencesForSteps(context, steps);
+        let cleanupInvalidStepCommentThreadsPromise: Promise<void> | null = null;
 
-        // We have to wait for some async data dependencies to send
-        // `UpdateContentWithoutPersistence`. We load our data without:
-        //
-        // - Blocking persistence
-        // - Blocking the update queue
-        //
-        // However, this means you don't get ordering guarantees around
-        // `UpdateContentWithoutPersistence`! You may receive these events in any order
-        // because the timing of loading content references will vary.
-        const send = () =>
-            this._sendEventToAll(context, {
-                type: "UpdateContentWithoutPersistence",
-                newVersion: oldVersion + steps.length,
-                steps,
-                stepsContentReferences,
-                clientId: update.clientId,
-                updateOtherPresenceState: connectionId
-                    ? {connectionId, state: presenceState}
-                    : null,
-                // Let the client know if this update also resolves or un-resolves comments.
-                // Remember that if you receive this comment resolution hasn't been persisted
-                // yet! So if you try to read a new `DocumentCommentThreadModel` it might not
-                // have been updated. You'll get new `DocumentCommentThreadModel`s with the
-                // `PersistedContent` event.
-                resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
-                unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
-            });
-
-        // If the user tried to insert comment threads into the document we can't find
-        // or that have already been resolved (e.g. through a copy/paste) then follow
-        // up by removing those comment threads from the document.
-        //
-        // This happens if the user copies content from a document which has some
-        // comments and pastes them in another document. Those comments don't exist in
-        // the new document so we'd like to remove those comments from the document
-        // entirely.
-        //
-        // May also want to consider a client implementation of this. Maybe we add
-        // `data-document` to comment `<mark>` elements so the clipboard DOM parser
-        // can throwaway comment marks from other documents when a paste happens. Then
-        // this server logic will serve as a fallback.
-        {
-            const invalidCommentThreadIds = new Set<DocumentCommentThreadId>();
-            const possiblyResolvedCommentThreadIds = new Set<DocumentCommentThreadId>();
-
-            for (const commentThreadId of stepsContentReferencedIds.commentThreadIds) {
-                if (!stepsContentReferences.commentThreadById.has(commentThreadId)) {
-                    invalidCommentThreadIds.add(commentThreadId);
-                }
-
-                // If `getContentReferencesForSteps()` reports any comment thread as resolved
-                // (that we're not actively unresolving) then we want to remove that comment
-                // thread's marks from the document as well. However, since
-                // `getContentReferencesForSteps()` reads with eventual consistency we may be
-                // reading stale data, so before we clean the document we'll make another read
-                // against DynamoDB with strong consistency to confirm the comment threads are
-                // actually resolved.
+        const cleanupInvalidStepCommentThreads = ({
+            referencedIds,
+            references,
+            resolvedCommentThreadIds,
+        }: {
+            referencedIds: DocumentContentReferencedIds;
+            references: DocumentContentReferences;
+            resolvedCommentThreadIds: ReadonlySet<DocumentCommentThreadId>;
+        }): Promise<void> => {
+            cleanupInvalidStepCommentThreadsPromise ??= (async () => {
+                // If the user tried to insert comment threads into the document we can't find
+                // or that have already been resolved (e.g. through a copy/paste) then follow
+                // up by removing those comment threads from the document.
                 //
-                // There is a chance of race conditions if a user unresolves while we're
-                // waiting on the network for `AppService` to return its data to
-                // `DocumentCollaborationService`. Such a race condition is pretty rare and the
-                // consequence is pretty minor (comment mark doesn’t reappear in document after
-                // unresolved) so we tolerate the race condition.
-                if (
-                    stepsResolvedCommentThreadIds.has(commentThreadId) &&
-                    !this._persistingUnresolveCommentThreadIds.has(commentThreadId)
-                ) {
-                    possiblyResolvedCommentThreadIds.add(commentThreadId);
-                }
-            }
+                // This happens if the user copies content from a document which has some
+                // comments and pastes them in another document. Those comments don't exist in
+                // the new document so we'd like to remove those comments from the document
+                // entirely.
+                //
+                // May also want to consider a client implementation of this. Maybe we add
+                // `data-document` to comment `<mark>` elements so the clipboard DOM parser
+                // can throwaway comment marks from other documents when a paste happens. Then
+                // this server logic will serve as a fallback.
 
-            if (invalidCommentThreadIds.size === 0 && possiblyResolvedCommentThreadIds.size === 0) {
-                send();
-            } else {
+                const invalidCommentThreadIds = new Set<DocumentCommentThreadId>();
+                const possiblyResolvedCommentThreadIds = new Set<DocumentCommentThreadId>();
+
+                for (const commentThreadId of referencedIds.commentThreadIds) {
+                    if (!references.commentThreadById.has(commentThreadId)) {
+                        invalidCommentThreadIds.add(commentThreadId);
+                    }
+
+                    // If `getContentReferencesForSteps()` reports any comment thread as resolved
+                    // (that we're not actively unresolving) then we want to remove that comment
+                    // thread's marks from the document as well. However, since
+                    // `getContentReferencesForSteps()` reads with eventual consistency we may be
+                    // reading stale data, so before we clean the document we'll make another read
+                    // against DynamoDB with strong consistency to confirm the comment threads are
+                    // actually resolved.
+                    //
+                    // There is a chance of race conditions if a user unresolves while we're
+                    // waiting on the network for `AppService` to return its data to
+                    // `DocumentCollaborationService`. Such a race condition is pretty rare and the
+                    // consequence is pretty minor (comment mark doesn’t reappear in document after
+                    // unresolved) so we tolerate the race condition.
+                    if (
+                        resolvedCommentThreadIds.has(commentThreadId) &&
+                        !this._persistingUnresolveCommentThreadIds.has(commentThreadId)
+                    ) {
+                        possiblyResolvedCommentThreadIds.add(commentThreadId);
+                    }
+                }
+
+                if (
+                    invalidCommentThreadIds.size === 0 &&
+                    possiblyResolvedCommentThreadIds.size === 0
+                ) {
+                    return;
+                }
+
                 if (possiblyResolvedCommentThreadIds.size > 0) {
                     const {confirmedCommentThreadIds: resolvedCommentThreadIds} =
                         await confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(
@@ -694,39 +676,53 @@ export class DocumentCollaborationContentManager {
                     }
                 }
 
-                if (invalidCommentThreadIds.size === 0) {
-                    send();
-                } else {
-                    const removeInvalidCommentThreadSteps = Array.from(
-                        invalidCommentThreadIds,
-                        commentThreadId =>
-                            new RemoveAllMarksStep(
-                                DocumentContentProsemirrorSchema.marks.comment.create({
-                                    commentThreadId,
-                                }),
-                            ),
-                    );
+                if (invalidCommentThreadIds.size === 0) return;
 
-                    context.process.waitUntil(
-                        this.update(context, null, {
-                            version: oldVersion + steps.length,
-                            steps: removeInvalidCommentThreadSteps,
-                            // This update was not generated by the client which called `update()` but
-                            // rather by our backend here.
-                            clientId: generateId(),
-                            createCommentThreads: [],
-                            intentionallyUpdateAccessPolicy: null,
-                            updateOurPresenceState: {state: null},
-                        })
-                            // If we have some comment thread marks to remove, then wait to send our update
-                            // content event until after we've sent the `RemoveAllMarksStep`. This way, the
-                            // client will atomically apply our update with `RemoveAllMarksSteps` and the
-                            // user will never see the comment marks in the first place.
-                            .finally(send),
-                    );
-                }
-            }
-        }
+                const removeInvalidCommentThreadSteps = Array.from(
+                    invalidCommentThreadIds,
+                    commentThreadId =>
+                        new RemoveAllMarksStep(
+                            DocumentContentProsemirrorSchema.marks.comment.create({
+                                commentThreadId,
+                            }),
+                        ),
+                );
+
+                // Intentionally using the original `update()` function's `context` so that
+                // this remove steps update uses the same `AccountId` as the original update.
+                await this.update(context, null, {
+                    version: oldVersion + steps.length,
+                    steps: removeInvalidCommentThreadSteps,
+                    // This update was not generated by the client which called `update()` but
+                    // rather by our backend here.
+                    clientId: generateId(),
+                    createCommentThreads: [],
+                    intentionallyUpdateAccessPolicy: null,
+                    updateOurPresenceState: {state: null},
+                });
+            })();
+
+            return cleanupInvalidStepCommentThreadsPromise;
+        };
+
+        // You may receive these events in any order because the timing of loading
+        // content references in `transformEvent()` will vary. The client must take
+        // care to apply events in the correct order.
+        await this._sendEventToAllAndWait(context, {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: oldVersion + steps.length,
+            steps,
+            clientId: update.clientId,
+            updateOtherPresenceState: connectionId ? {connectionId, state: presenceState} : null,
+            // Let the client know if this update also resolves or un-resolves comments.
+            // Remember that if you receive this comment resolution hasn't been persisted
+            // yet! So if you try to read a new `DocumentCommentThreadModel` it might not
+            // have been updated. You'll get new `DocumentCommentThreadModel`s with the
+            // `PersistedContent` event.
+            resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+            unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
+            cleanupInvalidStepCommentThreads,
+        });
 
         return {presenceState, hasSentPresenceState: true};
     }

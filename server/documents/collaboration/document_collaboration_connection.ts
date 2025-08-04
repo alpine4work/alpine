@@ -1,3 +1,4 @@
+import {Step} from "prosemirror-transform";
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
@@ -21,6 +22,8 @@ import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
 } from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentContentReferencedIds} from "~/shared/documents/document_content_referenced_ids.js";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {
     documentBackfillFutureVersionErrorMessage,
@@ -55,6 +58,7 @@ import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
+    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
@@ -83,11 +87,26 @@ export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint
     new TestCheckpoint<{documentId: DocumentId; commentThreadId: DocumentCommentThreadId}>();
 
 export type DocumentCollaborationEventStub =
-    // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-    | (DocumentCollaborationEvent & {readonly type: "UpdateContentWithoutPersistence"})
     | (DocumentCollaborationEvent & {readonly type: "PersistedContent"})
     | (DocumentCollaborationEvent & {readonly type: "UpdateOtherPresenceState"})
     | (DocumentCollaborationEvent & {readonly type: "Error"})
+    | {
+          readonly type: "UpdateContentWithoutPersistence";
+          readonly newVersion: number;
+          readonly steps: ReadonlyArray<Step>;
+          readonly clientId: ContentEditorClientId;
+          readonly updateOtherPresenceState: {
+              readonly connectionId: WebSocketConnectionId;
+              readonly state: DocumentCollaborationPresenceState | null;
+          } | null;
+          readonly resolveCommentThreadIds: ReadonlyArray<DocumentCommentThreadId>;
+          readonly unresolveCommentThreadIds: ReadonlyArray<DocumentCommentThreadId>;
+          readonly cleanupInvalidStepCommentThreads: (references: {
+              referencedIds: DocumentContentReferencedIds;
+              references: DocumentContentReferences;
+              resolvedCommentThreadIds: ReadonlySet<DocumentCommentThreadId>;
+          }) => Promise<void>;
+      }
     | {
           readonly type: "Comments";
           readonly commentThreadId: DocumentCommentThreadId;
@@ -712,8 +731,38 @@ export class DocumentCollaborationConnection {
     ): Promise<DocumentCollaborationEvent> {
         switch (eventStub.type) {
             case "UpdateContentWithoutPersistence": {
-                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-                return eventStub;
+                const stepReferences = await this._contentManager.getContentReferencesForSteps(
+                    context,
+                    eventStub.steps,
+                );
+
+                if (!this.withoutComments) {
+                    await eventStub.cleanupInvalidStepCommentThreads(stepReferences);
+                } else {
+                    // Double check there aren't any comments if this connection doesn't support
+                    // comments. We shouldn't have comments here because:
+                    //
+                    // 1. `stripDocumentCollaborationEventComments()` strips out any comment marks
+                    //    from our steps before the event stub is sent to `transformEvent()`.
+                    //
+                    // 2. If there were comment marks then when we try to load the associated
+                    //    comment threads in `AppService` with our actor's credentials,
+                    //    `AppService` should either throw an error or silently not return the
+                    //    comment threads.
+                    assert(stepReferences.referencedIds.commentThreadIds.size === 0);
+                    assert(stepReferences.references.commentThreadById.size === 0);
+                }
+
+                return {
+                    type: "UpdateContentWithoutPersistence",
+                    newVersion: eventStub.newVersion,
+                    steps: eventStub.steps,
+                    stepsContentReferences: stepReferences.references,
+                    clientId: eventStub.clientId,
+                    updateOtherPresenceState: eventStub.updateOtherPresenceState,
+                    resolveCommentThreadIds: eventStub.resolveCommentThreadIds,
+                    unresolveCommentThreadIds: eventStub.unresolveCommentThreadIds,
+                };
             }
             case "PersistedContent":
             case "UpdateOtherPresenceState":

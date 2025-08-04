@@ -2,20 +2,13 @@ import {Step} from "prosemirror-transform";
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {TaskNotesCollaborationEventStub} from "~/server/tasks/notes_collaboration/task_notes_collaboration_connection.js";
-import {
-    getContentReferencedIdsForSteps,
-    isEmptyContentReferencedIds,
-} from "~/shared/content/content_referenced_ids.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {getContentReferencedIdsForSteps} from "~/shared/content/content_referenced_ids.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {
-    getTaskNotesContentReferences,
-    updateTaskNotesContent,
-} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {updateTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskNotesContent, isTaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
@@ -25,10 +18,10 @@ import {TaskNotesContent, isTaskNotesContent} from "~/shared/tasks/task_notes_co
 export class TaskNotesCollaborationContentManager {
     public readonly spaceId: SpaceId;
     public readonly taskId: TaskId;
-    private readonly _sendEventToAll: (
+    private readonly _sendEventToAllAndWait: (
         context: WorkerProcessContext,
         event: TaskNotesCollaborationEventStub,
-    ) => void;
+    ) => Promise<void>;
     private readonly _killProcess: (context: WorkerProcessContext, error: unknown) => void;
 
     private _state: MutexValue<{
@@ -62,17 +55,17 @@ export class TaskNotesCollaborationContentManager {
         taskId,
         initialVersion,
         initialContent,
-        sendEventToAll,
+        sendEventToAllAndWait,
         killProcess,
     }: {
         spaceId: SpaceId;
         taskId: TaskId;
         initialVersion: number;
         initialContent: TaskNotesContent;
-        sendEventToAll: (
+        sendEventToAllAndWait: (
             context: WorkerProcessContext,
             event: TaskNotesCollaborationEventStub,
-        ) => void;
+        ) => Promise<void>;
         killProcess: (context: WorkerProcessContext, error: unknown) => void;
     }) {
         this.spaceId = spaceId;
@@ -84,7 +77,7 @@ export class TaskNotesCollaborationContentManager {
             steps: [],
         });
         this._persistedVersion = initialVersion;
-        this._sendEventToAll = sendEventToAll;
+        this._sendEventToAllAndWait = sendEventToAllAndWait;
         this._killProcess = killProcess;
     }
 
@@ -223,7 +216,7 @@ export class TaskNotesCollaborationContentManager {
 
                                     this._persistedVersion = oldVersion + nextSteps.length;
 
-                                    this._sendEventToAll(context, {
+                                    await this._sendEventToAllAndWait(context, {
                                         type: "PersistedContent",
                                         newVersion: oldVersion + nextSteps.length,
                                     });
@@ -257,32 +250,14 @@ export class TaskNotesCollaborationContentManager {
 
         const stepsContentReferenceIds = getContentReferencedIdsForSteps(steps);
 
-        // Optimization: If there's no referenced content then we don't need to make a
-        // network request.
-        const stepsContentReferences = isEmptyContentReferencedIds(stepsContentReferenceIds)
-            ? emptyContentReferences
-            : (
-                  await getTaskNotesContentReferences(context, {
-                      spaceId: this.spaceId,
-                      taskId: this.taskId,
-                      referenceIds: stepsContentReferenceIds,
-                  })
-              ).references;
-
-        // We have to wait for some async data dependencies to send
-        // `UpdateNotesContentWithoutPersistence`. We load our data without:
-        //
-        // - Blocking persistence
-        // - Blocking the update queue
-        //
-        // However, this means you don't get ordering guarantees around
-        // `UpdateNotesContentWithoutPersistence`! You may receive these events in any order
-        // because the timing of loading content references will vary.
-        this._sendEventToAll(context, {
+        // You may receive these events in any order because the timing of loading
+        // content references in `transformEvent()` will vary. The client must take
+        // care to apply events in the correct order.
+        await this._sendEventToAllAndWait(context, {
             type: "UpdateNotesContentWithoutPersistence",
             newVersion: oldVersion + steps.length,
             steps,
-            stepsContentReferences,
+            stepsContentReferenceIds,
             clientId: update.clientId,
         });
     }

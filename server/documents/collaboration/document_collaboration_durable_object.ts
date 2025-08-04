@@ -19,9 +19,10 @@ import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -118,7 +119,7 @@ class DocumentCollaborationDurableObject {
                     connection.resetAuthorizationTimer(context);
                 }
             },
-            sendEventToAll: this._sendEventToAll.bind(this),
+            sendEventToAllAndWait: this._sendEventToAllAndWait.bind(this),
         });
         this._destroyCallback = destroy;
 
@@ -255,16 +256,25 @@ class DocumentCollaborationDurableObject {
         this._destroyCallback();
     }
 
-    private _sendEventToAll(context: WorkerProcessContext, event: DocumentCollaborationEventStub) {
-        this._webSocketServer.sendEventToAll(context, event);
+    private async _sendEventToAllAndWait(
+        context: WorkerProcessContext,
+        event: DocumentCollaborationEventStub,
+    ) {
+        await runAllPromises([
+            this._webSocketServer.sendEventToAllAndWait(context, event),
+            (async () => {
+                if (this._webSocketServerWithoutComments.hasConnections()) {
+                    const eventWithoutComments = stripDocumentCollaborationEventComments(event);
 
-        if (this._webSocketServerWithoutComments.hasConnections()) {
-            const eventWithoutComments = stripDocumentCollaborationEventComments(event);
-
-            if (eventWithoutComments !== null) {
-                this._webSocketServerWithoutComments.sendEventToAll(context, eventWithoutComments);
-            }
-        }
+                    if (eventWithoutComments !== null) {
+                        await this._webSocketServerWithoutComments.sendEventToAllAndWait(
+                            context,
+                            eventWithoutComments,
+                        );
+                    }
+                }
+            })(),
+        ]);
     }
 }
 
@@ -281,14 +291,11 @@ function stripDocumentCollaborationEventComments(
                 type: "UpdateContentWithoutPersistence",
                 newVersion: event.newVersion,
                 steps: event.steps.map(stripDocumentContentStepCommentMarks),
-                stepsContentReferences: {
-                    ...event.stepsContentReferences,
-                    commentThreadById: emptyMap,
-                },
                 clientId: event.clientId,
                 updateOtherPresenceState: event.updateOtherPresenceState,
                 resolveCommentThreadIds: emptyArray,
                 unresolveCommentThreadIds: emptyArray,
+                cleanupInvalidStepCommentThreads: asyncNoop,
             };
         }
         case "PersistedContent": {

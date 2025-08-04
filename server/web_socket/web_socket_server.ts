@@ -448,6 +448,20 @@ export class WebSocketServer<
     }
 
     /**
+     * Send a message to all connected clients and wait for the events to send.
+     */
+    public async sendEventToAllAndWait(
+        context: Context<ProcessContextModules>,
+        eventStub: EventStub,
+    ) {
+        await runAllPromises(
+            mapIterable(this._connections.values(), connection =>
+                connection.sendEvent(context, eventStub),
+            ),
+        );
+    }
+
+    /**
      * Send a message to connected clients besides the provided connection ID.
      */
     private _sendEventToOthers(

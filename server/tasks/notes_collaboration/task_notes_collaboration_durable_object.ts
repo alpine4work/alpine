@@ -101,8 +101,8 @@ class TaskNotesCollaborationDurableObject {
             taskId,
             initialVersion,
             initialContent,
-            sendEventToAll: (context, event) =>
-                this._webSocketServer.sendEventToAll(context, event),
+            sendEventToAllAndWait: (context, event) =>
+                this._webSocketServer.sendEventToAllAndWait(context, event),
             killProcess: (context, error) => this._destroy(context, error),
         });
 

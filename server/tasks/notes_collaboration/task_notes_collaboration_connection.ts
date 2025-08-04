@@ -1,3 +1,4 @@
+import {Step} from "prosemirror-transform";
 import {
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
@@ -16,6 +17,7 @@ import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
+    ContentReferencedIds,
     getContentReferencedIdsForNode,
     getContentReferencedIdsForSteps,
     isEmptyContentReferencedIds,
@@ -27,7 +29,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {AccountId, TaskId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ContentEditorClientId,
+    TaskId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.js";
 import {
     authorizeTaskAccess,
     backfillTaskComments,
@@ -44,10 +51,18 @@ import {
 } from "~/shared/tasks/task_notes_collaboration_protocol.js";
 
 export type TaskNotesCollaborationEventStub =
-    // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-    | (TaskNotesCollaborationEvent & {readonly type: "UpdateNotesContentWithoutPersistence"})
-    | {readonly type: "Comments"; readonly event: MessagingRealtimeEventStub}
-    | (TaskNotesCollaborationEvent & {readonly type: "PersistedContent"});
+    | (TaskNotesCollaborationEvent & {readonly type: "PersistedContent"})
+    | {
+          readonly type: "UpdateNotesContentWithoutPersistence";
+          readonly newVersion: number;
+          readonly steps: ReadonlyArray<Step>;
+          readonly stepsContentReferenceIds: ContentReferencedIds;
+          readonly clientId: ContentEditorClientId;
+      }
+    | {
+          readonly type: "Comments";
+          readonly event: MessagingRealtimeEventStub;
+      };
 
 export class TaskNotesCollaborationConnection {
     private readonly _contentManager: TaskNotesCollaborationContentManager;
@@ -291,8 +306,25 @@ export class TaskNotesCollaborationConnection {
     ): Promise<TaskNotesCollaborationEvent> {
         switch (eventStub.type) {
             case "UpdateNotesContentWithoutPersistence": {
-                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-                return eventStub;
+                // Optimization: If there's no referenced content then we don't need to make a
+                // network request.
+                const stepsContentReferences = isEmptyContentReferencedIds(
+                    eventStub.stepsContentReferenceIds,
+                )
+                    ? emptyContentReferences
+                    : await getTaskNotesContentReferences(context, {
+                          spaceId: this._contentManager.spaceId,
+                          taskId: this._contentManager.taskId,
+                          referenceIds: eventStub.stepsContentReferenceIds,
+                      }).then(({references}) => references);
+
+                return {
+                    type: "UpdateNotesContentWithoutPersistence",
+                    newVersion: eventStub.newVersion,
+                    steps: eventStub.steps,
+                    stepsContentReferences,
+                    clientId: eventStub.clientId,
+                };
             }
             case "Comments": {
                 return {
