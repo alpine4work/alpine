@@ -2231,7 +2231,7 @@ export const currentAccountMentionClassName = style({
 });
 
 export const mentionTextClassName = style({
-    fontWeight: fontStyles["semi-bold"].fontWeight,
+    fontWeight: lerp(fontStyles["semi-bold"].fontWeight, fontStyles["bold"].fontWeight, 0.5),
     selectors: {
         [`${mentionPressedClassName} &`]: {opacity: 0.6},
         // Inherit font weight if we are in a container that is bolder than us.
