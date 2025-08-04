@@ -36,12 +36,12 @@ export type AdhocServerProcessContextModules = ServerProcessContextModules &
 
 export type AdhocServerProcessContext = Context<AdhocServerProcessContextModules>;
 
-export type AdhocServerSessionActionContextModules = ServerProcessContextModules &
+export type AdhocServerSessionActionContextModules = ServerSessionActionContextModules &
     AdhocServerExtraContextModules;
 
 export type AdhocServerSessionActionContext = Context<AdhocServerSessionActionContextModules>;
 
-export type AdhocServerSystemActionContextModules = ServerProcessContextModules &
+export type AdhocServerSystemActionContextModules = ServerSystemActionContextModules &
     AdhocServerExtraContextModules;
 
 export type AdhocServerSystemActionContext = Context<AdhocServerSystemActionContextModules>;

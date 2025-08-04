@@ -19,7 +19,7 @@ export class AlphaAccessRequestModel extends Model(
     Schema.object({
         createdTime: Schema.date,
         name: LabelStringSchema,
-        emailAddress: LabelStringSchema,
+        emailAddress: Schema.string,
         message: Schema.string,
         decision: AlphaAccessRequestDecisionSchema.nullable(),
     }),
