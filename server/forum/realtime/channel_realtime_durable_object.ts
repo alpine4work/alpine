@@ -9,12 +9,14 @@ import {
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
 import {authorizeChannelAccessForDurableObject} from "~/server/forum/realtime/authorize_channel_access_for_durable_object.js";
-import {ChannelRealtimeConnection} from "~/server/forum/realtime/channel_realtime_connection.js";
+import {
+    ChannelRealtimeConnection,
+    ChannelRealtimeEventStub,
+} from "~/server/forum/realtime/channel_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
     ChannelBroadcastRealtimeEventTransactionSchema,
-    ChannelRealtimeEvent,
     ChannelRealtimeProtocol,
 } from "~/shared/forum/channel_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -34,8 +36,7 @@ class ChannelRealtimeDurableObject {
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof ChannelRealtimeProtocol,
-        // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-        ChannelRealtimeEvent,
+        ChannelRealtimeEventStub,
         ChannelRealtimeConnection
     >;
 
@@ -82,8 +83,7 @@ class ChannelRealtimeDurableObject {
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof ChannelRealtimeProtocol,
-            // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-            ChannelRealtimeEvent,
+            ChannelRealtimeEventStub,
             ChannelRealtimeConnection
         >(this._processContext, ChannelRealtimeProtocol, () => {
             return new ChannelRealtimeConnection({
@@ -129,15 +129,13 @@ class ChannelRealtimeDurableObject {
                     );
                 }
 
-                const {readTime, eventTransaction} =
+                const {eventTransaction} =
                     ChannelBroadcastRealtimeEventTransactionSchema.deserialize(
                         await request.json(),
                     );
 
-                // Forward the event transaction to all our connected clients...
                 this._webSocketServer.sendEventToAll(context, {
                     type: "RealtimeEventTransaction",
-                    readTime,
                     eventTransaction,
                 });
 

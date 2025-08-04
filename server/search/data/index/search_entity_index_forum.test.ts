@@ -45,7 +45,6 @@ import {standardSearchOptions} from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
-import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
@@ -2472,12 +2471,6 @@ test("can index post with cyclic mention", async () => {
         ),
     });
 
-    // `updatePostContent()` generates a realtime event which reads some search
-    // entity fallbacks. Wait for that to happen before continuing.
-    await waitForExpect(() => {
-        expect(getCount()).toEqual(1);
-    });
-
     const {unpause} = await pausePromise;
 
     expect(
@@ -2489,7 +2482,7 @@ test("can index post with cyclic mention", async () => {
         ),
     ).toEqual(null);
 
-    expect(getCount()).toEqual(1);
+    expect(getCount()).toEqual(0);
 
     expect(
         await getSearchMentionEntityIfPossible(
@@ -2508,7 +2501,7 @@ test("can index post with cyclic mention", async () => {
     });
 
     // Make sure we used the entity fallback code path.
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(

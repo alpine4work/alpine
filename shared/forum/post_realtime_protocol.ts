@@ -1,4 +1,7 @@
-import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    DynamoGeneralRealtimeEventStubSchema,
+    createDynamoGeneralRealtimeEventSchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -8,13 +11,17 @@ import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
 } from "~/shared/web_socket/web_socket_protocol.js";
 
-const DynamoGeneralRealtimePostEventSchema = createDynamoGeneralRealtimeEventSchema(
+export type DynamoGeneralRealtimePostEvent = SchemaType<
+    typeof DynamoGeneralRealtimePostEventSchema
+>;
+
+export const DynamoGeneralRealtimePostEventSchema = createDynamoGeneralRealtimeEventSchema(
     PostModel.schema(),
 );
 
@@ -112,6 +119,5 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
 });
 
 export const PostBroadcastRealtimeEventTransactionSchema = Schema.object({
-    readTime: Schema.date,
-    eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+    eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
 });

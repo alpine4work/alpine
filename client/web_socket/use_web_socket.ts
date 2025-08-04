@@ -7,7 +7,7 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/web_socket_client.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -119,6 +119,19 @@ export function useWebSocketErrorDialog(
 ) {
     const reporter = useReporter();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
+
+    // If the WebSocket closes due to an intended permissions error (we consider an
+    // error intended if it has a `displayMessage` that's meant to be read by
+    // users) then instead of opening a modal throw an error causing us to render
+    // the route error boundary. Since the error likely isn't transient and will
+    // persist even if the user tries to press "Retry".
+    if (
+        errorState?.hasError &&
+        errorState.error instanceof PermissionDeniedError &&
+        errorState.error.displayMessage
+    ) {
+        throw errorState.error;
+    }
 
     useEffect(() => {
         // If the WebSocket in an inert route fails, don't report an error to the user

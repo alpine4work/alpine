@@ -19,7 +19,10 @@ import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
@@ -33,6 +36,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {
     DynamoGeneralRealtimeTableItemType,
     DynamoGeneralRealtimeTableSchema,
+    DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {
     addFeedAccountCandidateEntry,
@@ -74,6 +78,7 @@ import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
+    DynamoGeneralRealtimeEventStub,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
     DynamoGeneralRealtimePutItemEvent,
@@ -107,7 +112,10 @@ import {
     ChannelPreviewModel,
     maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
-import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {
+    ChannelBroadcastRealtimeEventTransactionSchema,
+    DynamoGeneralRealtimeChannelOrPostEvent,
+} from "~/shared/forum/channel_realtime_protocol.js";
 import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post_search_entity_title.js";
 import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {
@@ -120,7 +128,10 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
-import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
+import {
+    DynamoGeneralRealtimePostEvent,
+    PostBroadcastRealtimeEventTransactionSchema,
+} from "~/shared/forum/post_realtime_protocol.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -568,7 +579,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // atomically.
         const eventTransactionByChannelId = new Map<
             ChannelId,
-            Array<DynamoGeneralRealtimeEvent<ChannelOrMetadataModel | PostModel>>
+            Array<DynamoGeneralRealtimeEventStub>
         >();
 
         // We also send post updates to the corresponding post durable object. That way
@@ -594,93 +605,77 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // meaningful.
         //
         // [1]: https://developers.cloudflare.com/workers/platform/pricing/#durable-objects
-        const eventTransactionByPostId = new Map<
-            PostId,
-            Array<DynamoGeneralRealtimeEvent<PostModel>>
-        >();
+        const eventTransactionByPostId = new Map<PostId, Array<DynamoGeneralRealtimeEventStub>>();
 
         await runAllPromises(
-            mapIterable(eventTransaction, async eventEntry => {
-                // TODO(calebmer): This is unsafe! So `context` will use the actor's
-                // permissions not the event receiver's permissions.
-                const event = await eventEntry.getEvent(context);
+            mapIterable(
+                eventTransaction,
+                async ({
+                    itemKey,
+                    eventStub,
+                    oldPartitionKeyByIndexName,
+                    newPartitionKeyByIndexName,
+                }) => {
+                    if (itemKey.partitionType === "Channel") {
+                        const isChannelCreationEvent =
+                            itemKey.sortRangeType === "Attributes" && eventStub.item.version === 0;
 
-                if (eventEntry.itemKey.partitionType === "Channel") {
-                    const isChannelCreationEvent =
-                        eventEntry.itemKey.sortRangeType === "Attributes" &&
-                        eventEntry.eventStub.item.version === 0;
+                        // Optimization: Don't broadcast channel creation events to channel durable
+                        // objects. No one will be subscribed to the channel durable object before the
+                        // channel is created.
+                        if (!isChannelCreationEvent) {
+                            getOrSetDefaultMapValue(
+                                eventTransactionByChannelId,
+                                itemKey.channelId,
+                                () => [],
+                            ).push(eventStub);
+                        }
+                    } else {
+                        const isPostCreationEvent =
+                            itemKey.partitionType === "Post" &&
+                            itemKey.sortRangeType === "Attributes" &&
+                            eventStub.item.version === 0;
 
-                    // Optimization: Don't broadcast channel creation events to channel durable
-                    // objects. No one will be subscribed to the channel durable object before the
-                    // channel is created.
-                    if (!isChannelCreationEvent) {
-                        getOrSetDefaultMapValue(
-                            eventTransactionByChannelId,
-                            eventEntry.itemKey.channelId,
-                            () => [],
-                        ).push(event);
+                        // Optimization: Don't broadcast post creation events to post durable
+                        // objects. No one will be subscribed to the post durable object before the
+                        // post is created.
+                        if (!isPostCreationEvent) {
+                            getOrSetDefaultMapValue(
+                                eventTransactionByPostId,
+                                itemKey.postId,
+                                () => [],
+                            ).push(eventStub);
+                        }
+
+                        const {oldValue: oldChannelId, newValue: newChannelId} =
+                            ChannelPostsIndex.getPartitionKeyAttributeFromEvent("channelId", {
+                                oldPartitionKeyByIndexName,
+                                newPartitionKeyByIndexName,
+                            });
+
+                        // Send post realtime updates to the channel realtime stream the post is a
+                        // part of.
+                        if (newChannelId !== undefined) {
+                            getOrSetDefaultMapValue(
+                                eventTransactionByChannelId,
+                                newChannelId,
+                                () => [],
+                            ).push(eventStub);
+                        }
+
+                        if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
+                            // TODO(calebmer, 2025-07-23): If a post moves from one channel to another
+                            // we'll need to send an event to the old channel. What do we send? A delete
+                            // item event? The item technically still exists the client just doesn't
+                            // have access anymore.
+                            //
+                            // Maybe a put item event is fine if the post's contents don't change at the
+                            // same time as it moves channels (the client already had access to the post's
+                            // old contents). Make that decision when we implement channel moving.
+                        }
                     }
-                } else {
-                    const isPostCreationEvent =
-                        eventEntry.itemKey.partitionType === "Post" &&
-                        eventEntry.itemKey.sortRangeType === "Attributes" &&
-                        eventEntry.eventStub.item.version === 0;
-
-                    // Optimization: Don't broadcast post creation events to post durable
-                    // objects. No one will be subscribed to the post durable object before the
-                    // post is created.
-                    if (!isPostCreationEvent) {
-                        getOrSetDefaultMapValue(
-                            eventTransactionByPostId,
-                            eventEntry.itemKey.postId,
-                            () => [],
-                        ).push(event as DynamoGeneralRealtimeEvent<PostModel>);
-                    }
-
-                    const {oldValue: oldChannelId, newValue: newChannelId} =
-                        ChannelPostsIndex.getPartitionKeyAttributeFromEvent(
-                            "channelId",
-                            eventEntry,
-                        );
-
-                    // Send post realtime updates to the channel realtime stream the post is a
-                    // part of.
-                    if (newChannelId !== undefined) {
-                        getOrSetDefaultMapValue(
-                            eventTransactionByChannelId,
-                            newChannelId,
-                            () => [],
-                        ).push(event);
-                    }
-
-                    // If the channel changed then we should send a delete event to the old channel
-                    // so the post doesn't stick around. We send a delete event because it would be
-                    // a permission violation to show send the client full item data it doesn't
-                    // have access to.
-                    //
-                    // TODO(calebmer, 2024-11-01): We haven't implemented moving posts between
-                    // channels. Once that's implemented it would be good to write a test that
-                    // makes sure the post is removed in realtime from its old channel.
-                    if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
-                        getOrSetDefaultMapValue(
-                            eventTransactionByChannelId,
-                            oldChannelId,
-                            () => [],
-                        ).push(
-                            event.type !== "DeleteItem"
-                                ? {
-                                      type: "DeleteItem",
-                                      item: {
-                                          key: event.item.key,
-                                          version: event.item.version,
-                                      },
-                                      indexes: new Set(event.indexes.keys()),
-                                  }
-                                : event,
-                        );
-                    }
-                }
-            }),
+                },
+            ),
         );
 
         await runAllPromises(
@@ -692,7 +687,6 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             serviceName: "ChannelRealtimeService",
                             route: "/api/durable-objects/channels/:channelId/broadcast-realtime-event-transaction",
                             body: ChannelBroadcastRealtimeEventTransactionSchema.serialize({
-                                readTime,
                                 eventTransaction,
                             }),
                         },
@@ -705,7 +699,6 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             serviceName: "PostRealtimeService",
                             route: "/api/durable-objects/posts/:postId/broadcast-realtime-event-transaction",
                             body: PostBroadcastRealtimeEventTransactionSchema.serialize({
-                                readTime,
                                 eventTransaction,
                             }),
                         },
@@ -1662,6 +1655,13 @@ export function getChannelContributorsKey(channelId: ChannelId): DynamoItemKey {
 
 export function getChannelAndMetadataPartitionKey(channelId: ChannelId): DynamoItemPartitionKey {
     return ForumRealtimeTable.getRealtimeQueryPartitionKey({partitionType: "Channel", channelId});
+}
+
+export function serializeForumRealtimeTableOpaqueItemKeyForTest(
+    itemKey: DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"],
+) {
+    assert(import.meta.jest);
+    return ForumRealtimeTable.serializeOpaqueItemKey(itemKey);
 }
 
 /**
@@ -5217,4 +5217,124 @@ export async function getPostDraftIfExists(
         channel,
         content: {doc: draftItem.content, references: contentReferences},
     };
+}
+
+// Uses TypeScript to make sure if a new channel sort range is added we
+// consider whether `getChannelRealtimeEvent()` is allowed to return it or not.
+const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
+    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+        readonly partitionType: "Channel";
+    })["sortRangeType"],
+    boolean
+> = {
+    Attributes: true,
+    Contributors: true,
+    PostFiles: true,
+};
+
+// Uses TypeScript to make sure if a new post sort range is added we
+// consider whether `getPostRealtimeEvent()` is allowed to return it or not.
+const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
+    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+        readonly partitionType: "Post";
+    })["sortRangeType"],
+    boolean
+> = {
+    Attributes: true,
+};
+
+/**
+ * Converts realtime event stubs into full realtime event objects.
+ */
+export async function getChannelRealtimeEvent(
+    context: ServerContentSessionActionContext,
+    channelId: ChannelId,
+    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
+): Promise<ReadonlyArray<DynamoGeneralRealtimeChannelOrPostEvent>> {
+    const [, actualEventTransaction] = await runAllPromises([
+        // Authorizing in parallel means we'll batch the channel read in
+        // `authorizeChannelAccess()` with any DynamoDB reads from the
+        // `ForumRealtimeTable.getRealtimeEvent()` call.
+        authorizeChannelAccess(context, channelId, "View"),
+
+        ForumRealtimeTable.getRealtimeEvent(
+            context,
+            await runAllPromises(
+                eventTransaction.map(async eventStub => {
+                    const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
+
+                    // Check that the `itemKey` we're reading is for the channel we've
+                    // authorized.
+                    if (
+                        itemKey.partitionType === "Channel" &&
+                        itemKey.channelId === channelId &&
+                        allowedChannelSortRangeTypesForGetChannelRealtimeEvent[
+                            itemKey.sortRangeType
+                        ]
+                    ) {
+                        return {...eventStub, itemKey};
+                    }
+
+                    // Check that the `itemKey` we're reading is for a post in the channel
+                    // we've authorized.
+                    if (
+                        itemKey.partitionType === "Post" &&
+                        allowedPostSortRangeTypesForGetPostRealtimeEvent[itemKey.sortRangeType]
+                    ) {
+                        const postItem = await getPostItemForAuthorization(context, itemKey.postId);
+                        if (postItem.channelId === channelId) {
+                            return {...eventStub, itemKey};
+                        }
+                    }
+
+                    throw new PermissionDeniedError(
+                        "Can’t get realtime event for item that’s not associated with the designated channel",
+                    );
+                }),
+            ),
+        ),
+    ]);
+
+    return actualEventTransaction as ReadonlyArray<DynamoGeneralRealtimeChannelOrPostEvent>;
+}
+
+/**
+ * Converts realtime event stubs into full realtime event objects.
+ */
+export async function getPostRealtimeEvent(
+    context: ServerContentSessionActionContext,
+    postId: PostId,
+    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
+): Promise<ReadonlyArray<DynamoGeneralRealtimePostEvent>> {
+    const [, actualEventTransaction] = await runAllPromises([
+        // Authorizing in parallel means we'll batch the post read in
+        // `authorizePostAccess()` with any DynamoDB reads from the
+        // `ForumRealtimeTable.getRealtimeEvent()` call.
+        authorizePostAccess(context, postId, "View"),
+
+        ForumRealtimeTable.getRealtimeEvent(
+            context,
+            await runAllPromises(
+                eventTransaction.map(async eventStub => {
+                    const itemKey = ForumRealtimeTable.deserializeOpaqueItemKey(eventStub.item.key);
+
+                    // Check that the `itemKey` we're reading is for the post we've
+                    // authorized.
+                    if (
+                        itemKey.partitionType === "Post" &&
+                        itemKey.postId === postId &&
+                        allowedPostSortRangeTypesForGetPostRealtimeEvent[itemKey.sortRangeType]
+                    ) {
+                        return {...eventStub, itemKey};
+                    }
+
+                    throw new PermissionDeniedError(
+                        "Can’t get realtime event for item that’s not associated with the designated post",
+                    );
+                }),
+            ),
+        ),
+    ]);
+
+    return actualEventTransaction as ReadonlyArray<DynamoGeneralRealtimePostEvent>;
 }

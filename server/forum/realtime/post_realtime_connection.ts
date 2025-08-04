@@ -15,6 +15,7 @@ import {
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
+import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -27,15 +28,22 @@ import {
     createPostComment,
     deletePostComment,
     getPostCommentReferences,
+    getPostRealtimeEvent,
     updatePostCommentContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
 export type PostRealtimeEventStub =
-    | {readonly type: "Comments"; readonly event: MessagingRealtimeEventStub}
-    // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-    | (PostRealtimeEvent & {readonly type: "RealtimeEventTransaction"});
+    | {
+          readonly type: "Comments";
+          readonly event: MessagingRealtimeEventStub;
+      }
+    | {
+          readonly type: "RealtimeEventTransaction";
+          readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>;
+      };
 
 export class PostRealtimeConnection {
+    private readonly _postId: PostId;
     private readonly _connection: MessagingRealtimeConnection<PostId, PostCommentModel>;
 
     constructor({
@@ -58,6 +66,8 @@ export class PostRealtimeConnection {
         sendEventToOthers: (context: WorkerProcessContext, event: PostRealtimeEventStub) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeConnection>;
     }) {
+        this._postId = postId;
+
         this._connection = new MessagingRealtimeConnection({
             connectionId,
             spaceId,
@@ -80,7 +90,7 @@ export class PostRealtimeConnection {
     }
 
     public async authorize(context: WorkerSessionActionContext) {
-        await authorizePostAccessForDurableObject(context, this._connection.roomKey);
+        await authorizePostAccessForDurableObject(context, this._postId);
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -146,9 +156,18 @@ export class PostRealtimeConnection {
                     event: await this._connection.transformEvent(context, eventStub.event),
                 };
             }
-            case "RealtimeEventTransaction":
-                // TODO(calebmer, #content-references-privacy-fix): Implement a proper event stub.
-                return eventStub;
+            case "RealtimeEventTransaction": {
+                const {readTime, eventTransaction} = await getPostRealtimeEvent(context, {
+                    postId: this._postId,
+                    eventTransaction: eventStub.eventTransaction,
+                });
+
+                return {
+                    type: "RealtimeEventTransaction",
+                    readTime,
+                    eventTransaction,
+                };
+            }
             default:
                 throw exhaustive(eventStub);
         }

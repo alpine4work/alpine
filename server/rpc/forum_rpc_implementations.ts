@@ -14,10 +14,12 @@ import {
     getChannel,
     getChannelAndMetadata,
     getChannelPosts,
+    getChannelRealtimeEvent,
     getPost,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    getPostRealtimeEvent,
     sendChannelShareNotification,
     subscribeToChannel,
     unsubscribeFromChannel,
@@ -342,6 +344,36 @@ export default implementRpcs(definitions, {
             );
 
             return {};
+        },
+    },
+
+    getPostRealtimeEvent: {
+        visibility: ["PostRealtimeService"],
+        execute: async (context, input) => {
+            const readTime = new Date();
+
+            const eventTransaction = await getPostRealtimeEvent(
+                context.actor.authorizeSession(),
+                input.postId,
+                input.eventTransaction,
+            );
+
+            return {readTime, eventTransaction};
+        },
+    },
+
+    getChannelRealtimeEvent: {
+        visibility: ["ChannelRealtimeService"],
+        execute: async (context, input) => {
+            const readTime = new Date();
+
+            const eventTransaction = await getChannelRealtimeEvent(
+                context.actor.authorizeSession(),
+                input.channelId,
+                input.eventTransaction,
+            );
+
+            return {readTime, eventTransaction};
         },
     },
 });

@@ -29,6 +29,7 @@ import {
     getChannelNotificationSubscribers,
     getChannelPosts,
     getChannelPreview,
+    getChannelRealtimeEvent,
     getPost,
     getPostAndInitialComments,
     getPostAuthorAndChannelPreviewIfPossible,
@@ -40,8 +41,10 @@ import {
     getPostDraftIfExists,
     getPostIfPossible,
     getPostNotificationSubscribers,
+    getPostRealtimeEvent,
     isSubscribedToChannel,
     sendChannelShareNotification,
+    serializeForumRealtimeTableOpaqueItemKeyForTest,
     subscribeToChannel,
     unsubscribeFromChannel,
     updateChannelAccessPolicy,
@@ -80,6 +83,7 @@ import {
     assertPostContent,
     createSimplePostContent,
 } from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -8114,4 +8118,663 @@ test("creating a channel, post, or post comment will add the actor to the contri
         session3.account.id,
         session1.account.id,
     ]);
+});
+
+test("can get post realtime event", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "foo");
+
+    await expect(
+        getPostRealtimeEvent(session.action(), post.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).resolves.toEqual([
+        {
+            type: "PutItem",
+            item: {
+                key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                    partitionType: "Post",
+                    sortRangeType: "Attributes",
+                    postId: post.id,
+                }),
+                version: 0,
+                model: new PostModel({
+                    id: post.id,
+                    spaceId: space.id,
+                    version: 0,
+                    createdTime: post.createdTime,
+                    channel: expect.objectContaining({id: channel.id}),
+                    author: expect.objectContaining({id: session.account.id}),
+                    content: {
+                        doc: createSimplePostContent("foo"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            },
+            indexes: expect.any(Map),
+        },
+    ]);
+});
+
+test("can’t get post realtime event for incorrect post", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post1 = await channel.createPost(session, "foo");
+    const post2 = await channel.createPost(session, "bar");
+
+    await expect(
+        getPostRealtimeEvent(session.action(), post1.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post2.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can’t get realtime event for item that’s not associated with the designated post",
+    );
+});
+
+test("can’t get post realtime event for correct post and incorrect post", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post1 = await channel.createPost(session, "foo");
+    const post2 = await channel.createPost(session, "bar");
+
+    await expect(
+        getPostRealtimeEvent(session.action(), post1.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post1.id,
+                    }),
+                    version: 0,
+                },
+            },
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post2.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can’t get realtime event for item that’s not associated with the designated post",
+    );
+});
+
+test("can’t get post realtime event for post actor doesn’t have access to", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {access: "Private"});
+    const post = await channel.createPost(session1, "foo");
+
+    await expect(
+        getPostRealtimeEvent(session2.action(), post.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+});
+
+test("can’t get post realtime event for post in different space", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session, {access: "Private"});
+    const post = await channel.createPost(session, "foo");
+
+    await expect(
+        getPostRealtimeEvent(otherSession.action(), post.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Account doesn’t have access to space");
+});
+
+test("can’t get post realtime event for channel", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "foo");
+
+    await expect(
+        getPostRealtimeEvent(session.action(), post.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Attributes",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can’t get realtime event for item that’s not associated with the designated post",
+    );
+});
+
+test("can get channel realtime event", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    await channel.createPost(session, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(session.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Attributes",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).resolves.toEqual([
+        {
+            type: "PutItem",
+            item: {
+                key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                    partitionType: "Channel",
+                    sortRangeType: "Attributes",
+                    channelId: channel.id,
+                }),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    version: 0,
+                    createdTime: channel.createdTime,
+                    name: channel.initialName,
+                    description: emptyMessageContentWithReferences,
+                    accessPolicy: expect.objectContaining({}),
+                }),
+            },
+            indexes: expect.any(Map),
+        },
+    ]);
+});
+
+test("can get channel contributors and channel files realtime event", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+
+    const file = await TestFile.create(session);
+
+    const post = await channel.createPost(session, "foo", {files: [file]});
+
+    await expect(
+        getChannelRealtimeEvent(session.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "PostFiles",
+                        channelId: channel.id,
+                        postCreatedTime: post.createdTime,
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).resolves.toEqual([
+        {
+            type: "PutItem",
+            item: {
+                key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                    partitionType: "Channel",
+                    sortRangeType: "Contributors",
+                    channelId: channel.id,
+                }),
+                version: 0,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [expect.objectContaining({id: session.account.id})],
+                }),
+            },
+            indexes: expect.any(Map),
+        },
+        {
+            type: "PutItem",
+            item: {
+                key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                    partitionType: "Channel",
+                    sortRangeType: "PostFiles",
+                    channelId: channel.id,
+                    postCreatedTime: post.createdTime,
+                    postId: post.id,
+                }),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post.id,
+                    files: [
+                        expect.objectContaining({
+                            file: expect.objectContaining({id: file.id}),
+                        }),
+                    ],
+                }),
+            },
+            indexes: expect.any(Map),
+        },
+    ]);
+});
+
+test("can get channel realtime event for post", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(session.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).resolves.toEqual([
+        {
+            type: "PutItem",
+            item: {
+                key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                    partitionType: "Post",
+                    sortRangeType: "Attributes",
+                    postId: post.id,
+                }),
+                version: 0,
+                model: new PostModel({
+                    id: post.id,
+                    spaceId: space.id,
+                    version: 0,
+                    createdTime: post.createdTime,
+                    channel: expect.objectContaining({id: channel.id}),
+                    author: expect.objectContaining({id: session.account.id}),
+                    content: {
+                        doc: createSimplePostContent("foo"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            },
+            indexes: expect.any(Map),
+        },
+    ]);
+});
+
+test("can’t get channel realtime event for incorrect channel", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel1 = await TestChannel.create(session);
+
+    const channel2 = await TestChannel.create(session);
+    await channel2.createPost(session, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(session.action(), channel1.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Attributes",
+                        channelId: channel2.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can’t get realtime event for item that’s not associated with the designated channel",
+    );
+});
+
+test("can’t get channel contributors and channel files realtime event for incorrect channel", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel1 = await TestChannel.create(session);
+    const channel2 = await TestChannel.create(session);
+
+    const file = await TestFile.create(session);
+
+    const post = await channel2.createPost(session, "foo", {files: [file]});
+
+    await expect(
+        getChannelRealtimeEvent(session.action(), channel1.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId: channel2.id,
+                    }),
+                    version: 0,
+                },
+            },
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "PostFiles",
+                        channelId: channel2.id,
+                        postCreatedTime: post.createdTime,
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can’t get realtime event for item that’s not associated with the designated channel",
+    );
+});
+
+test("can’t get channel realtime event for post in incorrect channel", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel1 = await TestChannel.create(session);
+
+    const channel2 = await TestChannel.create(session);
+    const post = await channel2.createPost(session, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(session.action(), channel1.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow(
+        "Can’t get realtime event for item that’s not associated with the designated channel",
+    );
+});
+
+test("can’t get channel realtime event when actor doesn’t have access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {access: "Private"});
+    await channel.createPost(session1, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(session2.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Attributes",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+});
+
+test("can’t get channel contributors and channel files realtime event when actor doesn’t have access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {access: "Private"});
+
+    const file = await TestFile.create(session1);
+
+    const post = await channel.createPost(session1, "foo", {files: [file]});
+
+    await expect(
+        getChannelRealtimeEvent(session2.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "PostFiles",
+                        channelId: channel.id,
+                        postCreatedTime: post.createdTime,
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+});
+
+test("can’t get channel realtime event for post when actor doesn’t have access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {access: "Private"});
+    const post = await channel.createPost(session1, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(session2.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+});
+
+test("can’t get channel realtime event when actor doesn’t have space access", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session, {access: "Private"});
+    await channel.createPost(session, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(otherSession.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Attributes",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Account doesn’t have access to space");
+});
+
+test("can’t get channel contributors and channel files realtime event when actor doesn’t have space access", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session, {access: "Private"});
+
+    const file = await TestFile.create(session);
+
+    const post = await channel.createPost(session, "foo", {files: [file]});
+
+    await expect(
+        getChannelRealtimeEvent(otherSession.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId: channel.id,
+                    }),
+                    version: 0,
+                },
+            },
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Channel",
+                        sortRangeType: "PostFiles",
+                        channelId: channel.id,
+                        postCreatedTime: post.createdTime,
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Account doesn’t have access to space");
+});
+
+test("can’t get channel realtime event for post when actor is in the wrong space", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session, {access: "Private"});
+    const post = await channel.createPost(session, "foo");
+
+    await expect(
+        getChannelRealtimeEvent(otherSession.action(), channel.id, [
+            {
+                type: "PutItem",
+                item: {
+                    key: serializeForumRealtimeTableOpaqueItemKeyForTest({
+                        partitionType: "Post",
+                        sortRangeType: "Attributes",
+                        postId: post.id,
+                    }),
+                    version: 0,
+                },
+            },
+        ]),
+    ).rejects.toThrow("Account doesn’t have access to space");
 });

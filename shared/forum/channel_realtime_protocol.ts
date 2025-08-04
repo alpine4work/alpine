@@ -1,4 +1,7 @@
-import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    DynamoGeneralRealtimeEventStubSchema,
+    createDynamoGeneralRealtimeEventSchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -6,13 +9,17 @@ import {
 } from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
 } from "~/shared/web_socket/web_socket_protocol.js";
 
-const DynamoGeneralRealtimeChannelOrPostEventSchema = createDynamoGeneralRealtimeEventSchema(
+export type DynamoGeneralRealtimeChannelOrPostEvent = SchemaType<
+    typeof DynamoGeneralRealtimeChannelOrPostEventSchema
+>;
+
+export const DynamoGeneralRealtimeChannelOrPostEventSchema = createDynamoGeneralRealtimeEventSchema(
     createModelUnionSchema({
         Channel: ChannelModel,
         ChannelContributors: ChannelContributorsModel,
@@ -35,6 +42,5 @@ export const ChannelRealtimeProtocol = defineWebSocketProtocol({
 });
 
 export const ChannelBroadcastRealtimeEventTransactionSchema = Schema.object({
-    readTime: Schema.date,
-    eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
+    eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
 });

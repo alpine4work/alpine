@@ -608,6 +608,14 @@ export class DynamoGeneralRealtimeTableSchema<
         return this._table.serializeOpaqueItemKey(key);
     }
 
+    /**
+     * Deserialize the opaque item key string into an object so we can see the data
+     * inside.
+     */
+    public deserializeOpaqueItemKey(key: DynamoItemKey): Types["ItemKey"] {
+        return this._table.deserializeOpaqueItemKey(key);
+    }
+
     private _buildModel<Item extends Types["Item"]>(
         context: ServerContentActionContext,
         item: Item,
@@ -2960,6 +2968,76 @@ export class DynamoGeneralRealtimeTableSchema<
         };
     }
 
+    private _getRealtimeEventItem(
+        context: ServerContentActionContext,
+        {
+            itemKey,
+            version,
+            eventType,
+        }: {
+            itemKey: Types["ItemKey"];
+            version: number;
+            eventType: "PutItem" | "DeleteItem";
+        },
+    ): Promise<
+        | {isDeleted: true; item: {updateLockVersion?: number}}
+        | {isDeleted: false; item: Types["Item"]}
+    > {
+        let hasAlreadyAttempted = false;
+
+        return retryWithExponentialBackoff(async retry => {
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
+
+            // On the first attempt, try reading with eventual consistency since it's
+            // cheaper. If we observe eventual consistency lag (item version is behind
+            // event version from strong consistency query) then we'll retry with strong
+            // consistency.
+            const options: {consistency: DynamoReadConsistency} = isInitialAttempt
+                ? {consistency: "Eventual"}
+                : {consistency: "Strong"};
+
+            // If the event we saw deletes the item then try looking for a gravestone
+            // first, then the full item (on our second attempt, the item may have been
+            // undeleted).
+            const result =
+                eventType === "DeleteItem"
+                    ? await this.getDeletedItemIfExists(context, itemKey, options).then(
+                          async item1 => {
+                              if (item1) return {isDeleted: true as const, item: item1};
+
+                              const item2 = await this.getItemIfExists(context, itemKey, options);
+                              if (item2) return {isDeleted: false as const, item: item2};
+
+                              return null;
+                          },
+                      )
+                    : await this.getItemIfExists(context, itemKey, options).then(async item1 => {
+                          if (item1) return {isDeleted: false as const, item: item1};
+
+                          const item2 = await this.getDeletedItemIfExists(
+                              context,
+                              itemKey,
+                              options,
+                          );
+                          if (item2) return {isDeleted: true as const, item: item2};
+
+                          return null;
+                      });
+
+            // Either an item or an item gravestone must exist. Once an item has been
+            // created we'll always keep around at least a gravestone.
+            if (result === null) throw retry();
+
+            // If our item's version is less than the version expected by our realtime
+            // event we're likely seeing an eventual consistency lag. Try reading again.
+            // The next read will use strong consistency.
+            if ((result.item.updateLockVersion ?? 0) < version) throw retry();
+
+            return result;
+        });
+    }
+
     private async _backfillRealtimeQuery(
         context: ServerContentActionContext,
         {
@@ -3020,7 +3098,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 itemKey: Types["ItemKey"];
                 index: DynamoGeneralRealtimeInternalIndex | undefined;
                 version: number;
-                isDeleted: boolean;
+                eventType: "PutItem" | "DeleteItem";
             }
         >();
 
@@ -3063,13 +3141,13 @@ export class DynamoGeneralRealtimeTableSchema<
                     itemKey,
                     index,
                     version: event.version,
-                    isDeleted: event.type === "DeleteItem",
+                    eventType: event.type,
                 }));
 
                 // Expect the highest version number when backfilling.
                 if (event.version > backfillItem.version) {
                     backfillItem.version = event.version;
-                    backfillItem.isDeleted = event.type === "DeleteItem";
+                    backfillItem.eventType = event.type;
                 }
             }
         }
@@ -3083,64 +3161,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 async ([key, backfillItem]): Promise<DynamoGeneralRealtimeEvent<unknown>> => {
                     const {itemKey} = backfillItem;
 
-                    let hasAlreadyAttempted = false;
-
-                    const result = await retryWithExponentialBackoff(async retry => {
-                        const isInitialAttempt = !hasAlreadyAttempted;
-                        hasAlreadyAttempted = true;
-
-                        // On the first attempt, try reading with eventual consistency since it's
-                        // cheaper. If we observe eventual consistency lag (item version is behind
-                        // event version from strong consistency query) then we'll retry with strong
-                        // consistency.
-                        const options: {consistency: DynamoReadConsistency} = isInitialAttempt
-                            ? {consistency: "Eventual"}
-                            : {consistency: "Strong"};
-
-                        // If the event we saw deletes the item then try looking for a gravestone
-                        // first, then the full item.
-                        const result = backfillItem.isDeleted
-                            ? await this.getDeletedItemIfExists(context, itemKey, options).then(
-                                  async item1 => {
-                                      if (item1) return {isDeleted: true as const, item: item1};
-
-                                      const item2 = await this.getItemIfExists(
-                                          context,
-                                          itemKey,
-                                          options,
-                                      );
-                                      if (item2) return {isDeleted: false as const, item: item2};
-
-                                      return null;
-                                  },
-                              )
-                            : await this.getItemIfExists(context, itemKey, options).then(
-                                  async item1 => {
-                                      if (item1) return {isDeleted: false as const, item: item1};
-
-                                      const item2 = await this.getDeletedItemIfExists(
-                                          context,
-                                          itemKey,
-                                          options,
-                                      );
-                                      if (item2) return {isDeleted: true as const, item: item2};
-
-                                      return null;
-                                  },
-                              );
-
-                        // Either an item or an item gravestone must exist. Once an item has been
-                        // created we'll always keep around at least a gravestone.
-                        if (result === null) throw retry();
-
-                        // If our item's version is less than the version expected by our realtime
-                        // event we're likely seeing an eventual consistency lag. Try reading again.
-                        // The next read will use strong consistency.
-                        if ((result.item.updateLockVersion ?? 0) < backfillItem.version)
-                            throw retry();
-
-                        return result;
-                    });
+                    const result = await this._getRealtimeEventItem(context, backfillItem);
 
                     if (result.isDeleted) {
                         const indexes = new Set<string>();
@@ -3189,20 +3210,6 @@ export class DynamoGeneralRealtimeTableSchema<
                             `${result.item.partitionType}#${result.item.sortRangeType}`,
                         );
 
-                        let partitionKeyByIndexName:
-                            | Map<string, DynamoIndexPartitionKey>
-                            | undefined;
-
-                        if (indexByName) {
-                            for (const [indexName, index] of indexByName) {
-                                partitionKeyByIndexName ??= new Map();
-                                partitionKeyByIndexName.set(
-                                    indexName,
-                                    index.serializeOpaquePartitionKey(result.item),
-                                );
-                            }
-                        }
-
                         const indexes = new Map<
                             string,
                             {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
@@ -3210,9 +3217,7 @@ export class DynamoGeneralRealtimeTableSchema<
 
                         if (indexByName) {
                             for (const [indexName, index] of indexByName) {
-                                const partitionKey = assertExists(
-                                    partitionKeyByIndexName?.get(indexName),
-                                );
+                                const partitionKey = index.serializeOpaquePartitionKey(result.item);
                                 const cursor = index.serializeOpaqueCursor(result.item);
                                 indexes.set(indexName, {partitionKey, cursor});
                             }
@@ -3233,6 +3238,77 @@ export class DynamoGeneralRealtimeTableSchema<
         );
 
         return {type: "Available", readTime: newReadTime, eventTransaction};
+    }
+
+    /**
+     * Turn a realtime event stub (`DynamoGeneralRealtimeEventStub`) into a full
+     * realtime event (`DynamoGeneralRealtimeEvent`). Gets a version of each item
+     * later than the version declared in the stub and builds models for the items
+     * which loads any referenced data.
+     */
+    public getRealtimeEvent(
+        context: ServerContentActionContext,
+        eventTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeEventStub & {readonly itemKey?: Types["ItemKey"]}
+        >,
+    ): Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>> {
+        return runAllPromises(
+            eventTransaction.map(async event => {
+                const {key} = event.item;
+                const itemKey = event.itemKey ?? this.deserializeOpaqueItemKey(key);
+
+                const result = await this._getRealtimeEventItem(context, {
+                    itemKey,
+                    version: event.item.version,
+                    eventType: event.type,
+                });
+
+                if (result.isDeleted) {
+                    const indexes = new Set<string>();
+
+                    const itemType = `${itemKey.partitionType}#${itemKey.sortRangeType}`;
+                    for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+                        indexes.add(indexName);
+                    }
+
+                    return {
+                        type: "DeleteItem",
+                        item: {
+                            key,
+                            version: result.item.updateLockVersion ?? 0,
+                        },
+                        indexes,
+                    };
+                } else {
+                    const indexByName = this._indexByNameByItemType.get(
+                        `${result.item.partitionType}#${result.item.sortRangeType}`,
+                    );
+
+                    const indexes = new Map<
+                        string,
+                        {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
+                    >();
+
+                    if (indexByName) {
+                        for (const [indexName, index] of indexByName) {
+                            const partitionKey = index.serializeOpaquePartitionKey(result.item);
+                            const cursor = index.serializeOpaqueCursor(result.item);
+                            indexes.set(indexName, {partitionKey, cursor});
+                        }
+                    }
+
+                    return {
+                        type: "PutItem",
+                        item: {
+                            key,
+                            version: result.item.updateLockVersion ?? 0,
+                            model: await this._buildModel(context, result.item),
+                        },
+                        indexes,
+                    };
+                }
+            }),
+        );
     }
 }
 

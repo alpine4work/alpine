@@ -1,6 +1,7 @@
 import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {
+    DynamoGeneralRealtimeEventStubSchema,
     createDynamoGeneralRealtimeBackfillResultSchema,
     createDynamoGeneralRealtimeEventSchema,
     createDynamoGeneralRealtimeIndexQuerySchema,
@@ -13,8 +14,10 @@ import {
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
+import {DynamoGeneralRealtimeChannelOrPostEventSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {DynamoGeneralRealtimePostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
@@ -388,4 +391,28 @@ export const createOrReplacePostDraft = defineRpc({
         content: PostContentSchema,
     },
     output: {},
+});
+
+export const getPostRealtimeEvent = defineRpc({
+    name: "getPostRealtimeEvent",
+    input: {
+        postId: Schema.id<PostId>(),
+        eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+    },
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+    },
+});
+
+export const getChannelRealtimeEvent = defineRpc({
+    name: "getChannelRealtimeEvent",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
+    },
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
+    },
 });
