@@ -19,6 +19,10 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
+// Increase test timeout since we're seeing this test have some
+// flaky timeouts.
+import.meta.jest.setTimeout(1000 * 30);
+
 import.meta.jest.useFakeTimers();
 
 let processJobCount = 1;
