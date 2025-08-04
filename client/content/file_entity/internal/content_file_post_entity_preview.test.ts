@@ -17,7 +17,7 @@ import {
 import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {assertId} from "~/shared/id/id.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defaultClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
@@ -69,10 +69,12 @@ function createBasicPostEntityPreviewModel({
 
 // Fixed post ID for deterministic snapshots
 const postId = assertId<PostId>("4ch98kddfs9vhz3qhdh4k7j5tc");
+const authorId = assertId<AccountId>("ne9xp93dwgcwccj661x3ntdb9w");
 
 describe("renderContentFilePostEntityPreview - HTML Snapshots", () => {
     const author = createTestAccountModel({
         name: "Test Author",
+        id: authorId,
     });
 
     const basicParams = {
