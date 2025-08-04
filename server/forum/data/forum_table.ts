@@ -599,80 +599,89 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             Array<DynamoGeneralRealtimeEvent<PostModel>>
         >();
 
-        for (const eventEntry of eventTransaction) {
-            if (eventEntry.itemKey.partitionType === "Channel") {
-                const isChannelCreationEvent =
-                    eventEntry.itemKey.sortRangeType === "Attributes" &&
-                    eventEntry.event.item.version === 0;
+        await runAllPromises(
+            mapIterable(eventTransaction, async eventEntry => {
+                // TODO(calebmer): This is unsafe! So `context` will use the actor's
+                // permissions not the event receiver's permissions.
+                const event = await eventEntry.getEvent(context);
 
-                // Optimization: Don't broadcast channel creation events to channel durable
-                // objects. No one will be subscribed to the channel durable object before the
-                // channel is created.
-                if (!isChannelCreationEvent) {
-                    getOrSetDefaultMapValue(
-                        eventTransactionByChannelId,
-                        eventEntry.itemKey.channelId,
-                        () => [],
-                    ).push(eventEntry.event);
+                if (eventEntry.itemKey.partitionType === "Channel") {
+                    const isChannelCreationEvent =
+                        eventEntry.itemKey.sortRangeType === "Attributes" &&
+                        eventEntry.eventStub.item.version === 0;
+
+                    // Optimization: Don't broadcast channel creation events to channel durable
+                    // objects. No one will be subscribed to the channel durable object before the
+                    // channel is created.
+                    if (!isChannelCreationEvent) {
+                        getOrSetDefaultMapValue(
+                            eventTransactionByChannelId,
+                            eventEntry.itemKey.channelId,
+                            () => [],
+                        ).push(event);
+                    }
+                } else {
+                    const isPostCreationEvent =
+                        eventEntry.itemKey.partitionType === "Post" &&
+                        eventEntry.itemKey.sortRangeType === "Attributes" &&
+                        eventEntry.eventStub.item.version === 0;
+
+                    // Optimization: Don't broadcast post creation events to post durable
+                    // objects. No one will be subscribed to the post durable object before the
+                    // post is created.
+                    if (!isPostCreationEvent) {
+                        getOrSetDefaultMapValue(
+                            eventTransactionByPostId,
+                            eventEntry.itemKey.postId,
+                            () => [],
+                        ).push(event as DynamoGeneralRealtimeEvent<PostModel>);
+                    }
+
+                    const {oldValue: oldChannelId, newValue: newChannelId} =
+                        ChannelPostsIndex.getPartitionKeyAttributeFromEvent(
+                            "channelId",
+                            eventEntry,
+                        );
+
+                    // Send post realtime updates to the channel realtime stream the post is a
+                    // part of.
+                    if (newChannelId !== undefined) {
+                        getOrSetDefaultMapValue(
+                            eventTransactionByChannelId,
+                            newChannelId,
+                            () => [],
+                        ).push(event);
+                    }
+
+                    // If the channel changed then we should send a delete event to the old channel
+                    // so the post doesn't stick around. We send a delete event because it would be
+                    // a permission violation to show send the client full item data it doesn't
+                    // have access to.
+                    //
+                    // TODO(calebmer, 2024-11-01): We haven't implemented moving posts between
+                    // channels. Once that's implemented it would be good to write a test that
+                    // makes sure the post is removed in realtime from its old channel.
+                    if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
+                        getOrSetDefaultMapValue(
+                            eventTransactionByChannelId,
+                            oldChannelId,
+                            () => [],
+                        ).push(
+                            event.type !== "DeleteItem"
+                                ? {
+                                      type: "DeleteItem",
+                                      item: {
+                                          key: event.item.key,
+                                          version: event.item.version,
+                                      },
+                                      indexes: new Set(event.indexes.keys()),
+                                  }
+                                : event,
+                        );
+                    }
                 }
-            } else {
-                const isPostCreationEvent =
-                    eventEntry.itemKey.partitionType === "Post" &&
-                    eventEntry.itemKey.sortRangeType === "Attributes" &&
-                    eventEntry.event.item.version === 0;
-
-                // Optimization: Don't broadcast post creation events to post durable
-                // objects. No one will be subscribed to the post durable object before the
-                // post is created.
-                if (!isPostCreationEvent) {
-                    getOrSetDefaultMapValue(
-                        eventTransactionByPostId,
-                        eventEntry.itemKey.postId,
-                        () => [],
-                    ).push(eventEntry.event as DynamoGeneralRealtimeEvent<PostModel>);
-                }
-
-                const {oldValue: oldChannelId, newValue: newChannelId} =
-                    ChannelPostsIndex.getPartitionKeyAttributeFromEvent("channelId", eventEntry);
-
-                // Send post realtime updates to the channel realtime stream the post is a
-                // part of.
-                if (newChannelId !== undefined) {
-                    getOrSetDefaultMapValue(
-                        eventTransactionByChannelId,
-                        newChannelId,
-                        () => [],
-                    ).push(eventEntry.event);
-                }
-
-                // If the channel changed then we should send a delete event to the old channel
-                // so the post doesn't stick around. We send a delete event because it would be
-                // a permission violation to show send the client full item data it doesn't
-                // have access to.
-                //
-                // TODO(calebmer, 2024-11-01): We haven't implemented moving posts between
-                // channels. Once that's implemented it would be good to write a test that
-                // makes sure the post is removed in realtime from its old channel.
-                if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
-                    getOrSetDefaultMapValue(
-                        eventTransactionByChannelId,
-                        oldChannelId,
-                        () => [],
-                    ).push(
-                        eventEntry.event.type !== "DeleteItem"
-                            ? {
-                                  type: "DeleteItem",
-                                  item: {
-                                      key: eventEntry.event.item.key,
-                                      version: eventEntry.event.item.version,
-                                  },
-                                  indexes: new Set(eventEntry.event.indexes.keys()),
-                              }
-                            : eventEntry.event,
-                    );
-                }
-            }
-        }
+            }),
+        );
 
         await runAllPromises(
             concatIterables(

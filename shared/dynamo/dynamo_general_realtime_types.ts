@@ -8,7 +8,8 @@ import {
     DynamoItemPartitionKey,
     DynamoItemPartitionKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * The result of reading an individual item from a realtime DynamoDB table.
@@ -343,6 +344,28 @@ const DynamoGeneralRealtimeDeleteItemEventSchema = Schema.object({
     }),
     indexes: Schema.set(Schema.string),
 });
+
+/**
+ * A stub event. Implies the existence of a `DynamoGeneralRealtimeEvent` but
+ * doesn't include the full data associated with the
+ * `DynamoGeneralRealtimeEvent` in case the receiver of a stub is not allowed
+ * to view that data.
+ */
+export type DynamoGeneralRealtimeEventStub = SchemaType<
+    typeof DynamoGeneralRealtimeEventStubSchema
+>;
+
+export const DynamoGeneralRealtimeEventStubSchema = Schema.object({
+    type: Schema.enum(["PutItem", "DeleteItem"]),
+    item: Schema.object({
+        key: DynamoItemKeySchema,
+        version: Schema.integer.min(0),
+    }),
+});
+
+// NOTE(calebmer): I don't think any code actually depends on this relationship
+// between the event type and event stub type but it's nice in theory.
+assertAssignableTypes<DynamoGeneralRealtimeEvent<unknown>, DynamoGeneralRealtimeEventStub>();
 
 export type DynamoGeneralRealtimeBackfillResult<Model> =
     | {

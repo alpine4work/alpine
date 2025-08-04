@@ -19,15 +19,17 @@ import {
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {DynamoCondition} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
+import {getActorContextModuleKey} from "~/server/helpers/actor_context_module.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
+    DynamoGeneralRealtimeDeleteItemEvent,
     DynamoGeneralRealtimeEvent,
+    DynamoGeneralRealtimeEventStub,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
     DynamoGeneralRealtimePutItemEvent,
-    DynamoGeneralRealtimePutItemEventIndexes,
     DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
@@ -271,42 +273,35 @@ type DynamoGeneralRealtimeInternalIndex = {
     readonly serializeOpaqueCursor: (itemKey: unknown) => DynamoIndexCursor;
 };
 
-type DynamoGeneralRealtimeInternalEvent<ItemKey, Model> =
-    | {
-          readonly type: "PutItem";
-          readonly partitionType: string;
-          readonly sortRangeType: string;
-          readonly itemKey: ItemKey;
-          readonly partitionKey: DynamoItemPartitionKey;
-          readonly key: DynamoItemKey;
-          readonly version: number;
-          readonly getEvent: (
-              context: ServerContentActionContext,
-          ) => Promise<DynamoGeneralRealtimePutItemEvent<Model>>;
-          readonly indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
-          readonly oldPartitionKeyByIndexName:
-              | ReadonlyMap<string, DynamoIndexPartitionKey>
-              | undefined;
-          readonly newPartitionKeyByIndexName:
-              | ReadonlyMap<string, DynamoIndexPartitionKey>
-              | undefined;
-      }
-    | {
-          readonly type: "DeleteItem";
-          readonly partitionType: string;
-          readonly sortRangeType: string;
-          readonly itemKey: ItemKey;
-          readonly partitionKey: DynamoItemPartitionKey;
-          readonly key: DynamoItemKey;
-          readonly version: number;
-          readonly indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
-          readonly oldPartitionKeyByIndexName:
-              | ReadonlyMap<string, DynamoIndexPartitionKey>
-              | undefined;
-          readonly newPartitionKeyByIndexName:
-              | ReadonlyMap<string, DynamoIndexPartitionKey>
-              | undefined;
-      };
+type DynamoGeneralRealtimeAction<ItemKey, Model> =
+    | DynamoGeneralRealtimePutItemAction<ItemKey, Model>
+    | DynamoGeneralRealtimeDeleteItemAction<ItemKey>;
+
+type DynamoGeneralRealtimePutItemAction<ItemKey, Model> = {
+    readonly type: "PutItem";
+    readonly itemKey: ItemKey;
+    readonly getPartitionKey: () => DynamoItemPartitionKey;
+    readonly getSortKey: () => DynamoItemSortKey;
+    readonly indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
+    readonly oldPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
+    readonly newPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
+    readonly eventStub: DynamoGeneralRealtimeEventStub;
+    readonly getEvent: (
+        context: ServerContentActionContext,
+    ) => Promise<DynamoGeneralRealtimePutItemEvent<Model>>;
+};
+
+type DynamoGeneralRealtimeDeleteItemAction<ItemKey> = {
+    readonly type: "DeleteItem";
+    readonly itemKey: ItemKey;
+    readonly getPartitionKey: () => DynamoItemPartitionKey;
+    readonly getSortKey: () => DynamoItemSortKey;
+    readonly indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
+    readonly oldPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
+    readonly newPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
+    readonly eventStub: DynamoGeneralRealtimeEventStub;
+    readonly event: DynamoGeneralRealtimeDeleteItemEvent;
+};
 
 /**
  * Abstraction on top of `DynamoTableSchema` for creating DynamoDB tables where
@@ -403,7 +398,10 @@ export class DynamoGeneralRealtimeTableSchema<
         readTime: Date,
         eventTransaction: ReadonlyArray<{
             itemKey: Types["ItemKey"];
-            event: DynamoGeneralRealtimeEvent<ModelMap[string][string]>;
+            eventStub: DynamoGeneralRealtimeEventStub;
+            getEvent: (
+                context: ServerContentActionContext,
+            ) => Promise<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>;
             oldPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
             newPartitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
         }>,
@@ -505,8 +503,13 @@ export class DynamoGeneralRealtimeTableSchema<
             readTime: Date,
             eventTransaction: ReadonlyArray<{
                 itemKey: DynamoTableSchemaTypes.Partition.ItemKeyTypes<PartitionsConfig>;
-                event: DynamoGeneralRealtimeEvent<
-                    DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>
+                eventStub: DynamoGeneralRealtimeEventStub;
+                getEvent: (
+                    context: ServerContentActionContext,
+                ) => Promise<
+                    DynamoGeneralRealtimeEvent<
+                        DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>
+                    >
                 >;
                 oldPartitionKeyByIndexName:
                     | ReadonlyMap<string, DynamoIndexPartitionKey>
@@ -566,7 +569,10 @@ export class DynamoGeneralRealtimeTableSchema<
             readTime: Date,
             eventTransaction: ReadonlyArray<{
                 itemKey: Types["ItemKey"];
-                event: DynamoGeneralRealtimeEvent<ModelMap[string][string]>;
+                eventStub: DynamoGeneralRealtimeEventStub;
+                getEvent: (
+                    context: ServerContentActionContext,
+                ) => Promise<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>;
                 oldPartitionKeyByIndexName:
                     | ReadonlyMap<string, DynamoIndexPartitionKey>
                     | undefined;
@@ -612,102 +618,8 @@ export class DynamoGeneralRealtimeTableSchema<
         ) as Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>;
     }
 
-    private _getDeleteItemEventIndexes(itemType: Types["ItemType"]): ReadonlySet<string> {
-        const indexes = new Set<string>();
-
-        const itemTypeString = `${itemType.partitionType}#${itemType.sortRangeType}`;
-        for (const [indexName] of this._indexByNameByItemType.get(itemTypeString) ?? []) {
-            indexes.add(indexName);
-        }
-
-        return indexes;
-    }
-
-    private _getPutItemEventIndexes({
-        item,
-        indexByName,
-        partitionKeyByIndexName,
-    }: {
-        item: Types["Item"];
-        indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
-        partitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
-    }): DynamoGeneralRealtimePutItemEventIndexes {
-        // In development and test environments make sure the `indexByName` and
-        // `partitionKeyByIndexName` arguments that were passed in are correct. We
-        // could compute these arguments ourselves but given they've usually already
-        // been computed by this point as an optimization we accept them as an
-        // argument.
-        if (process.env.NODE_ENV !== "production") {
-            const actualIndexByName = this._indexByNameByItemType.get(
-                `${item.partitionType}#${item.sortRangeType}`,
-            );
-            assert(actualIndexByName === indexByName);
-
-            let actualPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-            if (indexByName) {
-                for (const [indexName, index] of indexByName) {
-                    actualPartitionKeyByIndexName ??= new Map();
-                    actualPartitionKeyByIndexName.set(
-                        indexName,
-                        index.serializeOpaquePartitionKey(item),
-                    );
-                }
-            }
-
-            assert(isDeepEqual(actualPartitionKeyByIndexName, partitionKeyByIndexName));
-        }
-
-        const indexes = new Map<
-            string,
-            {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
-        >();
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                const partitionKey = assertExists(partitionKeyByIndexName?.get(indexName));
-                const cursor = index.serializeOpaqueCursor(item);
-                indexes.set(indexName, {partitionKey, cursor});
-            }
-        }
-
-        return indexes;
-    }
-
-    private _createGetPutItemEvent<Item extends Types["Item"]>(options: {
-        key: DynamoItemKey;
-        version: number;
-        item: Item;
-        indexByName: ReadonlyMap<string, DynamoGeneralRealtimeInternalIndex> | undefined;
-        partitionKeyByIndexName: ReadonlyMap<string, DynamoIndexPartitionKey> | undefined;
-    }): (
-        context: ServerContentActionContext,
-    ) => Promise<
-        DynamoGeneralRealtimePutItemEvent<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
-    > {
-        let eventPromise: Promise<
-            DynamoGeneralRealtimePutItemEvent<
-                ModelMap[Item["partitionType"]][Item["sortRangeType"]]
-            >
-        > | null = null;
-
-        return context => {
-            eventPromise ??= (async () => ({
-                type: "PutItem",
-                item: {
-                    key: options.key,
-                    version: options.version,
-                    model: await this._buildModel(context, options.item),
-                },
-                indexes: this._getPutItemEventIndexes(options),
-            }))();
-
-            return eventPromise;
-        };
-    }
-
     /**
-     * Broadcast an event transaction to any realtime clients listening for
+     * Broadcast an action transaction to any realtime clients listening for
      * updates. Also writes the event transaction to the database which will allow
      * us to backfill queries if a realtime client has been disconnected from
      * realtime updates for a bit.
@@ -720,146 +632,281 @@ export class DynamoGeneralRealtimeTableSchema<
      * impact is clients won't get realtime updates. But if the client reloads
      * their browser they're going to pick up the new data.
      */
-    private _broadcastEventTransaction(
+    private _broadcastActionTransaction(
         context: ServerActionContextWithBroadcast,
         readTime: Date,
-        eventTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeInternalEvent<Types["ItemKey"], ModelMap[string][string]>
+        actionTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeAction<Types["ItemKey"], ModelMap[string][string]>
         >,
     ): Promise<void> {
         return context.tracer.withSpan("Send general realtime event transaction", async context => {
-            const [actualEventTransaction] = await runAllPromises([
-                runAllPromises(
-                    eventTransaction.map(
-                        async (
-                            event,
-                        ): Promise<{
-                            itemKey: Types["ItemKey"];
-                            event: DynamoGeneralRealtimeEvent<ModelMap[string][string]>;
-                            oldPartitionKeyByIndexName:
-                                | ReadonlyMap<string, DynamoIndexPartitionKey>
-                                | undefined;
-                            newPartitionKeyByIndexName:
-                                | ReadonlyMap<string, DynamoIndexPartitionKey>
-                                | undefined;
-                        }> => {
-                            switch (event.type) {
-                                case "PutItem": {
-                                    return {
-                                        itemKey: event.itemKey,
-                                        event: await event.getEvent(context),
-                                        oldPartitionKeyByIndexName:
-                                            event.oldPartitionKeyByIndexName,
-                                        newPartitionKeyByIndexName:
-                                            event.newPartitionKeyByIndexName,
-                                    };
-                                }
-                                case "DeleteItem": {
-                                    return {
-                                        itemKey: event.itemKey,
-                                        event: {
-                                            type: "DeleteItem",
-                                            item: {
-                                                key: event.key,
-                                                version: event.version,
-                                            },
-                                            indexes: this._getDeleteItemEventIndexes(event),
-                                        },
-                                        oldPartitionKeyByIndexName:
-                                            event.oldPartitionKeyByIndexName,
-                                        newPartitionKeyByIndexName:
-                                            event.newPartitionKeyByIndexName,
-                                    };
-                                }
-                                default:
-                                    throw exhaustive(event);
-                            }
-                        },
-                    ),
-                ),
-                (async () => {
-                    const realtimeKeys = new Set<string>();
-
-                    const dynamoEventTransaction = eventTransaction.map(
-                        (event): DynamoGeneralRealtimePrivateRealtimePartitionEvent => {
-                            // Add the realtime event transaction to every partition affected by the
-                            // transaction. That way we can search to find the transaction later using any
-                            // partition key implicated in the transaction.
-                            //
-                            // We use an opaque partition key to avoid conflicting characters in this
-                            // realtime item's partition key.
-                            //
-                            // If `realtimeQuery()` is disabled then we won't need to backfill a realtime
-                            // query so we don't need to save event transactions under our table's
-                            // partition key.
-                            if (this._features?.realtimeQuery?.[event.partitionType]) {
-                                realtimeKeys.add(event.partitionKey);
-                            }
-
-                            for (const [indexName, partitionKey] of concatIterables(
-                                event.oldPartitionKeyByIndexName ?? emptyArray,
-                                event.newPartitionKeyByIndexName ?? emptyArray,
-                            )) {
-                                const index = assertExists(event.indexByName?.get(indexName));
-
-                                // If our index's partition key is the same as our table's partition key then
-                                // we can save some WCUs by writing all updates under the table's partition key
-                                // (which is used for `table.realtimeQuery()`).
-                                if (index.canReuseTablePartitionKeyForRealtimeKey) {
-                                    realtimeKeys.add(event.partitionKey);
-                                } else {
-                                    realtimeKeys.add(`${indexName}:${partitionKey}`);
-                                }
-                            }
-
+            const eventTransaction = actionTransaction.map(
+                (
+                    action,
+                ): {
+                    itemKey: Types["ItemKey"];
+                    eventStub: DynamoGeneralRealtimeEventStub;
+                    getEvent: (
+                        context: ServerContentActionContext,
+                    ) => Promise<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>;
+                    oldPartitionKeyByIndexName:
+                        | ReadonlyMap<string, DynamoIndexPartitionKey>
+                        | undefined;
+                    newPartitionKeyByIndexName:
+                        | ReadonlyMap<string, DynamoIndexPartitionKey>
+                        | undefined;
+                } => {
+                    switch (action.type) {
+                        case "PutItem": {
                             return {
-                                type: event.type,
-                                key: event.key,
-                                version: event.version,
+                                itemKey: action.itemKey,
+                                eventStub: action.eventStub,
+                                getEvent: action.getEvent,
+                                oldPartitionKeyByIndexName: action.oldPartitionKeyByIndexName,
+                                newPartitionKeyByIndexName: action.newPartitionKeyByIndexName,
                             };
-                        },
-                    );
+                        }
+                        case "DeleteItem": {
+                            return {
+                                itemKey: action.itemKey,
+                                eventStub: action.eventStub,
+                                getEvent: async () => action.event,
+                                oldPartitionKeyByIndexName: action.oldPartitionKeyByIndexName,
+                                newPartitionKeyByIndexName: action.newPartitionKeyByIndexName,
+                            };
+                        }
+                        default:
+                            throw exhaustive(action);
+                    }
+                },
+            );
 
-                    const eventTime = new Date();
+            const realtimeKeys = new Set<string>();
 
-                    // Expire events after a couple days. If we are trying to backfill data from
-                    // longer ago then we'll need a full refresh.
-                    const expirationTime = addDays(
+            const dynamoEventTransaction = actionTransaction.map(
+                (action): DynamoGeneralRealtimePrivateRealtimePartitionEvent => {
+                    // Add the realtime event transaction to every partition affected by the
+                    // transaction. That way we can search to find the transaction later using any
+                    // partition key implicated in the transaction.
+                    //
+                    // We use an opaque partition key to avoid conflicting characters in this
+                    // realtime item's partition key.
+                    //
+                    // If `realtimeQuery()` is disabled then we won't need to backfill a realtime
+                    // query so we don't need to save event transactions under our table's
+                    // partition key.
+                    if (this._features?.realtimeQuery?.[action.itemKey.partitionType]) {
+                        realtimeKeys.add(action.getPartitionKey());
+                    }
+
+                    for (const [indexName, partitionKey] of concatIterables(
+                        action.oldPartitionKeyByIndexName ?? emptyArray,
+                        action.newPartitionKeyByIndexName ?? emptyArray,
+                    )) {
+                        const index = assertExists(action.indexByName?.get(indexName));
+
+                        // If our index's partition key is the same as our table's partition key then
+                        // we can save some WCUs by writing all updates under the table's partition key
+                        // (which is used for `table.realtimeQuery()`).
+                        if (index.canReuseTablePartitionKeyForRealtimeKey) {
+                            realtimeKeys.add(action.getPartitionKey());
+                        } else {
+                            realtimeKeys.add(`${indexName}:${partitionKey}`);
+                        }
+                    }
+
+                    return {
+                        type: action.type,
+                        key: action.eventStub.item.key,
+                        version: action.eventStub.item.version,
+                    };
+                },
+            );
+
+            const eventTime = new Date();
+
+            // Expire events after a couple days. If we are trying to backfill data from
+            // longer ago then we'll need a full refresh.
+            const expirationTime = addDays(
+                eventTime,
+                dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
+            );
+
+            // Add the event transaction to every affected realtime key. When backfilling,
+            // we only query events from realtime keys we care about. If a transaction
+            // affected two realtime keys then it needs to be present in both to show up in a
+            // backfill query.
+            await runAllPromises(
+                mapIterable(realtimeKeys, realtimeKey => {
+                    const item: DynamoGeneralRealtimePrivateRealtimePartitionItem = {
+                        partitionType: dynamoGeneralRealtimePrivateRealtimePartitionName,
+                        sortRangeType: "Events",
+                        realtimeKey,
                         eventTime,
-                        dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
-                    );
-
-                    // Add the event transaction to every affected realtime key. When backfilling,
-                    // we only query events from realtime keys we care about. If a transaction
-                    // affected two realtime keys then it needs to be present in both to show up in a
-                    // backfill query.
-                    await runAllPromises(
-                        mapIterable(realtimeKeys, realtimeKey => {
-                            const item: DynamoGeneralRealtimePrivateRealtimePartitionItem = {
-                                partitionType: dynamoGeneralRealtimePrivateRealtimePartitionName,
-                                sortRangeType: "Events",
-                                realtimeKey,
-                                eventTime,
-                                expirationTime,
-                                eventTransaction: dynamoEventTransaction,
-                            };
-                            return this._table.createOrReplaceItem(context, item);
-                        }),
-                    );
-                })(),
-            ]);
+                        expirationTime,
+                        eventTransaction: dynamoEventTransaction,
+                    };
+                    return this._table.createOrReplaceItem(context, item);
+                }),
+            );
 
             // Wait to send our events to clients until we've confirmed our events have
             // been written to DynamoDB.
             //
             // That way a strong consistency read of events in DynamoDB will give you all
             // events sent before the start of the read.
-            await this._broadcastEventTransactionCallback(
-                context,
-                readTime,
-                actualEventTransaction,
-            );
+            await this._broadcastEventTransactionCallback(context, readTime, eventTransaction);
         });
+    }
+
+    private _createPutItemAction<Item extends Types["Item"]>({
+        oldItem,
+        newItem,
+    }: {
+        oldItem: Item | null;
+        newItem: Item;
+    }): DynamoGeneralRealtimePutItemAction<
+        Item & Types["ItemKey"],
+        ModelMap[Item["partitionType"]][Item["sortRangeType"]]
+    > {
+        const itemType = `${newItem.partitionType}#${newItem.sortRangeType}`;
+        const {getPartitionKey, getSortKey, key} =
+            this._table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(newItem);
+
+        if (oldItem !== null && oldItem !== newItem) {
+            assert(key === this._table.serializeOpaqueItemKey(oldItem));
+            assert(oldItem.updateLockVersion === newItem.updateLockVersion);
+        }
+
+        const version: number =
+            oldItem !== null
+                ? (oldItem.updateLockVersion ?? 0) + 1
+                : newItem.updateLockVersion ?? 0;
+
+        const indexByName = this._indexByNameByItemType.get(itemType);
+
+        let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
+        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
+
+        if (indexByName) {
+            for (const [indexName, index] of indexByName) {
+                if (oldItem !== null) {
+                    oldPartitionKeyByIndexName ??= new Map();
+                    oldPartitionKeyByIndexName.set(
+                        indexName,
+                        index.serializeOpaquePartitionKey(oldItem),
+                    );
+                }
+
+                newPartitionKeyByIndexName ??= new Map();
+                newPartitionKeyByIndexName.set(
+                    indexName,
+                    index.serializeOpaquePartitionKey(newItem),
+                );
+            }
+        }
+
+        const indexes = new Map<
+            string,
+            {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
+        >();
+
+        if (indexByName) {
+            for (const [indexName, index] of indexByName) {
+                const partitionKey = assertExists(newPartitionKeyByIndexName?.get(indexName));
+                const cursor = index.serializeOpaqueCursor(newItem);
+                indexes.set(indexName, {partitionKey, cursor});
+            }
+        }
+
+        const modelCache = new Map<
+            string,
+            Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
+        >();
+
+        const getModel = (context: ServerContentActionContext) => {
+            // If the actor changes then we need to call `buildModel()` again to make sure
+            // we're not returning data the actor isn't allowed to see!
+            return getOrSetDefaultMapValue(
+                modelCache,
+                getActorContextModuleKey(context.actor),
+                () =>
+                    this._buildModel(context, {
+                        ...newItem,
+                        updateLockVersion: version !== 0 ? version : undefined,
+                    }),
+            );
+        };
+
+        return {
+            type: "PutItem",
+            itemKey: newItem as Item & Types["ItemKey"],
+            getPartitionKey,
+            getSortKey,
+            indexByName,
+            oldPartitionKeyByIndexName,
+            newPartitionKeyByIndexName,
+            eventStub: {
+                type: "PutItem",
+                item: {key, version},
+            },
+            getEvent: async context => ({
+                type: "PutItem",
+                item: {key, version, model: await getModel(context)},
+                indexes,
+            }),
+        };
+    }
+
+    private _createDeleteItemAction<Item extends Types["Item"]>(
+        item: Item,
+    ): DynamoGeneralRealtimeDeleteItemAction<Item & Types["ItemKey"]> {
+        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            throw new InternalError(
+                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
+            );
+        }
+
+        const itemType = `${item.partitionType}#${item.sortRangeType}`;
+        const {getPartitionKey, getSortKey, key} =
+            this._table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(item);
+
+        const version = (item.updateLockVersion ?? 0) + 1;
+
+        const indexByName = this._indexByNameByItemType.get(itemType);
+
+        let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
+
+        if (indexByName) {
+            for (const [indexName, index] of indexByName) {
+                oldPartitionKeyByIndexName ??= new Map();
+                oldPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
+            }
+        }
+
+        const indexes = new Set<string>();
+
+        for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+            indexes.add(indexName);
+        }
+
+        const event: DynamoGeneralRealtimeDeleteItemEvent = {
+            type: "DeleteItem",
+            item: {key, version},
+            indexes,
+        };
+
+        return {
+            type: "DeleteItem",
+            itemKey: item as Item & Types["ItemKey"],
+            getPartitionKey,
+            getSortKey,
+            indexByName,
+            oldPartitionKeyByIndexName,
+            newPartitionKeyByIndexName: undefined,
+            eventStub: event,
+            event,
+        };
     }
 
     /**
@@ -889,9 +936,7 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, sortKey, key} =
-            this._table.serializeOpaqueItemKeyAndPartitionKeyAndSortKey(item);
+        const action = this._createPutItemAction({oldItem: null, newItem: item});
 
         // We backfill realtime updates to `readTime` so the `readTime` of our event
         // transaction should be before the data is written from the database to avoid
@@ -912,52 +957,16 @@ export class DynamoGeneralRealtimeTableSchema<
                     cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
                         partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
-                        deletedPartitionKey: partitionKey,
-                        deletedSortKey: sortKey,
+                        deletedPartitionKey: action.getPartitionKey(),
+                        deletedSortKey: action.getSortKey(),
                     }),
                 ),
             ]);
         }
 
-        const version = item.updateLockVersion ?? 0;
+        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
 
-        const indexByName = this._indexByNameByItemType.get(itemType);
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
-
-        context.process.waitUntil(
-            this._broadcastEventTransaction(context, readTime, [
-                {
-                    type: "PutItem",
-                    partitionType: item.partitionType,
-                    sortRangeType: item.sortRangeType,
-                    itemKey: item as Types["ItemKey"],
-                    partitionKey,
-                    key,
-                    version,
-                    getEvent,
-                    indexByName,
-                    oldPartitionKeyByIndexName: undefined,
-                    newPartitionKeyByIndexName,
-                },
-            ]),
-        );
-
-        return {getEvent};
+        return {getEvent: action.getEvent};
     }
 
     /**
@@ -1002,8 +1011,8 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public async directlyUpdateItem<Item extends Types["Item"]>(
         context: ServerActionContextWithBroadcast,
-        item: Item,
-        {oldItem = item}: {oldItem?: Item} = {},
+        newItem: Item,
+        {oldItem = newItem}: {oldItem?: Item} = {},
     ): Promise<{
         getEvent: (
             context: ServerContentActionContext,
@@ -1014,31 +1023,23 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
     }> {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            newItem.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
+                newItem.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
             "Can’t access private realtime partition",
         );
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, key} = this._table.serializeOpaqueItemKeyAndPartitionKey(item);
+        const action = this._createPutItemAction({oldItem, newItem});
 
         let condition: DynamoCondition<Item> | undefined;
-
-        if (oldItem !== item) {
-            assert(key === this._table.serializeOpaqueItemKey(oldItem));
-            assert(oldItem.updateLockVersion === item.updateLockVersion);
-        }
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
 
         // We need to test to make sure the attributes in the index partition keys of
         // `oldItem` are what's actually in the database. Since we use these attributes
         // from `oldItem` in `oldPartitionKeyByIndexName` which is used to generate
         // diffs that tell the client whether an item has left a particular query.
-        if (indexByName) {
+        if (action.indexByName) {
             let actualCondition: {[key: string]: any} | undefined;
 
-            for (const index of indexByName.values()) {
+            for (const index of action.indexByName.values()) {
                 for (const attributeName of index.dynamicPartitionKeyAttributeNames) {
                     if (
                         actualCondition === undefined ||
@@ -1063,56 +1064,11 @@ export class DynamoGeneralRealtimeTableSchema<
         // the write.
         const readTime = new Date();
 
-        const newItem = await this._table.directlyUpdateItem(context, item, {condition});
+        await this._table.directlyUpdateItem(context, newItem, {condition});
 
-        const version = newItem.updateLockVersion ?? 0;
+        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
 
-        let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                oldPartitionKeyByIndexName ??= new Map();
-                oldPartitionKeyByIndexName.set(
-                    indexName,
-                    index.serializeOpaquePartitionKey(oldItem),
-                );
-
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(
-                    indexName,
-                    index.serializeOpaquePartitionKey(newItem),
-                );
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item: newItem,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
-
-        context.process.waitUntil(
-            this._broadcastEventTransaction(context, readTime, [
-                {
-                    type: "PutItem",
-                    partitionType: newItem.partitionType,
-                    sortRangeType: newItem.sortRangeType,
-                    itemKey: newItem as Types["ItemKey"],
-                    partitionKey,
-                    key,
-                    version,
-                    getEvent,
-                    indexByName,
-                    oldPartitionKeyByIndexName,
-                    newPartitionKeyByIndexName,
-                },
-            ]),
-        );
-
-        return {getEvent};
+        return {getEvent: action.getEvent};
     }
 
     /**
@@ -1196,32 +1152,19 @@ export class DynamoGeneralRealtimeTableSchema<
 
             // Update was short-circuited.
             if (item === newItem) {
-                const key = this._table.serializeOpaqueItemKey(item);
-                const version = item.updateLockVersion ?? 0;
+                const action = this._createPutItemAction({oldItem: null, newItem: item});
 
-                const itemType = `${item.partitionType}#${item.sortRangeType}`;
-                const indexByName = this._indexByNameByItemType.get(itemType);
-                let partitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
+                return {
+                    getEvent: async context => {
+                        const event = await action.getEvent(context);
 
-                if (indexByName) {
-                    for (const [indexName, index] of indexByName) {
-                        partitionKeyByIndexName ??= new Map();
-                        partitionKeyByIndexName.set(
-                            indexName,
-                            index.serializeOpaquePartitionKey(item),
-                        );
-                    }
-                }
+                        // Safety check that the noop `createPutItemEvent()` call didn't change the
+                        // version number.
+                        assert(event.item.version === (item.updateLockVersion ?? 0));
 
-                const getEvent = this._createGetPutItemEvent({
-                    key,
-                    version,
-                    item,
-                    indexByName,
-                    partitionKeyByIndexName,
-                });
-
-                return {getEvent};
+                        return event;
+                    },
+                };
             }
 
             if (item === null) {
@@ -1260,28 +1203,18 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            throw new InternalError(
-                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
-            );
-        }
-
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, sortKey, key} =
-            this._table.serializeOpaqueItemKeyAndPartitionKeyAndSortKey(item);
+        const action = this._createDeleteItemAction(item);
 
         let condition: DynamoCondition<Item> | undefined;
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
 
         // We need to test to make sure the attributes in the index partition keys of
         // `item` are what's actually in the database. Since we use these attributes
         // from `item` in `oldPartitionKeyByIndexName` which is used to generate
         // diffs that tell the client whether an item has left a particular query.
-        if (indexByName) {
+        if (action.indexByName) {
             let actualCondition: {[key: string]: any} | undefined;
 
-            for (const index of indexByName.values()) {
+            for (const index of action.indexByName.values()) {
                 for (const attributeName of index.dynamicPartitionKeyAttributeNames) {
                     if (
                         actualCondition === undefined ||
@@ -1312,40 +1245,14 @@ export class DynamoGeneralRealtimeTableSchema<
                 cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
                     partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
                     sortRangeType: "Gravestone",
-                    deletedPartitionKey: partitionKey,
-                    deletedSortKey: sortKey,
-                    updateLockVersion: (item.updateLockVersion ?? 0) + 1,
+                    deletedPartitionKey: action.getPartitionKey(),
+                    deletedSortKey: action.getSortKey(),
+                    updateLockVersion: action.eventStub.item.version,
                 }),
             ),
         ]);
 
-        const version = (item.updateLockVersion ?? 0) + 1;
-
-        let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                oldPartitionKeyByIndexName ??= new Map();
-                oldPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        context.process.waitUntil(
-            this._broadcastEventTransaction(context, readTime, [
-                {
-                    type: "DeleteItem",
-                    partitionType: item.partitionType,
-                    sortRangeType: item.sortRangeType,
-                    itemKey: item as Types["ItemKey"],
-                    partitionKey,
-                    key,
-                    version,
-                    indexByName,
-                    oldPartitionKeyByIndexName,
-                    newPartitionKeyByIndexName: undefined,
-                },
-            ]),
-        );
+        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
     }
 
     /**
@@ -1432,8 +1339,12 @@ export class DynamoGeneralRealtimeTableSchema<
             );
         }
 
-        const {partitionKey, sortKey, key} =
-            this._table.serializeOpaqueItemKeyAndPartitionKeyAndSortKey(item);
+        item = {
+            ...item,
+            updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
+        };
+
+        const action = this._createPutItemAction({oldItem: null, newItem: item});
 
         // We backfill realtime updates to `readTime` so the `readTime` of our event
         // transaction should be before the data is written from the database to avoid
@@ -1450,58 +1361,17 @@ export class DynamoGeneralRealtimeTableSchema<
                 cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
                     partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
                     sortRangeType: "Gravestone",
-                    deletedPartitionKey: partitionKey,
-                    deletedSortKey: sortKey,
+                    deletedPartitionKey: action.getPartitionKey(),
+                    deletedSortKey: action.getSortKey(),
                     updateLockVersion: deletedItem.updateLockVersion,
                 }),
             ),
-            this._table.transactionCreateOrReplaceItem({
-                ...item,
-                updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
-            }),
+            this._table.transactionCreateOrReplaceItem(item),
         ]);
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const version = (deletedItem.updateLockVersion ?? 0) + 1;
+        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
 
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
-
-        context.process.waitUntil(
-            this._broadcastEventTransaction(context, readTime, [
-                {
-                    type: "PutItem",
-                    partitionType: item.partitionType,
-                    sortRangeType: item.sortRangeType,
-                    itemKey: item as Types["ItemKey"],
-                    partitionKey,
-                    key,
-                    version,
-                    getEvent,
-                    indexByName,
-                    oldPartitionKeyByIndexName: undefined,
-                    newPartitionKeyByIndexName,
-                },
-            ]),
-        );
-
-        return {getEvent};
+        return {getEvent: action.getEvent};
     }
 
     /**
@@ -1526,12 +1396,12 @@ export class DynamoGeneralRealtimeTableSchema<
             schema: DynamoGeneralRealtimeTableSchema<Types, ModelMap>,
         ) => Promise<Array<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>>;
     }> {
-        const eventsBySchema = new Map<
+        const actionsBySchema = new Map<
             DynamoGeneralRealtimeTableSchema<
                 DynamoTableSchemaTypesBase,
                 {[partitionType: string]: {[sortRangeType: string]: any}}
             >,
-            Array<DynamoGeneralRealtimeInternalEvent<any, any>>
+            Array<DynamoGeneralRealtimeAction<any, any>>
         >();
 
         // We backfill realtime updates to `readTime` so it should be before the data
@@ -1547,8 +1417,8 @@ export class DynamoGeneralRealtimeTableSchema<
             context,
             entries.flatMap(entry => {
                 if (entry instanceof DynamoTransactionEntry) return entry;
-                const {entry: actualEntry, schema, event} = entry._get(privateSymbol);
-                getOrSetDefaultMapValue(eventsBySchema, schema, () => []).push(event);
+                const {entry: actualEntry, schema, action} = entry._get(privateSymbol);
+                getOrSetDefaultMapValue(actionsBySchema, schema, () => []).push(action);
                 return actualEntry;
             }),
             options,
@@ -1556,31 +1426,25 @@ export class DynamoGeneralRealtimeTableSchema<
 
         context.process.waitUntil(async () => {
             await runAllPromises(
-                mapIterable(eventsBySchema, ([schema, events]) =>
-                    schema._broadcastEventTransaction(context, readTime, events),
+                mapIterable(actionsBySchema, ([schema, events]) =>
+                    schema._broadcastActionTransaction(context, readTime, events),
                 ),
             );
         });
 
         return {
             getEventTransaction: (context, schema) => {
-                const events = eventsBySchema.get(schema);
+                const actions = actionsBySchema.get(schema);
 
                 return runAllPromises(
-                    (events ?? emptyArray).map(event => {
-                        switch (event.type) {
-                            case "PutItem": {
-                                return event.getEvent(context);
-                            }
-                            case "DeleteItem": {
-                                return {
-                                    type: "DeleteItem",
-                                    item: {key: event.key, version: event.version},
-                                    indexes: schema._getDeleteItemEventIndexes(event),
-                                };
-                            }
+                    (actions ?? emptyArray).map(action => {
+                        switch (action.type) {
+                            case "PutItem":
+                                return action.getEvent(context);
+                            case "DeleteItem":
+                                return action.event;
                             default:
-                                throw exhaustive(event);
+                                throw exhaustive(action);
                         }
                     }),
                 );
@@ -1634,43 +1498,7 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, sortKey, key} =
-            this._table.serializeOpaqueItemKeyAndPartitionKeyAndSortKey(item);
-        const version = item.updateLockVersion ?? 0;
-
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
-
-        const event: DynamoGeneralRealtimeInternalEvent<unknown, unknown> = {
-            type: "PutItem",
-            partitionType: item.partitionType,
-            sortRangeType: item.sortRangeType,
-            itemKey: item as Types["ItemKey"],
-            partitionKey,
-            key,
-            version,
-            getEvent,
-            indexByName,
-            oldPartitionKeyByIndexName: undefined,
-            newPartitionKeyByIndexName,
-        };
+        const action = this._createPutItemAction({oldItem: null, newItem: item});
 
         let transactionEntry;
 
@@ -1679,7 +1507,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 privateSymbol,
                 this._table.transactionCreateItem(item),
                 this,
-                event,
+                action,
             );
         } else {
             transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
@@ -1690,19 +1518,19 @@ export class DynamoGeneralRealtimeTableSchema<
                         cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
                             partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
                             sortRangeType: "Gravestone",
-                            deletedPartitionKey: partitionKey,
-                            deletedSortKey: sortKey,
+                            deletedPartitionKey: action.getPartitionKey(),
+                            deletedSortKey: action.getSortKey(),
                         }),
                     ),
                 ],
                 this,
-                event,
+                action,
             );
         }
 
         return {
             transactionEntry,
-            getEvent,
+            getEvent: action.getEvent,
         };
     }
 
@@ -1736,8 +1564,8 @@ export class DynamoGeneralRealtimeTableSchema<
      * with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionDirectlyUpdateItemWithEvent<Item extends Types["Item"]>(
-        item: Item,
-        {oldItem = item}: {oldItem?: Item} = {},
+        newItem: Item,
+        {oldItem = newItem}: {oldItem?: Item} = {},
     ): {
         transactionEntry: DynamoGeneralRealtimeTransactionEntry;
         getEvent: (
@@ -1749,32 +1577,23 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
     } {
         assert(
-            item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            newItem.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
+                newItem.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
             "Can’t access private realtime partition",
         );
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, key} = this._table.serializeOpaqueItemKeyAndPartitionKey(item);
-        const version = (item.updateLockVersion ?? 0) + 1;
+        const action = this._createPutItemAction({oldItem, newItem});
 
         let condition: DynamoCondition<Item> | undefined;
-
-        if (oldItem !== item) {
-            assert(key === this._table.serializeOpaqueItemKey(oldItem));
-            assert(oldItem.updateLockVersion === item.updateLockVersion);
-        }
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
 
         // We need to test to make sure the attributes in the index partition keys of
         // `oldItem` are what's actually in the database. Since we use these attributes
         // from `oldItem` in `oldPartitionKeyByIndexName` which is used to generate
         // diffs that tell the client whether an item has left a particular query.
-        if (indexByName) {
+        if (action.indexByName) {
             let actualCondition: {[key: string]: any} | undefined;
 
-            for (const index of indexByName.values()) {
+            for (const index of action.indexByName.values()) {
                 for (const attributeName of index.dynamicPartitionKeyAttributeNames) {
                     if (
                         actualCondition === undefined ||
@@ -1789,52 +1608,16 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                oldPartitionKeyByIndexName ??= new Map();
-                oldPartitionKeyByIndexName.set(
-                    indexName,
-                    index.serializeOpaquePartitionKey(oldItem),
-                );
-
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
-
         const transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
-            this._table.transactionDirectlyUpdateItem(item, {condition}),
+            this._table.transactionDirectlyUpdateItem(newItem, {condition}),
             this,
-            {
-                type: "PutItem",
-                partitionType: item.partitionType,
-                sortRangeType: item.sortRangeType,
-                itemKey: item as Types["ItemKey"],
-                partitionKey,
-                key,
-                version,
-                getEvent,
-                indexByName,
-                oldPartitionKeyByIndexName,
-                newPartitionKeyByIndexName,
-            },
+            action,
         );
 
         return {
             transactionEntry,
-            getEvent,
+            getEvent: action.getEvent,
         };
     }
 
@@ -1859,28 +1642,18 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
-            throw new InternalError(
-                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
-            );
-        }
-
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, sortKey, key} =
-            this._table.serializeOpaqueItemKeyAndPartitionKeyAndSortKey(item);
+        const action = this._createDeleteItemAction(item);
 
         let condition: DynamoCondition<Item> | undefined;
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
 
         // We need to test to make sure the attributes in the index partition keys of
         // `item` are what's actually in the database. Since we use these attributes
         // from `item` in `oldPartitionKeyByIndexName` which is used to generate
         // diffs that tell the client whether an item has left a particular query.
-        if (indexByName) {
+        if (action.indexByName) {
             let actualCondition: {[key: string]: any} | undefined;
 
-            for (const index of indexByName.values()) {
+            for (const index of action.indexByName.values()) {
                 for (const attributeName of index.dynamicPartitionKeyAttributeNames) {
                     if (
                         actualCondition === undefined ||
@@ -1895,15 +1668,6 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                oldPartitionKeyByIndexName ??= new Map();
-                oldPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
             [
@@ -1912,25 +1676,14 @@ export class DynamoGeneralRealtimeTableSchema<
                     cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
                         partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
-                        deletedPartitionKey: partitionKey,
-                        deletedSortKey: sortKey,
-                        updateLockVersion: (item.updateLockVersion ?? 0) + 1,
+                        deletedPartitionKey: action.getPartitionKey(),
+                        deletedSortKey: action.getSortKey(),
+                        updateLockVersion: action.eventStub.item.version,
                     }),
                 ),
             ],
             this,
-            {
-                type: "DeleteItem",
-                partitionType: item.partitionType,
-                sortRangeType: item.sortRangeType,
-                itemKey: item as Types["ItemKey"],
-                key,
-                partitionKey,
-                version: (item.updateLockVersion ?? 0) + 1,
-                indexByName,
-                oldPartitionKeyByIndexName,
-                newPartitionKeyByIndexName: undefined,
-            },
+            action,
         );
     }
 
@@ -1962,29 +1715,12 @@ export class DynamoGeneralRealtimeTableSchema<
             );
         }
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, sortKey, key} =
-            this._table.serializeOpaqueItemKeyAndPartitionKeyAndSortKey(item);
-        const version = (deletedItem.updateLockVersion ?? 0) + 1;
+        item = {
+            ...item,
+            updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
+        };
 
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
+        const action = this._createPutItemAction({oldItem: null, newItem: item});
 
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
@@ -1993,30 +1729,15 @@ export class DynamoGeneralRealtimeTableSchema<
                     cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
                         partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
                         sortRangeType: "Gravestone",
-                        deletedPartitionKey: partitionKey,
-                        deletedSortKey: sortKey,
+                        deletedPartitionKey: action.getPartitionKey(),
+                        deletedSortKey: action.getSortKey(),
                         updateLockVersion: deletedItem.updateLockVersion,
                     }),
                 ),
-                this._table.transactionCreateOrReplaceItem({
-                    ...item,
-                    updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
-                }),
+                this._table.transactionCreateOrReplaceItem(item),
             ],
             this,
-            {
-                type: "PutItem",
-                partitionType: item.partitionType,
-                sortRangeType: item.sortRangeType,
-                itemKey: item as Types["ItemKey"],
-                key,
-                partitionKey,
-                version,
-                getEvent,
-                indexByName,
-                oldPartitionKeyByIndexName: undefined,
-                newPartitionKeyByIndexName,
-            },
+            action,
         );
     }
 
@@ -2076,46 +1797,13 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        const {partitionKey, key} = this._table.serializeOpaqueItemKeyAndPartitionKey(item);
-        const version = item.updateLockVersion ?? 0;
-
-        let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
-
-        const indexByName = this._indexByNameByItemType.get(itemType);
-
-        if (indexByName) {
-            for (const [indexName, index] of indexByName) {
-                newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
-            }
-        }
-
-        const getEvent = this._createGetPutItemEvent({
-            key,
-            version,
-            item,
-            indexByName,
-            partitionKeyByIndexName: newPartitionKeyByIndexName,
-        });
+        const action = this._createPutItemAction({oldItem: null, newItem: item});
 
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
             this._table.transactionCreateOrReplaceItem(item),
             this,
-            {
-                type: "PutItem",
-                partitionType: item.partitionType,
-                sortRangeType: item.sortRangeType,
-                itemKey: item as Types["ItemKey"],
-                partitionKey,
-                key,
-                version,
-                getEvent,
-                indexByName,
-                oldPartitionKeyByIndexName: undefined,
-                newPartitionKeyByIndexName,
-            },
+            action,
         );
     }
 
@@ -3455,13 +3143,20 @@ export class DynamoGeneralRealtimeTableSchema<
                     });
 
                     if (result.isDeleted) {
+                        const indexes = new Set<string>();
+
+                        const itemType = `${itemKey.partitionType}#${itemKey.sortRangeType}`;
+                        for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+                            indexes.add(indexName);
+                        }
+
                         return {
                             type: "DeleteItem",
                             item: {
                                 key: key,
                                 version: result.item.updateLockVersion ?? 0,
                             },
-                            indexes: this._getDeleteItemEventIndexes(itemKey),
+                            indexes,
                         };
                     }
                     // If this item is in a different partition then the one we're backfilling
@@ -3474,13 +3169,20 @@ export class DynamoGeneralRealtimeTableSchema<
                             : this._table.serializeOpaqueItemPartitionKey(result.item) !==
                               source.partitionKey
                     ) {
+                        const indexes = new Set<string>();
+
+                        const itemType = `${itemKey.partitionType}#${itemKey.sortRangeType}`;
+                        for (const [indexName] of this._indexByNameByItemType.get(itemType) ?? []) {
+                            indexes.add(indexName);
+                        }
+
                         return {
                             type: "DeleteItem",
                             item: {
                                 key: key,
                                 version: result.item.updateLockVersion ?? 0,
                             },
-                            indexes: this._getDeleteItemEventIndexes(itemKey),
+                            indexes,
                         };
                     } else {
                         const indexByName = this._indexByNameByItemType.get(
@@ -3501,6 +3203,21 @@ export class DynamoGeneralRealtimeTableSchema<
                             }
                         }
 
+                        const indexes = new Map<
+                            string,
+                            {partitionKey: DynamoIndexPartitionKey; cursor: DynamoIndexCursor}
+                        >();
+
+                        if (indexByName) {
+                            for (const [indexName, index] of indexByName) {
+                                const partitionKey = assertExists(
+                                    partitionKeyByIndexName?.get(indexName),
+                                );
+                                const cursor = index.serializeOpaqueCursor(result.item);
+                                indexes.set(indexName, {partitionKey, cursor});
+                            }
+                        }
+
                         return {
                             type: "PutItem",
                             item: {
@@ -3508,11 +3225,7 @@ export class DynamoGeneralRealtimeTableSchema<
                                 version: result.item.updateLockVersion ?? 0,
                                 model: await this._buildModel(context, result.item),
                             },
-                            indexes: this._getPutItemEventIndexes({
-                                item: result.item,
-                                indexByName,
-                                partitionKeyByIndexName,
-                            }),
+                            indexes,
                         };
                     }
                 },
@@ -3607,23 +3320,23 @@ const privateSymbol = Symbol("private");
 export class DynamoGeneralRealtimeTransactionEntry {
     private readonly _entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>;
     private readonly _schema: DynamoGeneralRealtimeTableSchema<any, any>;
-    private readonly _event: DynamoGeneralRealtimeInternalEvent<unknown, unknown>;
+    private readonly _action: DynamoGeneralRealtimeAction<unknown, unknown>;
 
     private constructor(
         entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
         schema: DynamoGeneralRealtimeTableSchema<any, any>,
-        event: DynamoGeneralRealtimeInternalEvent<unknown, unknown>,
+        action: DynamoGeneralRealtimeAction<unknown, unknown>,
     ) {
         this._entry = entry;
         this._schema = schema;
-        this._event = event;
+        this._action = action;
     }
 
     public static _new(
         symbol: typeof privateSymbol,
         entry: DynamoTransactionEntry | NonEmptyReadonlyArray<DynamoTransactionEntry>,
         schema: DynamoGeneralRealtimeTableSchema<any, any>,
-        event: DynamoGeneralRealtimeInternalEvent<unknown, unknown>,
+        event: DynamoGeneralRealtimeAction<unknown, unknown>,
     ): DynamoGeneralRealtimeTransactionEntry {
         // `privateSymbol` is only accessible in this module so this assert makes sure
         // we don't call this method from outside of this module.
@@ -3640,7 +3353,7 @@ export class DynamoGeneralRealtimeTransactionEntry {
         return {
             entry: this._entry,
             schema: this._schema,
-            event: this._event,
+            action: this._action,
         };
     }
 }

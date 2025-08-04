@@ -1194,13 +1194,21 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
         >();
 
-        for (const eventEntry of eventTransaction) {
-            getOrSetDefaultMapValue(
-                eventTransactionBySpaceIdAndAccountId,
-                `${eventEntry.itemKey.spaceId}:${eventEntry.itemKey.accountId}`,
-                () => [],
-            ).push(eventEntry.event);
-        }
+        await runAllPromises(
+            mapIterable(eventTransaction, async ({itemKey, getEvent}) => {
+                // It's safe to use `context` to load the event (even if `context` is a system
+                // context). Since in the `models` object above we always call
+                // `protectInboxEntryModelBuilder()` to make sure we're building an inbox entry
+                // with the right actor.
+                const event = await getEvent(context);
+
+                getOrSetDefaultMapValue(
+                    eventTransactionBySpaceIdAndAccountId,
+                    `${itemKey.spaceId}:${itemKey.accountId}`,
+                    () => [],
+                ).push(event);
+            }),
+        );
 
         await runAllPromises(
             Array.from(

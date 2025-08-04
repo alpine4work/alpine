@@ -3,6 +3,7 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
@@ -102,4 +103,22 @@ export interface ImpersonatedAccountActorContextModule extends ActorContextModul
 
     getSpaceId(): SpaceId;
     getAccountId(): AccountId;
+}
+
+/**
+ * Returns a string key you can use to quickly tell if an actor has changed.
+ */
+export function getActorContextModuleKey(actor: ActorContextModule): string {
+    switch (actor.type) {
+        case "Session":
+            return `Session:${actor.getSessionId()}`;
+        case "System":
+            return `System:${actor.getSpaceId()}`;
+        case "Anonymous":
+            return "Anonymous";
+        case "ImpersonatedAccount":
+            return `ImpersonatedAccount:${actor.getSpaceId()}-${actor.getAccountId()}`;
+        default:
+            throw exhaustive(actor);
+    }
 }

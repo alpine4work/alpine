@@ -7,6 +7,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -115,7 +116,9 @@ test("can delete and undelete items", async () => {
             },
         },
         broadcastEventTransaction: async (context, readTime, eventTransaction) => {
-            eventTransactions.push(eventTransaction.map(({event}) => event));
+            eventTransactions.push(
+                await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
+            );
         },
     });
 
@@ -1753,7 +1756,9 @@ test("can delete and undelete items (with transactions)", async () => {
             },
         },
         broadcastEventTransaction: async (context, readTime, eventTransaction) => {
-            eventTransactions.push(eventTransaction.map(({event}) => event));
+            eventTransactions.push(
+                await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
+            );
         },
     });
 
@@ -3270,7 +3275,9 @@ test("can update a property that’s in an index’s partition key and a put eve
                 },
             },
             broadcastEventTransaction: async (context, readTime, eventTransaction) => {
-                eventTransactions.push(eventTransaction.map(({event}) => event));
+                eventTransactions.push(
+                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
+                );
             },
         });
 
@@ -3702,7 +3709,9 @@ test("can delete an item with a property in an index’s partition key that can 
                 },
             },
             broadcastEventTransaction: async (context, readTime, eventTransaction) => {
-                eventTransactions.push(eventTransaction.map(({event}) => event));
+                eventTransactions.push(
+                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
+                );
             },
         });
 
@@ -4045,7 +4054,9 @@ test("can update a property that’s in an index’s partition key and a put eve
                 },
             },
             broadcastEventTransaction: async (context, readTime, eventTransaction) => {
-                eventTransactions.push(eventTransaction.map(({event}) => event));
+                eventTransactions.push(
+                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
+                );
             },
         });
 
@@ -4482,7 +4493,9 @@ test("can delete an item with a property in an index’s partition key that can 
                 },
             },
             broadcastEventTransaction: async (context, readTime, eventTransaction) => {
-                eventTransactions.push(eventTransaction.map(({event}) => event));
+                eventTransactions.push(
+                    await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
+                );
             },
         });
 

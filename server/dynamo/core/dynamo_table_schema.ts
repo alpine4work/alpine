@@ -1138,46 +1138,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     /**
      * Serialize the item key into an opaque string that can be conveniently shared
-     * with clients. Generates just the partition key which may be useful.
-     *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
-     */
-    public serializeOpaqueItemKeyAndPartitionKey(key: Types["ItemKey"] | Types["Item"]): {
-        partitionKey: DynamoItemPartitionKey;
-        key: DynamoItemKey;
-    } {
-        const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
-
-        const opaqueKeyString = encodeBase64(
-            bytes,
-            "Rfc4648UrlWithOrderPreservation",
-        ) as DynamoItemKey;
-
-        const opaquePartitionKeyString = encodeBase64(
-            bytes.subarray(0, partitionKeyByteCount),
-            "Rfc4648UrlWithOrderPreservation",
-        ) as DynamoItemPartitionKey;
-
-        // In development and test environments, make sure we can deserialize our
-        // opaque keys.
-        if (process.env.NODE_ENV !== "production") {
-            const deserializedKey = this.deserializeOpaqueItemKey(opaqueKeyString);
-            assert(
-                isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
-                "Couldn’t deserialize opaque item key",
-            );
-        }
-
-        return {
-            partitionKey: opaquePartitionKeyString,
-            key: opaqueKeyString,
-        };
-    }
-
-    /**
-     * Serialize the item key into an opaque string that can be conveniently shared
      * with clients. Also generates the partition key and sort key which may be
      * useful.
      *
@@ -1185,9 +1145,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * client then the client should be able to see all data in the item's
      * primary key.
      */
-    public serializeOpaqueItemKeyAndPartitionKeyAndSortKey(key: Types["ItemKey"] | Types["Item"]): {
-        partitionKey: DynamoItemPartitionKey;
-        sortKey: DynamoItemSortKey;
+    public serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(
+        key: Types["ItemKey"] | Types["Item"],
+    ): {
+        getPartitionKey: () => DynamoItemPartitionKey;
+        getSortKey: () => DynamoItemSortKey;
         key: DynamoItemKey;
     } {
         const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
@@ -1197,15 +1159,27 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             "Rfc4648UrlWithOrderPreservation",
         ) as DynamoItemKey;
 
-        const opaquePartitionKeyString = encodeBase64(
-            bytes.subarray(0, partitionKeyByteCount),
-            "Rfc4648UrlWithOrderPreservation",
-        ) as DynamoItemPartitionKey;
+        let opaquePartitionKeyString: DynamoItemPartitionKey | undefined;
 
-        const opaqueSortKeyString = encodeBase64(
-            bytes.subarray(partitionKeyByteCount),
-            "Rfc4648UrlWithOrderPreservation",
-        ) as DynamoItemSortKey;
+        const getOpaquePartitionKeyString = () => {
+            opaquePartitionKeyString ??= encodeBase64(
+                bytes.subarray(0, partitionKeyByteCount),
+                "Rfc4648UrlWithOrderPreservation",
+            ) as DynamoItemPartitionKey;
+
+            return opaquePartitionKeyString;
+        };
+
+        let opaqueSortKeyString: DynamoItemSortKey | undefined;
+
+        const getOpaqueSortKeyString = () => {
+            opaqueSortKeyString ??= encodeBase64(
+                bytes.subarray(partitionKeyByteCount),
+                "Rfc4648UrlWithOrderPreservation",
+            ) as DynamoItemSortKey;
+
+            return opaqueSortKeyString;
+        };
 
         // In development and test environments, make sure we can deserialize our
         // opaque keys.
@@ -1218,8 +1192,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         return {
-            partitionKey: opaquePartitionKeyString,
-            sortKey: opaqueSortKeyString,
+            getPartitionKey: getOpaquePartitionKeyString,
+            getSortKey: getOpaqueSortKeyString,
             key: opaqueKeyString,
         };
     }
