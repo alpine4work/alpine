@@ -117,8 +117,8 @@ export function FeedView({
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
-                onPostRealtimeEventTransaction={useCallback(() => {
-                    // TODO(calebmer): Will be implemented later in the stack
+                onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
+                    setFeed(feed => feed.handleEventTransaction(eventTransaction));
                 }, [])}
                 // On narrower screens we need to set `availableWidth` to correctly calculate
                 // the block width of posts. Having an accurate block width is important for
