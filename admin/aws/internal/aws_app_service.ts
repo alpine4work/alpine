@@ -278,7 +278,11 @@ export class AwsAppService extends Construct {
         taskDefinition.addToTaskRolePolicy(
             new PolicyStatement({
                 actions: ["ses:SendEmail"],
-                resources: ["arn:aws:ses:*:*:identity/cyberworlds.dev"],
+                resources: [
+                    // We don't send emails from cyberworlds.dev anymore and this was
+                    // left as a precaution. Should be removed in the future.
+                    "arn:aws:ses:*:*:identity/cyberworlds.dev",
+                ],
             }),
         );
 

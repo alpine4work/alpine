@@ -13,9 +13,8 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
-import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
+import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_table.js";
 import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
 import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
@@ -198,24 +197,6 @@ export async function requestAlphaAccess(
             displayMessage,
         });
     }
-
-    // NOTE(calebmer): Send an email to me whenever someone requests alpha access
-    // so I know to approve it immediately.
-    //
-    // Don't run outside of production so we don't have to validate the email
-    // address with a network request.
-    if (process.env.NODE_ENV === "production") {
-        await context.email.send({
-            fromEmailAddress: FromEmailAddress.Alpha,
-            toEmailAddress: await validateEmailAddress(context, "calebmeredith8@gmail.com"),
-            templateName: "RequestedAlphaAccess",
-            templateProps: {
-                name,
-                emailAddress,
-                message,
-            },
-        });
-    }
 }
 
 /**
@@ -300,16 +281,6 @@ export async function approveAlphaAccessRequest(
         spaceId: defaultSpaceId,
         accountId,
     });
-
-    // TODO(calebmer): For now I am sending alpha request approval emails manually
-    // so they don't get trapped in a junk email folder.
-    //
-    // await sendEmail(context, {
-    //     fromEmailAddress: FromEmailAddress.Caleb,
-    //     toEmailAddress: requestItem.emailAddress,
-    //     templateName: "AlphaAccessRequestApproved",
-    //     templateProps: {},
-    // });
 }
 
 /**

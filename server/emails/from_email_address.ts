@@ -14,6 +14,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  *   reputation. For instance we may have `auth.cyberworlds.dev`,
  *   `notification.cyberworlds.dev`, and `news.cyberworlds.dev`
  *   (for marketing) which develop different reputations.
+ * - By default, email sent via SES from @alpine.inc addresses are sent from 'mail.alpine.inc' as a
+ *   custom MAIL FROM address.
  *
  * Remember that from addresses are UI! A user will see them prominently in
  * their email client. So pick an email address that's human and user friendly.
@@ -27,16 +29,6 @@ export enum FromEmailAddress {
      * reputation for this email address.
      */
     SignIn = "SignIn",
-
-    /**
-     * We use this address to send alpha management emails to internal users.
-     */
-    Alpha = "Alpha",
-
-    /**
-     * Send an email as Caleb Meredith.
-     */
-    Caleb = "Caleb",
 }
 
 /**
@@ -45,11 +37,7 @@ export enum FromEmailAddress {
 export function getFromEmailAddress(fromEmailAddress: FromEmailAddress): string {
     switch (fromEmailAddress) {
         case FromEmailAddress.SignIn:
-            return "sign-in@cyberworlds.dev";
-        case FromEmailAddress.Alpha:
-            return "alpha@cyberworlds.dev";
-        case FromEmailAddress.Caleb:
-            return "caleb@cyberworlds.dev";
+            return "sign-in@alpine.inc";
         default:
             throw exhaustive(fromEmailAddress);
     }
@@ -61,10 +49,7 @@ export function getFromEmailAddress(fromEmailAddress: FromEmailAddress): string 
 export function getFromEmailAddressName(fromEmailAddress: FromEmailAddress): string {
     switch (fromEmailAddress) {
         case FromEmailAddress.SignIn:
-        case FromEmailAddress.Alpha:
-            return "Cyberworlds";
-        case FromEmailAddress.Caleb:
-            return "Caleb Meredith";
+            return "Alpine";
         default:
             throw exhaustive(fromEmailAddress);
     }

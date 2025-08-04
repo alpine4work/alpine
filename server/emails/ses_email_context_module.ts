@@ -58,7 +58,6 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                     Subject: {Charset: "utf8", Data: email.getHtmlTitle()},
                     Body: {Html: {Charset: "utf8", Data: email.html}},
                 },
-                ReturnPath: "email-errors@cyberworlds.dev",
             });
 
             span.addData({
