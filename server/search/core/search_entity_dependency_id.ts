@@ -4,7 +4,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    ContentMentionAccountId,
     DocumentId,
     PostId,
     TaskCollectionId,
@@ -43,8 +42,8 @@ import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
  * as an optimization.
  */
 export type SearchEntityDependencyId =
-    | `Account:${AccountId | ContentMentionAccountId}`
-    | `Account:${AccountId | ContentMentionAccountId}:WithoutSpace`
+    | `Account:${AccountId}`
+    | `Account:${AccountId}:WithoutSpace`
     | `Document:${DocumentId}:Authorization`
     | `Document:${DocumentId}:Title`
     | `Channel:${ChannelId}:Authorization`

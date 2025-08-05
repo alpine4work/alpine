@@ -4,7 +4,7 @@ import {ContentReferences, ContentWithReferences} from "~/shared/content/content
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
@@ -30,7 +30,7 @@ export function printContentSingleLineTextSnippetForServer(content: ContentWithR
 export function getContentReferencesForServerPrintSingleLineTextSnippet(
     references: ContentReferences,
 ): {
-    getAccountIfExists: (accountId: ContentMentionAccountId) => AccountModelWithoutSpaceData | null;
+    getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;

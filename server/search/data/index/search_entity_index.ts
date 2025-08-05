@@ -134,13 +134,7 @@ import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    ChannelId,
-    ContentMentionAccountId,
-    SpaceId,
-    TaskCollectionId,
-} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
     SearchAffinityEntityId,
@@ -189,8 +183,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * a part of the base `SearchEntityId`.
  */
 type SearchEntityIdForKeywordIndex =
-    | Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>
-    | `Account:${ContentMentionAccountId}~${SpaceId}`;
+    | Exclude<SearchDynamicEntityId, `Account:${AccountId}`>
+    | `Account:${AccountId}~${SpaceId}`;
 
 // Double check that `Account:${AccountId}` isn't allowed. We must add the
 // `SpaceId`.
@@ -201,9 +195,9 @@ function intoSearchEntityIdForKeywordIndex(
     entityId: SearchDynamicEntityId,
 ): SearchEntityIdForKeywordIndex {
     if (entityId.startsWith("Account:")) {
-        return `${entityId as `Account:${ContentMentionAccountId}`}~${spaceId}`;
+        return `${entityId as `Account:${AccountId}`}~${spaceId}`;
     } else {
-        return entityId as Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>;
+        return entityId as Exclude<SearchDynamicEntityId, `Account:${AccountId}`>;
     }
 }
 
@@ -211,9 +205,9 @@ function fromSearchEntityIdForKeywordIndex(
     entityId: SearchEntityIdForKeywordIndex,
 ): SearchDynamicEntityId {
     if (entityId.startsWith("Account:")) {
-        return entityId.split("~")[0]! as `Account:${ContentMentionAccountId}`;
+        return entityId.split("~")[0]! as `Account:${AccountId}`;
     } else {
-        return entityId as Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>;
+        return entityId as Exclude<SearchDynamicEntityId, `Account:${AccountId}`>;
     }
 }
 

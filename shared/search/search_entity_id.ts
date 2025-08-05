@@ -12,7 +12,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -44,7 +43,7 @@ export const SearchEntityIdSchema = Schema.string.transform<SearchEntityId>({
 type SearchEntityIdAxes = {
     Dynamic: {
         Affinity:
-            | `Account:${ContentMentionAccountId}`
+            | `Account:${AccountId}`
             | `Document:${DocumentId}`
             | `Channel:${ChannelId}`
             | `Chat:${ChatId}`
@@ -333,10 +332,7 @@ export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<Search
 assertAssignableTypes<SearchMentionEntityId, SearchEntityId>();
 assertEqualTypes<
     SearchMentionEntityId,
-    | Exclude<
-          SearchAffinityEntityId,
-          `Account:${ContentMentionAccountId}` | `Chat:${ChatId}` | "TaskPersonal"
-      >
+    | Exclude<SearchAffinityEntityId, `Account:${AccountId}` | `Chat:${ChatId}` | "TaskPersonal">
     | `Post:${PostId}`
 >();
 
@@ -346,7 +342,7 @@ assertEqualTypes<
  * `parseSearchDynamicEntityId()`.
  */
 export type SearchDynamicEntityIdObject =
-    | {readonly type: "Account"; readonly accountId: AccountId | ContentMentionAccountId}
+    | {readonly type: "Account"; readonly accountId: AccountId}
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {
           readonly type: "DocumentComment";
@@ -503,7 +499,7 @@ export function getSearchMentionEntityTypes() {
  * Is the provided `SearchEntityId` a valid `SearchMentionEntityId`?
  */
 export function isSearchMentionEntityId(
-    id: SearchEntityId | `Account:${ContentMentionAccountId}~${SpaceId}`,
+    id: SearchEntityId | `Account:${AccountId}~${SpaceId}`,
 ): id is SearchMentionEntityId {
     const [idType = ""] = id.split(":", 2);
     return cast<{[key: string]: true}>(searchMentionEntityIdTestMap)[idType] === true;

@@ -11,7 +11,7 @@ import {
 } from "~/shared/content/print_content_single_line_text_snippet.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {FileModelData} from "~/shared/files/file_model.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -67,7 +67,7 @@ export function getContentReferencesForClientPrintSingleLineTextSnippet(
         fileRegistry: FileRegistry;
     },
 ): {
-    getAccountIfExists: (accountId: ContentMentionAccountId) => AccountModelWithoutSpaceData | null;
+    getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;

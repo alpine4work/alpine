@@ -1,25 +1,21 @@
 import {Node} from "prosemirror-model";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 
 /**
  * Get all the mentioned accounts in some content.
  */
-export function getMentionedAccountIdsInContent(
-    content: Node,
-): ReadonlySet<ContentMentionAccountId> {
+export function getMentionedAccountIdsInContent(content: Node): ReadonlySet<AccountId> {
     return new Set(getMentionCountByAccountIdInContent(content).keys());
 }
 
 /**
  * Get all mentions in the content and the number of times they appear.
  */
-export function getMentionCountByAccountIdInContent(
-    content: Node,
-): ReadonlyMap<ContentMentionAccountId, number> {
-    const mentionCountByAccountId = new Map<ContentMentionAccountId, number>();
+export function getMentionCountByAccountIdInContent(content: Node): ReadonlyMap<AccountId, number> {
+    const mentionCountByAccountId = new Map<AccountId, number>();
 
     visitProsemirrorNode(content, {
         visitNode: node => {
@@ -44,10 +40,10 @@ export function getMentionCountByAccountIdInContent(
  * for new content if you are deleting old content.
  */
 export function applyMentionCountByAccountIdDifferenceFromContentUpdate(
-    mentionCountByAccountId: ReadonlyMap<ContentMentionAccountId, number>,
+    mentionCountByAccountId: ReadonlyMap<AccountId, number>,
     oldContent: Node | null,
     newContent: Node | null,
-): ReadonlyMap<ContentMentionAccountId, number> {
+): ReadonlyMap<AccountId, number> {
     const oldMentionCountByAccountId = oldContent
         ? getMentionCountByAccountIdInContent(oldContent)
         : new Map();

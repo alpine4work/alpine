@@ -3,7 +3,7 @@ import {
     AccountModelWithoutSpaceData,
     AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
-import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SpaceAccountStateSchemas,
@@ -103,7 +103,7 @@ export class AccountModel implements AccountModelWithoutSpace {
      * `getSearchEntityId()` on `SearchEntityModel | AccountModel` to get the
      * `SearchEntityId`.
      */
-    public getSearchEntityId(): `Account:${ContentMentionAccountId}` {
+    public getSearchEntityId(): `Account:${AccountId}` {
         return `Account:${this.id}`;
     }
 

@@ -63,12 +63,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    ChannelId,
-    ContentMentionAccountId,
-    SpaceId,
-} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -1287,7 +1282,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
         dynamo: DynamoContextModule;
     }>,
     spaceId: SpaceId,
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     expectedRole: SpaceRole = "Member",
 ): Promise<boolean> {
     // Check if all accounts in the space are cached...
@@ -1297,7 +1292,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             spaceId,
         );
 
-    const accountFromCache1 = accountsCacheData?.accountById.get(accountId as AccountId);
+    const accountFromCache1 = accountsCacheData?.accountById.get(accountId);
     if (accountFromCache1 && accountFromCache1.initialData.space.state.type === "Active") {
         // If we have a role expectation and the cached role matches, return true
         if (hasSpaceRole(accountFromCache1.initialData.space.role, expectedRole)) {
@@ -1386,7 +1381,7 @@ export async function isAccountMemberOfSpace(
         dynamo: DynamoContextModule;
     }>,
     spaceId: SpaceId,
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
 ): Promise<boolean> {
     await authorizeSpaceAccess(context, spaceId);
     return isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId);
@@ -1706,7 +1701,7 @@ export async function impersonateAccountAsSystemContext<
 }
 
 const SpaceAccountItemContextCache = new ContextCache<
-    `${SpaceId}:${AccountId | ContentMentionAccountId}`,
+    `${SpaceId}:${AccountId}`,
     SpaceAccountItem | null
 >({
     // Allow sharing this cache because the results do not depend on who the
@@ -1729,9 +1724,7 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
         dynamo: DynamoContextModule;
     }>,
     spaceId: SpaceId,
-    // You may call this function `ContentMentionAccountId` since it does not throw
-    // when the account does not exist in the space.
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     {
         consistency = "Eventual",
         allowsEventualReadConsistency = false,
@@ -1749,7 +1742,7 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
                         partitionType: "Space",
                         sortRangeType: "Account",
                         spaceId,
-                        accountId: accountId as AccountId,
+                        accountId,
                     },
                     {consistency: "Eventual", allowsEventualReadConsistency},
                 ),
@@ -1762,7 +1755,7 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
                     partitionType: "Space",
                     sortRangeType: "Account",
                     spaceId,
-                    accountId: accountId as AccountId,
+                    accountId,
                 },
                 {consistency: "Strong"},
             );
@@ -1779,7 +1772,7 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
 }
 
 const AccountModelContextCache = new DynamoContextCache<
-    `${SpaceId}:${ContentMentionAccountId}`,
+    `${SpaceId}:${AccountId}`,
     AccountModel | null
 >({
     // Allow sharing this cache because the results do not depend on who the
@@ -1815,9 +1808,7 @@ export async function getAccountIfExists(
         actor: DynamoActorContextModule;
     }>,
     spaceId: SpaceId,
-    // You may call this function `ContentMentionAccountId` since it does not throw
-    // when the account does not exist in the space.
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel | null> {
     // Make sure we have access to the space being requested.
@@ -1850,9 +1841,7 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
         actor: DynamoActorContextModule;
     }>,
     spaceId: SpaceId,
-    // You may call this function `ContentMentionAccountId` since it does not throw
-    // when the account does not exist in the space.
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<AccountModel | null> {
     const account = await getAccountIfExistsWithoutAuthorization(
@@ -1907,9 +1896,7 @@ async function getAccountIfExistsWithoutAuthorization(
         actor: DynamoActorContextModule;
     }>,
     spaceId: SpaceId,
-    // You may call this function `ContentMentionAccountId` since it does not throw
-    // when the account does not exist in the space.
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountModel | null> {
     return AccountModelContextCache.get(
@@ -1932,7 +1919,7 @@ async function getAccountIfExistsWithoutAuthorization(
                         spaceId,
                     );
                 if (accountsCacheData) {
-                    return accountsCacheData.accountById.get(accountId as AccountId) ?? null;
+                    return accountsCacheData.accountById.get(accountId) ?? null;
                 }
             }
 
@@ -1943,7 +1930,7 @@ async function getAccountIfExistsWithoutAuthorization(
                 context.actor.type === "Session" &&
                 context.actor.getAccountId() === accountId
                     ? context.actor.getAccount()
-                    : dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId, {
+                    : dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
                           consistency,
                       }),
                 getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
@@ -1970,12 +1957,6 @@ async function getAccountIfExistsWithoutAuthorization(
 
 /**
  * Throw an error if the account can not be found.
- *
- * You should not call this function with `ContentMentionAccountId`! Instead
- * you should call `getAccountIfExists()` since `ContentMentionAccountId` may
- * reference an account in a different space you don't have access to. You
- * should get a type error if you try to call this function
- * with `ContentMentionAccountId`.
  */
 // This lives in `server/spaces` because it needs access to both the account
 // table and the space table.

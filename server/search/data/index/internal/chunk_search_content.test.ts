@@ -27,7 +27,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
@@ -38,9 +38,7 @@ function testGetFullSearchContentChunk(
     content: Node,
     options: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -95,9 +93,7 @@ function testGetFullSearchContentChunk(
 function dropIgnoredSearchContent(
     node: Node,
     options: {
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

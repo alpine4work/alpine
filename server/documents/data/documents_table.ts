@@ -144,7 +144,6 @@ import {
 import {
     AccountId,
     ContentEditorClientId,
-    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
@@ -227,10 +226,9 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
          * - If an account does not exist in the map they were never mentioned in
          *   the post
          */
-        mentionCountByAccountId: Schema.map(
-            Schema.id<ContentMentionAccountId>(),
-            Schema.integer.min(0),
-        ).default(new Map()),
+        mentionCountByAccountId: Schema.map(Schema.id<AccountId>(), Schema.integer.min(0)).default(
+            new Map(),
+        ),
     }),
 
     /**
@@ -5148,7 +5146,7 @@ export async function createDocumentComment(
                 if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
                     await markSearchAffinityEntityInteraction(context, {
                         spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }
@@ -6401,7 +6399,7 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
-    accountIds: Set<AccountId | ContentMentionAccountId>;
+    accountIds: Set<AccountId>;
 }> {
     const [{creatorId}, commentThreadItem] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
@@ -6412,7 +6410,7 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         }),
     ]);
 
-    const accountIds = new Set<ContentMentionAccountId>(
+    const accountIds = new Set(
         concatIterables(
             isFirstComment && creatorId ? [creatorId] : [],
             commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),

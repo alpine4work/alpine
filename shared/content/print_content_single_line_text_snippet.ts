@@ -20,7 +20,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {isId} from "~/shared/id/id.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
@@ -59,9 +59,7 @@ export function printContentSingleLineTextSnippet(
         getSearchEntityIfExists,
         getFileIfExists,
     }: {
-        getAccountIfExists: (
-            accountId: ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -106,9 +104,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     content: Node,
     options: {
         shouldPreserveMark: (mark: Mark) => boolean;
-        getAccountIfExists: (
-            accountId: ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

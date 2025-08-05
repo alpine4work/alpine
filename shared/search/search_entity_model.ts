@@ -1,6 +1,6 @@
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchAffinityEntityId,
@@ -16,7 +16,7 @@ import {
     compareSearchEntityTitleVersion,
 } from "~/shared/search/search_entity_title_version.js";
 
-export type SearchEntityModelId = Exclude<SearchEntityId, `Account:${ContentMentionAccountId}`>;
+export type SearchEntityModelId = Exclude<SearchEntityId, `Account:${AccountId}`>;
 
 export function assertSearchEntityModelId(entityId: SearchEntityId): SearchEntityModelId {
     assert(isSearchEntityModelId(entityId));

@@ -7,7 +7,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchMentionEntityId,
@@ -30,7 +30,7 @@ export const ContentReferencesSchema = Schema.object({
     /**
      * Accounts referenced in mentions.
      */
-    accountById: Schema.map(Schema.id<ContentMentionAccountId>(), AccountModel.schema),
+    accountById: Schema.map(Schema.id<AccountId>(), AccountModel.schema),
 
     /**
      * Search entities referenced in mentions.
@@ -146,7 +146,7 @@ export function mergeContentReferences(
     if (isEmptyContentReferences(references1)) return references2;
     if (isEmptyContentReferences(references2)) return references1;
 
-    const accountById = new Map<ContentMentionAccountId, AccountModel>();
+    const accountById = new Map<AccountId, AccountModel>();
 
     // Merge accounts together...
     for (const [accountId, account] of concatIterables(

@@ -166,7 +166,6 @@ import {generateId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
-    ContentMentionAccountId,
     FileId,
     PostDraftId,
     PostId,
@@ -443,7 +442,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                              * single attribute with other comment information.
                              */
                             mentionCountByAccountId: Schema.map(
-                                Schema.id<ContentMentionAccountId>(),
+                                Schema.id<AccountId>(),
                                 Schema.integer.min(0),
                             ).default(new Map()),
                         }),
@@ -794,7 +793,7 @@ const ForumTable = DynamoTableSchema.new({
                                 Schema.integer.min(1),
                             ),
                             mentionCountByAccountId: Schema.map(
-                                Schema.id<ContentMentionAccountId>(),
+                                Schema.id<AccountId>(),
                                 Schema.integer.min(0),
                             ).default(new Map()),
                         }),
@@ -3067,7 +3066,7 @@ export async function createPost(
             if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
                 await markSearchAffinityEntityInteraction(context, {
                     spaceId,
-                    entityId: `Account:${mentionedAccountId as AccountId}`,
+                    entityId: `Account:${mentionedAccountId}`,
                     interaction: {type: "HighIntentUpdate"},
                 });
             }
@@ -3367,7 +3366,7 @@ export async function getPostNotificationSubscribers(
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
-    accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
+    accountIds: ReadonlySet<AccountId>;
     postCreatedTime: Date;
 }> {
     const postItemPromise = ForumRealtimeTable.getPartialItemIfExists(
@@ -3392,7 +3391,7 @@ export async function getPostNotificationSubscribers(
 
     await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
 
-    const accountIds = new Set<ContentMentionAccountId>(
+    const accountIds = new Set(
         concatIterables(
             [postItem.authorId],
             postItem.commentsSummary.commentCountByAuthorId.keys(),
@@ -4004,7 +4003,7 @@ export async function createPostComment(
                 if (await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)) {
                     await markSearchAffinityEntityInteraction(context, {
                         spaceId: postItem.spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

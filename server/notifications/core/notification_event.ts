@@ -3,7 +3,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     NotificationEventId,
@@ -27,7 +26,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     messageIndex: Schema.integer,
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
-    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
     clerical: MessageContentPayloadClericalSchema.optional(),
@@ -45,7 +44,7 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     commentIndex: Schema.integer,
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
-    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -60,7 +59,7 @@ const NotificationCreatePostEventSchema = Schema.object({
     postId: Schema.id<PostId>(),
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
-    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: PostContentSchema,
 });
@@ -78,7 +77,7 @@ const NotificationCreateDocumentCommentEventSchema = Schema.object({
     commentIndex: Schema.integer,
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
-    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -95,7 +94,7 @@ const NotificationCreateTaskCommentEventSchema = Schema.object({
     commentIndex: Schema.integer,
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
-    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });

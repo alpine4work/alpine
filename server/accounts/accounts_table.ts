@@ -37,12 +37,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    ContentMentionAccountId,
-    SessionId,
-    SpaceId,
-} from "~/shared/id/types/id_types.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -1084,7 +1079,7 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
  */
 async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
     context: DynamoContext,
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ) {
     // Pretend like the unknown account doesn't exist. We do have an unknown
@@ -1102,7 +1097,7 @@ async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
         {
             partitionType: "Account",
             sortRangeType: "Attributes",
-            accountId: accountId as AccountId,
+            accountId,
         },
         {consistency},
     );
@@ -1124,7 +1119,7 @@ async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
  */
 export async function dangerouslyGetAccountIfExistsWithoutCaching(
     context: DynamoContext,
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ) {
     // Pretend like the unknown account doesn't exist. We do have an unknown
@@ -1142,7 +1137,7 @@ export async function dangerouslyGetAccountIfExistsWithoutCaching(
         {
             partitionType: "Account",
             sortRangeType: "Attributes",
-            accountId: accountId as AccountId,
+            accountId,
         },
         {consistency},
     );

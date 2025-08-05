@@ -13,7 +13,7 @@ import {FileContentType} from "~/shared/files/file_content_type.js";
 import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 export function getPostSearchEntityTitleContentSnippet(content: PostContent): PostContent {
@@ -36,9 +36,7 @@ export function createPostSearchEntityTitle(
     channelName: string,
     content: PostContent,
     options: {
-        getAccountIfExists: (
-            accountId: ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -56,9 +54,7 @@ export function createPostSearchEntityTitleWithAlreadySnippedContent(
     channelName: string,
     contentSnippet: PostContent,
     options: {
-        getAccountIfExists: (
-            accountId: ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

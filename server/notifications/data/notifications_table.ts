@@ -133,7 +133,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     NotificationEventId,
@@ -2133,7 +2132,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         event: Event,
     ) => Promise<{
         info: Info;
-        accountIds: Iterable<AccountId | ContentMentionAccountId>;
+        accountIds: Iterable<AccountId>;
     }>;
 
     /**
@@ -2253,9 +2252,9 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         );
 
         await runAllPromises(
-            mapIterable(accountIds, async accountOrMentionId => {
+            mapIterable(accountIds, async accountId => {
                 // Make sure the account is a current member of the space.
-                if (!(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))) {
+                if (!(await isAccountMemberOfSpace(context, event.spaceId, accountId))) {
                     return;
                 }
 
@@ -2263,7 +2262,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                 // notification.
                 const result = await impersonateAccountAsSystemContext(
                     context,
-                    accountOrMentionId as AccountId,
+                    accountId,
                     context =>
                         authorizeAccess(
                             // We expect strong read consistency here too since we need read-after-write
@@ -2275,10 +2274,6 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                         ),
                 );
                 if (!result.ok) return;
-
-                // This is a verified `AccountId` after the `isAccountMemberOfSpace()`
-                // check above.
-                const accountId = accountOrMentionId as AccountId;
 
                 await context.tracer.withSpan(
                     "Process notification event for account",

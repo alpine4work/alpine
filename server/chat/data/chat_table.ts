@@ -1082,7 +1082,7 @@ function sendChatMessageForAccount(
                     ) {
                         await markSearchAffinityEntityInteraction(sessionContext, {
                             spaceId: chatItem.spaceId,
-                            entityId: `Account:${mentionedAccountId as AccountId}`,
+                            entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
                         });
                     }

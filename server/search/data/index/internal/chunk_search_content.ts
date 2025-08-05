@@ -29,7 +29,7 @@ import {isIterable} from "~/shared/helpers/iterable/is_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 type RecursiveIterable<T> = Iterable<T | RecursiveIterable<T>>;
@@ -108,9 +108,7 @@ export function chunkSearchContent(
         getChunkPreamble = () => ({text: "", lineMarginBottom: 0}),
     }: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -205,9 +203,7 @@ export function getFullSearchContentChunk(
         getSearchEntityIfExists,
     }: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -908,9 +904,7 @@ function chunkSearchContentBySentenceForBlockFragment(
     fragment: Fragment,
     options: {
         orderListItemNumberByNode: Map<Node, number>;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -973,9 +967,7 @@ function chunkSearchContentBySentenceForBlockNode(
     node: Node,
     options: {
         orderListItemNumberByNode: Map<Node, number>;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -1413,9 +1405,7 @@ function chunkSearchContentBySentenceForText(text: string): Array<string> {
 function chunkSearchContentBySentenceForTextblockNode(
     node: Node,
     options: {
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -1480,9 +1470,7 @@ function printSearchTextForInlineFragment(
     fragment: Fragment,
     options: {
         context: "heading" | "codeBlock" | null;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -1586,9 +1574,7 @@ function printSearchTextForInlineNode(
     node: Node,
     options: {
         context: "heading" | "codeBlock" | null;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

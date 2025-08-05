@@ -137,7 +137,6 @@ import {decodeIdInto, encodeId, generateId, getMinId, idByteLength, isId} from "
 import {
     AccountId,
     BrowserId,
-    ContentMentionAccountId,
     FileId,
     SpaceId,
     TaskActionTransactionId,
@@ -714,7 +713,7 @@ const TaskTable = DynamoTableSchema.new({
                          *   the task
                          **/
                         mentionCountByAccountId: Schema.map(
-                            Schema.id<ContentMentionAccountId>(),
+                            Schema.id<AccountId>(),
                             Schema.integer.min(0),
                         ).default(new Map()),
                     }),
@@ -5115,7 +5114,7 @@ export async function getTaskNotificationSubscribers(
     id: TaskId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
-    accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
+    accountIds: ReadonlySet<AccountId>;
 }> {
     const {item: taskItem, commentsSummaryItem} =
         await authorizeTaskAccessAndGetCommentsSummaryItem(context, id, "Comment", consistency);
@@ -5131,7 +5130,7 @@ export async function getTaskNotificationSubscribers(
 
     // note(maximchen, 2024-07-24): It is an open design question whether a old assignee
     // should stay subscribed to notifications even after they have been unassigned.
-    const accountIds = new Set<ContentMentionAccountId>(
+    const accountIds = new Set(
         concatIterables(
             [taskItem.creatorId],
             assigneeId ? [assigneeId] : [],
@@ -5493,7 +5492,7 @@ export async function createTaskComment(
                 if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
                     await markSearchAffinityEntityInteraction(context, {
                         spaceId: spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        entityId: `Account:${mentionedAccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
                 }

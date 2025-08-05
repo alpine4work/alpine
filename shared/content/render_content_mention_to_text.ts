@@ -4,7 +4,7 @@ import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     deletedSearchEntityTitle,
@@ -30,9 +30,7 @@ export function renderContentMentionToText(
         getAccountIfExists,
         getSearchEntityIfExists,
     }: {
-        getAccountIfExists: (
-            accountId: ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

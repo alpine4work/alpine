@@ -7,7 +7,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {isId} from "~/shared/id/id.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorFragment,
@@ -29,7 +29,7 @@ import {
 export type ContentReferencedIds = SchemaType<typeof ContentReferencedIdsSchema>;
 
 export const ContentReferencedIdsSchema = Schema.object({
-    accountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    accountIds: Schema.set(Schema.id<AccountId>()),
     searchEntityIds: Schema.set(SearchMentionEntityIdSchema),
     fileIds: Schema.set(Schema.id<FileId>()),
     fileEntityIds: Schema.set(FileEntityIdSchema),
@@ -107,7 +107,7 @@ export function collectContentReferencedIds(
     visit: (visitor: ProsemirrorVisitor) => void,
     extraVisitor: ProsemirrorVisitor = {},
 ): ContentReferencedIds {
-    const accountIds = new Set<ContentMentionAccountId>();
+    const accountIds = new Set<AccountId>();
     const searchEntityIds = new Set<SearchMentionEntityId>();
     const fileIds = new Set<FileId>();
     const fileEntityIds = new Set<FileEntityId>();

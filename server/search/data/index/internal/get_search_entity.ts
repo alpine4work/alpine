@@ -82,7 +82,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
@@ -211,7 +210,7 @@ class SearchEntityReadState {
     // consistent reads after construction of read state. If we pick up an account
     // from the `getAccount()` cache we don't have that guarantee.
     private readonly _accountPromiseById = new Map<
-        AccountId | ContentMentionAccountId,
+        AccountId,
         Promise<AccountModelWithoutSpaceData | null>
     >();
 
@@ -283,9 +282,7 @@ class SearchEntityReadState {
      */
     // Arrow function form so we can pass as a function parameter
     // (e.g. `chunkSearchContent(content, {getAccountIfExists: state.getAccountIfExists}))`)
-    public getAccountIfExists(
-        accountId: AccountId | ContentMentionAccountId,
-    ): Promise<AccountModelWithoutSpaceData | null> {
+    public getAccountIfExists(accountId: AccountId): Promise<AccountModelWithoutSpaceData | null> {
         this._recordDependencyId(`Account:${accountId}:WithoutSpace`);
 
         return getOrSetDefaultMapValue(this._accountPromiseById, accountId, async () => {
@@ -755,9 +752,7 @@ async function getSearchContentReferences(
     // which would be the default if this argument were optional.
     seen: ReadonlySet<SearchEntityId>,
 ): Promise<{
-    getAccountIfExists: (
-        accountId: AccountId | ContentMentionAccountId,
-    ) => AccountModelWithoutSpaceData | null;
+    getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;
@@ -869,7 +864,7 @@ async function getSearchContentReferences(
         ),
     ]);
 
-    const accountById = new Map<ContentMentionAccountId, AccountModelWithoutSpaceData>(
+    const accountById = new Map<AccountId, AccountModelWithoutSpaceData>(
         filterMapIterable(accounts, account => {
             if (!account) return;
             return [account.id, account];
@@ -1040,9 +1035,9 @@ async function actuallyGetSearchEntity(
 
 async function getAccountSearchEntity(
     state: SearchEntityReadState,
-    accountId: AccountId | ContentMentionAccountId,
+    accountId: AccountId,
 ): Promise<SearchEntity> {
-    const account = await state.getAccountWithSpace(accountId as AccountId);
+    const account = await state.getAccountWithSpace(accountId);
 
     return {
         id: `Account:${accountId}`,
@@ -1058,7 +1053,7 @@ async function getAccountSearchEntity(
         title: account.initialData.name,
         titleVersion: {type: "Integer", version: account.initialData.nameVersion},
         body: null,
-        media: {type: "Account", accountId: accountId as AccountId},
+        media: {type: "Account", accountId},
         embeddingChunks: emptyArray,
 
         // Doesn't make sense that an account would create itself. So mark an account
@@ -1150,9 +1145,7 @@ export function chunkDocumentSearchContent(
         getSearchEntityIfExists,
     }: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
-        getAccountIfExists: (
-            accountId: AccountId | ContentMentionAccountId,
-        ) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

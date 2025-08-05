@@ -30,7 +30,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
@@ -99,7 +99,7 @@ function getIndexedSearchEntity(entity: TestDocument) {
 async function actuallyGetIndexedSearchEntity(
     context: TestContext,
     spaceId: SpaceId,
-    entityId: Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>,
+    entityId: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
 ): Promise<{
     title: string | null;
     body: string | null;

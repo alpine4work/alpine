@@ -3,10 +3,7 @@ import {
     internalUpdateOurAccountName,
     registerOurAccountAppleDeviceToken,
 } from "~/server/accounts/accounts_table.js";
-import {
-    ServerActionContext,
-    ServerSessionActionContext,
-} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -55,7 +52,7 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -136,33 +133,6 @@ test("can get all accounts for our space", async () => {
             await getAccount(context.action(sessionB3), spaceB.id, sessionB3.account.id),
         ].sort((account1, account2) => defaultCompareStrings(account1.id, account2.id)),
     );
-});
-
-test("can not call `getAccount()` with `ContentMentionAccountId`", () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async function testTypes(
-        context: ServerActionContext,
-        spaceId: SpaceId,
-        accountId: ContentMentionAccountId,
-    ) {
-        await getAccount(
-            context,
-            spaceId,
-            // @ts-expect-error: Can't call with `ContentMentionId`
-            accountId,
-        );
-    }
-});
-
-test("can call `getAccountIfExists()` with `ContentMentionAccountId`", () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async function testTypes(
-        context: ServerActionContext,
-        spaceId: SpaceId,
-        accountId: ContentMentionAccountId,
-    ) {
-        await getAccountIfExists(context, spaceId, accountId);
-    }
 });
 
 test("account name search matches names with slight typos", async () => {
