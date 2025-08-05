@@ -2630,6 +2630,12 @@ Resources:
                                 - ""
                                 - - "arn:aws:ses:us-east-1:"
                                   - Ref: AWS::AccountId
+                                  - :configuration-set/
+                                  - Ref: SesConfigurationSet74E7EAAF
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
                                   - :identity/
                                   - Ref: SesEmailIdentity8E702B39
                     - Action:
