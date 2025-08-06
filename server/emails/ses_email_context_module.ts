@@ -1,33 +1,23 @@
-// IMPORTANT: We are only importing `@aws-sdk` for types. Use
-// `aws4fetch` for executing any AWS commands.
-import type * as types from "@aws-sdk/client-ses";
+import {SESClient, SESServiceException, SendEmailCommand} from "@aws-sdk/client-ses";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {encodeAwsUrlencodedFormat} from "~/server/emails/encode_aws_urlencoded_format.js";
 import {
     FromEmailAddress,
     getFromEmailAddress,
     getFromEmailAddressName,
 } from "~/server/emails/from_email_address.js";
 import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError, UnavailableError} from "~/shared/error/error.js";
 
 /**
  * Send an email with AWS SES. Used in production to send emails.
  */
-// NOTE(calebmer): This class used to run in Cloudflare Workers where we can't
-// use the AWS SDK which is why we're using `AwsRequestSigner` directly.
-// Eventually this should probably migrate to `@aws-sdk/client-ses`.
 export class SesEmailContextModule extends EmailContextModuleBase {
-    private readonly _url: string;
-    private readonly _signer: AwsRequestSigner;
+    private readonly _client: SESClient;
 
-    constructor(url: string, signer: AwsRequestSigner) {
+    constructor() {
         super();
-        this._url = url;
-        this._signer = signer;
+        this._client = new SESClient();
     }
 
     protected _send(
@@ -50,7 +40,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                 },
             });
 
-            const output = await executeSesSendEmailCommand(span, this._url, this._signer, {
+            const input = {
                 // eslint-disable-next-line string-quotes
                 Source: `"${fromEmailAddressName}" <${actualFromEmailAddress}>`,
                 Destination: {ToAddresses: [toEmailAddress]},
@@ -58,58 +48,32 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                     Subject: {Charset: "utf8", Data: email.getHtmlTitle()},
                     Body: {Html: {Charset: "utf8", Data: email.html}},
                 },
-            });
+            };
 
-            span.addData({
-                aws: {
-                    ses: {
-                        messageId: output.MessageId,
+            try {
+                const output = await this._client.send(new SendEmailCommand(input));
+                span.addData({
+                    aws: {
+                        ses: {
+                            messageId: output.MessageId,
+                        },
                     },
-                },
-            });
+                });
+            } catch (error) {
+                if (!SESServiceException.isInstance(error)) throw error;
+
+                // ServiceUnavailable errors are expected to be transient and are retryable
+                if (error.name === "ServiceUnavailable" || error.$retryable) {
+                    throw UnavailableError.from(error, "SES SendEmail failed");
+                }
+                // These errors are not recoverable and indicate an invalid input payload or an
+                // AWS account or configuration issue
+                throw InternalError.from(error, "SES SendEmail failed");
+            }
         });
     }
 
     public fork() {
-        return new SesEmailContextModule(this._url, this._signer);
+        return new SesEmailContextModule();
     }
-}
-
-async function executeSesSendEmailCommand(
-    span: TracerSpan,
-    url: string,
-    signer: AwsRequestSigner,
-    input: types.SendEmailCommandInput,
-): Promise<types.SendEmailCommandOutput> {
-    let request = new Request(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Accept: "application/json",
-        },
-        body: encodeAwsUrlencodedFormat({
-            Action: "SendEmail",
-            Version: "2010-12-01",
-            ...input,
-        } as any),
-    });
-
-    request = await signer.sign(request, span);
-
-    // We already have a span so we don't need `fetchWithTracer()`.
-    // eslint-disable-next-line no-global-fetch
-    const response = await fetch(request);
-
-    const body: any = await response.json();
-    const output = body.SendEmailResponse?.SendEmailResult;
-
-    if (response.status !== 200 || !output?.MessageId) {
-        const code = body.Error?.Code;
-        const message = body.Error?.Message;
-        throw new UnknownError(`SES ${code ?? "unknown error"}${message ? `: ${message}` : ""}`, {
-            cause: body,
-        });
-    }
-
-    return output;
 }

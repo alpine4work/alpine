@@ -190,7 +190,7 @@ async function createAppService({
     const processContext: AppServiceProcessContext = baseProcessContext.clone({
         email:
             process.env.NODE_ENV === "production"
-                ? new SesEmailContextModule("https://email.us-east-1.amazonaws.com", awsSigner)
+                ? new SesEmailContextModule()
                 : new NoopEmailContextModule(),
         edge: new EdgeServiceContextModule({
             edgeServiceUrl: assertExists(
