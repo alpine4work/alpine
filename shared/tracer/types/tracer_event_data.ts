@@ -770,9 +770,6 @@ export type TracerEventData = {
          * Information regarding our use of Amazon SES for sending email.
          */
         readonly ses?: {
-            /** The email address we are sending from. */
-            readonly source?: string;
-
             /** The AWS SES message id. Can be used to track deliverability status. */
             readonly messageId?: string;
         };
@@ -919,6 +916,8 @@ export type TracerEventData = {
     readonly email?: {
         /** Which of our email templates are we using? */
         readonly template?: string;
+        /** The email address we are sending from. */
+        readonly source?: string;
     };
 
     readonly webSocket?: {

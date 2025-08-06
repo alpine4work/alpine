@@ -265,7 +265,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             expirationTime: DateStringSchema,
         },
         ses: {
-            source: Schema.string,
             messageId: Schema.string,
         },
         sqs: {
@@ -313,6 +312,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     email: {
         template: IdentifierStringSchema,
+        source: Schema.string,
     },
     webSocket: {
         connectionId: Schema.id(),

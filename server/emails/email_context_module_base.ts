@@ -1,5 +1,5 @@
 import {EmailAddress} from "~/server/emails/email_address.js";
-import {FromEmailAddress} from "~/server/emails/from_email_address.js";
+import {FromEmailAddressAlias} from "~/server/emails/from_email_address.js";
 import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
@@ -33,12 +33,12 @@ export abstract class EmailContextModuleBase<
      * [2]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
      */
     public async send<Template extends keyof EmailTemplates>({
-        fromEmailAddress,
+        fromEmailAddressAlias,
         toEmailAddress,
         templateName,
         templateProps,
     }: {
-        fromEmailAddress: FromEmailAddress;
+        fromEmailAddressAlias: FromEmailAddressAlias;
         toEmailAddress: EmailAddress;
         templateName: Template;
         templateProps: Parameters<EmailTemplates[Template]>[0];
@@ -53,11 +53,11 @@ export abstract class EmailContextModuleBase<
             },
         );
 
-        await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
+        await this._send(fromEmailAddressAlias, toEmailAddress, renderedEmail);
     }
 
     protected abstract _send(
-        fromEmailAddress: FromEmailAddress,
+        fromEmailAddressAlias: FromEmailAddressAlias,
         toEmailAddress: EmailAddress,
         email: RenderedEmail,
     ): Promise<void>;

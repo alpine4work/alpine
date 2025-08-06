@@ -2,9 +2,8 @@ import {SESClient, SESServiceException, SendEmailCommand} from "@aws-sdk/client-
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {
-    FromEmailAddress,
-    getFromEmailAddress,
-    getFromEmailAddressName,
+    FromEmailAddressAlias,
+    getFormattedFromEmailAddress,
 } from "~/server/emails/from_email_address.js";
 import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
@@ -21,28 +20,25 @@ export class SesEmailContextModule extends EmailContextModuleBase {
     }
 
     protected _send(
-        fromEmailAddress: FromEmailAddress,
+        fromEmailAddressAlias: FromEmailAddressAlias,
         toEmailAddress: EmailAddress,
         email: RenderedEmail,
     ): Promise<void> {
         return this._context.tracer.withSpan("SES SendEmail", async (context, span) => {
-            const actualFromEmailAddress = getFromEmailAddress(fromEmailAddress);
-            const fromEmailAddressName = getFromEmailAddressName(fromEmailAddress);
+            const formattedFromEmailAddress = getFormattedFromEmailAddress(
+                FromEmailAddressAlias[fromEmailAddressAlias],
+                "name-addr",
+            );
 
             span.addData({
                 email: {
                     template: email.templateName,
-                },
-                aws: {
-                    ses: {
-                        source: actualFromEmailAddress,
-                    },
+                    source: formattedFromEmailAddress,
                 },
             });
 
             const input = {
-                // eslint-disable-next-line string-quotes
-                Source: `"${fromEmailAddressName}" <${actualFromEmailAddress}>`,
+                Source: formattedFromEmailAddress,
                 Destination: {ToAddresses: [toEmailAddress]},
                 Message: {
                     Subject: {Charset: "utf8", Data: email.getHtmlTitle()},

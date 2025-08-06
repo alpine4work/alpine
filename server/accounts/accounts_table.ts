@@ -12,7 +12,6 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
@@ -621,7 +620,7 @@ export async function regenerateOneTimePasswordSignIn(
     }
 
     await context.email.send({
-        fromEmailAddress: FromEmailAddress.SignIn,
+        fromEmailAddressAlias: "SignIn",
         toEmailAddress: emailAddress,
         templateName: "SignIn",
         templateProps: {

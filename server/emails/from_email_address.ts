@@ -1,4 +1,10 @@
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+export type FromEmailAddress = {
+    displayName?: string;
+    address: string;
+};
 
 /**
  * Email addresses we are allowed to send email from. We have a handful of
@@ -22,35 +28,34 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  *
  * [1]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
  */
-export enum FromEmailAddress {
-    /**
-     * We send sign in codes and other emails related to authenticating with our
-     * service through this email address. We should try to maintain high
-     * reputation for this email address.
-     */
-    SignIn = "SignIn",
-}
+
+export const FromEmailAddressAlias = {
+    SignIn: {
+        displayName: "Alpine",
+        address: "sign-in@alpine.inc",
+    },
+} as const satisfies Record<string, FromEmailAddress>;
+
+export type FromEmailAddressAlias = keyof typeof FromEmailAddressAlias;
 
 /**
- * Get the actual email address of a `FromEmailAddress`.
+ * Get the RFC5322 formatted email address associated with a `FromEmailAddress`.
  */
-export function getFromEmailAddress(fromEmailAddress: FromEmailAddress): string {
-    switch (fromEmailAddress) {
-        case FromEmailAddress.SignIn:
-            return "sign-in@alpine.inc";
+export function getFormattedFromEmailAddress(
+    emailAddress: FromEmailAddress,
+    format: "addr-spec" | "name-addr" = "addr-spec",
+): string {
+    switch (format) {
+        case "addr-spec":
+            return emailAddress.address;
+        case "name-addr":
+            assert(
+                emailAddress.displayName,
+                "Must include `displayName` for name-attr formatted from email",
+            );
+            // eslint-disable-next-line string-quotes
+            return `"${emailAddress.displayName}" <${emailAddress.address}>`;
         default:
-            throw exhaustive(fromEmailAddress);
-    }
-}
-
-/**
- * Get the name associated with a `FromEmailAddress`.
- */
-export function getFromEmailAddressName(fromEmailAddress: FromEmailAddress): string {
-    switch (fromEmailAddress) {
-        case FromEmailAddress.SignIn:
-            return "Alpine";
-        default:
-            throw exhaustive(fromEmailAddress);
+            throw exhaustive(format);
     }
 }
