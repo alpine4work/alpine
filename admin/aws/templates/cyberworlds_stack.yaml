@@ -4425,7 +4425,7 @@ Resources:
                             - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:FileProcessorServiceSecrets:SecretString:cloudflareR2SecretAccessKey::}}
-            Handler: resize_file_lambda.handler
+            Handler: cyberworlds/admin/aws/empty_lambda.handler
             MemorySize: 4096
             Role:
                 Fn::GetAtt:

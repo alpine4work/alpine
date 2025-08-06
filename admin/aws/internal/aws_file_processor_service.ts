@@ -274,6 +274,13 @@ export class AwsFileProcessorService extends Construct {
         dynamo.grantReadDataForTable(resizeFileExectutionRole, "Files", {
             disallowQuery: true,
         });
+        const resizeFileLambdaRelativePath =
+            process.env.CDK_LITE === "true"
+                ? "cyberworlds/admin/aws/empty_lambda"
+                : "cyberworlds/server/files/processor/resize_file_lambda";
+
+        const resizeFileLambdaPath = joinPath(runfilesPath, `${resizeFileLambdaRelativePath}.zip`);
+        const resizeFileLambdaHandler = `${resizeFileLambdaRelativePath}.handler`;
 
         const resizeLambda = new LambdaFunction(this, "ResizeFile", {
             runtime: Runtime.NODEJS_22_X,
@@ -281,18 +288,8 @@ export class AwsFileProcessorService extends Construct {
             architecture: Architecture.ARM_64,
             vpc,
             role: resizeFileExectutionRole,
-            code: Code.fromAsset(
-                joinPath(
-                    runfilesPath,
-                    process.env.CDK_LITE === "true"
-                        ? "cyberworlds/admin/aws/empty_lambda.zip"
-                        : // Checked locally, zip size ~= 70MB
-                          // CDK should deploy zip to S3, which gives 250MB limit as opposed
-                          // to 50MB limit for direct zip upload to Lambda
-                          "cyberworlds/server/files/processor/resize_file_lambda.zip",
-                ),
-            ),
-            handler: "resize_file_lambda.handler",
+            code: Code.fromAsset(resizeFileLambdaPath),
+            handler: resizeFileLambdaHandler,
             memorySize: 4096, // 4GB RAM (~2 vCPUs)
             // Intentionally short timeout to ensure that the lambda is killed
             // if it's not able to complete the resize operation.
