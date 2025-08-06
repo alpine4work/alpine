@@ -2842,7 +2842,7 @@ exports[`account long mention 1`] = `
             >
               <span
                 aria-hidden="true"
-                style="transform: scale(0.875)"
+                style="transform: scale(0.875); color: #782216"
               >
                 SS
               </span>
@@ -2903,7 +2903,7 @@ exports[`account short mention 1`] = `
             >
               <span
                 aria-hidden="true"
-                style="transform: scale(0.875)"
+                style="transform: scale(0.875); color: #782216"
               >
                 SS
               </span>

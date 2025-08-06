@@ -20,6 +20,7 @@ ts_project(
     deps = [
         "//:node_modules/@lume/kiwi",
         "//:node_modules/@types/react",
+        "//shared/accounts",
         "//shared/helpers:helpers_core",
         "//shared/id",
     ],

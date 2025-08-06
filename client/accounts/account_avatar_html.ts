@@ -1,7 +1,6 @@
 import {backgroundColorVar, sprinkles} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {getAvatarThemeColor} from "~/shared/design/core/avatar_theme_color.js";
-import {colors} from "~/shared/design/core/colors.js";
+import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
@@ -65,13 +64,14 @@ export function renderAccountAvatar({
     const {firstInitial, lastInitial} = getAccountAvatarInitials(accountData);
 
     // Get themed background color for this account
-    const avatarBackgroundColor = getAvatarThemeColor(accountData.id);
+    const {backgroundColor: avatarBackgroundColor, textColor: avatarTextColor} =
+        getAvatarThemeColors(accountData.id);
 
     const outerHtml = new HtmlElementGenerator("span");
 
     outerHtml.setAttribute("class", accountAvatarClassName);
 
-    let outerStyleString = `width: ${spacing[size]}; height: ${spacing[size]}; background-color: ${colors[avatarBackgroundColor]}`;
+    let outerStyleString = `width: ${spacing[size]}; height: ${spacing[size]}; background-color: ${avatarBackgroundColor}`;
 
     if (backgroundBorderWidth !== undefined) {
         outerStyleString += `; box-shadow: 0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`;
@@ -82,7 +82,10 @@ export function renderAccountAvatar({
     const innerHtml = outerHtml.appendChild(new HtmlElementGenerator("span"));
 
     innerHtml.setAttribute("class", accountAvatarInitialsClassName);
-    innerHtml.setAttribute("style", `transform: scale(${parseInt(size, 10) / 8})`);
+    innerHtml.setAttribute(
+        "style",
+        `transform: scale(${parseInt(size, 10) / 8}); color: ${avatarTextColor}`,
+    );
     innerHtml.setAttribute("aria-hidden", "true");
 
     innerHtml.appendChild(

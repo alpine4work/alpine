@@ -1,6 +1,5 @@
 import {backgroundColorVar, borderRadius as borderRadiusValues} from "~/client/styles/styles.js";
-import {getAvatarThemeColor} from "~/shared/design/core/avatar_theme_color.js";
-import {colors} from "~/shared/design/core/colors.js";
+import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -71,7 +70,10 @@ export function Avatar({
     avatarTextClassName,
 }: AvatarProps) {
     // Get a consistent theme color based on the ID (same ID = same color always)
-    const finalBackgroundColor = backgroundColor ?? colors[getAvatarThemeColor(id)];
+    const avatarColors =
+        backgroundColor !== undefined
+            ? {backgroundColor, textColor: undefined}
+            : getAvatarThemeColors(id);
 
     return (
         <span
@@ -80,7 +82,7 @@ export function Avatar({
                 width: spacing[size],
                 height: spacing[size],
                 borderRadius: borderRadiusValues[borderRadius],
-                backgroundColor: finalBackgroundColor,
+                backgroundColor: avatarColors.backgroundColor,
                 boxShadow:
                     backgroundBorderWidth !== undefined
                         ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
@@ -89,7 +91,10 @@ export function Avatar({
         >
             <span
                 className={avatarTextClassName}
-                style={{transform: `scale(${parseInt(size, 10) / 8})`}}
+                style={{
+                    transform: `scale(${parseInt(size, 10) / 8})`,
+                    color: avatarColors.textColor,
+                }}
                 aria-hidden="true"
             >
                 {text.toUpperCase()}
