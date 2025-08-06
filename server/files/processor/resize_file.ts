@@ -128,6 +128,9 @@ export async function resizeFile(
         spaceId: SpaceId;
         fileId: FileId;
         temporaryDirectoryPath: string;
+        // TODO(ifitzsimmons, #file-processor-service-migration): Remove this
+        // parameter once we've migrated to the new service. We will no longer need
+        // to worry about process fibers when this hosted only on AWS Lambda
         withFiber: <Modules extends {tracer: TracerContextModule}, Value>(
             context: Context<Modules>,
             action: () => Promise<Value>,

@@ -4166,6 +4166,211 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/InstanceSecurityGroup/Resource
+    FileProcessorServiceResizeFileLambdaExecutionRole21B2701A:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaExecutionRole/Resource
+    FileProcessorServiceResizeFileLambdaExecutionRoleDefaultPolicy8C0688DD:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:GetItem
+                          - dynamodb:TransactGetItems
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - FileProcessorServiceResizeFileDeadLetterQueue5690E0D2
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: FileProcessorServiceResizeFileLambdaExecutionRoleDefaultPolicy8C0688DD
+            Roles:
+                - Ref: FileProcessorServiceResizeFileLambdaExecutionRole21B2701A
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaExecutionRole/DefaultPolicy/Resource
+    FileProcessorServiceResizeFileDeadLetterQueue5690E0D2:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/DeadLetterQueue/Resource
+    FileProcessorServiceResizeFileSecurityGroup17708A18:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Automatic security group for Lambda Function
+                CyberworldsStackFileProcessorServiceResizeFile9EDA5A35
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/SecurityGroup/Resource
+    FileProcessorServiceResizeFile6BAF090A:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                S3Bucket:
+                    Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
+                S3Key: caebe64a01df3a35781eb90c8304940d9d437c81251de89eb46cdb713fd3d31e.zip
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - FileProcessorServiceResizeFileDeadLetterQueue5690E0D2
+                        - Arn
+            Environment:
+                Variables:
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    APP_SERVICE_PUBLIC_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:appServicePublicKey::}}
+                    EDGE_SERVICE_FAMILY_PUBLIC_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:edgeServiceFamilyPublicKey::}}
+                    TASK_REALTIME_SERVICE_PUBLIC_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:taskRealtimeServicePublicKey::}}
+                    JOB_QUEUE_SERVICE_PUBLIC_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:jobQueueServicePublicKey::}}
+                    FILE_PROCESSOR_SERVICE_PUBLIC_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:fileProcessorServicePublicKey::}}
+                    FILE_PROCESSOR_SERVICE_PRIVATE_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:fileProcessorServicePrivateKey::}}
+                    TOKEN_AGENT_SECRET:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:tokenAgentSecret::}}
+                    HONEYCOMB_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
+                    CLOUDFLARE_R2_ACCESS_KEY_ID:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:cloudflareR2AccessKeyId::}}
+                    CLOUDFLARE_R2_SECRET_ACCESS_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:cloudflareR2SecretAccessKey::}}
+            Handler: resize_file_lambda.handler
+            MemorySize: 4096
+            Role:
+                Fn::GetAtt:
+                    - FileProcessorServiceResizeFileLambdaExecutionRole21B2701A
+                    - Arn
+            Runtime: nodejs22.x
+            Timeout: 30
+            VpcConfig:
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - FileProcessorServiceResizeFileSecurityGroup17708A18
+                          - GroupId
+                SubnetIds:
+                    - Ref: VpcIsolatedSubnet1SubnetE48C5737
+                    - Ref: VpcIsolatedSubnet2Subnet16364B91
+        DependsOn:
+            - FileProcessorServiceResizeFileLambdaExecutionRoleDefaultPolicy8C0688DD
+            - FileProcessorServiceResizeFileLambdaExecutionRole21B2701A
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Resource
+            aws:asset:path: asset.caebe64a01df3a35781eb90c8304940d9d437c81251de89eb46cdb713fd3d31e.zip
+            aws:asset:is-bundled: false
+            aws:asset:property: Code
+    FileProcessorServiceResizeFileLogRetentionE1DBA5E9:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: FileProcessorServiceResizeFile6BAF090A
+            RetentionInDays: 7
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/LogRetention/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:
         Type: AWS::EC2::SecurityGroup
         Properties:

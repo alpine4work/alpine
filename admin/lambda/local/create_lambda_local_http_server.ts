@@ -1,18 +1,19 @@
-import {
-    APIGatewayEventRequestContext,
-    APIGatewayProxyEvent,
-    APIGatewayProxyHandler,
-} from "aws-lambda";
+import {Context as LambdaContext} from "aws-lambda";
 import {randomUUID} from "crypto";
 import {IncomingMessage, ServerResponse, createServer} from "http";
-import {createLambdaEventMockWithUnimplementedErrors} from "~/admin/lambda/local/internal/create_lambda_event_mock_with_unimplemented_errors.js";
 import {createLambdaLocalEventContext} from "~/admin/lambda/local/internal/create_lambda_local_event_context.js";
-import {unimplementedLambdaHandlerCallback} from "~/admin/lambda/local/internal/unimplemented_lambda_handler_callback.js";
+import {LambdaProcessContext} from "~/server/lambda/helpers/lambda_action_context.js";
+import {
+    createStandardizedRequest,
+    sendStandardizedResponse,
+} from "~/server/node/create_standardized_server.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {InternalError} from "~/shared/error/error.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type LambdaLocalRoute = {
     /**
@@ -24,7 +25,22 @@ export type LambdaLocalRoute = {
     /**
      * The Lambda handler function for this route
      */
-    handler: APIGatewayProxyHandler;
+    handler: (
+        processContext: LambdaProcessContext,
+        {
+            request,
+            url,
+            lambdaContext,
+            span,
+            tokenAgent,
+        }: {
+            request: Request;
+            url: URL;
+            lambdaContext: LambdaContext;
+            span: TracerSpan;
+            tokenAgent: TokenAgent;
+        },
+    ) => Promise<Response>;
 
     /**
      * Function name for logging/identification
@@ -42,12 +58,26 @@ export type LambdaLocalRoute = {
  * Routes requests to appropriate Lambda handlers based on URL path patterns.
  */
 export function createLambdaLocalHttpServer(
-    port: number,
-    shutdownManager: ShutdownManager,
-    routes: Array<LambdaLocalRoute>,
+    processContext: LambdaProcessContext,
+    {
+        port,
+        shutdownManager,
+        routes,
+        tokenAgent,
+    }: {
+        port: number;
+        shutdownManager: ShutdownManager;
+        routes: Array<LambdaLocalRoute>;
+        tokenAgent: TokenAgent;
+    },
 ) {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-        handleRequest(req, res, {routes}).catch(error => {
+        handleRequest(processContext, {
+            req,
+            res,
+            routes,
+            tokenAgent,
+        }).catch(error => {
             // eslint-disable-next-line no-console
             console.error("Lambda runtime server error:", error);
             res.statusCode = 500;
@@ -65,45 +95,32 @@ export function createLambdaLocalHttpServer(
 }
 
 async function handleRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
-    {routes}: {routes: Array<LambdaLocalRoute>},
+    processContext: LambdaProcessContext,
+    {
+        req,
+        res,
+        routes,
+        tokenAgent,
+    }: {
+        req: IncomingMessage;
+        res: ServerResponse;
+        routes: Array<LambdaLocalRoute>;
+        tokenAgent: TokenAgent;
+    },
 ) {
     const url = new URL(req.url!, `http://${req.headers.host}`);
-
-    // Read request body if present
-    let body: string | null = null;
-    if (req.method && ["POST", "PUT", "PATCH"].includes(req.method)) {
-        const chunks: Array<Buffer> = [];
-        for await (const chunk of req) {
-            chunks.push(chunk);
-        }
-        body = Buffer.concat(chunks).toString();
-    }
-
-    // Find matching route
-    const matchedRoute = findMatchingRoute(url.pathname, routes);
-    if (!matchedRoute) {
+    const route = findMatchingRoute(url.pathname, routes);
+    if (!route) {
         res.statusCode = 404;
         res.setHeader("content-type", "text/plain");
         res.end("404 Nout Found: Lambda route not found");
         return;
     }
 
-    const {route, pathParameters} = matchedRoute;
     const functionName = route.functionName;
     const timeoutMs = route.timeoutMs ?? 30000;
 
     const requestId = randomUUID();
-
-    // Convert HTTP request to Lambda event format
-    const event = createApiGatewayProxyEvent(req, {
-        body,
-        requestId,
-        route,
-        pathParameters,
-        url,
-    });
 
     const lambdaContext = createLambdaLocalEventContext({
         functionName,
@@ -122,51 +139,25 @@ async function handleRequest(
         }, timeoutMs);
     });
 
+    const {span} = processContext.tracer.startSpan(route.path);
     // Call the Lambda handler with timeout
-    const result = await Promise.race([
+    const response = await Promise.race([
         // NOTE(ifitzsimmons, #unimplemented-lambda-handler-callback)
-        route.handler(event, lambdaContext, unimplementedLambdaHandlerCallback),
+        route.handler(processContext, {
+            request: createStandardizedRequest(req),
+            url,
+            lambdaContext,
+            span,
+            tokenAgent,
+        }),
         timeoutPromise,
     ]);
 
-    if (!result) {
+    if (!response) {
         throw new InternalError("Lambda handler returned undefined");
     }
 
-    // Convert Lambda response back to HTTP response
-    res.statusCode = result.statusCode;
-    res.setHeader("content-type", "application/json");
-    // Set response headers
-    if (result.headers) {
-        for (const [key, value] of Object.entries(result.headers)) {
-            if (typeof value === "string") {
-                res.setHeader(key, value);
-            }
-        }
-    }
-
-    if (result.multiValueHeaders) {
-        const isStringArray = (anyArray: Array<any>): anyArray is Array<string> => {
-            return anyArray.every(item => typeof item === "string");
-        };
-
-        for (const [key, value] of Object.entries(result.multiValueHeaders)) {
-            if (isStringArray(value)) {
-                res.setHeader(key, value);
-            }
-        }
-    }
-
-    // Handle response body
-    if (result.body) {
-        if (result.isBase64Encoded) {
-            res.end(Buffer.from(result.body, "base64"));
-        } else {
-            res.end(result.body);
-        }
-    } else {
-        res.end();
-    }
+    sendStandardizedResponse(res, response);
 }
 
 /**
@@ -175,11 +166,10 @@ async function handleRequest(
 function findMatchingRoute(
     requestPath: string,
     routes: Array<LambdaLocalRoute>,
-): {route: LambdaLocalRoute; pathParameters: Record<string, string> | null} | null {
+): LambdaLocalRoute | null {
     for (const route of routes) {
-        const pathParameters = matchPathPattern(requestPath, route.path);
-        if (pathParameters !== null) {
-            return {route, pathParameters};
+        if (matchPathPattern(requestPath, route.path)) {
+            return route;
         }
     }
     return null;
@@ -189,9 +179,8 @@ function findMatchingRoute(
  * Check if a request path matches a route pattern and extract parameters
  * Pattern: "/resize/{spaceId}/{fileId}"
  * Path: "/resize/abc123/def456"
- * Returns: {spaceId: "abc123", fileId: "def456"}
  */
-function matchPathPattern(requestPath: string, pattern: string): Record<string, string> | null {
+function matchPathPattern(requestPath: string, pattern: string): boolean {
     // Convert pattern to regex, replacing {param} with capture groups
     const paramNames: Array<string> = [];
     const escapedPattern = escapeRegExp(pattern);
@@ -203,75 +192,5 @@ function matchPathPattern(requestPath: string, pattern: string): Record<string, 
     const regex = new RegExp(`^${regexPattern}$`);
     const match = requestPath.match(regex);
 
-    if (!match) {
-        return null;
-    }
-
-    // Extract parameters
-    const pathParameters: Record<string, string> = {};
-    paramNames.forEach((paramName, index) => {
-        pathParameters[paramName] = match[index + 1]!;
-    });
-
-    return pathParameters;
-}
-
-function createApiGatewayProxyEvent(
-    req: IncomingMessage,
-    {
-        body,
-        pathParameters,
-        requestId,
-        route,
-        url,
-    }: {
-        body: string | null;
-        pathParameters: Record<string, string> | null;
-        requestId: string;
-        route: LambdaLocalRoute;
-        url: URL;
-    },
-) {
-    const awsAccountId = "local";
-    const requestTime = new Date();
-
-    // Check for multi-value headers and throw error if found
-    const headers: Record<string, string> = {};
-    for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) {
-            throw new UnimplementedError(
-                quote`Multi-value header ${key} is not supported. If you need this capability, please implement multiValueHeaders support.`,
-            );
-        }
-        if (value !== undefined) {
-            headers[key] = value;
-        }
-    }
-
-    const requestContextBase: Partial<APIGatewayEventRequestContext> = {
-        accountId: awsAccountId,
-        path: url.pathname,
-        httpMethod: req.method || "GET",
-        requestId,
-        requestTime: requestTime.toISOString(),
-        requestTimeEpoch: requestTime.getTime(),
-    };
-    const requestContext = createLambdaEventMockWithUnimplementedErrors(
-        requestContextBase,
-        "ApiGatewayProxyEventRequestContext",
-    );
-    const apiGatewayProxyEventBase: Partial<APIGatewayProxyEvent> = {
-        httpMethod: req.method || "GET",
-        path: url.pathname,
-        pathParameters,
-        queryStringParameters: Object.fromEntries(url.searchParams.entries()),
-        headers,
-        body,
-        requestContext,
-        resource: route.path,
-    };
-    return createLambdaEventMockWithUnimplementedErrors(
-        apiGatewayProxyEventBase,
-        "ApiGatewayProxyEvent",
-    );
+    return match !== null;
 }

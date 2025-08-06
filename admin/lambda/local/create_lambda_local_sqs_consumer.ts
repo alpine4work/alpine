@@ -2,7 +2,6 @@ import {Context as LambdaContext, SQSEvent, SQSHandler, SQSRecord} from "aws-lam
 import {randomUUID} from "crypto";
 import {createLambdaEventMockWithUnimplementedErrors} from "~/admin/lambda/local/internal/create_lambda_event_mock_with_unimplemented_errors.js";
 import {createLambdaLocalEventContext} from "~/admin/lambda/local/internal/create_lambda_local_event_context.js";
-import {unimplementedLambdaHandlerCallback} from "~/admin/lambda/local/internal/unimplemented_lambda_handler_callback.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
@@ -12,6 +11,8 @@ import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 export type LambdaLocalSqsConsumerOptions = {
@@ -86,9 +87,12 @@ export function createLambdaLocalSqsConsumer(
         },
     });
 
-    shutdownManager.registerListenerForIngressTraffic("Stopping job queue consumer", async () => {
-        await consumer.stop();
-    });
+    shutdownManager.registerListenerForIngressTraffic(
+        quote`Stopping job queue consumer: ${functionName}`,
+        async () => {
+            await consumer.stop();
+        },
+    );
 
     return consumer;
 }
@@ -113,7 +117,7 @@ async function processJob({
     });
 
     // NOTE(ifitzsimmons, #unimplemented-lambda-handler-callback)
-    const response = await handler(event, lambdaContext, unimplementedLambdaHandlerCallback);
+    const response = await handler(event, lambdaContext, noop);
 
     if (response?.batchItemFailures && response.batchItemFailures.length > 0) {
         throw new InternalError(

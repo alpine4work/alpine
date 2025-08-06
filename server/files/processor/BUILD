@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
 load("//admin/bazel:production_transition.bzl", "production_transition", "production_transition_executable")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -34,11 +35,15 @@ ts_project(
             "size": "medium",
         },
     },
-    visibility = ["//server/files/processor/test_helpers:__pkg__"],
+    visibility = [
+        "//server/files/processor/test_helpers:__pkg__",
+        "//admin/lambda/local/file_processor_service:__pkg__",
+    ],
     deps = [
         "//:node_modules/@lezer/highlight",
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
+        "//:node_modules/@types/aws-lambda",
         "//:node_modules/@types/node",
         "//:node_modules/date-fns",
         "//:node_modules/decode-ico",
@@ -48,6 +53,7 @@ ts_project(
         "//server/cloudflare/r2",
         "//server/files/data",
         "//server/helpers",
+        "//server/lambda",
         "//server/jobs/core",
         "//server/jobs/queue/consumer",
         "//server/node",
@@ -125,5 +131,26 @@ production_transition_executable(
 production_transition(
     name = "processor_image_tarball_production",
     target = ":processor_image_tarball",
+    visibility = ["//admin/aws:__pkg__"],
+)
+
+# Lambda for file resizing (replaces ECS endpoint)
+aws_lambda(
+    name = "resize_file_lambda",
+    srcs = [":processor_lib"],
+    entry_point = "lambda/resize_file_lambda.js",
+    external_deps = [
+        "//:node_modules/@aws-sdk/client-sqs",
+        "//:node_modules/@types/aws-lambda",
+        "//:node_modules/fs-extra",
+        "//:node_modules/sharp",
+        "//:node_modules/undici",
+    ],
+    visibility = ["//admin/aws:__pkg__"],
+)
+
+production_transition(
+    name = "resize_file_lambda_production",
+    target = ":resize_file_lambda",
     visibility = ["//admin/aws:__pkg__"],
 )

@@ -20,8 +20,10 @@ import {
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
 import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
-import {Secret} from "aws-cdk-lib/aws-secretsmanager";
+import {ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import {Architecture, Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
+import {RetentionDays} from "aws-cdk-lib/aws-logs";
+import {ISecret, Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -68,6 +70,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // [3]: https://www.ffmpeg.org
 // [4]: https://www.libreoffice.org
 export class AwsFileProcessorService extends Construct {
+    public readonly resizeLambda: LambdaFunction;
+
     constructor(
         parentConstruct: Construct,
         {
@@ -86,6 +90,155 @@ export class AwsFileProcessorService extends Construct {
     ) {
         super(parentConstruct, "FileProcessorService");
 
+        const secrets = Secret.fromSecretNameV2(
+            this,
+            "SecretsImport",
+            "FileProcessorServiceSecrets",
+        );
+
+        // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration):
+        // To maintain naming consistency of the File Processor Service, we created
+        // all of the new resources in the `FileProcessorService` construct. When we
+        // are ready to migrate to the new service, we'll remove the legacy resources
+        // and replace them with the new resources. See discussion here
+        // https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/248/resizeFile-Lambda-with-Local-runtime#comment-PRRC_kwDOH2ktg86E_0S-
+        //
+        // For this particular code block, we'll remove the block scope
+        // New FileProcessorService
+        {
+            const sharedEnvironmentVariables = this._getSharedEnvironmentVariables({
+                secrets,
+                cloudflareAccountId,
+            });
+
+            const {resizeLambda} = this._getResizeFileLambda({
+                sharedEnvironmentVariables,
+                vpc,
+                dynamo,
+            });
+            this.resizeLambda = resizeLambda;
+        }
+
+        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Delete this
+        // Old FileProcessorService
+        {
+            this._createLegacyFileProcessorService({
+                vpc,
+                ecsCluster,
+                cloudflareAccountId,
+                dynamo,
+                sqs,
+                secrets,
+            });
+        }
+    }
+
+    private _getSharedEnvironmentVariables({
+        secrets,
+        cloudflareAccountId,
+    }: {
+        secrets: ISecret;
+        cloudflareAccountId: string;
+    }) {
+        return {
+            NODE_ENV: "production",
+            CLOUDFLARE_ACCOUNT_ID: cloudflareAccountId,
+            APP_SERVICE_PUBLIC_KEY: secrets
+                .secretValueFromJson("appServicePublicKey")
+                .unsafeUnwrap(),
+            EDGE_SERVICE_FAMILY_PUBLIC_KEY: secrets
+                .secretValueFromJson("edgeServiceFamilyPublicKey")
+                .unsafeUnwrap(),
+            TASK_REALTIME_SERVICE_PUBLIC_KEY: secrets
+                .secretValueFromJson("taskRealtimeServicePublicKey")
+                .unsafeUnwrap(),
+            JOB_QUEUE_SERVICE_PUBLIC_KEY: secrets
+                .secretValueFromJson("jobQueueServicePublicKey")
+                .unsafeUnwrap(),
+            FILE_PROCESSOR_SERVICE_PUBLIC_KEY: secrets
+                .secretValueFromJson("fileProcessorServicePublicKey")
+                .unsafeUnwrap(),
+            FILE_PROCESSOR_SERVICE_PRIVATE_KEY: secrets
+                .secretValueFromJson("fileProcessorServicePrivateKey")
+                .unsafeUnwrap(),
+            TOKEN_AGENT_SECRET: secrets.secretValueFromJson("tokenAgentSecret").unsafeUnwrap(),
+            HONEYCOMB_API_KEY: secrets.secretValueFromJson("honeycombApiKey").unsafeUnwrap(),
+            CLOUDFLARE_R2_ACCESS_KEY_ID: secrets
+                .secretValueFromJson("cloudflareR2AccessKeyId")
+                .unsafeUnwrap(),
+            CLOUDFLARE_R2_SECRET_ACCESS_KEY: secrets
+                .secretValueFromJson("cloudflareR2SecretAccessKey")
+                .unsafeUnwrap(),
+        };
+    }
+
+    private _getResizeFileLambda({
+        sharedEnvironmentVariables,
+        vpc,
+        dynamo,
+    }: {
+        sharedEnvironmentVariables: Record<string, string>;
+        vpc: Vpc;
+        dynamo: AwsDynamo;
+    }) {
+        const resizeFileExectutionRole = new Role(this, "ResizeFileLambdaExecutionRole", {
+            assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
+                ManagedPolicy.fromAwsManagedPolicyName(
+                    "service-role/AWSLambdaVPCAccessExecutionRole",
+                ),
+            ],
+        });
+        dynamo.grantReadDataForTable(resizeFileExectutionRole, "Files", {
+            disallowQuery: true,
+        });
+
+        const resizeLambda = new LambdaFunction(this, "ResizeFile", {
+            runtime: Runtime.NODEJS_22_X,
+            // https://aws.amazon.com/blogs/apn/comparing-aws-lambda-arm-vs-x86-performance-cost-and-analysis-2/
+            architecture: Architecture.ARM_64,
+            vpc,
+            role: resizeFileExectutionRole,
+            code: Code.fromAsset(
+                joinPath(
+                    runfilesPath,
+                    process.env.CDK_LITE === "true"
+                        ? "cyberworlds/admin/aws/empty_lambda.zip"
+                        : // Checked locally, zip size ~= 70MB
+                          // CDK should deploy zip to S3, which gives 250MB limit as opposed
+                          // to 50MB limit for direct zip upload to Lambda
+                          "cyberworlds/server/files/processor/resize_file_lambda.zip",
+                ),
+            ),
+            handler: "resize_file_lambda.handler",
+            memorySize: 4096, // 4GB RAM (~2 vCPUs)
+            // Intentionally short timeout to ensure that the lambda is killed
+            // if it's not able to complete the resize operation.
+            timeout: Duration.seconds(30),
+            environment: sharedEnvironmentVariables,
+            logRetention: RetentionDays.ONE_WEEK,
+            deadLetterQueueEnabled: true,
+        });
+
+        return {resizeLambda};
+    }
+
+    private _createLegacyFileProcessorService({
+        vpc,
+        ecsCluster,
+        cloudflareAccountId,
+        dynamo,
+        sqs,
+        secrets,
+    }: {
+        vpc: Vpc;
+        ecsCluster: AwsEcsCluster;
+        cloudflareAccountId: string;
+        dynamo: AwsDynamo;
+        sqs: AwsSqs;
+        secrets: ISecret;
+    }) {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
         // memory when resizing large images.
@@ -139,11 +292,6 @@ export class AwsFileProcessorService extends Construct {
         ecsCluster.cluster.addAsgCapacityProvider(autoScalingGroupCapacityProvider);
 
         const port = 4000;
-        const secrets = Secret.fromSecretNameV2(
-            this,
-            "SecretsImport",
-            "FileProcessorServiceSecrets",
-        );
 
         const taskDefinition = new Ec2TaskDefinition(this, "TaskDefinition", {
             // According to the docs:

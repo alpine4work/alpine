@@ -63,6 +63,7 @@ export type TracerServiceName =
     | "TaskRealtimeService"
     | "JobQueueService"
     | "FileProcessorService"
+    | "FileProcessorLocalService"
     | DurableObjectServiceName;
 
 /**

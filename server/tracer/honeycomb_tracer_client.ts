@@ -1,5 +1,6 @@
 import {DataLossError, UnknownError} from "~/shared/error/error.js";
 import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -27,7 +28,10 @@ export class HoneycombTracerClient {
      */
     private readonly _waitUntil: (promise: Promise<void>) => void;
 
-    private _scheduledEventBatch: Array<TracerEvent> | null = null;
+    private _scheduledEventBatch: {
+        events: Array<TracerEvent>;
+        flush: () => Promise<void>;
+    } | null = null;
 
     constructor({
         apiKey,
@@ -50,22 +54,31 @@ export class HoneycombTracerClient {
     public sendEvent(event: TracerEvent) {
         // If no event batch is scheduled, then schedule one now.
         if (this._scheduledEventBatch === null) {
-            this._scheduledEventBatch = [];
+            const events: Array<TracerEvent> = [];
+            const flushPromiseResolver = createPromiseResolver();
+
+            this._scheduledEventBatch = {
+                events,
+                flush: () => {
+                    flushPromiseResolver.resolve();
+                    return promise;
+                },
+            };
 
             const promise = (async () => {
                 // We send events in a batch to Honeycomb twice a second. We want the
                 // delay to be long enough to include a meaningful amount of data but also
                 // short enough that it's tolerable to delay process shutdown by this duration.
-                await wait(500);
+                // However, if flush() is called, we bypass the timeout.
+                await Promise.race([wait(500), flushPromiseResolver.promise]);
 
-                const eventBatch = this._scheduledEventBatch;
+                // Clear so the next `sendEvent()` schedules a new event batch.
                 this._scheduledEventBatch = null;
-                if (eventBatch === null) return;
 
                 await retryWithExponentialBackoff(async retry => {
                     try {
                         let bodyString = JSON.stringify(
-                            eventBatch.map(event => ({
+                            events.map(event => ({
                                 time: new Date(event.time).toISOString(),
                                 data: event.getFlatData(),
                             })),
@@ -141,7 +154,23 @@ export class HoneycombTracerClient {
             );
         }
 
-        this._scheduledEventBatch.push(event);
+        this._scheduledEventBatch.events.push(event);
+    }
+
+    /**
+     * Flushes the scheduled event batch immediately, foregoing the 500ms batch interval.
+     */
+    public async flushScheduledEventBatch(): Promise<void> {
+        // NOTE(ifitzsimmons, 2025-08-06): Previously, we registered `waitUntil()` promises with the
+        // process shutdown manager to ensure that any pending Honeycomb event batches were sent before
+        // the process exited. This approach assumed we controlled the process lifecycle.
+        //
+        // However, we don't always control the process. For example, AWS Lambda enforces its own
+        // timeout and terminates the process when the limit is reached. In such cases, we need a
+        // mechanism to flush the event batch before the process exits.
+        // If no batch is scheduled, nothing to flush
+        if (this._scheduledEventBatch === null) return;
+        await this._scheduledEventBatch.flush();
     }
 
     /**

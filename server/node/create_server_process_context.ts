@@ -47,15 +47,34 @@ export function createServerProcessContext({
     awsSigner: AwsRequestSigner;
     options: ServerProcessContextOptions;
 }): ServerProcessContext {
+    return createServerProcessContextBase({
+        tracer,
+        awsSigner,
+        options,
+        waitUntil: (promise: Promise<unknown>) => {
+            shutdownManager.registerWaitUntilPromise(
+                promise.catch(error => {
+                    tracer.logException("Uncaught exception from `waitUntil()`", error);
+                }),
+            );
+        },
+    });
+}
+
+export function createServerProcessContextBase({
+    tracer,
+    waitUntil,
+    awsSigner,
+    options,
+}: {
+    tracer: TracerRoot;
+    waitUntil: (promise: Promise<unknown>) => void;
+    awsSigner: AwsRequestSigner;
+    options: ServerProcessContextOptions;
+}): ServerProcessContext {
     return Context.new<ServerProcessContextModules>({
         process: new ProcessContextModule({
-            waitUntil: promise => {
-                shutdownManager.registerWaitUntilPromise(
-                    promise.catch(error => {
-                        tracer.logException("Uncaught exception from `waitUntil()`", error);
-                    }),
-                );
-            },
+            waitUntil,
         }),
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
