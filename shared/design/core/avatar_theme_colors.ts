@@ -42,7 +42,7 @@ const hardcodedAccountThemes: Lazy<{
 }> = new Lazy(() => ({
     caleb: {
         backgroundColor: getBackgroundColor("indigo"),
-        textColor: getTextColor("blue"),
+        textColor: getTextColor("indigo"),
     },
     ian: {
         backgroundColor: getBackgroundColor("blue"),
