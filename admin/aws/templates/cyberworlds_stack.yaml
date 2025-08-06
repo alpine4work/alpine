@@ -4166,6 +4166,104 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/InstanceSecurityGroup/Resource
+    FileProcessorServiceLoadBalancerE2970553:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            LoadBalancerAttributes:
+                - Key: deletion_protection.enabled
+                  Value: "false"
+            Name: cyberworlds-files
+            Scheme: internet-facing
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                      - GroupId
+            Subnets:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+            Type: application
+        DependsOn:
+            - VpcPublicSubnet1DefaultRoute3DA9E72A
+            - VpcPublicSubnet1RouteTableAssociation97140677
+            - VpcPublicSubnet2DefaultRoute97F91067
+            - VpcPublicSubnet2RouteTableAssociationDD5762D8
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Resource
+    FileProcessorServiceLoadBalancerSecurityGroup2345292F:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Automatically created Security Group for ELB
+                CyberworldsStackFileProcessorServiceLoadBalancer9FAA8720
+            SecurityGroupIngress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow from anyone on port 443
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/Resource
+    FileProcessorServiceLoadBalancerSecurityGrouptoCyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791400000737CAB:
+        Type: AWS::EC2::SecurityGroupEgress
+        Properties:
+            Description: to
+                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
+            DestinationSecurityGroupId:
+                Fn::GetAtt:
+                    - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
+                    - GroupId
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                    - GroupId
+            IpProtocol: tcp
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/to
+                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
+    FileProcessorServiceLoadBalancerListenerB76CB696:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            Certificates:
+                - CertificateArn:
+                      Ref: FileProcessorServiceCertificate599FAD03
+            DefaultActions:
+                - TargetGroupArn:
+                      Ref: FileProcessorServiceTargetGroup2E72FE8D
+                  Type: forward
+            LoadBalancerArn:
+                Ref: FileProcessorServiceLoadBalancerE2970553
+            Port: 443
+            Protocol: HTTPS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/Resource
+    FileProcessorServiceLoadBalancerListenerWeightedResizeFileRoutingRule3F413AD9:
+        Type: AWS::ElasticLoadBalancingV2::ListenerRule
+        Properties:
+            Actions:
+                - ForwardConfig:
+                      TargetGroups:
+                          - TargetGroupArn:
+                                Ref: FileProcessorServiceTargetGroup2E72FE8D
+                            Weight:
+                                Ref: FileProcessorServiceLegacyFileProcessorServiceWeightFE41AE99
+                          - TargetGroupArn:
+                                Ref: FileProcessorServiceResizeFileLambdaTargetGroup732CA815
+                            Weight:
+                                Ref: FileProcessorServiceResizeFileServiceLambdaWeight8C995723
+                  Type: forward
+            Conditions:
+                - Field: path-pattern
+                  PathPatternConfig:
+                      Values:
+                          - /*/resize/*
+            ListenerArn:
+                Ref: FileProcessorServiceLoadBalancerListenerB76CB696
+            Priority: 100
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/WeightedResizeFileRoutingRule/Resource
     FileProcessorServiceResizeFileLambdaExecutionRole21B2701A:
         Type: AWS::IAM::Role
         Properties:
@@ -4371,6 +4469,33 @@ Resources:
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/LogRetention/Resource
+    FileProcessorServiceResizeFileInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C41D44:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName:
+                Fn::GetAtt:
+                    - FileProcessorServiceResizeFile6BAF090A
+                    - Arn
+            Principal: elasticloadbalancing.amazonaws.com
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
+    FileProcessorServiceResizeFileLambdaTargetGroup732CA815:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            TargetType: lambda
+            Targets:
+                - Id:
+                      Fn::GetAtt:
+                          - FileProcessorServiceResizeFile6BAF090A
+                          - Arn
+        DependsOn:
+            - FileProcessorServiceResizeFileInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C41D44
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaTargetGroup/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -4828,91 +4953,18 @@ Resources:
                 - ContainerName: Container
                   ContainerPort: 4000
                   TargetGroupArn:
-                      Ref: FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D
+                      Ref: FileProcessorServiceTargetGroup2E72FE8D
             SchedulingStrategy: REPLICA
             TaskDefinition:
                 Ref: FileProcessorServiceTaskDefinitionB92D7613
         DependsOn:
             - FileProcessorServiceLoadBalancerListenerB76CB696
-            - FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D
+            - FileProcessorServiceLoadBalancerListenerWeightedResizeFileRoutingRule3F413AD9
             - FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920
             - FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/Service/Service
-    FileProcessorServiceLoadBalancerE2970553:
-        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-        Properties:
-            LoadBalancerAttributes:
-                - Key: deletion_protection.enabled
-                  Value: "false"
-            Name: cyberworlds-files
-            Scheme: internet-facing
-            SecurityGroups:
-                - Fn::GetAtt:
-                      - FileProcessorServiceLoadBalancerSecurityGroup2345292F
-                      - GroupId
-            Subnets:
-                - Ref: VpcPublicSubnet1Subnet5C2D37C4
-                - Ref: VpcPublicSubnet2Subnet691E08A3
-            Type: application
-        DependsOn:
-            - VpcPublicSubnet1DefaultRoute3DA9E72A
-            - VpcPublicSubnet1RouteTableAssociation97140677
-            - VpcPublicSubnet2DefaultRoute97F91067
-            - VpcPublicSubnet2RouteTableAssociationDD5762D8
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Resource
-    FileProcessorServiceLoadBalancerSecurityGroup2345292F:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatically created Security Group for ELB
-                CyberworldsStackFileProcessorServiceLoadBalancer9FAA8720
-            SecurityGroupIngress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/Resource
-    FileProcessorServiceLoadBalancerSecurityGrouptoCyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791400000737CAB:
-        Type: AWS::EC2::SecurityGroupEgress
-        Properties:
-            Description: to
-                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
-            DestinationSecurityGroupId:
-                Fn::GetAtt:
-                    - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
-                    - GroupId
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
-                    - GroupId
-            IpProtocol: tcp
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/to
-                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
-    FileProcessorServiceLoadBalancerListenerB76CB696:
-        Type: AWS::ElasticLoadBalancingV2::Listener
-        Properties:
-            Certificates:
-                - CertificateArn:
-                      Ref: FileProcessorServiceCertificate599FAD03
-            DefaultActions:
-                - TargetGroupArn:
-                      Ref: FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D
-                  Type: forward
-            LoadBalancerArn:
-                Ref: FileProcessorServiceLoadBalancerE2970553
-            Port: 443
-            Protocol: HTTPS
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/Resource
-    FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D:
+    FileProcessorServiceTargetGroup2E72FE8D:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             HealthCheckIntervalSeconds: 5
@@ -4931,7 +4983,7 @@ Resources:
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/TargetGroupGroup/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TargetGroup/Resource
     FileProcessorServiceCertificate599FAD03:
         Type: AWS::CertificateManager::Certificate
         Properties:
@@ -5019,6 +5071,18 @@ Parameters:
     SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
         Default: /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id
+    FileProcessorServiceResizeFileServiceLambdaWeight8C995723:
+        Type: Number
+        Default: 0
+        Description: Percentage of traffic to send to ResizeFileService Lambda (0-100)
+        MaxValue: 100
+        MinValue: 0
+    FileProcessorServiceLegacyFileProcessorServiceWeightFE41AE99:
+        Type: Number
+        Default: 100
+        Description: Percentage of traffic to send to Legacy FileProcessorService (0-100)
+        MaxValue: 100
+        MinValue: 0
     BootstrapVersion:
         Type: AWS::SSM::Parameter::Value<String>
         Default: /cdk-bootstrap/hnb659fds/version

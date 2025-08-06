@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {CfnParameter, Duration} from "aws-cdk-lib";
 import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -19,7 +19,15 @@ import {
     Secret as EcsSecret,
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
-import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import {
+    ApplicationLoadBalancer,
+    ApplicationProtocol,
+    ApplicationTargetGroup,
+    ListenerAction,
+    ListenerCondition,
+    TargetType,
+} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import {LambdaTarget} from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import {ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Architecture, Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
@@ -70,7 +78,10 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // [3]: https://www.ffmpeg.org
 // [4]: https://www.libreoffice.org
 export class AwsFileProcessorService extends Construct {
-    public readonly resizeLambda: LambdaFunction;
+    private readonly resizeLambda: LambdaFunction;
+    private readonly fileProcessorServiceLoadBalancer: ApplicationLoadBalancer;
+    private readonly legacyFileProcessorServiceTargetGroup: ApplicationTargetGroup;
+    private readonly fileProcessorServiceTargetGroup: ApplicationTargetGroup;
 
     constructor(
         parentConstruct: Construct,
@@ -96,6 +107,12 @@ export class AwsFileProcessorService extends Construct {
             "FileProcessorServiceSecrets",
         );
 
+        this.fileProcessorServiceLoadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
+            vpc,
+            loadBalancerName: "cyberworlds-files",
+            internetFacing: true,
+        });
+
         // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration):
         // To maintain naming consistency of the File Processor Service, we created
         // all of the new resources in the `FileProcessorService` construct. When we
@@ -111,24 +128,88 @@ export class AwsFileProcessorService extends Construct {
                 cloudflareAccountId,
             });
 
-            const {resizeLambda} = this._getResizeFileLambda({
+            const {resizeLambda, resizeFileLambdaTargetGroup} = this._getResizeFileLambda({
                 sharedEnvironmentVariables,
                 vpc,
                 dynamo,
             });
             this.resizeLambda = resizeLambda;
+            this.fileProcessorServiceTargetGroup = resizeFileLambdaTargetGroup;
         }
 
         // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Delete this
         // Old FileProcessorService
         {
-            this._createLegacyFileProcessorService({
+            const {fileProcessorServiceTargetGroup} = this._createLegacyFileProcessorService({
                 vpc,
                 ecsCluster,
                 cloudflareAccountId,
                 dynamo,
                 sqs,
                 secrets,
+                loadBalancer: this.fileProcessorServiceLoadBalancer,
+            });
+            this.legacyFileProcessorServiceTargetGroup = fileProcessorServiceTargetGroup;
+        }
+
+        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove this once we've
+        // migrated to the new service
+        //
+        //  Set up weighted routing to the new and old services
+        {
+            const listener = this.fileProcessorServiceLoadBalancer.addListener("Listener", {
+                protocol: ApplicationProtocol.HTTPS,
+                port: 443,
+                certificates: [
+                    new Certificate(this, "Certificate", {
+                        domainName: "files.alpine.inc",
+                        validation: CertificateValidation.fromDns(),
+                    }),
+                ],
+            });
+
+            // Create a parameter for easy weight adjustment
+            const resizeFileLambdaWeight = new CfnParameter(this, "ResizeFileServiceLambdaWeight", {
+                type: "Number",
+                default: 0,
+                minValue: 0,
+                maxValue: 100,
+                description: "Percentage of traffic to send to ResizeFileService Lambda (0-100)",
+            });
+
+            const legacyFileProcessorServiceWeight = new CfnParameter(
+                this,
+                "LegacyFileProcessorServiceWeight",
+                {
+                    type: "Number",
+                    default: 100,
+                    minValue: 0,
+                    maxValue: 100,
+                    description:
+                        "Percentage of traffic to send to Legacy FileProcessorService (0-100)",
+                },
+            );
+
+            listener.addAction("WeightedResizeFileRouting", {
+                conditions: [ListenerCondition.pathPatterns(["/*/resize/*"])],
+                action: ListenerAction.weightedForward([
+                    {
+                        targetGroup: this.legacyFileProcessorServiceTargetGroup,
+                        weight: legacyFileProcessorServiceWeight.valueAsNumber,
+                    }, // 100% to existing
+                    {
+                        targetGroup: this.fileProcessorServiceTargetGroup,
+                        weight: resizeFileLambdaWeight.valueAsNumber,
+                    }, // 0% to new
+                ]),
+                priority: 100,
+            });
+
+            // TODO(ifitzsimmons, #file-processor-service-migration): Once we've
+            // migrated, remove the weighted route action above and change the target group to
+            // this.fileProcessorServiceTargetGroup. This is a default action.
+            listener.addTargetGroups("FileProcessorServiceRouting", {
+                targetGroups: [this.legacyFileProcessorServiceTargetGroup], // Routes to this target group
             });
         }
     }
@@ -221,7 +302,17 @@ export class AwsFileProcessorService extends Construct {
             deadLetterQueueEnabled: true,
         });
 
-        return {resizeLambda};
+        const resizeFileLambdaTargetGroup = new ApplicationTargetGroup(
+            this,
+            "ResizeFileLambdaTargetGroup",
+            {
+                targetType: TargetType.LAMBDA,
+                targets: [new LambdaTarget(resizeLambda)],
+                vpc,
+            },
+        );
+
+        return {resizeLambda, resizeFileLambdaTargetGroup};
     }
 
     private _createLegacyFileProcessorService({
@@ -231,6 +322,7 @@ export class AwsFileProcessorService extends Construct {
         dynamo,
         sqs,
         secrets,
+        loadBalancer,
     }: {
         vpc: Vpc;
         ecsCluster: AwsEcsCluster;
@@ -238,6 +330,7 @@ export class AwsFileProcessorService extends Construct {
         dynamo: AwsDynamo;
         sqs: AwsSqs;
         secrets: ISecret;
+        loadBalancer: ApplicationLoadBalancer;
     }) {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
@@ -456,31 +549,15 @@ export class AwsFileProcessorService extends Construct {
             ],
         });
 
-        const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
-            vpc,
-            loadBalancerName: "cyberworlds-files",
-            internetFacing: true,
-        });
-
         // Make sure the load balancer can make requests against our service.
         autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
 
-        const listener = loadBalancer.addListener("Listener", {
-            protocol: ApplicationProtocol.HTTPS,
-            port: 443,
-            certificates: [
-                new Certificate(this, "Certificate", {
-                    domainName: "files.alpine.inc",
-                    validation: CertificateValidation.fromDns(),
-                }),
-            ],
-        });
-
-        listener.addTargets("TargetGroup", {
+        const fileProcessorServiceTargetGroup = new ApplicationTargetGroup(this, "TargetGroup", {
             targetGroupName: "cyberworlds-files-target-group",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],
+            vpc,
             healthCheck: {
                 path: "/healthcheck",
                 // Speed up deployment by requiring fewer healthy checks. Should only take
@@ -495,6 +572,8 @@ export class AwsFileProcessorService extends Construct {
             // close connections that are still uploading during a deploy.
             deregistrationDelay: Duration.millis(fileProcessorTimeoutMs),
         });
+
+        return {fileProcessorServiceTargetGroup};
     }
 }
 
