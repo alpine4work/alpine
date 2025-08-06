@@ -4231,7 +4231,7 @@ Resources:
                       Ref: FileProcessorServiceCertificate599FAD03
             DefaultActions:
                 - TargetGroupArn:
-                      Ref: FileProcessorServiceTargetGroup2E72FE8D
+                      Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
                   Type: forward
             LoadBalancerArn:
                 Ref: FileProcessorServiceLoadBalancerE2970553
@@ -4246,7 +4246,7 @@ Resources:
                 - ForwardConfig:
                       TargetGroups:
                           - TargetGroupArn:
-                                Ref: FileProcessorServiceTargetGroup2E72FE8D
+                                Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
                             Weight:
                                 Ref: FileProcessorServiceLegacyFileProcessorServiceWeightFE41AE99
                           - TargetGroupArn:
@@ -4953,7 +4953,7 @@ Resources:
                 - ContainerName: Container
                   ContainerPort: 4000
                   TargetGroupArn:
-                      Ref: FileProcessorServiceTargetGroup2E72FE8D
+                      Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
             SchedulingStrategy: REPLICA
             TaskDefinition:
                 Ref: FileProcessorServiceTaskDefinitionB92D7613
@@ -4964,14 +4964,14 @@ Resources:
             - FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/Service/Service
-    FileProcessorServiceTargetGroup2E72FE8D:
+    FileProcessorServiceLegacyTargetGroup0A95BD63:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /healthcheck
             HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
-            Name: cyberworlds-files-target-group
+            Name: legacy-files-target-group
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:
@@ -4983,7 +4983,7 @@ Resources:
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/TargetGroup/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LegacyTargetGroup/Resource
     FileProcessorServiceCertificate599FAD03:
         Type: AWS::CertificateManager::Certificate
         Properties:

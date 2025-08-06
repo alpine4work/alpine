@@ -549,26 +549,30 @@ export class AwsFileProcessorService extends Construct {
         // Make sure the load balancer can make requests against our service.
         autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
 
-        const fileProcessorServiceTargetGroup = new ApplicationTargetGroup(this, "TargetGroup", {
-            targetGroupName: "cyberworlds-files-target-group",
-            port: port,
-            protocol: ApplicationProtocol.HTTP,
-            targets: [service],
-            vpc,
-            healthCheck: {
-                path: "/healthcheck",
-                // Speed up deployment by requiring fewer healthy checks. Should only take
-                // ~15 seconds to consider the service healthy.
-                // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
-                interval: Duration.seconds(5),
-                timeout: Duration.seconds(3),
-                healthyThresholdCount: 3,
+        const fileProcessorServiceTargetGroup = new ApplicationTargetGroup(
+            this,
+            "LegacyTargetGroup",
+            {
+                targetGroupName: "legacy-files-target-group",
+                port: port,
+                protocol: ApplicationProtocol.HTTP,
+                targets: [service],
+                vpc,
+                healthCheck: {
+                    path: "/healthcheck",
+                    // Speed up deployment by requiring fewer healthy checks. Should only take
+                    // ~15 seconds to consider the service healthy.
+                    // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
+                    interval: Duration.seconds(5),
+                    timeout: Duration.seconds(3),
+                    healthyThresholdCount: 3,
+                },
+                // See our comment on `stopTimeout`. File upload processing is potentially quite
+                // slow so we need to increase the deregistration delay to make sure we don't
+                // close connections that are still uploading during a deploy.
+                deregistrationDelay: Duration.millis(fileProcessorTimeoutMs),
             },
-            // See our comment on `stopTimeout`. File upload processing is potentially quite
-            // slow so we need to increase the deregistration delay to make sure we don't
-            // close connections that are still uploading during a deploy.
-            deregistrationDelay: Duration.millis(fileProcessorTimeoutMs),
-        });
+        );
 
         return {fileProcessorServiceTargetGroup};
     }
