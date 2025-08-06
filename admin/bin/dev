@@ -18,7 +18,7 @@ has_arg() {
     return 1
 }
 
-if has_arg "--help" "$@" && ! has_arg "stack" "$@"; then
+if has_arg "--help" "$@" && ! has_arg "stack" "$@" && ! has_arg "experimental" "$@"; then
     # Notational conventions:
     #
     # - `[arg]`: Optional argument
@@ -43,6 +43,7 @@ Usage:
     dev path [name]          Print a single path in your development environment
     dev deployed             Check if the head commit has been deployed
     dev deployed [commit]    Check if the provided commit has been deployed
+    dev experimental         Run experimental scripts
     dev --help               Print this message"
     exit 0
 fi
@@ -236,6 +237,11 @@ EOF
     deployed)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:deployed -- ${@:2}
         ;;
+
+    experimental)
+        ./admin/experimental/experimental.sh "${@:2}"
+        ;;
+
 
     *)
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev
