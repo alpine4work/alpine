@@ -5,6 +5,7 @@ import {
 } from "~/server/accounts/accounts_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
+import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -63,21 +64,12 @@ export class TestAccount {
         return new TestAccount(context, accountId, account.initialData.name);
     }
 
-    private _generateEmailAddress() {
-        const emailAddressNumber = this._emailAddressCount;
-        this._emailAddressCount += 1;
-
-        return `account.${this.id}${
-            emailAddressNumber > 0 ? `.${emailAddressNumber + 1}` : ""
-        }@test.cyberworlds.dev`;
-    }
-
     /**
      * Adds an email address to this account. If you call this multiple times then
      * the account will have multiple email addresses it may sign in with.
      */
     public async createEmailAddress(
-        emailAddress: string = this._generateEmailAddress(),
+        emailAddress: string = generateEmailAddressForTest(this),
     ): Promise<EmailAddress> {
         const actualEmailAddress = await validateEmailAddress(this.context, emailAddress);
 

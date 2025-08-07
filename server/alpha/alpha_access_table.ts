@@ -2,7 +2,7 @@ import {compareAsc as compareDatesAsc} from "date-fns";
 import {
     authorizeInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
-    createAccountForAlphaTransactionEntries,
+    createAccountTransactionEntries,
 } from "~/server/accounts/accounts_table.js";
 import {
     ServerActionContext,
@@ -17,8 +17,8 @@ import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_table.js";
 import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
-import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
 import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -270,7 +270,7 @@ export async function approveAlphaAccessRequest(
                 accountId,
             },
         }),
-        ...createAccountForAlphaTransactionEntries({
+        ...createAccountTransactionEntries({
             id: accountId,
             name: requestItem.name,
             emailAddress: requestItem.emailAddress,

@@ -9200,6 +9200,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "invitePendingSpaceIds": {
+                                        "valueSchema": {
+                                            "type": "Bytes"
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

@@ -3,6 +3,7 @@ import {
     AccountDevice,
     authorizeInternalAccess,
     checkAccountVersionConditionCheck,
+    createAccountTransactionEntries,
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
@@ -28,6 +29,7 @@ import {
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -56,6 +58,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -230,6 +233,7 @@ const SpacesTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceIds: IdByteSetSchema.get<SpaceId>(),
+                        invitePendingSpaceIds: IdByteSetSchema.get<SpaceId>().default(new Set()),
                     }),
                 },
             ],
@@ -314,6 +318,19 @@ export async function addSpaceAccountForTest(
         favoriteSearchEntity: asyncNoop,
         role,
     });
+}
+
+/**
+ * Get a space account in a test environment.
+ */
+export async function getSpaceAccountForTest(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<SpaceAccountItem | null> {
+    assert(process.env.NODE_ENV === "test");
+
+    return getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId);
 }
 
 export async function seedTestSpaces(
@@ -429,7 +446,7 @@ export async function internalCreateAlphaSpaceAsAdmin(
  * more specifically `dangerouslyFavoriteSearchEntityWithoutAuthorization()`)
  * from `//server/search/data` to call this function.
  *
- * Instead you should call `addSpaceAccount()` in `//server/spaces/add_account`
+ * Instead you should call `addSpaceAccount()` in `//server/spaces/with_search`
  * that integrates this function with `//server/search/data`.
  */
 export async function internalAddSpaceAccount(
@@ -587,14 +604,23 @@ async function internalAddSpaceAccountWithoutAuthorization(
             ? new Set(accountSpacesItem.spaceIds)
             : new Set();
 
-        if (
-            accountSpaceIds.has(spaceId) ||
-            (spaceAccountItem && spaceAccountItem.state.type !== "Removed")
-        ) {
+        const accountInvitePendingSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.invitePendingSpaceIds)
+            : new Set();
+
+        if (accountSpaceIds.has(spaceId) || accountInvitePendingSpaceIds.has(spaceId)) {
+            // This is an extra check to make sure our spaceIds on the Account#Spaces isn't
+            // drifting apart from the source of the truth.
             throw new FailedPreconditionError("Account is already a member of space");
         }
 
-        accountSpaceIds.add(spaceId);
+        if (spaceAccountItem) {
+            if (spaceAccountItem.state.type !== "Removed") {
+                throw new FailedPreconditionError("Account is already a member of space");
+            } else if (spaceAccountItem.state.reason !== "ActionByAdmin") {
+                throw new FailedPreconditionError("Account cannot be invited to this space.");
+            }
+        }
 
         // Make sure there aren't any other owners in the space.
         //
@@ -626,28 +652,60 @@ async function internalAddSpaceAccountWithoutAuthorization(
             }
         }
 
-        const updateOrCreateSpaceAccountItemTransactionEntry = !spaceAccountItem
-            ? SpacesTable.transactionCreateItem({
-                  partitionType: "Space",
-                  sortRangeType: "Account",
-                  spaceId,
-                  accountId,
-                  role,
-                  addedTime: currentTime,
-                  state: {
-                      type: "Active",
-                  },
-              })
-            : SpacesTable.transactionDirectlyUpdateItem({
-                  ...spaceAccountItem,
-                  role,
-                  // The account was previously a member of the space and is being added back.
-                  state: {
-                      type: "Active",
-                  },
-              });
+        let updateOrCreateSpaceAccountItemTransactionEntry;
+
+        // If the account was previously removed, we should re-add it
+        if (spaceAccountItem) {
+            // We've already checked this case above. Let's reassert here to make sure
+            // our types are correct.
+            // NOTE(imjoshin): We only need to do this because we're trying to early-return
+            // from the function if the account is already a member of the space.
+            assert(spaceAccountItem.state.type === "Removed");
+            assert(spaceAccountItem.state.reason === "ActionByAdmin");
+
+            updateOrCreateSpaceAccountItemTransactionEntry =
+                SpacesTable.transactionDirectlyUpdateItem({
+                    ...spaceAccountItem,
+                    role,
+                    // The account was previously a member of the space and is being added back.
+                    state: {
+                        type: "InvitePending",
+                        invitedTime: new Date(),
+                        // Re-add with the previously seen data, not it's current data
+                        pendingAccountData: spaceAccountItem.state.oldAccountData,
+                    },
+                });
+        } else {
+            updateOrCreateSpaceAccountItemTransactionEntry = SpacesTable.transactionCreateItem({
+                partitionType: "Space",
+                sortRangeType: "Account",
+                spaceId,
+                accountId,
+                role,
+                addedTime: currentTime,
+                state:
+                    role === "Owner"
+                        ? {
+                              type: "Active",
+                          }
+                        : {
+                              type: "InvitePending",
+                              invitedTime: new Date(),
+                              pendingAccountData: account.initialData,
+                          },
+            });
+        }
 
         await addSpaceAccountBeforeExecuteTestCheckpoint.waitForTest(`${spaceId}:${accountId}`);
+
+        // Only update the account's spaceIDs if the account is being added to the space as Active.
+        if (updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type === "Active") {
+            accountSpaceIds.add(spaceId);
+        } else if (
+            updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type === "InvitePending"
+        ) {
+            accountInvitePendingSpaceIds.add(spaceId);
+        }
 
         await DynamoTableSchema.executeTransaction(context, [
             // Since this transaction is security sensitive, make sure the account and
@@ -672,13 +730,16 @@ async function internalAddSpaceAccountWithoutAuthorization(
                 sortRangeType: "Spaces",
                 accountId,
                 spaceIds: accountSpaceIds,
+                invitePendingSpaceIds: accountInvitePendingSpaceIds,
             }),
             updateOrCreateSpaceAccountItemTransactionEntry,
         ]);
 
         return createAccountModelFromItem(
             updateOrCreateSpaceAccountItemTransactionEntry.newItem,
-            account,
+            updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type === "Active"
+                ? account
+                : null,
         );
     });
 
@@ -705,6 +766,53 @@ async function internalAddSpaceAccountWithoutAuthorization(
     });
 
     return createdAccount;
+}
+
+/**
+ * Given a space ID and list of accounts, find any accounts in that space and return
+ * their current state. This is useful for a known list of account IDs where a state check
+ * is required, without returning any extra sensitive data.
+ */
+async function internalGetSpaceAccountStatesByAccountIds(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
+    {
+        spaceId,
+        accountIds,
+        consistency,
+    }: {spaceId: SpaceId; accountIds: Array<AccountId>; consistency?: DynamoReadConsistency},
+): Promise<Map<AccountId, AccountModelDataSpaceState | null>> {
+    await authorizeSpaceAccess(context, spaceId, "Admin");
+
+    if (accountIds.length === 0) {
+        return new Map<AccountId, AccountModelDataSpaceState | null>();
+    }
+
+    // NOTE(imjoshin): We manually fetch each account ID here to avoid reading more data than we
+    // need to. For example, if we have 100 accounts but only ask for two, and they happen to be
+    // the first and last accounts in the partition, we would read all 100 accounts.
+    // If we ever need to optimize this query because users are inviting too many accounts,
+    // we can switch back to a query.
+    const result = new Map<AccountId, AccountModelDataSpaceState | null>();
+    await runAllPromises(
+        accountIds.map(async accountId => {
+            const spaceAccountItem = await getSpaceAccountItemIfExistsWithoutAuthorization(
+                context,
+                spaceId,
+                accountId,
+                {consistency},
+            );
+
+            result.set(accountId, spaceAccountItem?.state || null);
+        }),
+    );
+
+    return result;
 }
 
 export const removeSpaceAccountBeforeExecuteTestCheckpoint =
@@ -749,15 +857,9 @@ function removeSpaceAccountWithoutAuthorization(
             throw new NotFoundError("Account not found");
         }
 
-        const accountSpaceIds: Set<SpaceId> = accountSpacesItem
-            ? new Set(accountSpacesItem.spaceIds)
-            : new Set();
-
-        if (
-            !accountSpaceIds.has(spaceId) ||
-            !spaceAccountItem ||
-            spaceAccountItem.state.type !== "Active"
-        ) {
+        // We don't check accountSpaceIds here because we don't add to spaceIds until the user
+        // accepts the invite.
+        if (!spaceAccountItem || spaceAccountItem.state.type === "Removed") {
             throw new FailedPreconditionError("Account is not a member of the space");
         }
 
@@ -765,7 +867,16 @@ function removeSpaceAccountWithoutAuthorization(
             throw new FailedPreconditionError("Can’t remove owner from space");
         }
 
+        const accountSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.spaceIds)
+            : new Set();
+
+        const accountInvitePendingSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.invitePendingSpaceIds)
+            : new Set();
+
         accountSpaceIds.delete(spaceId);
+        accountInvitePendingSpaceIds.delete(spaceId);
 
         const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
             ...spaceAccountItem,
@@ -797,6 +908,7 @@ function removeSpaceAccountWithoutAuthorization(
                 accountId,
                 // update to new accountSpaceIds after removing the space from the account
                 spaceIds: accountSpaceIds,
+                invitePendingSpaceIds: accountInvitePendingSpaceIds,
             }),
             updateSpaceAccountItemTransactionEntry,
         ]);
@@ -2096,6 +2208,213 @@ export async function getSpaceIfPossible(
 }
 
 /**
+ * Given a spaceId and a list of email addresses, return status information of those email
+ * addresses within a space. This includes whether the email addresses are invalid,
+ * already members, rejected an invite as spam, or ready to invite.
+ *
+ * We must call getSpaceAccountStatesByAccountIds to get the space account states for
+ * the email addresses, so we return the resulting accountIDs from this as well to
+ * avoid refetching data.
+ *
+ * Security considerations:
+ *   This function allows determining whether an email address has signed up for Alpine
+ *   and obtaining their AccountId. This is considered an acceptable information leak since:
+ *     a) On the sign-in page, we already reveal whether an account exists
+ *     b) An AccountId alone provides no access without additional authentication
+ *   Additionally, there's no way to directly call this function from the client.
+ */
+export async function internalFilterEmailsByInviteStatusWithoutAuthorization(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        emailAddresses,
+        getAccountIdByEmailAddressIfExists,
+    }: {
+        spaceId: SpaceId;
+        emailAddresses: ReadonlyArray<string>;
+        getAccountIdByEmailAddressIfExists: (
+            emailAddress: EmailAddress,
+        ) => Promise<AccountId | null>;
+    },
+): Promise<{
+    invalidEmailAddresses: Array<string>;
+    rejectedAsSpamEmailAddresses: Array<string>;
+    alreadyMemberEmailAddresses: Array<string>;
+    readyToInviteEmailAddresses: Array<EmailAddress>;
+    emailAddressToExistingAccountId: Map<EmailAddress, AccountId>;
+}> {
+    await authorizeSpaceAccess(context, spaceId, "Admin");
+    const invalidEmailAddresses: Array<string> = [];
+    const alreadyMemberEmailAddresses: Array<string> = [];
+    const rejectedAsSpamEmailAddresses: Array<string> = [];
+    const validEmailAddresses: Array<EmailAddress> = [];
+
+    // We don't want to error if the email address is invalid, we just want to
+    // filter it out. So we validate each email address and if it fails we add
+    // it to the `invalidEmailAddresses` list.
+    await runAllPromises(
+        emailAddresses.map(async emailAddress => {
+            try {
+                const validated = await validateEmailAddress(context, emailAddress);
+                validEmailAddresses.push(validated);
+            } catch {
+                invalidEmailAddresses.push(emailAddress);
+            }
+        }),
+    );
+
+    const emailAddressToExistingAccountId = new Map<EmailAddress, AccountId>(
+        (
+            await runAllPromises(
+                validEmailAddresses.map(async emailAddress => {
+                    const accountId = await getAccountIdByEmailAddressIfExists(emailAddress);
+                    return accountId ? ([emailAddress, accountId] as const) : null;
+                }),
+            )
+        ).filter(isNonNullable),
+    );
+
+    const spaceAccountStates = await internalGetSpaceAccountStatesByAccountIds(context, {
+        spaceId,
+        accountIds: Array.from(emailAddressToExistingAccountId.values()),
+        consistency: "Strong",
+    });
+
+    // Similar to invalid emails, we don't want to error if the account
+    // is already active, invited, or has rejected an invite as spam.
+    for (const [emailAddress, accountId] of emailAddressToExistingAccountId.entries()) {
+        const state = spaceAccountStates.get(accountId);
+        if (state) {
+            if (state.type === "Active" || state.type === "InvitePending") {
+                alreadyMemberEmailAddresses.push(emailAddress);
+            } else if (state?.type === "Removed" && state.reason === "InviteRejectedAsSpam") {
+                rejectedAsSpamEmailAddresses.push(emailAddress);
+            }
+        }
+    }
+
+    // Find our list of valid email addresses that are clear to invite.
+    const readyToInviteEmailAddresses = validEmailAddresses.filter(
+        emailAddress =>
+            !alreadyMemberEmailAddresses.includes(emailAddress) &&
+            !rejectedAsSpamEmailAddresses.includes(emailAddress),
+    );
+
+    return {
+        invalidEmailAddresses,
+        rejectedAsSpamEmailAddresses,
+        alreadyMemberEmailAddresses,
+        readyToInviteEmailAddresses,
+        emailAddressToExistingAccountId,
+    };
+}
+
+/**
+ * Invites a user to join a space by their email address. Only space administrators
+ * can invite users.
+ *
+ * The function ensures proper authorization and maintains the space membership state
+ * in the database.
+ *
+ * Labeled as internal since you need to provide `addSpaceAccount()`
+ * from `//server/spaces/with_search` to call this function.
+ *
+ * You should call `inviteAccountToSpace()` in
+ * `//server/spaces/with_search` instead of this function that integrates this function with
+ * `//server/spaces/with_search:addSpaceAccount` to add the account to the space.
+ */
+export async function internalInviteAccountToSpace(
+    context: ServerSessionActionContext,
+    {
+        emailAddress,
+        existingAccountId,
+        spaceId,
+        favoriteSearchEntity,
+    }: {
+        spaceId: SpaceId;
+        favoriteSearchEntity: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
+        ) => Promise<unknown>;
+        emailAddress: EmailAddress;
+        existingAccountId: AccountId | undefined;
+    },
+): Promise<AccountModel> {
+    return context.tracer.withSpan("Invite email address to space", async (context, span) => {
+        await authorizeSpaceAccess(context, spaceId, "Admin");
+
+        function addSpaceAccountForInvite(accountId: AccountId) {
+            // Account exists, try to add them to the space
+            // This will throw appropriate errors for active members or rejected invitations
+            return internalAddSpaceAccount(context, {
+                spaceId,
+                accountId,
+                favoriteSearchEntity: (
+                    context,
+                    {spaceId: otherSpaceId, accountId: otherAccountId, entityId},
+                ) => {
+                    // Double check to make sure the function is only favoriting entities for the
+                    // account we're adding.
+                    assert(otherSpaceId === spaceId);
+                    assert(otherAccountId === accountId);
+
+                    return favoriteSearchEntity(context, {
+                        spaceId: otherSpaceId,
+                        accountId: otherAccountId,
+                        entityId,
+                    });
+                },
+            });
+        }
+
+        if (existingAccountId) {
+            span.addData({
+                space: {
+                    members: {
+                        invite: {
+                            send: {
+                                existingAccountId,
+                            },
+                        },
+                    },
+                },
+            });
+
+            return addSpaceAccountForInvite(existingAccountId);
+        }
+
+        const newAccountId = generateId<AccountId>();
+        span.addData({
+            space: {
+                members: {
+                    invite: {
+                        send: {
+                            newAccountId,
+                        },
+                    },
+                },
+            },
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            ...createAccountTransactionEntries({
+                id: newAccountId,
+                // Use email as name for new account so they can be mentioned
+                // in the space before they join.
+                name: emailAddress,
+                emailAddress,
+            }),
+        ]);
+
+        const accountModel = await addSpaceAccountForInvite(newAccountId);
+
+        // TODO: send email (in follow up PR)
+
+        return accountModel;
+    });
+}
+
+/**
  * Get the space with the specified `SpaceId`. Throws an error if the actor
  * doesn't have access to the space or if the space doesn't exist.
  */
@@ -2193,6 +2512,28 @@ export async function getOurAccountSpaceIds(context: ServerSessionActionContext)
                       },
                       {isConditionCheckErrorRetriable: true},
                   ),
+    };
+}
+
+/**
+ * Get the `SpaceId`s our actor has pending invites for.
+ */
+export async function getOurAccountInvitePendingSpaceIds(
+    context: ServerSessionActionContext,
+): Promise<{
+    invitePendingSpaceIds: ReadonlySet<SpaceId>;
+}> {
+    const spacesItem = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Spaces",
+        accountId: context.actor.getAccountId(),
+    });
+
+    const invitePendingSpaceIds: ReadonlySet<SpaceId> =
+        spacesItem?.invitePendingSpaceIds ?? new Set();
+
+    return {
+        invitePendingSpaceIds,
     };
 }
 
@@ -2306,7 +2647,10 @@ export async function updateSpaceAccountRole(
             updateSpaceAccountItemTransactionEntry,
         ]);
 
-        return createAccountModelFromItem(updateSpaceAccountItemTransactionEntry.newItem, account);
+        return createAccountModelFromItem(
+            updateSpaceAccountItemTransactionEntry.newItem,
+            spaceAccountItem.state.type === "Active" ? account : null,
+        );
     });
 }
 
@@ -2465,40 +2809,119 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
     });
 }
 
-export async function setSpaceAccountStateForTest(
-    context: ServerActionContext,
-    {
-        spaceId,
-        accountId,
-        state,
-    }: {
-        spaceId: SpaceId;
-        accountId: AccountId;
-        state: AccountModelDataSpaceState;
-    },
-) {
-    assert(import.meta.jest);
-    const [spaceAccountItem, account] = await runAllPromises([
-        getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
-            consistency: "Strong",
-        }),
-        dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
-            consistency: "Strong",
-        }),
-    ]);
-    if (!spaceAccountItem) {
-        throw new NotFoundError("Account not found in space");
-    }
-    if (!account) {
-        throw new NotFoundError("Account not found");
-    }
-    const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
-        ...spaceAccountItem,
-        state,
+/**
+ * Update the account space state with the decision made by the account
+ * regarding the invitation to the space. If the account rejects the invitation,
+ * the account is marked as "Removed" with a reason of "InviteRejectedAsSpam".
+ * If the account accepts the invitation, the account is marked as "Active".
+ */
+async function updateSpaceAccountWithInviteDecision(
+    context: ServerSessionActionContext,
+    {spaceId, newAccountStateType}: {spaceId: SpaceId; newAccountStateType: "Active" | "Removed"},
+): Promise<AccountModel> {
+    context.actor.authorizeSession();
+    const accountId = context.actor.getAccountId();
+    await authorizeOwnAccountAccess(context, accountId);
+
+    return context.dynamo.retryTransaction(async context => {
+        const [spaceAccountItem, account, accountSpacesItem] = await runAllPromises([
+            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+                consistency: "Strong",
+            }),
+            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
+                consistency: "Strong",
+            }),
+            SpacesTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+            }),
+        ]);
+
+        if (!spaceAccountItem) {
+            throw new NotFoundError("Account not found in space");
+        }
+
+        if (!account) {
+            throw new NotFoundError("Account not found");
+        }
+
+        if (spaceAccountItem.state?.type !== "InvitePending") {
+            throw new FailedPreconditionError("Account invitation is not in pending state");
+        }
+
+        const accountSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.spaceIds)
+            : new Set();
+
+        const accountInvitePendingSpaceIds: Set<SpaceId> = accountSpacesItem
+            ? new Set(accountSpacesItem.invitePendingSpaceIds)
+            : new Set();
+
+        accountInvitePendingSpaceIds.delete(spaceId);
+
+        let state: AccountModelDataSpaceState = {type: "Active"};
+        if (newAccountStateType === "Active") {
+            accountSpaceIds.add(spaceId);
+        } else {
+            state = {
+                type: "Removed",
+                removedTime: new Date(),
+                oldAccountData: account.initialData,
+                reason: "InviteRejectedAsSpam",
+            };
+        }
+
+        const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
+            ...spaceAccountItem,
+            state,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            SpacesTable.transactionDirectlyUpdateItem({
+                ...accountSpacesItem,
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+                spaceIds: accountSpaceIds,
+                invitePendingSpaceIds: accountInvitePendingSpaceIds,
+            }),
+            updateSpaceAccountItemTransactionEntry,
+        ]);
+
+        return createAccountModelFromItem(
+            updateSpaceAccountItemTransactionEntry.newItem,
+            updateSpaceAccountItemTransactionEntry.newItem.state.type === "Active" ? account : null,
+        );
     });
-    await DynamoTableSchema.executeTransaction(context, [updateSpaceAccountItemTransactionEntry]);
-    return createAccountModelFromItem(
-        updateSpaceAccountItemTransactionEntry.newItem,
-        state.type === "Removed" ? null : account,
-    );
+}
+
+/**
+ * Accept a space account invite by marking the account as "Active".
+ */
+export async function acceptSpaceAccountInvite(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<AccountModel> {
+    return updateSpaceAccountWithInviteDecision(context, {
+        spaceId,
+        newAccountStateType: "Active",
+    });
+}
+
+/**
+ * Reject a space account invite by marking the account as "Removed" with a reason
+ * of "InviteRejectedAsSpam".
+ *
+ * This function is used when the account decides to reject the invitation to
+ * the space, marking it as spam or unwanted.
+ */
+export async function rejectSpaceAccountInviteAsSpam(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<AccountModel> {
+    return updateSpaceAccountWithInviteDecision(context, {
+        spaceId,
+        newAccountStateType: "Removed",
+    });
 }

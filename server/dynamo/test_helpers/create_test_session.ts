@@ -2,7 +2,11 @@ import {createAccountForTest, createSessionForTest} from "~/server/accounts/acco
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpaceItem} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {addSpaceAccountForTest} from "~/server/spaces/spaces_table.js";
+import {
+    acceptSpaceAccountInvite,
+    addSpaceAccountForTest,
+    getSpaceAccountForTest,
+} from "~/server/spaces/spaces_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -68,12 +72,22 @@ export function createTestSession(
                 id: sessionId,
                 accountId,
             }),
-            await addSpaceAccountForTest(context, {
+            addSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId,
                 role,
             }),
         ]);
+
+        const spaceAccount = await getSpaceAccountForTest(
+            context.systemAction(space.id),
+            space.id,
+            accountId,
+        );
+
+        if (spaceAccount?.state.type === "InvitePending") {
+            await acceptSpaceAccountInvite(context.action({id: sessionId, account}), space.id);
+        }
 
         sessionCreatedTime = _sessionCreatedTime;
     });

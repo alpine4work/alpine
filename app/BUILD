@@ -85,6 +85,7 @@ ts_project(
         "//client/remix",
         "//client/rpc",
         "//client/shimmer",
+        "//client/settings",
         "//client/spaces",
         "//client/spaces/layout",
         "//client/styles",

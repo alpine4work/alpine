@@ -3,19 +3,22 @@ import {getOurAccountInboxes} from "~/server/notifications/data/notifications_ta
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
-    addSpaceAccount,
-    dangerouslyAddSpaceAccountAsAdmin,
-} from "~/server/spaces/add_account/add_space_account.js";
-import {
+    acceptSpaceAccountInvite,
     expensivelyGetAllSpaceAccounts,
     getOurAccountSpaceIds,
     getSpaceIfPossible,
     moveSpaceAccountOwnerRole,
+    rejectSpaceAccountInviteAsSpam,
     removeSpaceAccount,
     updateSpaceAccountRole,
     updateSpaceAccountSettings,
     updateSpaceName,
 } from "~/server/spaces/spaces_table.js";
+import {
+    addSpaceAccount,
+    dangerouslyAddSpaceAccountAsAdmin,
+} from "~/server/spaces/with_search/add_space_account.js";
+import {inviteEmailAddressesToSpace} from "~/server/spaces/with_search/invite_email_addresses_to_space.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -183,6 +186,53 @@ export default implementRpcs(definitions, {
                 newOwnerAccount,
                 oldOwnerAccount,
             };
+        },
+    },
+
+    inviteEmailAddressesToSpace: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {
+                accounts,
+                invalidEmailAddresses,
+                rejectedAsSpamEmailAddresses,
+                alreadyMemberEmailAddresses,
+                unexpectedFailureEmailAddresses,
+            } = await inviteEmailAddressesToSpace(context.actor.authorizeSession(), {
+                emailAddresses: input.emailAddresses,
+                spaceId: input.spaceId,
+            });
+            return {
+                accounts,
+                errors: {
+                    invalidEmailAddresses,
+                    rejectedAsSpamEmailAddresses,
+                    alreadyMemberEmailAddresses,
+                    unexpectedFailureEmailAddresses,
+                },
+            };
+        },
+    },
+
+    rejectSpaceAccountInviteAsSpam: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const account = await rejectSpaceAccountInviteAsSpam(
+                context.actor.authorizeSession(),
+                input.spaceId,
+            );
+            return {account};
+        },
+    },
+
+    acceptSpaceAccountInvite: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const account = await acceptSpaceAccountInvite(
+                context.actor.authorizeSession(),
+                input.spaceId,
+            );
+            return {account};
         },
     },
 });

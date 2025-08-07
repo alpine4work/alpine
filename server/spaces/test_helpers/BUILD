@@ -12,6 +12,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/dynamo/test_helpers",
         "//server/spaces",
+        "//server/spaces/with_search",
         "//shared/helpers",
         "//shared/id",
     ],

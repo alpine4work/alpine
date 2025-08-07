@@ -55,11 +55,11 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
-import {getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
+import {acceptSpaceAccountInvite, getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -4475,6 +4475,8 @@ test("can add accounts to spaces as admin", async () => {
         accountId: session3.account.id,
     });
 
+    await acceptSpaceAccountInvite(session3.action(), space1.id);
+
     await getChannel(session3.action(), channel1.id);
 
     expect((await getOurAccountSpaceIds(session1.action())).spaceIds).toEqual(new Set([space1.id]));
@@ -4534,6 +4536,8 @@ test("can add accounts to spaces as admin", async () => {
         spaceId: space1.id,
         accountId: session2.account.id,
     });
+
+    await acceptSpaceAccountInvite(session2.action(), space1.id);
 
     await getChannel(session2.action(), channel1.id);
 

@@ -41,6 +41,7 @@ function ModalWithButtons(
         withoutCloseAnimation,
         withoutCloseButton,
         withoutCloseInteractions,
+        withoutCloseAfterPrimaryButtonPress,
         buttonsPaddingX = "5",
         buttonsPaddingBottom = "4",
         additionalButtons,
@@ -65,6 +66,7 @@ function ModalWithButtons(
         withoutCloseAnimation?: boolean;
         withoutCloseButton?: boolean;
         withoutCloseInteractions?: boolean;
+        withoutCloseAfterPrimaryButtonPress?: boolean;
         buttonsPaddingX?: Spacing;
         buttonsPaddingBottom?: Spacing;
         additionalButtons?: ReactNode;
@@ -111,7 +113,9 @@ function ModalWithButtons(
                     const promise = onPrimaryButtonPress?.();
 
                     if (!(promise instanceof Promise)) {
-                        onCloseWithoutAnimation();
+                        if (!withoutCloseAfterPrimaryButtonPress) {
+                            onCloseWithoutAnimation();
+                        }
                     } else {
                         setIsPrimaryButtonPending(true);
 
@@ -126,18 +130,20 @@ function ModalWithButtons(
                             () => {
                                 setIsPrimaryButtonPending(false);
 
-                                // Our animation principle is to respond to user input immediately
-                                // without animation.
-                                //
-                                // If the button had to go into a loading state we consider the click long
-                                // enough ago that it is no longer a direct action.
-                                if (
-                                    new Date().getTime() - promiseStartTime.getTime() >
-                                    delayLoadingIndicatorLimitMs
-                                ) {
-                                    onCloseWithAnimation();
-                                } else {
-                                    onCloseWithoutAnimation();
+                                if (!withoutCloseAfterPrimaryButtonPress) {
+                                    // Our animation principle is to respond to user input immediately
+                                    // without animation.
+                                    //
+                                    // If the button had to go into a loading state we consider the click long
+                                    // enough ago that it is no longer a direct action.
+                                    if (
+                                        new Date().getTime() - promiseStartTime.getTime() >
+                                        delayLoadingIndicatorLimitMs
+                                    ) {
+                                        onCloseWithAnimation();
+                                    } else {
+                                        onCloseWithoutAnimation();
+                                    }
                                 }
                             },
                             error => {

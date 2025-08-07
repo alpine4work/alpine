@@ -20,7 +20,7 @@ ts_project(
         "//server/forum/data",
         "//server/search/data/table",
         "//server/spaces",
-        "//server/spaces/add_account",
+        "//server/spaces/with_search",
         "//shared/alpha",
         "//shared/context",
         "//shared/error",

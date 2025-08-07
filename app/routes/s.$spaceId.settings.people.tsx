@@ -1,6 +1,7 @@
 import {compareAsc, compareDesc} from "date-fns";
 import {CaretDown} from "phosphor-react";
 import {useMemo, useState} from "react";
+import {useRevalidator} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel, useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -8,10 +9,10 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {SettingsInvitePeopleModal} from "~/client/settings/settings_invite_people_modal.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -28,10 +29,11 @@ import {
     updateSpaceAccountRole,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-
 import {
     AccountModel,
     AccountModelData,
+    AccountModelDataWithActiveState,
+    AccountModelDataWithInvitePendingState,
     AccountModelDataWithRemovedState,
 } from "~/shared/spaces/account_model.js";
 import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
@@ -62,6 +64,7 @@ export default function SpacePeopleSettingsRoute() {
     const currentAccountData = useAccountModel(currentAccount);
     const appContext = useAppContext();
     const accountRegistry = useAccountRegistry();
+    const {revalidate} = useRevalidator();
 
     // Add `accounts` to the RPC cache so future RPC calls have access to them
     // and we can skip any preloads but don't read `accounts` from the RPC
@@ -82,6 +85,9 @@ export default function SpacePeopleSettingsRoute() {
               type: "ConfirmDelete";
               accountData: AccountModelData;
           }
+        | {
+              type: "SendInvites";
+          }
         | null
     >(null);
 
@@ -97,31 +103,50 @@ export default function SpacePeopleSettingsRoute() {
         ),
     );
 
-    // if current loggein in account has "Admin" access or not.
-    // account can be an "Owner" or "Admin" to have "Admin" access.
+    // check "Admin" access for currently logged in account.
     const hasAdminAccess = hasSpaceRole(currentAccountData.space.role, "Admin");
 
-    const {activeAccounts, removedAccounts, ownerAccount} = useMemo(() => {
-        const activeAccounts: Array<AccountModelData> = [];
+    const {
+        activeAccounts,
+        removedAccounts,
+        inviteRejectedAsSpamAccounts,
+        ownerAccount,
+        invitedAccounts,
+    } = useMemo(() => {
+        const activeAccounts: Array<AccountModelDataWithActiveState> = [];
         const removedAccounts: Array<AccountModelDataWithRemovedState> = [];
+        const inviteRejectedAsSpamAccounts: Array<AccountModelDataWithRemovedState> = [];
+        const invitedAccounts: Array<AccountModelDataWithInvitePendingState> = [];
+
         let ownerAccount: AccountModelData | undefined;
 
         for (const account of allAccountsDatas) {
             if (account.space.state.type === "Removed") {
-                removedAccounts.push(account as AccountModelDataWithRemovedState);
+                if (account.space.state.reason === "InviteRejectedAsSpam") {
+                    inviteRejectedAsSpamAccounts.push(account as AccountModelDataWithRemovedState);
+                } else {
+                    removedAccounts.push(account as AccountModelDataWithRemovedState);
+                }
+            } else if (account.space.state.type === "InvitePending") {
+                invitedAccounts.push(account as AccountModelDataWithInvitePendingState);
             } else if (account.space.state.type === "Active") {
-                activeAccounts.push(account);
+                activeAccounts.push(account as AccountModelDataWithActiveState);
             }
 
+            // We only allow one owner per space
             if (account.space.role === "Owner") {
                 ownerAccount = account;
             }
         }
         assert(ownerAccount, "Missing owner account");
 
-        activeAccounts.sort((account1, account2) =>
-            compareAsc(account1.space.addedTime, account2.space.addedTime),
-        );
+        activeAccounts.sort((account1, account2) => {
+            return compareAsc(account1.space.addedTime, account2.space.addedTime);
+        });
+
+        invitedAccounts.sort((account1, account2) => {
+            return compareAsc(account1.space.state.invitedTime, account2.space.state.invitedTime);
+        });
 
         removedAccounts.sort((account1, account2) =>
             compareDesc(account1.space.state.removedTime, account2.space.state.removedTime),
@@ -130,9 +155,21 @@ export default function SpacePeopleSettingsRoute() {
         return {
             activeAccounts,
             removedAccounts,
+            inviteRejectedAsSpamAccounts,
             ownerAccount,
+            invitedAccounts,
         };
     }, [allAccountsDatas]);
+
+    const onSendInvitesSuccess = () => {
+        // TODO: revalidate does not return a promise, so we can't wait for it to finish. We
+        // should create some method of waiting for the data to come back before closing the modal.
+        // This would be a great UX improvement as we don't want users to see flashes of new data
+        // coming in after the modal closes.
+
+        // If we've sent any new invites, revalidate to refetch the loader data.
+        revalidate();
+    };
 
     const handleConfirmMoveOwner = async () => {
         assert(modalState?.type === "ConfirmOwner");
@@ -193,142 +230,232 @@ export default function SpacePeopleSettingsRoute() {
     };
 
     return (
-        <>
-            <Box fontSize="200" fontStyle="bold" userSelect="text">
-                Members
-            </Box>
-            <Box
-                fontSize="75"
-                color="grey-60"
-                userSelect="text"
-                paddingTop="1"
-                paddingBottom="6"
-                // This copy intentionally says "Only admins" and not "Only admins and the
-                // owner" to keep things short. I think user's will be able to assume the owner
-                // is an admin.
-            >
-                Everyone with access to your space. Only admins can invite people.
-            </Box>
-            {activeAccounts.map((account, index) => (
+        <Box display="flex" flexDirection="column" gap="10">
+            <Box display="flex" flexDirection="column" gap="6">
                 <Box
-                    key={account.id}
-                    height="14"
-                    borderTop={index === 0 ? "grey-5" : undefined}
-                    borderBottom="grey-5"
                     display="flex"
-                    alignItems="center"
-                    gap="3"
+                    flexDirection="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
                 >
-                    <AccountAvatar account={account} size="8" />
-                    <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
-                        {account.name}
+                    <Box display="flex" flexDirection="column" gap="1">
+                        <Box fontSize="200" fontStyle="bold" userSelect="text">
+                            Members
+                        </Box>
+                        <Box fontSize="75" color="grey-60" userSelect="text">
+                            Everyone with access to your space. Only admins can invite people.
+                        </Box>
                     </Box>
-                    <Box flexGrow="1" />
-                    {account.space.role === "Owner" && !hasAdminAccess ? (
-                        <Box flexShrink="0" color="grey-30">
-                            {account.space.role}
-                        </Box>
-                    ) : (
-                        <Box flexShrink="0" marginRight="-2">
-                            <MenuButton
-                                placement="bottom-end"
-                                actions={[
-                                    [
-                                        ...roleOptions.map(roleOption => ({
-                                            isSelected: roleOption === account.space.role,
-                                            label: roleOption,
-                                            onPress: async () =>
-                                                await handleRoleChange(account, roleOption),
-                                            pressErrorTitle: "Can’t change role",
-                                        })),
-                                    ],
-                                    [
-                                        {
-                                            label: "Remove from space",
-                                            onPress: () => handleRemoveAccount(account),
-                                            pressErrorTitle: "Can’t remove member",
-                                        },
-                                    ],
-                                ]}
-                            >
-                                <Button
-                                    height="6"
-                                    paddingX="2"
-                                    icon={<CaretDown />}
-                                    iconPlacement="start"
-                                >
-                                    {account.space.role}
-                                </Button>
-                            </MenuButton>
-                        </Box>
+                    {hasAdminAccess && (
+                        <Button
+                            onPress={() => {
+                                setModalState({
+                                    type: "SendInvites",
+                                });
+                            }}
+                            pressErrorTitle="Failed to invite email"
+                            variant="accent"
+                        >
+                            Invite
+                        </Button>
                     )}
                 </Box>
-            ))}
-            {removedAccounts.length > 0 && (
-                <>
-                    <Spacer space="10" />
-                    <Box fontSize="200" fontStyle="bold" userSelect="text">
-                        Removed members
-                    </Box>
-                    <Box
-                        fontSize="75"
-                        color="grey-60"
-                        userSelect="text"
-                        paddingTop="1"
-                        paddingBottom="6"
-                    >
-                        People who used to have access to the space but don’t have access anymore.
-                    </Box>
-                    {removedAccounts.map((account, index) => {
-                        return (
-                            <Box
-                                key={account.id}
-                                height="14"
-                                borderTop={index === 0 ? "grey-5" : undefined}
-                                borderBottom="grey-5"
-                                display="flex"
-                                alignItems="center"
-                                gap="3"
-                            >
-                                <Box opacity="60">
-                                    <AccountAvatar account={account} size="8" />
-                                </Box>
-                                <Box
-                                    fontStyle="semi-bold"
-                                    fontSize="100"
-                                    userSelect="text"
-                                    color="grey-50"
-                                >
-                                    {account.name}
-                                </Box>
-                                <Box flexGrow="1" />
-                                {hasAdminAccess && (
-                                    <Box marginRight="-2">
+                <Box>
+                    {activeAccounts.map((account, index) => (
+                        <Box
+                            key={account.id}
+                            height="14"
+                            borderTop={index === 0 ? "grey-5" : undefined}
+                            borderBottom="grey-5"
+                            display="flex"
+                            alignItems="center"
+                            gap="3"
+                        >
+                            <AccountAvatar account={account} size="8" />
+                            <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                {account.name}
+                            </Box>
+                            <Box flexGrow="1" />
+                            {account.space.role === "Owner" || !hasAdminAccess ? (
+                                <Box flexShrink="0">{account.space.role}</Box>
+                            ) : (
+                                <Box flexShrink="0" marginRight="-2">
+                                    <MenuButton
+                                        placement="bottom-end"
+                                        actions={[
+                                            [
+                                                ...roleOptions.map(roleOption => ({
+                                                    isSelected: roleOption === account.space.role,
+                                                    label: roleOption,
+                                                    onPress: async () =>
+                                                        await handleRoleChange(account, roleOption),
+                                                    pressErrorTitle: "Can’t change role",
+                                                })),
+                                            ],
+                                            [
+                                                {
+                                                    label: "Remove from space",
+                                                    onPress: () => handleRemoveAccount(account),
+                                                    pressErrorTitle: "Can’t remove member",
+                                                },
+                                            ],
+                                        ]}
+                                    >
                                         <Button
                                             height="6"
                                             paddingX="2"
-                                            pressErrorTitle="Can’t add member"
-                                            onPress={async () => {
-                                                const addedAccount = await addSpaceAccount(
-                                                    appContext,
-                                                    {
-                                                        spaceId: space.id,
-                                                        accountId: account.id,
-                                                    },
-                                                );
-                                                accountRegistry.immediatelyUpdateAccountStoreIfExists(
-                                                    addedAccount.account,
-                                                );
-                                            }}
+                                            icon={<CaretDown />}
+                                            iconPlacement="start"
                                         >
-                                            Add back to space
+                                            {account.space.role}
                                         </Button>
-                                    </Box>
-                                )}
+                                    </MenuButton>
+                                </Box>
+                            )}
+                        </Box>
+                    ))}
+                    {invitedAccounts.map(account => (
+                        <Box
+                            key={account.id}
+                            height="14"
+                            borderBottom="grey-5"
+                            display="flex"
+                            alignItems="center"
+                            gap="3"
+                        >
+                            <AccountAvatar account={account} size="8" />
+                            <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                {account.name}
                             </Box>
-                        );
-                    })}
-                </>
+                            <Box flexGrow="1" />
+                            {!hasAdminAccess ? (
+                                <Box flexShrink="0">Invited</Box>
+                            ) : (
+                                <Box flexShrink="0" marginRight="-2">
+                                    <MenuButton
+                                        placement="bottom-end"
+                                        actions={[
+                                            [
+                                                {
+                                                    label: "Cancel invite",
+                                                    onPress: () => handleRemoveAccount(account),
+                                                    pressErrorTitle: "Couldn’t cancel invite",
+                                                },
+                                            ],
+                                        ]}
+                                    >
+                                        <Button
+                                            height="6"
+                                            paddingX="2"
+                                            icon={<CaretDown />}
+                                            iconPlacement="start"
+                                        >
+                                            Invited
+                                        </Button>
+                                    </MenuButton>
+                                </Box>
+                            )}
+                        </Box>
+                    ))}
+                </Box>
+            </Box>
+            {removedAccounts.length > 0 && (
+                <Box>
+                    <Box display="flex" flexDirection="column" gap="6">
+                        <Box display="flex" flexDirection="column" gap="1">
+                            <Box fontSize="200" fontStyle="bold" userSelect="text">
+                                Removed members
+                            </Box>
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                People who were members of this space but no longer have access.
+                            </Box>
+                        </Box>
+                        <Box>
+                            {removedAccounts.map((account, index) => {
+                                return (
+                                    <Box
+                                        key={account.id}
+                                        height="14"
+                                        borderTop={index === 0 ? "grey-5" : undefined}
+                                        borderBottom="grey-5"
+                                        display="flex"
+                                        alignItems="center"
+                                        gap="3"
+                                    >
+                                        <Box opacity="60">
+                                            <AccountAvatar account={account} size="8" />
+                                        </Box>
+                                        <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                            {account.name}
+                                        </Box>
+                                        <Box flexGrow="1" />
+                                        {hasAdminAccess && (
+                                            <Box marginRight="-2">
+                                                <Button
+                                                    height="6"
+                                                    paddingX="2"
+                                                    pressErrorTitle="Can’t add member"
+                                                    onPress={async () => {
+                                                        const addedAccount = await addSpaceAccount(
+                                                            appContext,
+                                                            {
+                                                                spaceId: space.id,
+                                                                accountId: account.id,
+                                                            },
+                                                        );
+                                                        accountRegistry.immediatelyUpdateAccountStoreIfExists(
+                                                            addedAccount.account,
+                                                        );
+                                                    }}
+                                                >
+                                                    Invite back to space
+                                                </Button>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                </Box>
+            )}
+            {inviteRejectedAsSpamAccounts.length > 0 && (
+                <Box>
+                    <Box display="flex" flexDirection="column" gap="6">
+                        <Box display="flex" flexDirection="column" gap="1">
+                            <Box fontSize="200" fontStyle="bold" userSelect="text">
+                                Rejected invites
+                            </Box>
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                People who were invited to this space but rejected the invite as
+                                spam.
+                            </Box>
+                        </Box>
+                        <Box>
+                            {inviteRejectedAsSpamAccounts.map((account, index) => {
+                                return (
+                                    <Box
+                                        key={account.id}
+                                        height="14"
+                                        borderTop={index === 0 ? "grey-5" : undefined}
+                                        borderBottom="grey-5"
+                                        display="flex"
+                                        alignItems="center"
+                                        gap="3"
+                                    >
+                                        <Box opacity="60">
+                                            <AccountAvatar account={account} size="8" />
+                                        </Box>
+                                        <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                                            {account.name}
+                                        </Box>
+                                        <Box flexGrow="1" />
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                    </Box>
+                </Box>
             )}
             {modalState?.type === "ConfirmOwner" && (
                 <ModalDialog
@@ -370,6 +497,14 @@ export default function SpacePeopleSettingsRoute() {
                     }}
                 />
             )}
-        </>
+            {/* We use a custom invite dialog */}
+            {modalState?.type === "SendInvites" && (
+                <SettingsInvitePeopleModal
+                    spaceId={space.id}
+                    onClose={() => setModalState(null)}
+                    onSuccess={onSendInvitesSuccess}
+                />
+            )}
+        </Box>
     );
 }

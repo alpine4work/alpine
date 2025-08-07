@@ -8,7 +8,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/forum/test_helpers",
         "//server/notifications/data/test_helpers",
-        "//server/spaces/add_account",
+        "//server/spaces/with_search",
         "//server/tasks/test_helpers",
     ],
     tests = {

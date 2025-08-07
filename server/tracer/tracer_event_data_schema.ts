@@ -473,6 +473,21 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             codePreviewContentDurationMs: Schema.float,
         },
     },
+    space: {
+        members: {
+            invite: {
+                send: {
+                    existingAccountId: Schema.id(),
+                    newAccountId: Schema.id(),
+                },
+                invalidEmailAddressCount: Schema.integer,
+                rejectedAsSpamEmailAddressCount: Schema.integer,
+                alreadyMemberEmailAddressCount: Schema.integer,
+                invitedEmailAddressCount: Schema.integer,
+                unexpectedFailureEmailAddressCount: Schema.integer,
+            },
+        },
+    },
     libreoffice: {
         outputFilter: Schema.string,
     },

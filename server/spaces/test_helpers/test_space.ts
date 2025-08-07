@@ -1,22 +1,26 @@
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
+    acceptSpaceAccountInvite,
     addSpaceAccountForTest,
     createSpaceForTest,
     getSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
-    setSpaceAccountStateForTest,
+    rejectSpaceAccountInviteAsSpam,
+    removeSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {inviteEmailAddressesToSpace} from "~/server/spaces/with_search/invite_email_addresses_to_space.js";
 import {SystemTokenPayload} from "~/server/tokens/token_payload.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 let testSpaceCount = 1;
@@ -109,9 +113,6 @@ export class TestSpace {
                   name?: string;
                   hasInternalAccess?: boolean;
                   role?: SpaceRole;
-                  state?:
-                      | AccountModelDataSpaceState
-                      | ((account: TestAccount) => Promise<AccountModelDataSpaceState>);
               },
     ): Promise<TestSpaceSession> {
         let role: SpaceRole | undefined;
@@ -129,22 +130,6 @@ export class TestSpace {
             this.addAccountIfNotExists(actualAccount, role),
         ]);
 
-        if (account && "state" in account && account.state) {
-            const accountState: AccountModelDataSpaceState =
-                typeof account.state === "function"
-                    ? await account.state(actualAccount)
-                    : account.state;
-
-            // Active is default, so we don't need to set it.
-            if (accountState.type !== "Active") {
-                await setSpaceAccountStateForTest(this.systemAction(), {
-                    accountId: actualAccount.id,
-                    spaceId: this.id,
-                    state: accountState,
-                });
-            }
-        }
-
         return session;
     }
 
@@ -153,22 +138,32 @@ export class TestSpace {
         return runAllPromises(createArrayWithLength(count, () => this.createSession()));
     }
 
-    public async addAccount(account: TestAccount | TestSession, role?: SpaceRole) {
+    public async addAccount(account?: TestAccount | TestSession, role?: SpaceRole) {
+        let actualAccount: TestAccount;
+
+        if (account instanceof TestAccount) {
+            actualAccount = account;
+        } else if (account instanceof TestSession) {
+            actualAccount = account.account;
+        } else {
+            actualAccount = await TestAccount.create(this.context, account);
+        }
+
         await addSpaceAccountForTest(this.context, {
             spaceId: this.id,
-            accountId: account instanceof TestSession ? account.account.id : account.id,
+            accountId: actualAccount.id,
             role: role ?? "Member",
         });
+
+        await this.acceptInviteForAccountIfNeeded(actualAccount);
+
+        return actualAccount;
     }
 
-    public async setAccountState(
-        account: TestAccount | TestSession,
-        state: AccountModelDataSpaceState,
-    ) {
-        await setSpaceAccountStateForTest(this.systemAction(), {
-            accountId: account instanceof TestSession ? account.account.id : account.id,
+    public async removeAccount(account: TestAccount | TestSession) {
+        await removeSpaceAccount(this.systemAction(), {
             spaceId: this.id,
-            state,
+            accountId: account instanceof TestSession ? account.account.id : account.id,
         });
     }
 
@@ -184,5 +179,70 @@ export class TestSpace {
         }
 
         await this.addAccount(account, role);
+
+        return;
+    }
+
+    private async acceptInviteForAccountIfNeeded(account: TestAccount | TestSession) {
+        if (
+            await isAccountMemberOfSpaceWithoutAuthorization(
+                this.context.clone({cache: CacheContextModule.new()}),
+                this.id,
+                account instanceof TestSession ? account.account.id : account.id,
+            )
+        ) {
+            return;
+        }
+
+        const session =
+            account instanceof TestSession
+                ? account
+                : await TestSpaceSession._create(this, account);
+
+        await acceptSpaceAccountInvite(session.action(), this.id);
+    }
+
+    /**
+     * Invites a valid email address to the space.
+     * If you're expecting to validate errors from this call, use
+     * inviteEmailAddressesToSpace directly.
+     */
+    public async inviteEmailAddress(context: ServerSessionActionContext, emailAddress: string) {
+        const result = await inviteEmailAddressesToSpace(context, {
+            spaceId: this.id,
+            emailAddresses: [emailAddress],
+        });
+
+        const account = assertExists(
+            result.accounts[0],
+            "Expected an account to be created from the email invite",
+        );
+
+        return account;
+    }
+
+    /**
+     * Invites a valid email address to the space and creates a session for the created account.
+     * If you're expecting to validate errors from this call, use
+     * inviteEmailAddressesToSpace directly.
+     */
+    public async inviteEmailAddressAndCreateSession(
+        context: ServerSessionActionContext,
+        emailAddress: string,
+    ) {
+        const account = await this.inviteEmailAddress(context, emailAddress);
+
+        const testAccount = await TestAccount.get(this.context, account.id);
+        const session = await TestSpaceSession._create(this, testAccount);
+
+        return {
+            session,
+            acceptInvite: async () => {
+                await acceptSpaceAccountInvite(session.action(), this.id);
+            },
+            rejectInviteAsSpam: async () => {
+                await rejectSpaceAccountInviteAsSpam(session.action(), this.id);
+            },
+        };
     }
 }

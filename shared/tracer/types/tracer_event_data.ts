@@ -1448,6 +1448,25 @@ export type TracerEventData = {
         };
     };
 
+    readonly space?: {
+        readonly members?: {
+            readonly invite?: {
+                /* Information about an individual invite to a space */
+                readonly send?: {
+                    readonly existingAccountId?: AccountId;
+                    readonly newAccountId?: AccountId;
+                };
+
+                /* Counts of results from bulk invite */
+                readonly invalidEmailAddressCount?: number;
+                readonly rejectedAsSpamEmailAddressCount?: number;
+                readonly alreadyMemberEmailAddressCount?: number;
+                readonly invitedEmailAddressCount?: number;
+                readonly unexpectedFailureEmailAddressCount?: number;
+            };
+        };
+    };
+
     /**
      * Information regarding an execution of the [LibreOffice][1] CLI.
      *

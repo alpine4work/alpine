@@ -5,6 +5,9 @@ export const spaceAccountStateDefault = {
     type: "Active",
 } as const;
 
+const SpaceAccountStateRemovedReasons = ["ActionByAdmin", "InviteRejectedAsSpam"] as const;
+export type SpaceAccountStateRemovedReason = (typeof SpaceAccountStateRemovedReasons)[number];
+
 export const SpaceAccountStateSchemas = {
     Active: Schema.object({
         type: Schema.value("Active"),
@@ -13,7 +16,7 @@ export const SpaceAccountStateSchemas = {
         type: Schema.value("Removed"),
         removedTime: Schema.date.originalPropertyKey("time"),
         oldAccountData: AccountModelWithoutSpaceDataSchema,
-        reason: Schema.enum(["ActionByAdmin", "InviteRejectedAsSpam"]).default("ActionByAdmin"),
+        reason: Schema.enum(SpaceAccountStateRemovedReasons).default("ActionByAdmin"),
     }),
     InvitePending: Schema.object({
         type: Schema.value("InvitePending"),

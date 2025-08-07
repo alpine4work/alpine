@@ -4,7 +4,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # on `//server/search/data` so we can favorite a search entity after creating
 # an account.
 ts_project(
-    name = "add_account",
+    name = "with_search",
+    test_deps = [
+        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+    ],
     visibility = [
         "//admin/crawl:__pkg__",
         "//app:__pkg__",
@@ -18,5 +22,6 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
+        "//shared/schema",
     ],
 )

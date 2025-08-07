@@ -18,7 +18,7 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/spaces/add_account",
+        "//server/spaces/with_search",
     ],
     visibility = [
         "//admin/crawl:__pkg__",

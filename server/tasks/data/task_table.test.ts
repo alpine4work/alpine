@@ -13,7 +13,12 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {addSpaceAccountForTest, removeSpaceAccount} from "~/server/spaces/spaces_table.js";
+import {
+    acceptSpaceAccountInvite,
+    addSpaceAccountForTest,
+    getSpaceAccountForTest,
+    removeSpaceAccount,
+} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -187,6 +192,16 @@ describe("old style", () => {
             spaceId: otherSpace.id,
             accountId: sharedSession.accountId,
         });
+
+        const spaceAccount = await getSpaceAccountForTest(
+            context.systemAction(space.id),
+            otherSpace.id,
+            sharedSession.accountId,
+        );
+
+        if (spaceAccount?.state.type === "InvitePending") {
+            await acceptSpaceAccountInvite(context.action(sharedSession), otherSpace.id);
+        }
     });
 
     const taskAccount1 = {

@@ -7,17 +7,19 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
 import {
+    acceptSpaceAccountInvite,
     addSpaceAccountBeforeExecuteTestCheckpoint,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
     expensivelyGetAllSpaceAccounts,
     getAccount,
     getAccountIfExists,
+    getOurAccountInvitePendingSpaceIds,
     getOurAccountSpaceIds,
     getRegisteredAccountDevices,
     getSpace,
+    getSpaceAccountForTest,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     getSpaceIfPossible,
@@ -26,14 +28,18 @@ import {
     moveSpaceAccountOwnerRole,
     moveSpaceAccountOwnerRoleBeforeExecuteTestCheckpoint,
     moveSpaceAccountOwnerRoleForTest,
+    rejectSpaceAccountInviteAsSpam,
     removeSpaceAccount,
     removeSpaceAccountBeforeExecuteTestCheckpoint,
     updateSpaceAccountRole,
     updateSpaceName,
 } from "~/server/spaces/spaces_table.js";
+import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -47,6 +53,7 @@ import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
@@ -83,6 +90,16 @@ const isMember = async (space: TestSpace, session: TestSession) => {
     }
 
     return result1;
+};
+
+const expectAccountSpaceIds = async (
+    session: TestSession,
+    expected: {spaceIds: ReadonlySet<SpaceId>; invitePendingSpaceIds: ReadonlySet<SpaceId>},
+) => {
+    expect((await getOurAccountSpaceIds(session.action())).spaceIds).toEqual(expected.spaceIds);
+    expect(
+        (await getOurAccountInvitePendingSpaceIds(session.action())).invitePendingSpaceIds,
+    ).toEqual(expected.invitePendingSpaceIds);
 };
 
 test("can not get all accounts for a space we are not in", async () => {
@@ -417,10 +434,7 @@ test("`isAccountMemberOfSpace()` caches a true result in context", async () => {
     expect(await isMember(cacheContext, space, session2)).toEqual(true);
     expect(await isMember(cacheContext, space, otherSession)).toEqual(false);
 
-    await addSpaceAccount(session1.action(), {
-        spaceId: space.id,
-        accountId: otherSession.account.id,
-    });
+    await space.addAccount(otherSession.account);
 
     expect(await isMember(context.withCache(), space, session1)).toEqual(true);
     expect(await isMember(context.withCache(), space, session2)).toEqual(false);
@@ -510,10 +524,7 @@ test("`isAccountMemberOfSpace()` uses the `getAccountIfExists()` cache in contex
     expect(await isMember(cacheContext3, space, session2)).toEqual(false);
     expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
 
-    await addSpaceAccount(session1.action(), {
-        spaceId: space.id,
-        accountId: otherSession.account.id,
-    });
+    await space.addAccount(otherSession.account);
 
     expect(await isMember(session1.action(), space, session1)).toEqual(true);
     expect(await isMember(session1.action(), space, session2)).toEqual(false);
@@ -553,10 +564,7 @@ test("`isAccountMemberOfSpace()` uses `spaceAccountsCache` to return true", asyn
     expect(await isMember(space, session2)).toEqual(true);
     expect(await isMember(space, otherSession)).toEqual(false);
 
-    await addSpaceAccount(session1.action(), {
-        spaceId: space.id,
-        accountId: otherSession.account.id,
-    });
+    await space.addAccount(otherSession.account);
 
     expect(await isMember(space, session1)).toEqual(true);
     expect(await isMember(space, session2)).toEqual(true);
@@ -636,6 +644,8 @@ test("`isAccountMemberOfSpace()` ignores cached false result in context", async 
         spaceId: space.id,
         accountId: session2.account.id,
     });
+
+    await acceptSpaceAccountInvite(session2.action(), space.id);
 
     expect(await isMember(context.withCache(), space, session1)).toEqual(true);
     expect(await isMember(context.withCache(), space, session2)).toEqual(true);
@@ -734,6 +744,8 @@ test("`isAccountMemberOfSpace()` ignores the `getAccountIfExists()` cache if acc
         accountId: session2.account.id,
     });
 
+    await acceptSpaceAccountInvite(session2.action(), space.id);
+
     expect(await isMember(session1.action(), space, session1)).toEqual(true);
     expect(await isMember(session1.action(), space, session2)).toEqual(true);
     expect(await isMember(session1.action(), space, otherSession)).toEqual(false);
@@ -777,6 +789,8 @@ test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if accou
         accountId: session2.account.id,
     });
 
+    await acceptSpaceAccountInvite(session2.action(), space.id);
+
     expect(await isMember(space, session1)).toEqual(true);
     expect(await isMember(space, session2)).toEqual(true);
     expect(await isMember(space, otherSession)).toEqual(false);
@@ -807,7 +821,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -821,7 +835,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -844,7 +858,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -858,7 +872,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -879,6 +893,8 @@ test("`getAccountIfExists()` will return a removed account", async () => {
         accountId: session2.account.id,
     });
 
+    await acceptSpaceAccountInvite(session2.action(), space.id);
+
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({
             id: session1.account.id,
@@ -886,7 +902,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -900,7 +916,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 2,
+                version: 4,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -932,7 +948,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -960,7 +976,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -977,6 +993,8 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
         spaceId: space.id,
         accountId: session2.account.id,
     });
+
+    await acceptSpaceAccountInvite(session2.action(), space.id);
 
     expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
         cachedAccount1,
@@ -997,7 +1015,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 2,
+                version: 4,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1036,7 +1054,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1050,7 +1068,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1073,7 +1091,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1087,7 +1105,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1107,7 +1125,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1121,7 +1139,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -1146,7 +1164,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1160,7 +1178,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -1181,6 +1199,8 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         accountId: session2.account.id,
     });
 
+    await acceptSpaceAccountInvite(session2.action(), space.id);
+
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({
             id: session1.account.id,
@@ -1188,7 +1208,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1206,7 +1226,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 2,
+                version: 4,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1220,7 +1240,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -1245,7 +1265,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1259,7 +1279,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 2,
+                version: 4,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1290,7 +1310,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1304,7 +1324,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: session2.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1327,7 +1347,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1341,7 +1361,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: "Shawn Tyson",
             nameVersion: 1,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -1366,7 +1386,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1380,7 +1400,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: "Shawn Tyson",
             nameVersion: 1,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -1408,7 +1428,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1422,7 +1442,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: "Shawn Tyson",
             nameVersion: 1,
             space: {
-                version: 1,
+                version: 2,
                 addedTime: expect.any(Date),
                 state: {
                     type: "Removed",
@@ -1443,6 +1463,8 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         accountId: session2.account.id,
     });
 
+    await acceptSpaceAccountInvite(session2.action(), space.id);
+
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({
             id: session1.account.id,
@@ -1450,7 +1472,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: session1.account.initialName,
             nameVersion: 0,
             space: {
-                version: 0,
+                version: 1,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Admin",
@@ -1464,7 +1486,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             name: "Shawn Meredith",
             nameVersion: 2,
             space: {
-                version: 2,
+                version: 4,
                 addedTime: expect.any(Date),
                 state: {type: "Active"},
                 role: "Member",
@@ -2249,6 +2271,8 @@ test("`expensivelyGetAllSpaceAccounts()` returns accounts with eventual consiste
         accountId: session2.account.id,
     });
 
+    await acceptSpaceAccountInvite(session2.action(), space1.id);
+
     const accounts = await expensivelyGetAllSpaceAccounts(ownerSession1.action(), space1.id);
     expect(accounts).toHaveLength(2);
 });
@@ -2459,18 +2483,13 @@ test("`internalAddSpaceAccount()` can’t add an account that is already a membe
 test("`internalAddSpaceAccount()` can’t add an account that is already invited", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
-    const alreadyInvited = await space.createSession({
-        state: async account => ({
-            type: "InvitePending",
-            invitedTime: new Date(),
-            pendingAccountData: (await account.get()).initialData,
-        }),
-    });
+    const email = generateEmailAddressForTest();
+    const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
 
     await expect(
         internalAddSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
-            accountId: alreadyInvited.account.id,
+            accountId: invitedAccount.id,
             favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(FailedPreconditionError);
@@ -3102,6 +3121,8 @@ test("`removeSpaceAccount()` should update the account’s space ids", async () 
         accountId: otherSession.account.id,
     });
 
+    await acceptSpaceAccountInvite(otherSession.action(), space.id);
+
     expect(await isMember(space, session1)).toEqual(true);
     expect(await isMember(space, session2)).toEqual(false);
     expect(await isMember(space, session3)).toEqual(true);
@@ -3154,6 +3175,8 @@ test("`removeSpaceAccount()` should update the account’s space ids", async () 
         spaceId: space.id,
         accountId: session2.account.id,
     });
+
+    await acceptSpaceAccountInvite(session2.action(), space.id);
 
     expect(await isMember(space, session1)).toEqual(true);
     expect(await isMember(space, session2)).toEqual(true);
@@ -3443,43 +3466,36 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should return false only af
 
 test("`isAccountMemberOfSpaceWithoutAuthorization()` should return false only after checking all cached levels for state InvitePending", async () => {
     const space = await TestSpace.create(context);
-    const memberSession = await space.createSession({
-        role: "Member",
-        state: async account => ({
-            type: "InvitePending",
-            pendingAccountData: (await account.get()).initialData,
-            invitedTime: new Date(),
-        }),
-    });
+    const ownerSession = await space.createSession({role: "Owner"});
+    const email = generateEmailAddressForTest();
+    const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
 
     // Populate cache with Member role
     await isAccountMemberOfSpaceWithoutAuthorization(
         context.withCache(),
         space.id,
-        memberSession.account.id,
-        "Member",
+        invitedAccount.id,
     );
 
     // Try to check for Owner role - should fall through all levels and return false
     const isMemberResult = await isAccountMemberOfSpaceWithoutAuthorization(
         context.withCache(),
         space.id,
-        memberSession.account.id,
-        "Owner",
+        invitedAccount.id,
     );
     expect(isMemberResult).toBe(false);
 });
 
 test("`isAccountMemberOfSpaceWithoutAuthorization()` should return false only after checking all cached levels for state Removed", async () => {
     const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
     const memberSession = await space.createSession({
         role: "Member",
-        state: async account => ({
-            type: "Removed",
-            oldAccountData: (await account.get()).initialData,
-            removedTime: new Date(),
-            reason: "ActionByAdmin",
-        }),
+    });
+
+    await removeSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        accountId: memberSession.account.id,
     });
 
     // Populate cache with Member role
@@ -4189,36 +4205,35 @@ test("`updateSpaceAccountRole()` successfully updates admin role to member", asy
 test("`updateSpaceAccountRole()` throws error when attempting to modify an account with state InvitePending", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
-    const invitePendingAccount = await space.createSession({
-        state: async account => ({
-            type: "InvitePending",
-            pendingAccountData: (await account.get()).initialData,
-            invitedTime: new Date(),
-        }),
-    });
+    const email = generateEmailAddressForTest();
+    const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
 
     // owner tries to update invite pending account's role
     await expect(
         updateSpaceAccountRole(ownerSession.action(), {
             spaceId: space.id,
-            accountId: invitePendingAccount.account.id,
+            accountId: invitedAccount.id,
             role: "Admin",
         }),
     ).rejects.toThrow(NotFoundError);
 
-    expect((await invitePendingAccount.get()).initialData.space.role).toBe("Member");
+    const invitedAccountData = await getSpaceAccountForTest(
+        context.systemAction(space.id),
+        space.id,
+        invitedAccount.id,
+    );
+
+    expect(invitedAccountData?.role).toBe("Member");
 });
 
 test("`updateSpaceAccountRole()` throws error when attempting to modify an account with state Removed", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
-    const removedAccount = await space.createSession({
-        state: async account => ({
-            type: "Removed",
-            oldAccountData: (await account.get()).initialData,
-            removedTime: new Date(),
-            reason: "ActionByAdmin",
-        }),
+    const removedAccount = await space.createSession();
+
+    await removeSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        accountId: removedAccount.account.id,
     });
 
     // owner tries to update invite pending account's role
@@ -4488,6 +4503,153 @@ test("`updateSpaceAccountRole()` should throw if impersonated account member for
 
     expect((await memberSession2.get()).initialData.space.role).toBe("Member");
 });
+
+test("an account’s spaceIds are updated after calling `acceptSpaceAccountInvite()`", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+    const memberAccount = await TestAccount.create(context);
+
+    await addSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        accountId: memberAccount.id,
+    });
+
+    const memberSession = await TestSpaceSession._create(space, memberAccount);
+
+    await expectAccountSpaceIds(memberSession, {
+        spaceIds: new Set([]),
+        invitePendingSpaceIds: new Set([space.id]),
+    });
+
+    await acceptSpaceAccountInvite(memberSession.action(), space.id);
+
+    await expectAccountSpaceIds(memberSession, {
+        spaceIds: new Set([space.id]),
+        invitePendingSpaceIds: new Set([]),
+    });
+});
+
+test("an account’s spaceIds are updated after calling `rejectSpaceAccountInviteAsSpam()`", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+    const memberAccount = await TestAccount.create(context);
+
+    await addSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        accountId: memberAccount.id,
+    });
+
+    const memberSession = await TestSpaceSession._create(space, memberAccount);
+
+    await expectAccountSpaceIds(memberSession, {
+        spaceIds: new Set([]),
+        invitePendingSpaceIds: new Set([space.id]),
+    });
+
+    await rejectSpaceAccountInviteAsSpam(memberSession.action(), space.id);
+
+    await expectAccountSpaceIds(memberSession, {
+        spaceIds: new Set([]),
+        invitePendingSpaceIds: new Set([]),
+    });
+});
+
+test("`acceptSpaceAccountInvite()` should move user to Active state", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+    const memberAccount = await TestAccount.create(context);
+
+    await addSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        accountId: memberAccount.id,
+    });
+
+    const memberSession = await TestSpaceSession._create(space, memberAccount);
+
+    await acceptSpaceAccountInvite(memberSession.action(), space.id);
+
+    const spaceAccount = await getSpaceAccountForTest(
+        context.systemAction(space.id),
+        space.id,
+        memberAccount.id,
+    );
+
+    expect(spaceAccount?.state.type).toBe("Active");
+});
+
+test("`rejectSpaceAccountInviteAsSpam()` should move user to Removed state with reason InviteRejectedAsSpam", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Owner"});
+    const memberAccount = await TestAccount.create(context);
+
+    await addSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        accountId: memberAccount.id,
+    });
+
+    const memberSession = await TestSpaceSession._create(space, memberAccount);
+
+    await rejectSpaceAccountInviteAsSpam(memberSession.action(), space.id);
+
+    const spaceAccount = await getSpaceAccountForTest(
+        context.systemAction(space.id),
+        space.id,
+        memberAccount.id,
+    );
+
+    assert(spaceAccount?.state.type === "Removed");
+    expect(spaceAccount.state.reason).toBe("InviteRejectedAsSpam");
+});
+
+const respondToSpaceAccountInviteMethods = [
+    acceptSpaceAccountInvite,
+    rejectSpaceAccountInviteAsSpam,
+];
+
+for (const respondToSpaceAccountInvite of respondToSpaceAccountInviteMethods) {
+    test(`\`${respondToSpaceAccountInvite.name}()\` should throw if an account is removed`, async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+        const memberAccount = await TestAccount.create(context);
+
+        await addSpaceAccount(ownerSession.action(), {
+            spaceId: space.id,
+            accountId: memberAccount.id,
+        });
+
+        await removeSpaceAccount(ownerSession.action(), {
+            spaceId: space.id,
+            accountId: memberAccount.id,
+        });
+
+        const memberSession = await TestSpaceSession._create(space, memberAccount);
+
+        await expect(respondToSpaceAccountInvite(memberSession.action(), space.id)).rejects.toThrow(
+            new FailedPreconditionError("Account invitation is not in pending state"),
+        );
+    });
+
+    test(`${respondToSpaceAccountInvite.name} should throw if an account has already accept the invite`, async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+        const memberAccount = await TestAccount.create(context);
+
+        await addSpaceAccount(ownerSession.action(), {
+            spaceId: space.id,
+            accountId: memberAccount.id,
+        });
+
+        const memberSession = await TestSpaceSession._create(space, memberAccount);
+
+        // First accept the space
+        await acceptSpaceAccountInvite(memberSession.action(), space.id);
+
+        // Then try to respond again
+        await expect(respondToSpaceAccountInvite(memberSession.action(), space.id)).rejects.toThrow(
+            new FailedPreconditionError("Account invitation is not in pending state"),
+        );
+    });
+}
 
 test("`updateSpaceAccountRole()` should work if impersonated account admin for space tries to update role", async () => {
     // Test 1: Admin updates Member to Admin
@@ -4835,6 +4997,11 @@ test("`internalAddSpaceAccount()` shouldn’t add two owners in race condition",
 });
 
 test("`internalAddSpaceAccount()` shouldn’t add two owners that were previously account members in race condition", async () => {
+    // NOTE(imjoshin): This is a nonsensical test. When we create a space, it will always
+    // have an owner associated with it. We cannot have a space in production without an owner.
+    // Therefore, this test can't exist in product, as it adds an owner to a space without an owner.
+
+    // TODO: We should have our test space mimic production and create an owner.
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
     const account1 = await TestAccount.create(context);
@@ -4896,7 +5063,7 @@ test("`internalAddSpaceAccount()` shouldn’t add two owners that were previousl
             filterMapArray(
                 await expensivelyGetAllSpaceAccounts(space.systemAction(), space.id),
                 account =>
-                    account.initialData.space.state.type === "Active"
+                    account.initialData.space.state.type !== "Removed"
                         ? [account.id, account.initialData.space.role]
                         : undefined,
             ),

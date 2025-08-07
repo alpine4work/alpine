@@ -1,4 +1,5 @@
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -118,5 +119,42 @@ export const moveSpaceOwner = defineRpc({
     output: {
         newOwnerAccount: AccountModel.schema,
         oldOwnerAccount: AccountModel.schema,
+    },
+});
+
+export const inviteEmailAddressesToSpace = defineRpc({
+    name: "inviteEmailAddressesToSpace",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        emailAddresses: Schema.array(Schema.string),
+    },
+    output: {
+        accounts: Schema.array(AccountModel.schema),
+        errors: Schema.object({
+            invalidEmailAddresses: Schema.array(Schema.string),
+            rejectedAsSpamEmailAddresses: Schema.array(Schema.string),
+            alreadyMemberEmailAddresses: Schema.array(Schema.string),
+            unexpectedFailureEmailAddresses: Schema.map(Schema.string, ErrorSchema),
+        }),
+    },
+});
+
+export const rejectSpaceAccountInviteAsSpam = defineRpc({
+    name: "rejectSpaceAccountInviteAsSpam",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {
+        account: AccountModel.schema,
+    },
+});
+
+export const acceptSpaceAccountInvite = defineRpc({
+    name: "acceptSpaceAccountInvite",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {
+        account: AccountModel.schema,
     },
 });
