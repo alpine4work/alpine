@@ -16,7 +16,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
 
     constructor() {
         super();
-        this._client = new SESClient();
+        this._client = new SESClient({region: "us-east-1"});
     }
 
     protected _send(
