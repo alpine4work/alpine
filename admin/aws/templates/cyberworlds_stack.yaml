@@ -4365,66 +4365,12 @@ Resources:
                 Variables:
                     NODE_ENV: production
                     CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
-                    APP_SERVICE_PUBLIC_KEY:
+                    FILE_PROCESSOR_SERVICE_SECRETS_ARN:
                         Fn::Join:
                             - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                            - - "arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:appServicePublicKey::}}
-                    EDGE_SERVICE_FAMILY_PUBLIC_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:edgeServiceFamilyPublicKey::}}
-                    TASK_REALTIME_SERVICE_PUBLIC_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:taskRealtimeServicePublicKey::}}
-                    JOB_QUEUE_SERVICE_PUBLIC_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:jobQueueServicePublicKey::}}
-                    FILE_PROCESSOR_SERVICE_PUBLIC_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:fileProcessorServicePublicKey::}}
-                    FILE_PROCESSOR_SERVICE_PRIVATE_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:fileProcessorServicePrivateKey::}}
-                    TOKEN_AGENT_SECRET:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:tokenAgentSecret::}}
-                    HONEYCOMB_API_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
-                    CLOUDFLARE_R2_ACCESS_KEY_ID:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:cloudflareR2AccessKeyId::}}
-                    CLOUDFLARE_R2_SECRET_ACCESS_KEY:
-                        Fn::Join:
-                            - ""
-                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets:SecretString:cloudflareR2SecretAccessKey::}}
+                              - :secret:FileProcessorServiceSecrets
             Handler: cyberworlds/admin/aws/empty_lambda.handler
             MemorySize: 4096
             Role:

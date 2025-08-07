@@ -224,32 +224,19 @@ export class AwsFileProcessorService extends Construct {
         return {
             NODE_ENV: "production",
             CLOUDFLARE_ACCOUNT_ID: cloudflareAccountId,
-            APP_SERVICE_PUBLIC_KEY: secrets
-                .secretValueFromJson("appServicePublicKey")
-                .unsafeUnwrap(),
-            EDGE_SERVICE_FAMILY_PUBLIC_KEY: secrets
-                .secretValueFromJson("edgeServiceFamilyPublicKey")
-                .unsafeUnwrap(),
-            TASK_REALTIME_SERVICE_PUBLIC_KEY: secrets
-                .secretValueFromJson("taskRealtimeServicePublicKey")
-                .unsafeUnwrap(),
-            JOB_QUEUE_SERVICE_PUBLIC_KEY: secrets
-                .secretValueFromJson("jobQueueServicePublicKey")
-                .unsafeUnwrap(),
-            FILE_PROCESSOR_SERVICE_PUBLIC_KEY: secrets
-                .secretValueFromJson("fileProcessorServicePublicKey")
-                .unsafeUnwrap(),
-            FILE_PROCESSOR_SERVICE_PRIVATE_KEY: secrets
-                .secretValueFromJson("fileProcessorServicePrivateKey")
-                .unsafeUnwrap(),
-            TOKEN_AGENT_SECRET: secrets.secretValueFromJson("tokenAgentSecret").unsafeUnwrap(),
-            HONEYCOMB_API_KEY: secrets.secretValueFromJson("honeycombApiKey").unsafeUnwrap(),
-            CLOUDFLARE_R2_ACCESS_KEY_ID: secrets
-                .secretValueFromJson("cloudflareR2AccessKeyId")
-                .unsafeUnwrap(),
-            CLOUDFLARE_R2_SECRET_ACCESS_KEY: secrets
-                .secretValueFromJson("cloudflareR2SecretAccessKey")
-                .unsafeUnwrap(),
+            // TODO(ifitzsimmons, 2025-08-06): Unwrapping each individual secret as plain text
+            // increases the size of the environment variables past the 4 KB limit. That aside, it
+            // feel a tad risky. For example, the secrets were printed to our deploy job in plain
+            // text when this deployment failed. Using the secret ARN is more secure and obviously
+            // gets us below the environment variable size limit. However, we'll need to pay
+            // the cost of fetching the secrets from Secrets Manager at runtime.
+            // I believe we can mitigate this by leaning on reserved concurrency and Lambda
+            // Execution Context reuse.
+            // FOR NOW, RESIZE FILE LAMBDA WILL NOT WORK. I am making this change to unblock the
+            // deploy pipeline. I think this change is safe because none of our services should
+            // invoke the resize file lambda. I'll update this comment once I've spoken with the
+            // team.
+            FILE_PROCESSOR_SERVICE_SECRETS_ARN: secrets.secretArn,
         };
     }
 
