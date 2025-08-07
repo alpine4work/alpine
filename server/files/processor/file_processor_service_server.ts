@@ -178,7 +178,7 @@ export function createFileProcessorServiceServer(
     return createStandardizedServer(tracer, shutdownManager, parseRoute, handleRequest);
 }
 
-async function handleInternalMiniflareGetObject(
+export async function handleInternalMiniflareGetObject(
     processContext: FileProcessorServiceProcessContext,
     {
         url,
