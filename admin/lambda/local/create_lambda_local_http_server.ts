@@ -113,7 +113,7 @@ async function handleRequest(
     if (!route) {
         res.statusCode = 404;
         res.setHeader("content-type", "text/plain");
-        res.end("404 Nout Found: Lambda route not found");
+        res.end("404 Not Found: Lambda route not found");
         return;
     }
 
