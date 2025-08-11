@@ -341,21 +341,19 @@ export class TaskNotesCollaborationConnection {
     }
 }
 
-const createMessage: CreateMessageFunction<TaskId, TaskCommentModel> = async (
+const createMessage: CreateMessageFunction<TaskId> = (
     context,
     {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds},
 ) => {
-    const {comment} = await createTaskComment(context, {
+    return createTaskComment(context, {
         taskId,
         parentCommentIndex,
         content,
         fileIds,
     });
-
-    return comment;
 };
 
-const updateMessageContent: UpdateMessageContentFunction<TaskId> = async (
+const updateMessageContent: UpdateMessageContentFunction<TaskId> = (
     context,
     {roomKey: taskId, messageIndex: commentIndex, content},
 ) => {
@@ -366,7 +364,7 @@ const updateMessageContent: UpdateMessageContentFunction<TaskId> = async (
     });
 };
 
-const deleteMessage: DeleteMessageFunction<TaskId> = async (
+const deleteMessage: DeleteMessageFunction<TaskId> = (
     context,
     {roomKey: taskId, messageIndex: commentIndex},
 ) => {

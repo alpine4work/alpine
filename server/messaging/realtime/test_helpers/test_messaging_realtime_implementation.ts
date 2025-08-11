@@ -125,7 +125,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             author: AccountModel;
             payload: MessagePayloadModel;
         }) => MessageModel<RoomKey>;
-        createMessage: CreateMessageFunction<RoomKey, MessageModel<RoomKey>>;
+        createMessage: CreateMessageFunction<RoomKey>;
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
     },

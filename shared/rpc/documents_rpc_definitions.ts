@@ -234,7 +234,8 @@ export const createDocumentComment = defineRpc({
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
-        comment: DocumentCommentModel.schema(),
+        index: Schema.integer,
+        createdTime: Schema.date,
     },
 });
 

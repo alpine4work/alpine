@@ -61,7 +61,8 @@ export const sendChatMessage = defineRpc({
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
-        message: ChatMessageModel.schema(),
+        index: Schema.integer,
+        createdTime: Schema.date,
     },
 });
 

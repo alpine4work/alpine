@@ -19,14 +19,10 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
-import {
-    createMessagePayloadModel,
-    getMessageContentPayloadModelFile,
-} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
-import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
@@ -198,40 +194,12 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const {spaceId, index, createdTime} = await createDocumentComment(
+            const {index, createdTime} = await createDocumentComment(
                 context.actor.authorizeSession(),
                 input,
             );
 
-            const [author, payload] = await runAllPromises([
-                getAccount(context, spaceId, context.actor.getAccountId()),
-                createMessagePayloadModel(
-                    context,
-                    spaceId,
-                    FileDocumentAuthorizer.bind({
-                        type: "DocumentComments",
-                        documentId: input.documentId,
-                    }),
-                    {
-                        type: "Content",
-                        parentMessageIndex: input.parentCommentIndex,
-                        content: input.content,
-                        contentUpdatedTime: null,
-                        fileIds: input.fileIds,
-                    },
-                ),
-            ]);
-
-            const comment = new DocumentCommentModel({
-                documentId: input.documentId,
-                commentThreadId: input.commentThreadId,
-                index,
-                createdTime,
-                author,
-                payload,
-            });
-
-            return {comment};
+            return {index, createdTime};
         },
     },
 

@@ -318,7 +318,8 @@ export const createPostComment = defineRpc({
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
-        comment: PostCommentModel.schema(),
+        index: Schema.integer,
+        createdTime: Schema.date,
     },
 });
 

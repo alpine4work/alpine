@@ -1,5 +1,4 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
-import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
@@ -24,7 +23,6 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definitions from "~/shared/rpc/tasks_rpc_definitions.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
-import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
 export default implementRpcs(definitions, {
     commitTaskActionTransaction: {
@@ -176,36 +174,12 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const {spaceId, index, createdTime} = await createTaskComment(
+            const {index, createdTime} = await createTaskComment(
                 context.actor.authorizeSession(),
                 input,
             );
 
-            const [author, payload] = await runAllPromises([
-                getAccount(context, spaceId, context.actor.getAccountId()),
-                createMessagePayloadModel(
-                    context,
-                    spaceId,
-                    FileTaskAuthorizer.bind({type: "TaskComments", taskId: input.taskId}),
-                    {
-                        type: "Content",
-                        parentMessageIndex: input.parentCommentIndex,
-                        content: input.content,
-                        contentUpdatedTime: null,
-                        fileIds: input.fileIds,
-                    },
-                ),
-            ]);
-
-            const comment = new TaskCommentModel({
-                taskId: input.taskId,
-                index,
-                author,
-                createdTime,
-                payload,
-            });
-
-            return {comment};
+            return {index, createdTime};
         },
     },
 

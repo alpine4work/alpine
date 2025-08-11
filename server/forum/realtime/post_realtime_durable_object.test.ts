@@ -144,27 +144,25 @@ testMessagingRealtimeImplementation<PostId>(context, {
             payload,
         });
     },
-    async createMessage(
+    createMessage(
         context,
         {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
     ) {
-        const {comment} = await createPostComment(context, {
+        return createPostComment(context, {
             postId,
             parentCommentIndex,
             content,
             fileIds,
         });
-
-        return comment;
     },
-    async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
+    updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {
             postId,
             commentIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
+    deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
         return deletePostComment(context, {postId, commentIndex});
     },
 });

@@ -36,7 +36,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 /**
  * Create a new message in a room.
  */
-export type CreateMessageFunction<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
+export type CreateMessageFunction<RoomKey extends string> = (
     context: WorkerSessionActionContext,
     options: {
         roomKey: RoomKey;
@@ -44,7 +44,10 @@ export type CreateMessageFunction<RoomKey extends string, Message extends Messag
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
-) => Promise<Message>;
+) => Promise<{
+    index: number;
+    createdTime: Date;
+}>;
 
 /**
  * Update the content of a message.
@@ -164,7 +167,7 @@ export class MessagingRealtimeConnection<
     private readonly _iterateOtherConnections: () => Iterable<
         MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
     >;
-    private readonly _createMessage: CreateMessageFunction<RoomKey, Message>;
+    private readonly _createMessage: CreateMessageFunction<RoomKey>;
     private readonly _updateMessageContent: UpdateMessageContentFunction<RoomKey>;
     private readonly _deleteMessage: DeleteMessageFunction<RoomKey>;
     private readonly _backfillMessages: BackfillMessagesFunction<
@@ -225,7 +228,7 @@ export class MessagingRealtimeConnection<
         iterateOtherConnections: () => Iterable<
             MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
         >;
-        createMessage: CreateMessageFunction<RoomKey, Message>;
+        createMessage: CreateMessageFunction<RoomKey>;
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
         backfillMessages: BackfillMessagesFunction<RoomKey, Message, BackfillMessagesExtra>;

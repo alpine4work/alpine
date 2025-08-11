@@ -178,21 +178,19 @@ export class PostRealtimeConnection {
     }
 }
 
-const createMessage: CreateMessageFunction<PostId, PostCommentModel> = async (
+const createMessage: CreateMessageFunction<PostId> = (
     context,
     {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
 ) => {
-    const {comment} = await createPostComment(context, {
+    return createPostComment(context, {
         postId,
         parentCommentIndex,
         content,
         fileIds,
     });
-
-    return comment;
 };
 
-const updateMessageContent: UpdateMessageContentFunction<PostId> = async (
+const updateMessageContent: UpdateMessageContentFunction<PostId> = (
     context,
     {roomKey: postId, messageIndex: commentIndex, content},
 ) => {
@@ -203,7 +201,7 @@ const updateMessageContent: UpdateMessageContentFunction<PostId> = async (
     });
 };
 
-const deleteMessage: DeleteMessageFunction<PostId> = async (
+const deleteMessage: DeleteMessageFunction<PostId> = (
     context,
     {roomKey: postId, messageIndex: commentIndex},
 ) => {

@@ -111,24 +111,22 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             payload,
         });
     },
-    async createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
-        const {message} = await sendChatMessage(context, {
+    createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
+        return sendChatMessage(context, {
             chatId,
             parentMessageIndex,
             content,
             fileIds,
         });
-
-        return message;
     },
-    async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
+    updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
         return updateChatMessageContent(context, {
             chatId,
             messageIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: chatId, messageIndex}) {
+    deleteMessage(context, {roomKey: chatId, messageIndex}) {
         return deleteChatMessage(context, {chatId, messageIndex});
     },
 });

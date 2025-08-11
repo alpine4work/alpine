@@ -682,27 +682,25 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             payload,
         });
     },
-    async createMessage(
+    createMessage(
         context,
         {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds},
     ) {
-        const {comment} = await createTaskComment(context, {
+        return createTaskComment(context, {
             taskId,
             parentCommentIndex,
             content,
             fileIds,
         });
-
-        return comment;
     },
-    async updateMessageContent(context, {roomKey: taskId, messageIndex: commentIndex, content}) {
+    updateMessageContent(context, {roomKey: taskId, messageIndex: commentIndex, content}) {
         return updateTaskCommentContent(context, {
             taskId,
             commentIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: taskId, messageIndex: commentIndex}) {
+    deleteMessage(context, {roomKey: taskId, messageIndex: commentIndex}) {
         return deleteTaskComment(context, {taskId, commentIndex});
     },
 });

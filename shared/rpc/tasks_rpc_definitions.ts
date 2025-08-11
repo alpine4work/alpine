@@ -185,7 +185,8 @@ export const createTaskComment = defineRpc({
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
-        comment: TaskCommentModel.schema(),
+        index: Schema.integer,
+        createdTime: Schema.date,
     },
 });
 

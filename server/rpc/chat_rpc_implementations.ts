@@ -8,12 +8,8 @@ import {
     sendChatMessage,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
-import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
-import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definitions from "~/shared/rpc/chat_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -49,34 +45,11 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const {spaceId, index, createdTime} = await sendChatMessage(context, input);
-
-            const [author, payload] = await runAllPromises([
-                getAccount(context, spaceId, context.actor.getAccountId()),
-                createMessagePayloadModel(
-                    context,
-                    spaceId,
-                    FileChatAuthorizer.bind({type: "ChatMessages", chatId: input.chatId}),
-                    {
-                        type: "Content",
-                        parentMessageIndex: input.parentMessageIndex,
-                        content: input.content,
-                        contentUpdatedTime: null,
-                        fileIds: input.fileIds,
-                    },
-                ),
-            ]);
-
-            const message = new ChatMessageModel({
-                chatId: input.chatId,
-                index,
-                createdTime,
-                author,
-                payload,
-            });
+            const {index, createdTime} = await sendChatMessage(context, input);
 
             return {
-                message,
+                index,
+                createdTime,
             };
         },
     },

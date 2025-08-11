@@ -6003,23 +6003,18 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             payload,
         });
     },
-    async createMessage(
-        context,
-        {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
-    ) {
+    createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        const {comment} = await createDocumentCommentRpc(context, {
+        return createDocumentCommentRpc(context, {
             documentId,
             commentThreadId,
             parentCommentIndex,
             content,
             fileIds,
         });
-
-        return comment;
     },
-    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+    updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return updateDocumentCommentContent(context, {
@@ -6029,7 +6024,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             content,
         });
     },
-    async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
+    deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return deleteDocumentComment(context, {

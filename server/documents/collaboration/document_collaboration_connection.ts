@@ -886,15 +886,13 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                const {comment} = await createDocumentComment(context, {
+                return createDocumentComment(context, {
                     documentId,
                     commentThreadId,
                     parentCommentIndex,
                     content,
                     fileIds,
                 });
-
-                return comment;
             },
             updateMessageContent: async (
                 context,

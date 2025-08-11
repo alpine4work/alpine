@@ -30,12 +30,8 @@ import {
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
-import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
-import {PostCommentModel} from "~/shared/forum/post_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definitions from "~/shared/rpc/forum_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -256,36 +252,12 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const {spaceId, index, createdTime} = await createPostComment(
+            const {index, createdTime} = await createPostComment(
                 context.actor.authorizeSession(),
                 input,
             );
 
-            const [author, payload] = await runAllPromises([
-                getAccount(context, spaceId, context.actor.getAccountId()),
-                createMessagePayloadModel(
-                    context,
-                    spaceId,
-                    FilePostAuthorizer.bind({type: "PostComments", postId: input.postId}),
-                    {
-                        type: "Content",
-                        parentMessageIndex: input.parentCommentIndex,
-                        content: input.content,
-                        contentUpdatedTime: null,
-                        fileIds: input.fileIds,
-                    },
-                ),
-            ]);
-
-            const comment = new PostCommentModel({
-                postId: input.postId,
-                index,
-                createdTime,
-                author,
-                payload,
-            });
-
-            return {comment};
+            return {index, createdTime};
         },
     },
 

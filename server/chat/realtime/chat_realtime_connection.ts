@@ -109,20 +109,19 @@ export class ChatRealtimeConnection {
     }
 }
 
-const createMessage: CreateMessageFunction<ChatId, ChatMessageModel> = async (
+const createMessage: CreateMessageFunction<ChatId> = (
     context,
     {roomKey: chatId, parentMessageIndex, content, fileIds},
 ) => {
-    const {message} = await sendChatMessage(context, {
+    return sendChatMessage(context, {
         chatId,
         parentMessageIndex,
         content,
         fileIds,
     });
-    return message;
 };
 
-const updateMessageContent: UpdateMessageContentFunction<ChatId> = async (
+const updateMessageContent: UpdateMessageContentFunction<ChatId> = (
     context,
     {roomKey: chatId, messageIndex, content},
 ) => {
@@ -133,10 +132,7 @@ const updateMessageContent: UpdateMessageContentFunction<ChatId> = async (
     });
 };
 
-const deleteMessage: DeleteMessageFunction<ChatId> = async (
-    context,
-    {roomKey: chatId, messageIndex},
-) => {
+const deleteMessage: DeleteMessageFunction<ChatId> = (context, {roomKey: chatId, messageIndex}) => {
     return deleteChatMessage(context, {chatId, messageIndex});
 };
 
