@@ -104,6 +104,7 @@ jobs:
                       --workflowRunId=${{ github.run_id }} \
                       --workflowRunNumber=${{ github.run_number }} \
                       --workflowRunAttempt=${{ github.run_attempt }} \
+                      --edgeServiceUrl=https://alpine.inc \
                       --honeycombApiKey=${{ secrets.DEPLOY_HONEYCOMB_API_KEY }} \
                       --cloudflareR2AccessKeyId=${{ secrets.DEPLOY_CLOUDFLARE_R2_ACCESS_KEY_ID }} \
                       --cloudflareR2SecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_R2_SECRET_ACCESS_KEY }} \
