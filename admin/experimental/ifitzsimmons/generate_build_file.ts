@@ -224,9 +224,20 @@ function convertImportToBazelTarget(importPath: string, currentDir: string): Imp
             return null;
         }
 
+        // Extract the package name (handle scoped packages like @lezer/common)
+        let packageName: string;
+        if (importPath.startsWith("@")) {
+            // For scoped packages, take @scope/package
+            const parts = importPath.split("/");
+            packageName = parts.length >= 2 ? `${parts[0]}/${parts[1]}` : parts[0]!;
+        } else {
+            // For regular packages, take first part
+            packageName = importPath.split("/")[0]!;
+        }
+
         // Skip Node.js built-in modules (without node: prefix)
-        const packageName = importPath.split("/")[0];
-        if (packageName && NODE_BUILTIN_MODULES.has(packageName)) {
+        const basePackageName = packageName.startsWith("@") ? packageName.split("/")[0]! : packageName;
+        if (NODE_BUILTIN_MODULES.has(basePackageName)) {
             return null;
         }
 
