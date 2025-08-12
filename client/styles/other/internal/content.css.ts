@@ -2439,6 +2439,16 @@ globalStyle(`${mobilePlatformSelector} ${tableWrapper2ClassName}`, {
     marginRight: `-${tableOverflowGradientWidth}`,
 });
 
+// In narrow desktop layouts, make sure the table width fits the whole content width
+globalStyle(
+    `${desktopPlatformSelector} ${narrowRouteLayoutDocClassName} ${tableWrapper2ClassName}`,
+    {
+        marginLeft: `-${tableOverflowGradientWidth}`,
+        marginRight: `-${tableOverflowGradientWidth}`,
+        width: `calc(100% + (${tableOverflowGradientWidth} * 4))`,
+    },
+);
+
 globalStyle(tableWrapper3ClassName, {
     width: "100%",
     maxWidth: `calc(${blockMaxWidthVar} + ${addRemLengths(
