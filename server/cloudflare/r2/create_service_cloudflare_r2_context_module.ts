@@ -5,6 +5,10 @@ import {CloudflareR2Client} from "~/server/cloudflare/r2/cloudflare_r2_client.js
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {
+    avatarsBindingName,
+    avatarsBucketName,
+} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
+import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
@@ -38,7 +42,10 @@ export function createServiceCloudflareR2ContextModule(options: ServiceCloudflar
     return new CloudflareR2ContextModule(
         process.env.NODE_ENV !== "production"
             ? (() => {
-                  const buckets = [{bucketName: filesBucketName, bindingName: filesBindingName}];
+                  const buckets = [
+                      {bucketName: filesBucketName, bindingName: filesBindingName},
+                      {bucketName: avatarsBucketName, bindingName: avatarsBindingName},
+                  ];
 
                   const cloudflareR2LocalDataPath = assertExists(
                       options.cloudflareR2LocalDataPath,

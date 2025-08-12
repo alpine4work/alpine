@@ -21,6 +21,10 @@ bucket_name = "cyberworlds-app-static"
 binding = "FilesBucket"
 bucket_name = "cyberworlds-files"
 
+[[r2_buckets]]
+binding = "AvatarsBucket"
+bucket_name = "cyberworlds-avatars"
+
 # We deploy our durable objects with our edge service but we think of our
 # durable objects as logically different services. We could choose in the
 # future to deploy them as separate Cloudflare Workers.

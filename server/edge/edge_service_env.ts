@@ -1,6 +1,7 @@
 export type EdgeServiceEnv = {
     AppStaticBucket: R2Bucket;
     FilesBucket: R2Bucket;
+    AvatarsBucket: R2Bucket;
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChannelRealtimeDurableObjectNamespace: DurableObjectNamespace;
