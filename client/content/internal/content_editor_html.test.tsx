@@ -50,7 +50,7 @@ import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_k
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, DocumentId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -60,8 +60,8 @@ import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
-import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 // We use constant, expired, signed URLs so our test snapshots don't change
@@ -378,10 +378,8 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
 
 const createdTime = new Date("2024-10-02T14:15:13.833Z");
 
-const space = new SpaceModel({
-    id: assertId("pv9hmw9x4nkzpnn404ntddmbp0"),
-    name: "Test Space",
-    version: 0,
+const space = createTestSpaceModel({
+    id: assertId<SpaceId>("pv9hmw9x4nkzpnn404ntddmbp0"),
 });
 
 // For any code that needs to parse the `SpaceId` from the URL.
