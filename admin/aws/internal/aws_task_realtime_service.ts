@@ -274,6 +274,7 @@ export class AwsTaskRealtimeService extends Construct {
                 `/var/www/server/tasks/realtime/realtime ${[
                     `--portBase=${portBase}`,
                     `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
+                    "--edgeServiceUrl=https://alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",

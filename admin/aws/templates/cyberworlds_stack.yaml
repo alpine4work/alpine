@@ -1936,7 +1936,7 @@ Resources:
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --jobQueueUrl="
+                              - " --edgeServiceUrl=https://alpine.inc --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
@@ -4038,7 +4038,8 @@ Resources:
                       - -c
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/migration/migration --jobQueueUrl=
+                            - - /var/www/server/migration/migration
+                                --edgeServiceUrl=https://alpine.inc --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
@@ -4675,7 +4676,8 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/server/files/processor/processor --port=4000
-                                --temporaryDirectoryPath=/var/www-data/files --jobQueueUrl=
+                                --temporaryDirectoryPath=/var/www-data/files
+                                --edgeServiceUrl=https://alpine.inc --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8

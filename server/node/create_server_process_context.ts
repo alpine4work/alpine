@@ -8,6 +8,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
+import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -19,9 +20,11 @@ export const serverProcessContextOptions = {
     dynamoLocalPort: {type: "string"},
     jobQueueUrl: {type: "string"},
     fileProcessorJobQueueUrl: {type: "string"},
+    edgeServiceUrl: {type: "string"},
 } as const;
 
 export type ServerProcessContextOptions = {
+    readonly edgeServiceUrl?: string;
     readonly ensureLocalCachePath?: string;
     readonly dynamoLocalPort?: string;
     readonly jobQueueUrl?: string;
@@ -110,5 +113,11 @@ export function createServerProcessContextBase({
                 ),
             }),
         ),
+        constants: new ServerConstantsContextModule({
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+        }),
     });
 }

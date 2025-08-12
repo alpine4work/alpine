@@ -1,5 +1,6 @@
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -49,4 +50,13 @@ export type ServerProcessContextModules = {
      * queue a critical dependency.
      */
     jobs: JobsContextModule;
+
+    /**
+     * Access non-sensitive server-wide immutable constants.
+     *
+     * This is used for sharing constants that are relevant to multiple services during
+     * runtime and may vary by environment. This *should not* be used to store
+     * secrets or other sensitive information!
+     */
+    constants: ServerConstantsContextModule;
 };

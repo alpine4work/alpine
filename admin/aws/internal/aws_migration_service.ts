@@ -74,6 +74,7 @@ export class AwsMigrationService extends Construct {
                 "sh",
                 "-c",
                 `/var/www/server/migration/migration ${[
+                    "--edgeServiceUrl=https://alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",

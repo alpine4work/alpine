@@ -474,6 +474,7 @@ export class AwsFileProcessorService extends Construct {
                 `/var/www/server/files/processor/processor ${[
                     `--port=${port}`,
                     "--temporaryDirectoryPath=/var/www-data/files",
+                    "--edgeServiceUrl=https://alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",

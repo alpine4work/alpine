@@ -55,6 +55,10 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {
+    ServerConstantsContextModule,
+    ServerConstantsContextModuleOptions,
+} from "~/shared/context/constants_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -303,6 +307,11 @@ export function createTestContext(
         assert((globalThis as any)[testTimeoutSymbol] === newTestTimeout);
     }
 
+    const environmentConstants: ServerConstantsContextModuleOptions = {
+        edgeServiceUrl: env.EDGE_SERVICE_URL ?? "https://test.cyberworlds.dev",
+    };
+    const constantsContextModule = new ServerConstantsContextModule(environmentConstants);
+
     let temporaryDirectoryPath: string | null = null;
     let dynamoLocal: DynamoLocal | null = null;
     let opensearchLocal: OpensearchLocal | null = null;
@@ -506,6 +515,7 @@ export function createTestContext(
         email: new NoopEmailContextModule(),
         opensearch: opensearchContextModule,
         jobs: jobsContextModule,
+        constants: constantsContextModule,
         edge: new TestLocalEdgeServiceContextModule(),
         content: new TestContentContextModule(options),
         files: new TestFilesContextModule(),

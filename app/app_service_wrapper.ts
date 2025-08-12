@@ -39,7 +39,6 @@ export const options = {
     viteDev: {type: "boolean"},
     bazelDevServerPort: {type: "string"},
     shouldSeedDynamo: {type: "boolean"},
-    edgeServiceUrl: {type: "string"},
     taskRealtimeServiceLocalPort: {type: "string"},
     ecsCluster: {type: "string"},
     taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},

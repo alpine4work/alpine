@@ -71,7 +71,6 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 type Options = ServiceOptions<typeof options>;
 
 export const options = {
-    edgeServiceUrl: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
     taskRealtimeServiceLocalPort: {type: "string"},

@@ -131,6 +131,7 @@ export function getLambdaActionContextOptions(): LambdaActionContextOptions {
         dynamoLocalPort: process.env.DYNAMO_LOCAL_PORT || "8000", // Not used in production Lambda
         jobQueueUrl: process.env.JOB_QUEUE_URL || "not-used",
         fileProcessorJobQueueUrl: process.env.FILE_PROCESSOR_JOB_QUEUE_URL || "not-used",
+        edgeServiceUrl: process.env.EDGE_SERVICE_URL || "not-used",
 
         // Cloudflare R2 options
         cloudflareR2LocalDataPath: process.env.CLOUDFLARE_R2_LOCAL_DATA_PATH || "/tmp/r2", // Not used in

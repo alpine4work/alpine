@@ -90,6 +90,7 @@ const appDevPrivatePorts = parsePorts(env.APP_DEV_PRIVATE_PORTS);
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
 const edgeDevPrivatePorts = parsePorts(env.EDGE_DEV_PRIVATE_PORTS);
+const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
 
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
@@ -312,7 +313,7 @@ function createArtifacts() {
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,
@@ -390,6 +391,7 @@ function createArtifacts() {
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--inspectorPort=${taskRealtimeDevInspectorPort}`,
@@ -414,7 +416,7 @@ function createArtifacts() {
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
-                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
@@ -446,6 +448,7 @@ function createArtifacts() {
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
@@ -474,6 +477,7 @@ function createArtifacts() {
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
@@ -601,7 +605,7 @@ void fastMainPromise.then(() => {
     writeToCoordinatedStdout(`\
 
 
-Development environment running on ${chalk.underline(`http://localhost:${edgeDevPort}`)}
+Development environment running on ${chalk.underline(`${edgeServiceUrl}`)}
 
 • Start the Chrome debugger at: ${chalk.underline("chrome://inspect")}
 ${

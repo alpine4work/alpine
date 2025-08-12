@@ -19,6 +19,7 @@ import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -133,6 +134,9 @@ export async function createAdhocServerProcessContext({
                           )}/local/FileProcessorJobQueue`,
             }),
         ),
+        constants: new ServerConstantsContextModule({
+            edgeServiceUrl: env.EDGE_SERVICE_URL ?? "https://alpine.inc",
+        }),
     });
 
     return Object.assign(context, {
