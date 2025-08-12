@@ -4,12 +4,12 @@ import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
-const account = new AccountModel({
-    id: generateId(),
+const account = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test",
     nameVersion: 0,

@@ -236,7 +236,9 @@ function convertImportToBazelTarget(importPath: string, currentDir: string): Imp
         }
 
         // Skip Node.js built-in modules (without node: prefix)
-        const basePackageName = packageName.startsWith("@") ? packageName.split("/")[0]! : packageName;
+        const basePackageName = packageName.startsWith("@")
+            ? packageName.split("/")[0]!
+            : packageName;
         if (NODE_BUILTIN_MODULES.has(basePackageName)) {
             return null;
         }
@@ -725,11 +727,17 @@ function updateBuildFile(dirPath: string) {
         }
     }
 
+    // Filter test_deps to exclude targets already present in deps
+    const finalDeps = Array.from(preservedDeps);
+    const finalTestDeps = Array.from(preservedTestDeps).filter(
+        testDep => !preservedDeps.has(testDep),
+    );
+
     // Use the full replacement approach but preserve the original attributes
     const config: BuildFileConfig = {
         name: existingConfig.name,
-        deps: Array.from(preservedDeps),
-        testDeps: Array.from(preservedTestDeps),
+        deps: finalDeps,
+        testDeps: finalTestDeps,
         visibilityRaw: existingConfig.visibilityRaw,
         testonly: existingConfig.testonly,
     };
@@ -761,10 +769,14 @@ function createBuildFile(dirPath: string) {
 
     const {deps, testDeps} = scanDirectoryForDeps(dirPath);
 
+    // Filter test_deps to exclude targets already present in deps
+    const finalDeps = Array.from(deps);
+    const finalTestDeps = Array.from(testDeps).filter(testDep => !deps.has(testDep));
+
     const config: BuildFileConfig = {
         name: path.basename(dirPath),
-        deps: Array.from(deps),
-        testDeps: Array.from(testDeps),
+        deps: finalDeps,
+        testDeps: finalTestDeps,
         // eslint-disable-next-line string-quotes
         visibilityRaw: `"//app:__subpackages__",\n        "//client:__subpackages__",`,
     };

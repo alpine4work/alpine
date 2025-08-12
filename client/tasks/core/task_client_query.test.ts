@@ -24,6 +24,7 @@ import {
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
@@ -56,8 +57,8 @@ const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
 
-const account1 = new AccountModel({
-    id: generateId(),
+const account1 = createTestAccountModel({
+    id: generateId<AccountId>(),
     name: "Test Account 1",
     nameVersion: 0,
     version: 0,
@@ -69,8 +70,8 @@ const account1 = new AccountModel({
     },
 });
 
-const account2 = new AccountModel({
-    id: generateId(),
+const account2 = createTestAccountModel({
+    id: generateId<AccountId>(),
     name: "Test Account 2",
     nameVersion: 0,
     version: 0,

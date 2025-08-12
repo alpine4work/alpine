@@ -24,9 +24,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 // ProseMirror calls this function when `state.tr.scrollIntoView()`
 // transactions. Instead of logging a warning, do nothing.
@@ -54,8 +54,8 @@ const space = new SpaceModel({
     name: "Test Space",
 });
 
-const currentAccount = new AccountModel({
-    id: generateId(),
+const currentAccount = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account",
     nameVersion: 0,

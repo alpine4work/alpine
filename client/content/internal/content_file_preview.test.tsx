@@ -16,11 +16,11 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {getFileSignedUrlFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 import.meta.jest.useFakeTimers();
@@ -35,8 +35,8 @@ const space = new SpaceModel({
     name: "Test Space",
 });
 
-const currentAccount = new AccountModel({
-    id: generateId(),
+const currentAccount = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account",
     nameVersion: 0,

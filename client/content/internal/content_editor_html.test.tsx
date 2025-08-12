@@ -50,7 +50,7 @@ import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_k
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, DocumentId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -60,8 +60,8 @@ import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 // We use constant, expired, signed URLs so our test snapshots don't change
@@ -387,8 +387,8 @@ const space = new SpaceModel({
 // For any code that needs to parse the `SpaceId` from the URL.
 window.history.replaceState(null, "", `/s/${space.id}/test`);
 
-const currentAccount = new AccountModel({
-    id: assertId("y6j4bejce5hf26d8kmatrf9dec"),
+const currentAccount = createTestAccountModel({
+    id: assertId<AccountId>("y6j4bejce5hf26d8kmatrf9dec"),
     version: 0,
     name: "Budd Deey",
     nameVersion: 0,
@@ -400,8 +400,8 @@ const currentAccount = new AccountModel({
     },
 });
 
-const otherAccount = new AccountModel({
-    id: assertId("nyghmwnpt2pwy22qrn9b6j9254"),
+const otherAccount = createTestAccountModel({
+    id: assertId<AccountId>("nyghmwnpt2pwy22qrn9b6j9254"),
     version: 0,
     name: "Sara Smith",
     nameVersion: 0,

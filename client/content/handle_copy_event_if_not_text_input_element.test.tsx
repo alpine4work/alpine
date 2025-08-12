@@ -15,8 +15,9 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 disableStartMaintainingFileForTest();
 
@@ -26,8 +27,8 @@ const space = new SpaceModel({
     name: "Test Space",
 });
 
-const account = new AccountModel({
-    id: generateId(),
+const account = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Sarah Smith",
     nameVersion: 0,

@@ -8,7 +8,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
@@ -81,8 +81,8 @@ afterEach(() => {
     assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
 });
 
-const account1 = new AccountModel({
-    id: generateId(),
+const account1 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account 1",
     nameVersion: 0,
@@ -94,8 +94,8 @@ const account1 = new AccountModel({
     },
 });
 
-const account2 = new AccountModel({
-    id: generateId(),
+const account2 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account 2",
     nameVersion: 0,
@@ -129,7 +129,7 @@ testTaskActionPermutations({
             referencedAccounts:
                 action.type === "UpdateAccountName"
                     ? [
-                          new AccountModel({
+                          createTestAccountModel({
                               ...assertExists(
                                   accountRegistry
                                       .weakGetAccountStoreByIdIfExists(action.accountId)

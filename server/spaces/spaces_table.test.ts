@@ -60,8 +60,8 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 const context = createTestContext();
 
@@ -815,7 +815,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
     ]);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -829,7 +829,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -852,7 +852,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
     });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -866,7 +866,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -896,7 +896,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
     await acceptSpaceAccountInvite(session2.action(), space.id);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -910,7 +910,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -942,7 +942,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
     const cachedAccount1 = await getAccountIfExists(cacheContext1, space.id, session2.account.id);
 
     expect(cachedAccount1).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -970,7 +970,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
         cachedAccount1,
     );
     expect(cachedAccount2).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1009,7 +1009,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
 
     expect(cachedAccount2).not.toBe(cachedAccount3);
     expect(cachedAccount3).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1048,7 +1048,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
     await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1062,7 +1062,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1085,7 +1085,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
     });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1099,7 +1099,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1119,7 +1119,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
     spaceAccountsCache.clearForTest();
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1133,7 +1133,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1158,7 +1158,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
     await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1172,7 +1172,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1202,7 +1202,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
     await acceptSpaceAccountInvite(session2.action(), space.id);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1220,7 +1220,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             consistency: "Strong",
         }),
     ).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1234,7 +1234,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1259,7 +1259,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
     spaceAccountsCache.clearForTest();
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1273,7 +1273,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1304,7 +1304,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     ]);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1318,7 +1318,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 0,
             name: session2.account.initialName,
@@ -1341,7 +1341,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1355,7 +1355,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 1,
             name: "Shawn Tyson",
@@ -1380,7 +1380,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1394,7 +1394,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 1,
             name: "Shawn Tyson",
@@ -1422,7 +1422,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1436,7 +1436,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 1,
             name: "Shawn Tyson",
@@ -1466,7 +1466,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     await acceptSpaceAccountInvite(session2.action(), space.id);
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session1.account.id,
             version: 0,
             name: session1.account.initialName,
@@ -1480,7 +1480,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, session2.account.id)).toEqual(
-        new AccountModel({
+        createTestAccountModel({
             id: session2.account.id,
             version: 2,
             name: "Shawn Meredith",

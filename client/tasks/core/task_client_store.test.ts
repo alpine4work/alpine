@@ -26,7 +26,7 @@ import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
@@ -56,8 +56,8 @@ const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
 
-const account1 = new AccountModel({
-    id: generateId(),
+const account1 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account 1",
     nameVersion: 0,

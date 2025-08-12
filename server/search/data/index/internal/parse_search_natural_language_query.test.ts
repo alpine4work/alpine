@@ -9,8 +9,7 @@ import {
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 // Node.js ESM interop (#node-esm-migration)
 type Fuse<T> = _Fuse.default<T>;
@@ -19,8 +18,7 @@ const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 const createdTime = new Date();
 
 const accounts = [
-    new AccountModel({
-        id: generateId(),
+    createTestAccountModel({
         version: 0,
         name: "Budd Deey",
         nameVersion: 0,
@@ -31,8 +29,7 @@ const accounts = [
             role: "Member",
         },
     }),
-    new AccountModel({
-        id: generateId(),
+    createTestAccountModel({
         version: 0,
         name: "John Smith",
         nameVersion: 0,
@@ -43,8 +40,7 @@ const accounts = [
             role: "Member",
         },
     }),
-    new AccountModel({
-        id: generateId(),
+    createTestAccountModel({
         version: 0,
         name: "Emily Smith",
         nameVersion: 0,
@@ -55,8 +51,7 @@ const accounts = [
             role: "Member",
         },
     }),
-    new AccountModel({
-        id: generateId(),
+    createTestAccountModel({
         version: 0,
         name: "Anthony Mose",
         nameVersion: 0,
@@ -67,8 +62,7 @@ const accounts = [
             role: "Member",
         },
     }),
-    new AccountModel({
-        id: generateId(),
+    createTestAccountModel({
         version: 0,
         name: "Emily Lin",
         nameVersion: 0,

@@ -4,7 +4,9 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary")
 ts_project(
     name = "generate_build_file_lib",
     visibility = ["//admin:__subpackages__"],
-    deps = ["//:node_modules/@types/node"],
+    deps = [
+        "//:node_modules/@types/node",
+    ],
 )
 
 js_binary(

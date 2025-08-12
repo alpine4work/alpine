@@ -102,7 +102,7 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 import.meta.jest.useFakeTimers();
 
@@ -7714,7 +7714,7 @@ test("can get a document with references as actors that don’t have access to t
                     accountById: new Map([
                         [
                             session2.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session2.account.id,
                                 version: 0,
                                 name: session2.account.initialName,
@@ -7729,7 +7729,7 @@ test("can get a document with references as actors that don’t have access to t
                         ],
                         [
                             session3.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session3.account.id,
                                 version: 0,
                                 name: session3.account.initialName,
@@ -7882,7 +7882,7 @@ test("can get a document with references as actors that don’t have access to t
                     accountById: new Map([
                         [
                             session2.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session2.account.id,
                                 version: 0,
                                 name: session2.account.initialName,
@@ -7897,7 +7897,7 @@ test("can get a document with references as actors that don’t have access to t
                         ],
                         [
                             session3.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session3.account.id,
                                 version: 0,
                                 name: session3.account.initialName,
@@ -7994,7 +7994,7 @@ test("can get a document with references as actors that don’t have access to t
                     accountById: new Map([
                         [
                             session2.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session2.account.id,
                                 version: -1073741824,
                                 name: session2.account.initialName,
@@ -8009,7 +8009,7 @@ test("can get a document with references as actors that don’t have access to t
                         ],
                         [
                             session3.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session3.account.id,
                                 version: -1073741824,
                                 name: session3.account.initialName,
@@ -8093,7 +8093,7 @@ test("can get a document with references as actors that don’t have access to t
                     accountById: new Map([
                         [
                             session2.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session2.account.id,
                                 version: -1073741824,
                                 name: session2.account.initialName,
@@ -8108,7 +8108,7 @@ test("can get a document with references as actors that don’t have access to t
                         ],
                         [
                             session3.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session3.account.id,
                                 version: -1073741824,
                                 name: session3.account.initialName,
@@ -8193,7 +8193,7 @@ test("can get a document with references as actors that don’t have access to t
                     accountById: new Map([
                         [
                             session2.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session2.account.id,
                                 version: 0,
                                 name: session2.account.initialName,
@@ -8208,7 +8208,7 @@ test("can get a document with references as actors that don’t have access to t
                         ],
                         [
                             session3.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session3.account.id,
                                 version: 0,
                                 name: session3.account.initialName,
@@ -8297,7 +8297,7 @@ test("can get a document with references as actors that don’t have access to t
                     accountById: new Map([
                         [
                             session2.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session2.account.id,
                                 version: -1073741824,
                                 name: session2.account.initialName,
@@ -8312,7 +8312,7 @@ test("can get a document with references as actors that don’t have access to t
                         ],
                         [
                             session3.account.id,
-                            new AccountModel({
+                            createTestAccountModel({
                                 id: session3.account.id,
                                 version: -1073741824,
                                 name: session3.account.initialName,

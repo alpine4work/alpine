@@ -1,13 +1,11 @@
-import {generateId} from "~/shared/id/id.js";
 import {
     SearchEntityMediaModel,
     mergeSearchEntityMediaModel,
 } from "~/shared/search/search_entity_media_model.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 test("merge account pile media", () => {
-    const account1a = new AccountModel({
-        id: generateId(),
+    const account1a = createTestAccountModel({
         version: 0,
         name: "foo",
         nameVersion: 0,
@@ -19,7 +17,7 @@ test("merge account pile media", () => {
         },
     });
 
-    const account1b = new AccountModel({
+    const account1b = createTestAccountModel({
         id: account1a.id,
         version: 1,
         name: "foo 2",
@@ -32,8 +30,7 @@ test("merge account pile media", () => {
         },
     });
 
-    const account2a = new AccountModel({
-        id: generateId(),
+    const account2a = createTestAccountModel({
         version: 0,
         name: "bar",
         nameVersion: 0,
@@ -45,7 +42,7 @@ test("merge account pile media", () => {
         },
     });
 
-    const account2b = new AccountModel({
+    const account2b = createTestAccountModel({
         id: account2a.id,
         version: 1,
         name: "bar 2",
@@ -58,8 +55,7 @@ test("merge account pile media", () => {
         },
     });
 
-    const account3 = new AccountModel({
-        id: generateId(),
+    const account3 = createTestAccountModel({
         version: 0,
         name: "qux",
         nameVersion: 0,

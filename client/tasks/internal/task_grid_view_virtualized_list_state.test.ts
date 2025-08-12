@@ -13,7 +13,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {StoreMap} from "~/shared/store/store_map.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
@@ -40,8 +40,8 @@ const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
 
-const account1 = new AccountModel({
-    id: generateId(),
+const account1 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account 1",
     nameVersion: 0,
@@ -53,8 +53,8 @@ const account1 = new AccountModel({
     },
 });
 
-const account2 = new AccountModel({
-    id: generateId(),
+const account2 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test Account 2",
     nameVersion: 0,

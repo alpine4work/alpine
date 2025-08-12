@@ -17,9 +17,9 @@ import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 const spaceId = generateId<SpaceId>();
 const channelId = generateId<ChannelId>();
@@ -38,8 +38,8 @@ const channel = new ChannelPreviewModel({
     },
 });
 
-const account1 = new AccountModel({
-    id: generateId(),
+const account1 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test 1",
     nameVersion: 0,
@@ -50,8 +50,8 @@ const account1 = new AccountModel({
         role: "Member",
     },
 });
-const account2 = new AccountModel({
-    id: generateId(),
+const account2 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test 2",
     nameVersion: 0,
@@ -62,8 +62,8 @@ const account2 = new AccountModel({
         role: "Member",
     },
 });
-const account3 = new AccountModel({
-    id: generateId(),
+const account3 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test 3",
     nameVersion: 0,
@@ -74,8 +74,8 @@ const account3 = new AccountModel({
         role: "Member",
     },
 });
-const account4 = new AccountModel({
-    id: generateId(),
+const account4 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test 4",
     nameVersion: 0,
@@ -86,8 +86,8 @@ const account4 = new AccountModel({
         role: "Member",
     },
 });
-const account5 = new AccountModel({
-    id: generateId(),
+const account5 = createTestAccountModel({
+    id: generateId<AccountId>(),
     version: 0,
     name: "Test 5",
     nameVersion: 0,
