@@ -20,6 +20,7 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {emptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {contextCacheMissTestCounter} from "~/shared/context/cache_context_module.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -151,6 +152,8 @@ test("only loads an account from DynamoDB once no matter how many accounts we’
         fileById: new Map(),
     };
 
+    await ProcessContextModule.waitForTestTasks();
+
     for (const accountCount of [1, 2, 3, 25, 50]) {
         contextCacheMissTestCounter.resetForTest();
         dynamoClientExecuteActionTestCounter.resetForTest();
@@ -219,6 +222,8 @@ test("only loads a file from DynamoDB once no matter how many accounts we’re l
             ),
         ),
     };
+
+    await ProcessContextModule.waitForTestTasks();
 
     for (const accountCount of [1, 2, 3, 25, 50]) {
         contextCacheMissTestCounter.resetForTest();
@@ -358,6 +363,8 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         },
         fileById: new Map(),
     };
+
+    await ProcessContextModule.waitForTestTasks();
 
     for (const accountCount of [1, 2, 3, 25, 50]) {
         contextCacheMissTestCounter.resetForTest();
@@ -508,6 +515,8 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         fileById: new Map(),
     };
 
+    await ProcessContextModule.waitForTestTasks();
+
     for (const accountCount of [1, 2, 3, 25, 50]) {
         contextCacheMissTestCounter.resetForTest();
         dynamoClientExecuteActionTestCounter.resetForTest();
@@ -612,6 +621,8 @@ test("can have one account fail to load data while other accounts successfully l
             ),
         ),
     };
+
+    await ProcessContextModule.waitForTestTasks();
 
     for (const accountCount of [1, 2, 3, 25, 50]) {
         contextCacheMissTestCounter.resetForTest();
