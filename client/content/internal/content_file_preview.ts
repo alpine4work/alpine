@@ -49,7 +49,7 @@ import {
     codeBlockClassName,
     codeBlockLineClassName,
     codeBlockLineContentClassName,
-    codeBlockWrapperClassName,
+    codeBlockWrapper2ClassName,
     fileClassName,
 } from "~/shared/content/content_styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
@@ -831,7 +831,7 @@ function renderContentFileCodePreview(
     containerHtml.appendChild(preHtml);
     preHtml.setAttribute(
         "class",
-        classNames(codeBlockWrapperClassName, contentStyles.filePreviewCodeBlockClassName),
+        classNames(codeBlockWrapper2ClassName, contentStyles.filePreviewCodeBlockClassName),
     );
 
     const codeHtml = new HtmlElementGenerator("code");

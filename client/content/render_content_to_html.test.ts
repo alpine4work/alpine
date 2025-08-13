@@ -328,6 +328,6 @@ test("will render code block", () => {
             ).getSnapshot(),
         ),
     ).toEqual(
-        '<div><pre data-scrollbar="false"><div><div><div></div><div><div>Rust</div></div><div><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"></svg></div></div></div><code><div><div>enum LinkedList&lt;T&gt; {</div></div><div><div>  None,</div></div><div><div>  Cons(T, Box&lt;LinkedList&lt;T&gt;&gt;),</div></div><div><div>}</div></div><div><div></div></div><div><div>println!("hi");</div></div></code></pre></div>',
+        '<div><div><pre data-scrollbar="false"><div><div><div></div><div><div>Rust</div></div><div><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"></svg></div></div></div><code><div><div>enum LinkedList&lt;T&gt; {</div></div><div><div>  None,</div></div><div><div>  Cons(T, Box&lt;LinkedList&lt;T&gt;&gt;),</div></div><div><div>}</div></div><div><div></div></div><div><div>println!("hi");</div></div></code></pre></div></div>',
     );
 });

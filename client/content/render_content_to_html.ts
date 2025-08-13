@@ -337,10 +337,12 @@ export function renderContentFragmentToHtmlGeneratorStore(
                 const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
                 const language = contentCodeBlockLanguageById[languageId];
 
-                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                const {html: wrapperHtml, contentHtml} = renderProsemirrorDomOutputSpec(
                     node.type.spec.toDOM!(node),
                 );
 
+                assert(wrapperHtml instanceof HtmlElementGenerator);
+                const html = wrapperHtml.firstElementChild;
                 assert(html instanceof HtmlElementGenerator && html.tagName === "pre");
                 assert(
                     contentHtml instanceof HtmlElementGenerator && contentHtml.tagName === "code",
@@ -402,7 +404,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     );
                 }
 
-                return {html, contentHtml};
+                return {html: wrapperHtml, contentHtml};
             },
             mention: node => {
                 const mention: ContentMention = node.attrs.mention;

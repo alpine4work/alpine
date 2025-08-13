@@ -22,7 +22,7 @@ import {
     codeBlockClassName,
     codeBlockLineClassName,
     codeBlockLineContentClassName,
-    codeBlockWrapperClassName,
+    codeBlockWrapper2ClassName,
 } from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -127,7 +127,7 @@ export function ContentFileCodeViewer({
         <pre
             ref={scrollbarRef}
             className={classNames(
-                codeBlockWrapperClassName,
+                codeBlockWrapper2ClassName,
                 contentStyles.fileViewCodeBlockClassName,
             )}
         >

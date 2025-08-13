@@ -51,11 +51,13 @@ export function createContentEditorCodeBlockNodeViewConstructor({
 
         // This DOM structure is defined in content_schema.ts. See codeBlock's
         // toDOM function.
-        const {dom: element, contentDOM: contentElement} = DOMSerializer.renderSpec(
+        const {dom: wrapperElement, contentDOM: contentElement} = DOMSerializer.renderSpec(
             document,
             node.type.spec.toDOM!(node),
         );
 
+        assert(wrapperElement instanceof HTMLElement);
+        const element = wrapperElement.firstElementChild;
         assert(element instanceof HTMLElement && element.tagName === "PRE");
         assert(contentElement instanceof HTMLElement && contentElement.tagName === "CODE");
         assert(element.childElementCount === 1);
@@ -189,7 +191,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         }
 
         return {
-            dom: element,
+            dom: wrapperElement,
             contentDOM: contentElement,
             destroy: () => {
                 for (const destroyCallback of destroyCallbacks) {

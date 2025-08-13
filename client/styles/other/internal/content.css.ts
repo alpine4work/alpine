@@ -33,6 +33,7 @@ import {
     codeBlockClassName,
     codeBlockLineClassName,
     codeBlockLineContentClassName,
+    codeBlockWrapper2ClassName,
     codeBlockWrapperClassName,
     codeClassName,
     commentClassName,
@@ -658,18 +659,38 @@ const desktopCodeBlockToolbarMaxWidth = addRemLengths(mobileCodeBlockToolbarMaxW
 // that when we're selecting text and Chrome selects some space after the end
 // of the line (to represent a new line) it isn't covered with a gradient.
 const codeBlockOverflowGradientWidth = spacing["3"];
-const codeBlockPaddingRight = spacing["6"];
+const codeBlockPaddingRightGradient = spacing["6"];
 
 globalStyle(codeBlockWrapperClassName, {
     ...blockStyles,
     position: "relative",
     zIndex: "0",
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
+});
+
+globalStyle(`${codeBlockWrapperClassName}::after`, {
+    content: '""',
+    pointerEvents: "none",
+    position: "absolute",
+    left: "0",
+    right: "0",
+    top: `-${spacing["1"]}`,
+    bottom: `-${spacing["1"]}`,
+    zIndex: "-20",
+    borderRadius: spacing["1.5"],
+    backgroundColor: backgroundColorVar,
+});
+
+globalStyle(codeBlockWrapper2ClassName, {
+    position: "relative",
+    zIndex: "0",
     overflowX: "auto",
     overflowY: "hidden",
     overscrollBehaviorX: "contain",
-    marginTop: standaloneBlockMargin,
-    marginBottom: standaloneBlockMargin,
     counterReset: "code-block-line-number",
+    borderRadius: borderRadius["1.5"],
+    backgroundColor: backgroundColorVar,
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
@@ -696,7 +717,7 @@ globalStyle(`${codeBlockClassName}${codeBlockClassName}${codeBlockClassName}`, {
 export const filePreviewCodeBlockClassName = style({});
 
 // Change styles for code block in file preview.
-globalStyle(`${filePreviewCodeBlockClassName}${codeBlockWrapperClassName}`, {
+globalStyle(`${filePreviewCodeBlockClassName}${codeBlockWrapper2ClassName}`, {
     height: "100%",
     maxWidth: "none",
     overflowX: "hidden",
@@ -708,7 +729,7 @@ const fileViewCodeBlockMargin = spacing["3"];
 
 export const fileViewCodeBlockClassName = style({});
 
-globalStyle(`${fileViewCodeBlockClassName}${codeBlockWrapperClassName}`, {
+globalStyle(`${fileViewCodeBlockClassName}${codeBlockWrapper2ClassName}`, {
     height: "100%",
     maxWidth: "none",
     margin: 0,
@@ -777,7 +798,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
 
 // Add some extra margin to the left of code block file views.
 globalStyle(
-    `${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
+    `${codeBlockWrapper2ClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
     {
         width: addRemLengths(fileViewCodeBlockMargin, listItemIndentation),
     },
@@ -791,12 +812,12 @@ globalStyle(`${codeBlockLineClassName}::after`, {
     position: "sticky",
     // Render in margins to make sure there are no rendering artifacts.
     right: `-${codeBlockOverflowGradientWidth}`,
-    width: addRemLengths(codeBlockPaddingRight, codeBlockOverflowGradientWidth),
+    width: addRemLengths(codeBlockPaddingRightGradient, codeBlockOverflowGradientWidth),
     height: paragraphFontSize.lineHeight,
     background: `linear-gradient(to right, transparent ${subtractRemLengths(
-        codeBlockPaddingRight,
+        codeBlockPaddingRightGradient,
         codeBlockOverflowGradientWidth,
-    )}, ${backgroundColorVar} ${codeBlockPaddingRight}, ${backgroundColorVar})`,
+    )}, ${backgroundColorVar} ${codeBlockPaddingRightGradient}, ${backgroundColorVar})`,
 });
 
 globalStyle(`${largeSpacingScaleSelector} ${codeBlockLineClassName}::after`, {
@@ -807,21 +828,21 @@ globalStyle(`${largeSpacingScaleSelector} ${codeBlockLineClassName}::after`, {
 // the right edge has a hard cut and doesn't blend into the document
 // background.
 globalStyle(
-    `${codeBlockWrapperClassName}:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName}) ${codeBlockLineClassName}::after`,
+    `${codeBlockWrapper2ClassName}:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName}) ${codeBlockLineClassName}::after`,
     {
         content: "none",
     },
 );
 
 globalStyle(
-    `${desktopPlatformSelector} ${codeBlockWrapperClassName}:not(:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName})) > ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
+    `${desktopPlatformSelector} ${codeBlockWrapper2ClassName}:not(:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName})) > ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
     {
         paddingRight: desktopCodeBlockToolbarMaxWidth,
     },
 );
 
 globalStyle(
-    `${mobilePlatformSelector} ${codeBlockWrapperClassName}:not(:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName})) > ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
+    `${mobilePlatformSelector} ${codeBlockWrapper2ClassName}:not(:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName})) > ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
     {
         paddingRight: mobileCodeBlockToolbarMaxWidth,
     },
@@ -831,9 +852,12 @@ globalStyle(`${codeBlockClassName} > ${codeBlockLineClassName}:first-child::afte
     content: "none",
 });
 
-globalStyle(`${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}`, {
-    paddingRight: fileViewCodeBlockMargin,
-});
+globalStyle(
+    `${codeBlockWrapper2ClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}`,
+    {
+        paddingRight: fileViewCodeBlockMargin,
+    },
+);
 
 globalStyle(codeBlockLineContentClassName, {
     position: "relative",
@@ -868,6 +892,7 @@ export const codeBlockToolbarFlexClassName = style({
     right: "0",
     height: paragraphLineHeightVar,
     paddingLeft: spacing["1.5"],
+    paddingRight: spacing["1"],
     display: "flex",
     alignItems: "center",
     gap: spacing["0.5"],
@@ -876,7 +901,7 @@ export const codeBlockToolbarFlexClassName = style({
         desktopCodeBlockToolbarMaxWidth,
         // The overflow gradient is rendered absolutely out of this element's layout
         // but we still want to consider it as a part of the max width.
-        codeBlockPaddingRight,
+        codeBlockPaddingRightGradient,
     ),
     selectors: {
         [`${mobilePlatformSelector} &`]: {
@@ -884,7 +909,7 @@ export const codeBlockToolbarFlexClassName = style({
                 mobileCodeBlockToolbarMaxWidth,
                 // The overflow gradient is rendered absolutely out of this element's layout
                 // but we still want to consider it as a part of the max width.
-                codeBlockPaddingRight,
+                codeBlockPaddingRightGradient,
             ),
         },
     },

@@ -62,6 +62,9 @@ export const quoteBlockClassName =
 export const codeBlockWrapperClassName =
     process.env.NODE_ENV !== "production" ? "content_codeBlockWrapper" : "c_cbw";
 
+export const codeBlockWrapper2ClassName =
+    process.env.NODE_ENV !== "production" ? "content_codeBlockWrapper2" : "c_cbw2";
+
 export const codeBlockClassName =
     process.env.NODE_ENV !== "production" ? "content_codeBlock" : "c_cb";
 

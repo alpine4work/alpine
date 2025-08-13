@@ -4484,51 +4484,55 @@ exports[`code (multiline) plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <pre
+  <div
     class="content_codeBlockWrapper"
-    data-scrollbar="false"
   >
-    <code
-      class="content_codeBlock"
+    <pre
+      class="content_codeBlockWrapper2"
+      data-scrollbar="false"
     >
-      <div
-        class="content_codeBlockLine"
+      <code
+        class="content_codeBlock"
       >
         <div
-          class="content_codeBlockLineContent"
+          class="content_codeBlockLine"
         >
-          Hello world!
-        </div>
-      </div>
-      <div
-        class="content_codeBlockLine"
-      >
-        <div
-          class="content_codeBlockLineContent"
-        >
-          <br />
-        </div>
-      </div>
-      <div
-        class="content_codeBlockLine"
-      >
-        <div
-          class="content_codeBlockLineContent"
-        >
+          <div
+            class="content_codeBlockLineContent"
+          >
             Hello world!
+          </div>
         </div>
-      </div>
-      <div
-        class="content_codeBlockLine"
-      >
         <div
-          class="content_codeBlockLineContent"
+          class="content_codeBlockLine"
         >
-          Hello world!
+          <div
+            class="content_codeBlockLineContent"
+          >
+            <br />
+          </div>
         </div>
-      </div>
-    </code>
-  </pre>
+        <div
+          class="content_codeBlockLine"
+        >
+          <div
+            class="content_codeBlockLineContent"
+          >
+              Hello world!
+          </div>
+        </div>
+        <div
+          class="content_codeBlockLine"
+        >
+          <div
+            class="content_codeBlockLineContent"
+          >
+            Hello world!
+          </div>
+        </div>
+      </code>
+    </pre>
+  </div>
 </div>
 `;
 
@@ -4706,24 +4710,28 @@ exports[`code plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <pre
+  <div
     class="content_codeBlockWrapper"
-    data-scrollbar="false"
   >
-    <code
-      class="content_codeBlock"
+    <pre
+      class="content_codeBlockWrapper2"
+      data-scrollbar="false"
     >
-      <div
-        class="content_codeBlockLine"
+      <code
+        class="content_codeBlock"
       >
         <div
-          class="content_codeBlockLineContent"
+          class="content_codeBlockLine"
         >
-          Hello world!
+          <div
+            class="content_codeBlockLineContent"
+          >
+            Hello world!
+          </div>
         </div>
-      </div>
-    </code>
-  </pre>
+      </code>
+    </pre>
+  </div>
 </div>
 `;
 
