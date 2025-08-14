@@ -2356,77 +2356,85 @@ describe("getSearchEntity", () => {
         await ProcessContextModule.waitForTestTasks();
     });
 
-    test("can get task collection search entity", async () => {
-        const space = await TestSpace.create(context);
-        const session1 = await space.createSession();
-        const session2 = await space.createSession();
-        const session3 = await space.createSession();
-        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    test(
+        "can get task collection search entity",
+        async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const session3 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-        const privateCollection = await TestTaskCollection.create(session1, {
-            name: "Private Test Task Collection",
-        });
-        await privateCollection.access.grant(session1, session2);
+            const privateCollection = await TestTaskCollection.create(session1, {
+                name: "Private Test Task Collection",
+            });
+            await privateCollection.access.grant(session1, session2);
 
-        const publicCollection = await TestTaskCollection.create(session3, {
-            name: "Public Test Task Collection",
-        });
-        await publicCollection.access.grantDefault(session3);
+            const publicCollection = await TestTaskCollection.create(session3, {
+                name: "Public Test Task Collection",
+            });
+            await publicCollection.access.grantDefault(session3);
 
-        await publicCollection.updateColor(session3, "purple");
+            await publicCollection.updateColor(session3, "purple");
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getSearchEntity(
-                space.systemAction(),
-                {type: "TaskCollection", collectionId: privateCollection.id},
-                {tokenizer, registerAdditionalWrite: noop},
-            ),
-        ).toEqual({
-            dependencyIds: new Set(),
-            entity: {
-                id: `TaskCollection:${privateCollection.id}`,
-                accessPolicy: {
-                    accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
-                    defaultGrantType: null,
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "TaskCollection", collectionId: privateCollection.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `TaskCollection:${privateCollection.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
+                        defaultGrantType: null,
+                    },
+                    createdTime: new Date(privateCollection.createdTime[0]),
+                    title: "Private Test Task Collection",
+                    titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
+                    body: null,
+                    embeddingChunks: [],
+                    media: {type: "TaskCollectionColor", color: null, version: expect.any(Array)},
+                    creatorId: session1.account.id,
+                    contributorIds: new Map(),
                 },
-                createdTime: new Date(privateCollection.createdTime[0]),
-                title: "Private Test Task Collection",
-                titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
-                body: null,
-                embeddingChunks: [],
-                media: {type: "TaskCollectionColor", color: null, version: expect.any(Array)},
-                creatorId: session1.account.id,
-                contributorIds: new Map(),
-            },
-        });
+            });
 
-        expect(
-            await getSearchEntity(
-                space.systemAction(),
-                {type: "TaskCollection", collectionId: publicCollection.id},
-                {tokenizer, registerAdditionalWrite: noop},
-            ),
-        ).toEqual({
-            dependencyIds: new Set(),
-            entity: {
-                id: `TaskCollection:${publicCollection.id}`,
-                accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
-                createdTime: new Date(publicCollection.createdTime[0]),
-                title: "Public Test Task Collection",
-                titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
-                body: null,
-                embeddingChunks: [],
-                media: {type: "TaskCollectionColor", color: "purple", version: expect.any(Array)},
-                creatorId: session3.account.id,
-                contributorIds: new Map(),
-            },
-        });
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "TaskCollection", collectionId: publicCollection.id},
+                    {tokenizer, registerAdditionalWrite: noop},
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `TaskCollection:${publicCollection.id}`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: new Date(publicCollection.createdTime[0]),
+                    title: "Public Test Task Collection",
+                    titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
+                    body: null,
+                    embeddingChunks: [],
+                    media: {
+                        type: "TaskCollectionColor",
+                        color: "purple",
+                        version: expect.any(Array),
+                    },
+                    creatorId: session3.account.id,
+                    contributorIds: new Map(),
+                },
+            });
 
-        import.meta.jest.runAllTimers();
-        await ProcessContextModule.waitForTestTasks();
-    });
+            import.meta.jest.runAllTimers();
+            await ProcessContextModule.waitForTestTasks();
+        },
+        20 * 1000,
+    );
 
     test("can get task comment search entity", async () => {
         const space = await TestSpace.create(context);

@@ -1,5 +1,5 @@
 import {AccountModelWithoutSpaceDataSchema} from "~/shared/accounts/account_model_without_space.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const spaceAccountStateDefault = {
     type: "Active",
@@ -26,3 +26,6 @@ export const SpaceAccountStateSchemas = {
 };
 
 export type SpaceAccountStateType = keyof typeof SpaceAccountStateSchemas;
+export type SpaceAccountState = SchemaType<
+    (typeof SpaceAccountStateSchemas)[SpaceAccountStateType]
+>;

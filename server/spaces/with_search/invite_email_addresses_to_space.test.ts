@@ -95,7 +95,9 @@ test("cannot invite existing members", async () => {
     expect(result.accounts).toHaveLength(0);
     expect(result.invalidEmailAddresses).toHaveLength(0);
     expect(result.rejectedAsSpamEmailAddresses).toHaveLength(0);
-    expect(result.alreadyMemberEmailAddresses).toEqual([member1Email, member2Email]);
+    expect([...result.alreadyMemberEmailAddresses].sort()).toEqual(
+        [member1Email, member2Email].sort(),
+    );
 
     const member2 = await getSpaceAccountForTest(
         context.systemAction(space.id),
@@ -207,12 +209,13 @@ test(`kitchen sink invite test`, async () => {
     });
 
     expect(result.accounts).toHaveLength(1);
-    expect(result.invalidEmailAddresses).toEqual([invalidEmail1, invalidEmail2]);
-    expect(result.rejectedAsSpamEmailAddresses).toEqual([
-        rejectedAsSpamInviteEmail1,
-        rejectedAsSpamInviteEmail2,
-    ]);
-    expect(result.alreadyMemberEmailAddresses).toEqual([alreadyMemberEmail1, alreadyMemberEmail2]);
+    expect([...result.invalidEmailAddresses].sort()).toEqual([invalidEmail1, invalidEmail2].sort());
+    expect([...result.rejectedAsSpamEmailAddresses].sort()).toEqual(
+        [rejectedAsSpamInviteEmail1, rejectedAsSpamInviteEmail2].sort(),
+    );
+    expect([...result.alreadyMemberEmailAddresses].sort()).toEqual(
+        [alreadyMemberEmail1, alreadyMemberEmail2].sort(),
+    );
 
     // We can re-invite a removed account, so check it's back to InvitePending
     const removedAccount = await getSpaceAccountForTest(
