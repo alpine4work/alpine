@@ -16,6 +16,7 @@ import {
 import {
     ServerActionContext,
     ServerSessionActionContext,
+    ServerSessionActionWithEmailContext,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -2243,7 +2244,7 @@ export async function getSpaceIfPossible(
  * `//server/spaces/with_search:addSpaceAccount` to add the account to the space.
  */
 async function inviteEmailAddressToSpaceWithoutRetryTransaction(
-    context: ServerSessionActionContext,
+    context: ServerSessionActionWithEmailContext,
     {
         emailAddress,
         existingAccountId,
@@ -2370,7 +2371,26 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             entityId: "TaskPersonal",
         });
 
-        // TODO: send email (in follow up PR)
+        const spaceUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}`;
+
+        if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
+            // eslint-disable-next-line no-console
+            console.log(
+                quote`Accept the invite for ${emailAddress} in ${
+                    spaceItem.name
+                } here: ${`${spaceUrl}/invite`}`,
+            );
+        }
+
+        await context.email.send({
+            fromEmailAddressAlias: "SignIn",
+            toEmailAddress: emailAddress,
+            templateName: "SpaceInvite",
+            templateProps: {
+                spaceUrl,
+                spaceName: spaceItem.name,
+            },
+        });
 
         return createAccountModelFromItem(newItem, null);
     });
@@ -2425,7 +2445,7 @@ async function validateEmailAddressForInviteInSpace(
 }
 
 export async function internalValidateInviteEmailAddressToSpace(
-    context: ServerSessionActionContext,
+    context: ServerSessionActionWithEmailContext,
     {
         spaceId,
         emailAddress,
@@ -2447,7 +2467,7 @@ export async function internalValidateInviteEmailAddressToSpace(
           ok: true;
           emailAddress: string;
           internalInviteEmailAddressToSpace: (
-              context: ServerSessionActionContext,
+              context: ServerSessionActionWithEmailContext,
               options: {
                   favoriteSearchEntity: (
                       context: Context<DynamoContextModules & {jobs: JobsContextModule}>,

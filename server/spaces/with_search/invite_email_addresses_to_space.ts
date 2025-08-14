@@ -1,5 +1,5 @@
 import {internalGetAccountIdByEmailAddressIfExists} from "~/server/accounts/accounts_table.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionWithEmailContext} from "~/server/context/server_action_context.js";
 import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
@@ -30,7 +30,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
  *   Additionally, there's no way to directly call this function from the client.
  */
 export async function inviteEmailAddressesToSpace(
-    context: ServerSessionActionContext,
+    context: ServerSessionActionWithEmailContext,
     {
         spaceId,
         emailAddresses,

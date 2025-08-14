@@ -101,10 +101,10 @@ export default function EmailPreviewPage() {
         <main
             className={sprinkles({
                 width: "full",
-                height: "full",
                 overflow: "hidden",
                 display: "flex",
             })}
+            style={{height: "100svh"}}
         >
             <Box
                 flexShrink="0"
@@ -162,6 +162,7 @@ export default function EmailPreviewPage() {
                 overflow="hidden"
                 display="flex"
                 flexDirection="column"
+                gap={view === "mobile" ? "2" : "0"}
             >
                 <Box
                     flexShrink="0"
@@ -235,8 +236,11 @@ export default function EmailPreviewPage() {
                                     )}`}
                                     className={sprinkles({
                                         width: "96",
-                                        height: "full",
+                                        height: "192",
+                                        maxHeight: "full",
                                         backgroundColor: "grey-0-const",
+                                        border: "grey-10",
+                                        borderRadius: "1",
                                     })}
                                 />
                             ),

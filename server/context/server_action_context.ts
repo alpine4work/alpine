@@ -7,6 +7,7 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -50,6 +51,12 @@ export type ServerActionContextModules = MergeObjectIntersection<
  * Context for actions where we know the actor is a session actor.
  */
 export type ServerSessionActionContext = Context<ServerSessionActionContextModules>;
+
+export type ServerSessionActionWithEmailContext = Context<
+    ServerSessionActionContextModules & {
+        email: EmailContextModuleBase;
+    }
+>;
 
 export type ServerSessionActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {

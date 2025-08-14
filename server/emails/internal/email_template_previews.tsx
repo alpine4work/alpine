@@ -71,6 +71,15 @@ const emailTemplatePreviews: {
             props: {},
         },
     ],
+    SpaceInvite: [
+        {
+            title: "Space invite",
+            props: {
+                inviteUrl: "localhost:3000/spaces/invite/1234567890abcdef",
+                spaceName: "Test Space",
+            },
+        },
+    ],
 };
 
 /**

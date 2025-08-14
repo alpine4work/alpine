@@ -1,4 +1,4 @@
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionWithEmailContext} from "~/server/context/server_action_context.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     acceptSpaceAccountInvite,
@@ -207,7 +207,10 @@ export class TestSpace {
      * If you're expecting to validate errors from this call, use
      * inviteEmailAddressesToSpace directly.
      */
-    public async inviteEmailAddress(context: ServerSessionActionContext, emailAddress: string) {
+    public async inviteEmailAddress(
+        context: ServerSessionActionWithEmailContext,
+        emailAddress: string,
+    ) {
         const result = await inviteEmailAddressesToSpace(context, {
             spaceId: this.id,
             emailAddresses: [emailAddress],
@@ -227,7 +230,7 @@ export class TestSpace {
      * inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddressAndCreateSession(
-        context: ServerSessionActionContext,
+        context: ServerSessionActionWithEmailContext,
         emailAddress: string,
     ) {
         const account = await this.inviteEmailAddress(context, emailAddress);
