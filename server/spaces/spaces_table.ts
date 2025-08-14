@@ -2989,6 +2989,20 @@ async function updateSpaceAccountWithInviteDecision(
             updateSpaceAccountItemTransactionEntry,
         ]);
 
+        if (newAccountStateType === "Active") {
+            // Reindex the account in all space search indexes where it appears. This may
+            // recursively update any search entities where the account is mentioned.
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId,
+                update: {
+                    type: "Account",
+                    accountId,
+                    updatedTraits: {type: "Some", traits: ["WithoutSpace"]},
+                },
+            });
+        }
+
         return createAccountModelFromItem(
             updateSpaceAccountItemTransactionEntry.newItem,
             updateSpaceAccountItemTransactionEntry.newItem.state.type === "Active" ? account : null,

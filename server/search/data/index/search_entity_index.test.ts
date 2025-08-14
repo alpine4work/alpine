@@ -39,11 +39,13 @@ import {
     removeSpaceAccount,
     updateSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
+import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
+import {inviteEmailAddressesToSpace} from "~/server/spaces/with_search/invite_email_addresses_to_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -5600,22 +5602,75 @@ test("you can still search for removed accounts but you can’t see name updates
         fields: {title: ["Carol"]},
     });
 
-    // TODO(imjoshin): We shouldn't show the new name until the account accepts their invite
-    // when added back to the space.
-    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/mczmbnqrqvrs0k8rgc56ty4s9m
-    // expect(
-    //     await context.opensearch.getDocWithoutSourceIfExists(
-    //         SearchEntityKeywordIndex,
-    //         space2.id,
-    //         `Account:${sharedAccount.id}~${space2.id}`,
-    //         {storedFields: ["title"]},
-    //     ),
-    // ).toEqual({
-    //     id: `Account:${sharedAccount.id}~${space2.id}`,
-    //     routing: space2.id,
-    //     version: expect.any(Object),
-    //     fields: {title: ["Carol"]},
-    // });
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space2.id,
+            `Account:${sharedAccount.id}~${space2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space2.id}`,
+        routing: space2.id,
+        version: expect.any(Object),
+        fields: {title: ["Carol"]},
+    });
+});
+
+test("you can search for invited accounts by email, then by name once they’ve accepted their invite", async () => {
+    const space = await TestSpace.create(context);
+
+    const ownerSession = await space.createSession({role: "Owner"});
+
+    const invitedAccountEmailAddress = generateEmailAddressForTest();
+    const invitedAccount = await TestAccount.create(context, {name: "Alice"});
+    await invitedAccount.createEmailAddress(invitedAccountEmailAddress);
+
+    // Add the account by email
+    const result = await inviteEmailAddressesToSpace(ownerSession.action(), {
+        spaceId: space.id,
+        emailAddresses: [invitedAccountEmailAddress],
+    });
+
+    expect(result.accounts).toHaveLength(1);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // We should first see the user's email
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Account:${invitedAccount.id}~${space.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${invitedAccount.id}~${space.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {title: [invitedAccountEmailAddress]},
+    });
+
+    await acceptSpaceAccountInvite((await TestSession.create(invitedAccount)).action(), space.id);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // After acceptance, we should convert this to their name
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Account:${invitedAccount.id}~${space.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${invitedAccount.id}~${space.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {title: ["Alice"]},
+    });
 });
 
 test("will index a large table into multiple chunks", async () => {
