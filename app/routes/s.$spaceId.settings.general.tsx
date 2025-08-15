@@ -12,14 +12,28 @@ import {
 import {SpaceAvatarUploader} from "~/client/spaces/layout/settings/space_avatar_uploader.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
+
+const LoaderSchema = Schema.object({});
+
+export async function loader({params}: LoaderArgs) {
+    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+
+    if (process.env.NODE_ENV === "production" && spaceId !== alpineCompanyKnownSpaceId) {
+        throw new UnimplementedError("Space settings is not available");
+    }
+
+    return jsonWithSchema(LoaderSchema, {});
+}
 
 export default function SpaceGeneralSettingsRoute() {
-    if (process.env.NODE_ENV === "production")
-        throw new UnimplementedError("Shouldn’t be able to open general settings in production");
-
     const context = useAppContext();
     const {space: originalSpace, updateSpace} = useSpaceContextAndRequireSpaceAccess();
 
