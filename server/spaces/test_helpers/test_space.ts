@@ -218,7 +218,19 @@ export class TestSpace {
 
         const account = assertExists(
             result.accounts[0],
-            "Expected an account to be created from the email invite",
+            `Expected an account to be created from the email invite, got ${
+                result.alreadyMemberEmailAddresses.length
+                    ? "alreadyMember"
+                    : result.invalidEmailAddresses.length
+                    ? "invalidEmail"
+                    : result.rejectedAsSpamEmailAddresses.length
+                    ? "rejectedAsSpam"
+                    : result.unexpectedFailureEmailAddresses.size
+                    ? `unexpectedFailure:\n${
+                          result.unexpectedFailureEmailAddresses.values().next().value
+                      }`
+                    : "none"
+            }`,
         );
 
         return account;

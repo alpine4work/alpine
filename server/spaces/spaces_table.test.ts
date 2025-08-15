@@ -60,7 +60,8 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {SpaceAccountStateType} from "~/shared/spaces/space_account_state.js";
+import {SpaceModel, SpaceRole} from "~/shared/spaces/space_model.js";
 import {
     createTestAccountModel,
     intoAccountModelWithoutSpaceAndAvatar,
@@ -761,6 +762,211 @@ test("`isAccountMemberOfSpace()` ignores the `getAccountIfExists()` cache if acc
     expect(await isMember(cacheContext3, space, session1)).toEqual(true);
     expect(await isMember(cacheContext3, space, session2)).toEqual(true);
     expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
+});
+
+describe(`authorizeSpaceAccess()`, () => {
+    const setupUserState = async ({
+        space,
+        userRole,
+        spaceAccountStateType,
+    }: {
+        space: TestSpace;
+        userRole: SpaceRole;
+        spaceAccountStateType: SpaceAccountStateType;
+    }) => {
+        if (userRole === "Owner") {
+            assert(spaceAccountStateType === "Active", "Owners must be active in the space");
+            return space.createSession({role: "Owner"});
+        }
+
+        const ownerSession = await space.createSession({role: "Owner"});
+        const userAccount = await TestAccount.create(context);
+        const userEmail = await userAccount.createEmailAddress();
+
+        const invite = await space.inviteEmailAddressAndCreateSession(
+            ownerSession.action(),
+            userEmail,
+        );
+
+        if (spaceAccountStateType === "Removed") {
+            await removeSpaceAccount(ownerSession.action(), {
+                spaceId: space.id,
+                accountId: userAccount.id,
+            });
+        } else if (spaceAccountStateType === "Active") {
+            await invite.acceptInvite();
+
+            if (userRole === "Admin") {
+                await updateSpaceAccountRole(ownerSession.action(), {
+                    spaceId: space.id,
+                    accountId: userAccount.id,
+                    role: "Admin",
+                });
+            }
+        }
+
+        return invite.session;
+    };
+
+    const allowedTestCases: Array<{
+        userRole: SpaceRole;
+        expectedRole: SpaceRole;
+        userSpaceAccountStateType: SpaceAccountStateType;
+        allowedSpaceAccountStateTypes: Array<SpaceAccountStateType>;
+    }> = [
+        {
+            userRole: "Member",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Admin",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Owner",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Admin",
+            expectedRole: "Admin",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Owner",
+            expectedRole: "Admin",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Owner",
+            expectedRole: "Owner",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "InvitePending",
+            allowedSpaceAccountStateTypes: ["Active", "InvitePending"],
+        },
+    ];
+
+    for (const {
+        userRole,
+        expectedRole,
+        userSpaceAccountStateType,
+        allowedSpaceAccountStateTypes,
+    } of allowedTestCases) {
+        test(`allows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and states ${allowedSpaceAccountStateTypes.join(
+            ", ",
+        )}`, async () => {
+            const space = await TestSpace.create(context);
+
+            const userSession = await setupUserState({
+                space,
+                userRole,
+                spaceAccountStateType: userSpaceAccountStateType,
+            });
+
+            await authorizeSpaceAccess(
+                userSession.action(),
+                space.id,
+                expectedRole,
+                allowedSpaceAccountStateTypes,
+            );
+        });
+    }
+
+    const disallowedTestCases: Array<{
+        userRole: SpaceRole;
+        expectedRole: SpaceRole;
+        userSpaceAccountStateType: SpaceAccountStateType;
+        allowedSpaceAccountStateTypes: Array<SpaceAccountStateType>;
+    }> = [
+        {
+            userRole: "Member",
+            expectedRole: "Admin",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Admin",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Owner",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Admin",
+            expectedRole: "Owner",
+            userSpaceAccountStateType: "Active",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "Removed",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "Removed",
+            allowedSpaceAccountStateTypes: ["Active", "InvitePending"],
+        },
+        {
+            userRole: "Member",
+            expectedRole: "Member",
+            userSpaceAccountStateType: "InvitePending",
+            allowedSpaceAccountStateTypes: ["Active"],
+        },
+    ];
+
+    for (const {
+        userRole,
+        expectedRole,
+        userSpaceAccountStateType,
+        allowedSpaceAccountStateTypes,
+    } of disallowedTestCases) {
+        test(`disallows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and states ${allowedSpaceAccountStateTypes.join(
+            ", ",
+        )}`, async () => {
+            const space = await TestSpace.create(context);
+
+            const userSession = await setupUserState({
+                space,
+                userRole,
+                spaceAccountStateType: userSpaceAccountStateType,
+            });
+
+            await expect(
+                authorizeSpaceAccess(
+                    userSession.action(),
+                    space.id,
+                    expectedRole,
+                    allowedSpaceAccountStateTypes,
+                ),
+            ).rejects.toThrow(PermissionDeniedError);
+        });
+    }
 });
 
 test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if account was removed", async () => {
@@ -1511,6 +1717,75 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
         null,
     );
+});
+
+test("`getAccountIfExists()` can use disableOwnAccountAccessCheck to read own account", async () => {
+    const space = await TestSpace.create(context);
+
+    const [activeSession, removedSession, invitedSession] = await runAllPromises([
+        space.createSession({role: "Admin"}),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    // Set up removed account
+    await removeSpaceAccount(activeSession.action(), {
+        spaceId: space.id,
+        accountId: removedSession.account.id,
+    });
+
+    // Remove the invited account, and re-add manually to trigger an invite
+    await removeSpaceAccount(activeSession.action(), {
+        spaceId: space.id,
+        accountId: invitedSession.account.id,
+    });
+
+    await addSpaceAccount(activeSession.action(), {
+        spaceId: space.id,
+        accountId: invitedSession.account.id,
+    });
+
+    // Should throw on removed account without flag
+    await expect(
+        getAccountIfExists(removedSession.action(), space.id, removedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    // Should not throw if getting own account
+    await getAccountIfExists(removedSession.action(), space.id, removedSession.account.id, {
+        disableOwnAccountAccessCheck: true,
+    });
+
+    // Should throw on invited account without flag
+    await expect(
+        getAccountIfExists(invitedSession.action(), space.id, invitedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    // Should not throw if getting own account
+    await getAccountIfExists(invitedSession.action(), space.id, invitedSession.account.id, {
+        disableOwnAccountAccessCheck: true,
+    });
+
+    // Cannot get other accounts when in non-active state, even with flag
+    await expect(
+        getAccountIfExists(invitedSession.action(), space.id, removedSession.account.id, {
+            disableOwnAccountAccessCheck: true,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getAccountIfExists(invitedSession.action(), space.id, activeSession.account.id, {
+            disableOwnAccountAccessCheck: true,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getAccountIfExists(removedSession.action(), space.id, invitedSession.account.id, {
+            disableOwnAccountAccessCheck: true,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getAccountIfExists(removedSession.action(), space.id, activeSession.account.id, {
+            disableOwnAccountAccessCheck: true,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can get an account’s registered apple devices", async () => {

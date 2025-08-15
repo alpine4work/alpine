@@ -1,3 +1,4 @@
+import {redirect} from "@remix-run/node";
 import {Outlet, ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {
@@ -73,7 +74,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
     authorizeSpaceAccessIfPossible,
-    getAccount,
+    getAccountIfExists,
     getSpace,
 } from "~/server/spaces/spaces_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
@@ -173,9 +174,8 @@ export function links(): Array<LinkDescriptor> {
 export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextParams}) =>
     currentParams.spaceId !== nextParams.spaceId;
 
-export async function loader({context: loaderContext, params}: LoaderArgs) {
+export async function loader({context: loaderContext, params, request}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-
     const context = await loaderContext.actor.authenticate();
 
     switch (context.actor.type) {
@@ -218,13 +218,48 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
         }
 
         case "Session": {
+            // In the case of a permission denial, we may want to expose certain space data
+            // This is currently used when an InvitePending account requests data about the space.
+            let space: SpaceModel | null = null;
+
             try {
-                const [space, currentAccount, {hasInternalAccess}, inbox] = await runAllPromises([
-                    getSpace(context, spaceId),
-                    getAccount(context, spaceId, context.actor.getAccountId()),
+                // Kick off some requests, but don't await yet
+                const deferredPromises = [
                     context.actor.getAccountAndHasInternalAccess(),
                     getInbox(context as InboxSessionActionContextWithBroadcast, {spaceId}),
+                ] as const;
+
+                // Await on data that we absolutely need first
+                const [currentAccountResult, currentSpace] = await runAllPromises([
+                    getAccountIfExists(context, spaceId, context.actor.getAccountId(), {
+                        disableOwnAccountAccessCheck: true,
+                    }),
+                    // If we're in an InvitePending state, we need to return the space
+                    // data for the invite screen.
+                    getSpace(context, spaceId, {allowInvitePending: true}),
                 ]);
+
+                space = currentSpace;
+
+                // Handle invite state before we throw on any permissions errors
+                // in getSpace, getInbox, etc. If we are in any invite subtree,
+                // don't try to redirect to the invite page.
+                const url = new URL(request.url);
+                const currentPathname = url.pathname;
+                const invitePathRoot = `/s/${spaceId}/invite`;
+                const accountIsInvitePending =
+                    currentAccountResult?.initialData.space.state.type === "InvitePending";
+
+                if (accountIsInvitePending && !currentPathname.startsWith(invitePathRoot)) {
+                    const to =
+                        currentPathname !== "/"
+                            ? encodeURIComponent(currentPathname.replace(`/s/${spaceId}`, ""))
+                            : undefined;
+                    return redirect(`${invitePathRoot}${to ? `?to=${to}` : ""}`);
+                }
+
+                const [{hasInternalAccess}, inbox] = await runAllPromises(deferredPromises);
+                const currentAccount = assertExists(currentAccountResult);
 
                 const propagateEventData: TracerEventData = {
                     context: {
@@ -262,12 +297,12 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
 
                 const {account} = await context.actor.getAccountAndHasInternalAccess();
 
-                const space = new SpaceModel({
+                const limitedSpace = new SpaceModel({
                     id: spaceId,
                     version: -1,
                     // If you don't have space access, you're not allowed to see the space's name.
                     // Use an empty string as a placeholder.
-                    name: "",
+                    name: space?.name || "",
                 });
 
                 const propagateEventData: TracerEventData = {
@@ -280,7 +315,11 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
 
                 return jsonWithSchema(
                     LoaderSchema,
-                    {type: "WithoutAccess", space, currentAccountWithoutSpace: account},
+                    {
+                        type: "WithoutAccess",
+                        space: limitedSpace,
+                        currentAccountWithoutSpace: account,
+                    },
                     {propagateEventData},
                 );
             }

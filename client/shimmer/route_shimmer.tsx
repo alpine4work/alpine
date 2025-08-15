@@ -245,6 +245,10 @@ const shimmerOptionsByRouteId: Record<
 
     // NOTE(rohit): We don't have a design for layout routes.
     "routes/s.$spaceId.settings": false,
+
+    "routes/s.$spaceId.invite._index": false,
+    "routes/s.$spaceId.invite.reject-and-mark-as-spam": false,
+    "routes/s.$spaceId.invite.accept": {component: FeedRouteShimmer},
 };
 
 const RouteShimmerMemo = memo(RouteShimmer);
@@ -365,7 +369,7 @@ function RouteShimmer({
     }
 }
 
-function FeedRouteShimmer() {
+export function FeedRouteShimmer() {
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
 

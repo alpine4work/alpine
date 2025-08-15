@@ -82,7 +82,11 @@ import {
     SpaceAccountSettings,
     SpaceAccountSettingsSchema,
 } from "~/shared/spaces/space_account_settings.js";
-import {SpaceAccountState, spaceAccountStateDefault} from "~/shared/spaces/space_account_state.js";
+import {
+    SpaceAccountState,
+    SpaceAccountStateType,
+    spaceAccountStateDefault,
+} from "~/shared/spaces/space_account_state.js";
 import {spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel, SpaceRole, SpaceRoleSchema, hasSpaceRole} from "~/shared/spaces/space_model.js";
 
@@ -1427,6 +1431,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     spaceId: SpaceId,
     accountId: AccountId,
     expectedRole: SpaceRole = "Member",
+    allowedSpaceAccountStateTypes: Array<SpaceAccountStateType> = ["Active"],
 ): Promise<boolean> {
     // Check if all accounts in the space are cached...
     const accountsCacheData =
@@ -1436,7 +1441,10 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
         );
 
     const accountFromCache1 = accountsCacheData?.accountById.get(accountId);
-    if (accountFromCache1 && accountFromCache1.initialData.space.state.type === "Active") {
+    if (
+        accountFromCache1 &&
+        allowedSpaceAccountStateTypes.includes(accountFromCache1.initialData.space.state.type)
+    ) {
         // If we have a role expectation and the cached role matches, return true
         if (hasSpaceRole(accountFromCache1.initialData.space.role, expectedRole)) {
             return true;
@@ -1450,7 +1458,10 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
         context,
         `${spaceId}:${accountId}`,
     );
-    if (accountFromCache2 && accountFromCache2.initialData.space.state.type === "Active") {
+    if (
+        accountFromCache2 &&
+        allowedSpaceAccountStateTypes.includes(accountFromCache2.initialData.space.state.type)
+    ) {
         if (hasSpaceRole(accountFromCache2.initialData.space.role, expectedRole)) {
             return true;
         }
@@ -1472,7 +1483,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             allowsEventualReadConsistency: true,
         },
     );
-    if (item1 && item1.state.type === "Active") {
+    if (item1 && allowedSpaceAccountStateTypes.includes(item1.state.type)) {
         if (hasSpaceRole(item1.role, expectedRole)) {
             return true;
         }
@@ -1490,7 +1501,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             consistency: "Strong",
         },
     );
-    if (item2 && item2.state.type === "Active") {
+    if (item2 && allowedSpaceAccountStateTypes.includes(item2.state.type)) {
         if (hasSpaceRole(item2.role, expectedRole)) {
             return true;
         }
@@ -1551,6 +1562,7 @@ export async function authorizeSpaceAccess(
     }>,
     spaceId: SpaceId,
     expectedRole?: SpaceRole,
+    allowedSpaceAccountStateTypes?: Array<SpaceAccountStateType>,
 ): Promise<void> {
     switch (context.actor.type) {
         case "Session": {
@@ -1560,6 +1572,7 @@ export async function authorizeSpaceAccess(
                     spaceId,
                     context.actor.getAccountId(),
                     expectedRole,
+                    allowedSpaceAccountStateTypes,
                 ))
             ) {
                 throw createAuthorizeSpaceAccessPermissionDeniedError(
@@ -1952,10 +1965,19 @@ export async function getAccountIfExists(
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; disableOwnAccountAccessCheck?: boolean},
 ): Promise<AccountModel | null> {
-    // Make sure we have access to the space being requested.
-    await authorizeSpaceAccess(context, spaceId);
+    // If the actor is trying to read their own account, we can let them skip the space
+    // authorization check since the actor has already logged in, and can see which
+    // spaces they have access to.
+    const shouldSkipAuthorization =
+        options?.disableOwnAccountAccessCheck &&
+        context.actor.type === "Session" &&
+        context.actor.getAccountId() === accountId;
+
+    if (!shouldSkipAuthorization) {
+        await authorizeSpaceAccess(context, spaceId);
+    }
 
     return getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
 }
@@ -2324,7 +2346,9 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             pendingAccountData: {
                 id: accountId,
                 version: 0,
-                name: emailAddress,
+                // Names are labelStrings and can only support 50 characters
+                // Just do a hard truncate here
+                name: emailAddress.substring(0, 50),
                 nameVersion: 0,
             },
         };
@@ -2557,9 +2581,16 @@ export async function internalValidateInviteEmailAddressToSpace(
 export async function getSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
+    options?: {
+        allowInvitePending?: boolean;
+    },
 ): Promise<SpaceModel> {
+    const allowedSpaceAccountStateTypes: Array<SpaceAccountStateType> = options?.allowInvitePending
+        ? ["Active", "InvitePending"]
+        : ["Active"];
+
     const [, spaceItem] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId),
+        authorizeSpaceAccess(context, spaceId, "Member", allowedSpaceAccountStateTypes),
         SpacesTable.getItem(context, {
             partitionType: "Space",
             sortRangeType: "Attributes",

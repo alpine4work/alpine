@@ -53,6 +53,15 @@ const metadataByRouteId: Record<
         errorTitle: "Couldn’t open inbox",
         spaceSideBarSpacing: "Always",
     },
+    "routes/s.$spaceId.invite._index": {
+        errorTitle: "Couldn’t open invite",
+    },
+    "routes/s.$spaceId.invite.accept": {
+        errorTitle: "Couldn’t accept invite",
+    },
+    "routes/s.$spaceId.invite.reject-and-mark-as-spam": {
+        errorTitle: "Couldn’t reject invite",
+    },
     "routes/s.$spaceId.more._index": {
         errorTitle: "Couldn’t open menu",
     },
