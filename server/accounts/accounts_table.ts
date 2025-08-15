@@ -38,7 +38,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -1396,5 +1396,49 @@ export async function deleteAccountAppleDeviceTokenIfExists(
         sortRangeType: "Attributes",
         deviceToken,
         accountId,
+    });
+}
+
+export async function updateAccountAvatar(
+    context: Context<DynamoContextModules & {actor: DynamoSessionActorContextModule}>,
+    {
+        avatarContent,
+        avatarId,
+    }: {
+        avatarContent: Uint8Array;
+        avatarId: AvatarId;
+    },
+): Promise<AccountModelWithoutSpace> {
+    // NOTE(ifitzsimmons, 2025-08-15): TypeScript doesn't like this line and I have no idea why.
+    // It seems to be confused about the context type. I don't have any concrete plan to fix this.
+    // I think in an ideal state, I would just use the DynamoServerSessionContext, but that
+    // introduces a circular dependency on the on //server/accounts. If we can decouple
+    // //server/context and //server/accounts, we should use DynamoServerSessionContext above.
+    // @ts-expect-error
+    context.actor.authorizeSession();
+
+    const accountId = context.actor.getAccountId();
+    const oldAccountItem = await getAccountItem(context, accountId);
+    const oldAccountAvatar = oldAccountItem.avatar;
+
+    const newAvatarItem: AccountAvatarItem = {
+        ...oldAccountAvatar,
+        partitionType: "Account",
+        sortRangeType: "Avatar",
+        accountId,
+        avatarId,
+        content: avatarContent,
+    };
+
+    return context.dynamo.retryTransaction(async context => {
+        // NOTE(ifitzsimmons, 2025-08-15): We considered adding a check to ensure that the
+        // new avatarId is newer than the old avatarId. We opted against that for now, see
+        // reasoning here: https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/312/add-rpc-implementation-for-uploading-account-avatars#comment-PRRC_kwDOH2ktg86H2sCi
+        const accountAvatarItem = await AccountsTable.directlyUpdateItem(context, newAvatarItem);
+
+        return createAccountModelFromItem({
+            ...oldAccountItem,
+            avatar: accountAvatarItem,
+        });
     });
 }

@@ -1,5 +1,5 @@
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -70,6 +70,17 @@ export const getAccountByEmailAddressAsAdmin = defineRpc({
     name: "getAccountByEmailAddressAsAdmin",
     input: {
         emailAddress: Schema.string,
+    },
+    output: {
+        account: AccountModelWithoutSpace.schema,
+    },
+});
+
+export const updateAccountAvatar = defineRpc({
+    name: "updateAccountAvatar",
+    input: {
+        avatarContent: Schema.bytes,
+        avatarId: Schema.id<AvatarId>(),
     },
     output: {
         account: AccountModelWithoutSpace.schema,

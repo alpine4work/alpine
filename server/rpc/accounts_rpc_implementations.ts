@@ -2,6 +2,7 @@ import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
     registerOurAccountAppleDeviceToken,
+    updateAccountAvatar,
 } from "~/server/accounts/accounts_table.js";
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
@@ -99,6 +100,17 @@ export default implementRpcs(definitions, {
                 input.emailAddress,
             );
 
+            return {account};
+        },
+    },
+
+    updateAccountAvatar: {
+        visibility: ["EdgeService"],
+        execute: async (context, input) => {
+            const account = await updateAccountAvatar(context.actor.authorizeSession(), {
+                avatarContent: input.avatarContent,
+                avatarId: input.avatarId,
+            });
             return {account};
         },
     },
