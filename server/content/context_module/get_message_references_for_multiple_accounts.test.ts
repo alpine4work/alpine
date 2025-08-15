@@ -154,7 +154,34 @@ test("only loads an account from DynamoDB once no matter how many accounts we’
 
     await ProcessContextModule.waitForTestTasks();
 
-    for (const accountCount of [1, 2, 3, 25, 50]) {
+    const accountCountsToNumberOfDynamoCalls = new Map<number, number>([
+        [1, 6],
+        [2, 6],
+        [3, 6],
+        [25, 6],
+        // Steps:
+        // 1. Call impersonateAccountAsSystemContext for N accounts (loads Space#Account items).
+        // 2. Fetch the author’s AccountModel (Query for avatar + attributes).
+        // 3. Load AccountModels for 3 reference IDs.
+        //    - Each reference load includes a Space#Account get (batched when possible) and an AccountModel query.
+        //
+        // DynamoDB calls (example with N = 4 accounts total: 1 author + 3 references):
+        //   - 1x GetItem for author’s Space#Account
+        //   - 1x Query for author’s AccountItem
+        //   - 1x BatchGetItem for Space#Accounts of all 3 reference IDs
+        //   - 3x Queries for AccountItems of the 3 reference IDs
+        // Total: 6 calls
+        //
+        // Special case with N = 50 accounts:
+        //   1. Initial BatchGetItem for all 50 Space#Account items.
+        //   2. Still perform 4 queries for AccountItems (author + 3 references).
+        //   3. Space#Accounts for references are already cached → no extra BatchGetItem needed.
+        [50, 5],
+    ]);
+    for (const [
+        accountCount,
+        expectedNumberOfDynamoCalls,
+    ] of accountCountsToNumberOfDynamoCalls.entries()) {
         contextCacheMissTestCounter.resetForTest();
         dynamoClientExecuteActionTestCounter.resetForTest();
         opensearchClientExecuteOperationTestCounter.resetForTest();
@@ -177,7 +204,7 @@ test("only loads an account from DynamoDB once no matter how many accounts we’
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 4 : accountCount + 8,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(2);
+        expect(getDynamoExecuteActionCount()).toEqual(expectedNumberOfDynamoCalls);
         expect(getOpensearchExecuteOperationCount()).toEqual(0);
     }
 });
@@ -248,7 +275,7 @@ test("only loads a file from DynamoDB once no matter how many accounts we’re l
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 5 : accountCount + 6,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(2);
+        expect(getDynamoExecuteActionCount()).toEqual(3);
         expect(getOpensearchExecuteOperationCount()).toEqual(0);
     }
 });
@@ -366,7 +393,29 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
 
     await ProcessContextModule.waitForTestTasks();
 
-    for (const accountCount of [1, 2, 3, 25, 50]) {
+    const accountCountsToNumberOfDynamoCalls = new Map<number, number>([
+        [1, 5],
+        [2, 5],
+        [3, 5],
+        [25, 5],
+        // In this scenario, impersonateAccountAsSystemContext preloads all 50 Space#Account items
+        // via a single BatchGetItem to DynamoDB, filling the spaceAccountCache. Later lookups for
+        // the message/post authors' Space#Accounts hit the cache instead of DynamoDB.
+        //
+        // As in all cases, we still perform two queries to fetch AccountItems (for avatars) directly:
+        //   1. BatchGetItem (preload all Space#Accounts)
+        //   2. [cache hit] Get Space#Account for message author
+        //   3. Query AccountItems for message author → get AccountModel
+        //   4. [cache hit] Get Space#Account for post author
+        //   5. Query AccountItems for post author → get AccountModel
+        //
+        // Total DynamoDB calls: 3 (steps 1, 3, and 5).
+        [50, 3],
+    ]);
+    for (const [
+        accountCount,
+        expectedNumberOfDynamoCalls,
+    ] of accountCountsToNumberOfDynamoCalls.entries()) {
         contextCacheMissTestCounter.resetForTest();
         dynamoClientExecuteActionTestCounter.resetForTest();
         opensearchClientExecuteOperationTestCounter.resetForTest();
@@ -389,7 +438,7 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 6 : accountCount + 8,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(3);
+        expect(getDynamoExecuteActionCount()).toEqual(expectedNumberOfDynamoCalls);
         expect(getOpensearchExecuteOperationCount()).toEqual(1);
     }
 });
@@ -517,7 +566,29 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
 
     await ProcessContextModule.waitForTestTasks();
 
-    for (const accountCount of [1, 2, 3, 25, 50]) {
+    const accountCountsToNumberOfDynamoCalls = new Map<number, number>([
+        [1, 5],
+        [2, 5],
+        [3, 5],
+        [25, 5],
+        // In this scenario, impersonateAccountAsSystemContext preloads all 50 Space#Account items
+        // via a single BatchGetItem to DynamoDB, filling the spaceAccountCache. Later lookups for
+        // the message/post authors' Space#Accounts hit the cache instead of DynamoDB.
+        //
+        // As in all cases, we still perform two queries to fetch AccountItems (for avatars) directly:
+        //   1. BatchGetItem (preload all Space#Accounts)
+        //   2. [cache hit] Get Space#Account for message author
+        //   3. Query AccountItems for message author → get AccountModel
+        //   4. [cache hit] Get Space#Account for post author
+        //   5. Query AccountItems for post author → get AccountModel
+        //
+        // Total DynamoDB calls: 3 (steps 1, 3, and 5).
+        [50, 3],
+    ]);
+    for (const [
+        accountCount,
+        expectedNumberOfDynamoCalls,
+    ] of accountCountsToNumberOfDynamoCalls.entries()) {
         contextCacheMissTestCounter.resetForTest();
         dynamoClientExecuteActionTestCounter.resetForTest();
         opensearchClientExecuteOperationTestCounter.resetForTest();
@@ -571,7 +642,7 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 6 : accountCount + 8,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(3);
+        expect(getDynamoExecuteActionCount()).toEqual(expectedNumberOfDynamoCalls);
         expect(getOpensearchExecuteOperationCount()).toEqual(1);
     }
 });
@@ -656,7 +727,7 @@ test("can have one account fail to load data while other accounts successfully l
         expect(getContextCacheMissCount()).toEqual(
             accountCount >= 50 ? accountCount + 5 : accountCount + 6,
         );
-        expect(getDynamoExecuteActionCount()).toEqual(2);
+        expect(getDynamoExecuteActionCount()).toEqual(3);
         expect(getOpensearchExecuteOperationCount()).toEqual(0);
     }
 });

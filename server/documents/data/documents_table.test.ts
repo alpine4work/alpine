@@ -3939,15 +3939,15 @@ test("authorizing document access after getting document as session actor is cac
             beforeCommentIndex: null,
         });
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3957,7 +3957,7 @@ test("authorizing document access after getting document as session actor is cac
             ]);
         }
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -3975,15 +3975,15 @@ test("authorizing document access after getting document as session actor is cac
             beforeCommentIndex: null,
         });
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3993,7 +3993,7 @@ test("authorizing document access after getting document as session actor is cac
             ]);
         }
 
-        expect(getCount()).toEqual(4);
+        expect(getCount()).toEqual(5);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -4186,15 +4186,15 @@ test("authorizing document access after getting document as system actor is cach
             beforeCommentIndex: null,
         });
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -4204,7 +4204,7 @@ test("authorizing document access after getting document as system actor is cach
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -4222,15 +4222,15 @@ test("authorizing document access after getting document as system actor is cach
             beforeCommentIndex: null,
         });
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeDocumentAccess(actionContext, document.id, "Manage");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -4240,7 +4240,7 @@ test("authorizing document access after getting document as system actor is cach
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
     }
 });
 

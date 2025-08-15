@@ -5165,15 +5165,15 @@ test("authorizing channel access after getting channel as session actor is cache
 
         await getChannelAndMetadata(actionContext, {channelId: channel.id, postFilesLimit: 100});
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5183,7 +5183,7 @@ test("authorizing channel access after getting channel as session actor is cache
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -5198,13 +5198,13 @@ test("authorizing channel access after getting channel as session actor is cache
             authorizeChannelAccess(actionContext, channel.id, "View"),
         ]);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5214,7 +5214,7 @@ test("authorizing channel access after getting channel as session actor is cache
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -5226,15 +5226,15 @@ test("authorizing channel access after getting channel as session actor is cache
 
         await getChannelContributors(actionContext, channel.id, {limit: 100});
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5244,7 +5244,7 @@ test("authorizing channel access after getting channel as session actor is cache
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
     }
 });
 
@@ -5325,15 +5325,15 @@ test("authorizing channel access after getting channel as system actor is cached
 
         await getChannelAndMetadata(actionContext, {channelId: channel.id, postFilesLimit: 100});
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5343,7 +5343,7 @@ test("authorizing channel access after getting channel as system actor is cached
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -5358,11 +5358,11 @@ test("authorizing channel access after getting channel as system actor is cached
             authorizeChannelAccess(actionContext, channel.id, "View"),
         ]);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5372,7 +5372,7 @@ test("authorizing channel access after getting channel as system actor is cached
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -5384,15 +5384,15 @@ test("authorizing channel access after getting channel as system actor is cached
 
         await getChannelContributors(actionContext, channel.id, {limit: 100});
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5402,7 +5402,7 @@ test("authorizing channel access after getting channel as system actor is cached
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
     }
 });
 
@@ -5611,15 +5611,15 @@ test("authorizing post access after getting post as session actor is cached", as
 
         await getPost(actionContext, post.id);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5629,7 +5629,7 @@ test("authorizing post access after getting post as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(4);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -5760,15 +5760,15 @@ test("authorizing post access after getting post as system actor is cached", asy
 
         await getPost(actionContext, post.id);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizePostAccess(actionContext, post.id, "Edit");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5778,7 +5778,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -5790,15 +5790,15 @@ test("authorizing post access after getting post as system actor is cached", asy
 
         await getPostIfPossible(actionContext, post.id);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizePostAccess(actionContext, post.id, "View");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizePostAccess(actionContext, post.id, "Edit");
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5808,7 +5808,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();

@@ -3917,15 +3917,15 @@ test("authorizing chat access after getting chat as session actor is cached", as
 
         await getChat(actionContext, chatId);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(5);
 
         await authorizeChatAccess(actionContext, chatId);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(5);
 
         await authorizeChatAccess(actionContext, chatId);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(5);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3935,7 +3935,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(5);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -4058,15 +4058,15 @@ test("authorizing chat access after getting chat as system actor is cached", asy
 
         await getChat(actionContext, chatId);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(4);
 
         await authorizeChatAccess(actionContext, chatId);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(4);
 
         await authorizeChatAccess(actionContext, chatId);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(4);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -4076,7 +4076,7 @@ test("authorizing chat access after getting chat as system actor is cached", asy
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(4);
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();

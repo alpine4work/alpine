@@ -33,6 +33,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -300,9 +301,60 @@ type AccountEmailAddressItem = DynamoTableItemType<
     "Attributes"
 >;
 
-type AccountItem = DynamoTableItemType<typeof AccountsTable, "Account", "Attributes">;
-
+type AccountAttributesItem = DynamoTableItemType<typeof AccountsTable, "Account", "Attributes">;
+type AccountAvatarItem = DynamoTableItemType<typeof AccountsTable, "Account", "Avatar">;
+type AccountItem = AccountAttributesItem & {
+    readonly avatar: AccountAvatarItem | null;
+};
 export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
+
+async function getAccountItem(
+    context: DynamoContext,
+    accountId: AccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<AccountItem> {
+    const item = await getAccountItemIfExists(context, accountId, {consistency});
+    if (!item) throw new NotFoundError("Account not found");
+    return item;
+}
+
+// NOTE(ifitzsimmons, 2025-08-10):
+// DynamoDB cost optimization: We query both Attributes and Avatar items in a single
+// operation to consume only 1 RCU. Since avatars are <3KB, the combined size stays
+// within DynamoDB's 4KB item limit, making this more cost-effective than separate
+// requests while maintaining the flexibility to fetch account metadata independently.
+async function getAccountItemIfExists(
+    context: DynamoContext,
+    accountId: AccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<AccountItem | null> {
+    const items = await arrayFromAsyncIterable(
+        AccountsTable.query(context, {
+            limit: 2,
+            partitionKey: {
+                partitionType: "Account",
+                accountId,
+            },
+            startSortKey: {sortRangeType: "Attributes"},
+            endSortKey: {sortRangeType: "Avatar"},
+            consistency,
+        }),
+    );
+
+    const attributesItem = findMapIterable(items, item =>
+        item.sortRangeType === "Attributes" ? item : undefined,
+    );
+    if (!attributesItem) return null;
+
+    const avatarItem = findMapIterable(items, item =>
+        item.sortRangeType === "Avatar" ? item : undefined,
+    );
+
+    return {
+        avatar: avatarItem ?? null,
+        ...attributesItem,
+    };
+}
 
 /**
  * Create an account but only in test environments.
@@ -516,12 +568,7 @@ export async function getAccountByIdAsAdmin(
     // found error.
     if (accountId === unknownAccountId)
         throw new NotFoundError("Unknown account is treated as if it doesn’t exist");
-
-    const accountItem = await AccountsTable.getItem(context, {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId,
-    });
+    const accountItem = await getAccountItem(context, accountId);
 
     return createAccountModelFromItem(accountItem);
 }
@@ -542,11 +589,7 @@ export async function getAccountByEmailAddressAsAdmin(
         emailAddress: await validateEmailAddress(context, emailAddress),
     });
 
-    const accountItem = await AccountsTable.getItem(context, {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: accountEmailAddressItem.accountId,
-    });
+    const accountItem = await getAccountItem(context, accountEmailAddressItem.accountId);
 
     return createAccountModelFromItem(accountItem);
 }
@@ -980,13 +1023,7 @@ export class Session {
                 sortRangeType: "Attributes",
                 sessionId,
             }),
-            sessionAccountId
-                ? AccountsTable.getItemIfExists(context, {
-                      partitionType: "Account",
-                      sortRangeType: "Attributes",
-                      accountId: sessionAccountId,
-                  })
-                : null,
+            sessionAccountId ? getAccountItemIfExists(context, sessionAccountId) : null,
         ]);
         if (!sessionItem) return null;
 
@@ -1065,8 +1102,13 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         version: accountItem.updateLockVersion ?? 0,
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
-        // TODO(ifitzsimmons, #add-avatar-support)
-        avatar: null,
+        avatar: accountItem.avatar
+            ? {
+                  avatarId: accountItem.avatar.avatarId,
+                  content: accountItem.avatar.content,
+                  version: accountItem.avatar.updateLockVersion ?? 0,
+              }
+            : null,
     });
 }
 
@@ -1126,15 +1168,7 @@ async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
     // found error.
     if (accountId === unknownAccountId) return null;
 
-    const accountItem = await AccountsTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId,
-        },
-        {consistency},
-    );
+    const accountItem = await getAccountItemIfExists(context, accountId, {consistency});
     if (!accountItem) return null;
 
     return {
@@ -1166,15 +1200,7 @@ export async function dangerouslyGetAccountIfExistsWithoutCaching(
     // found error.
     if (accountId === unknownAccountId) return null;
 
-    const accountItem = await AccountsTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId,
-        },
-        {consistency},
-    );
+    const accountItem = await getAccountItemIfExists(context, accountId, {consistency});
     if (!accountItem) return null;
 
     return createAccountModelFromItem(accountItem);
@@ -1229,11 +1255,7 @@ export async function internalUpdateOurAccountName<
     });
 
     return context.dynamo.retryTransaction(async context => {
-        const accountItem = await AccountsTable.getItem(context, {
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: context.actor.getAccountId(),
-        });
+        const accountItem = await getAccountItem(context, context.actor.getAccountId());
 
         // Can only set `nameVersionForTest` in unit tests.
         assert(
