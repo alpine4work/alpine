@@ -22,7 +22,6 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
-    addSpaceAccount,
     expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
     moveSpaceOwner,
     removeSpaceAccount,
@@ -389,29 +388,6 @@ export default function SpacePeopleSettingsRoute() {
                                             {account.name}
                                         </Box>
                                         <Box flexGrow="1" />
-                                        {hasAdminAccess && (
-                                            <Box marginRight="-2">
-                                                <Button
-                                                    height="6"
-                                                    paddingX="2"
-                                                    pressErrorTitle="Can’t add member"
-                                                    onPress={async () => {
-                                                        const addedAccount = await addSpaceAccount(
-                                                            appContext,
-                                                            {
-                                                                spaceId: space.id,
-                                                                accountId: account.id,
-                                                            },
-                                                        );
-                                                        accountRegistry.immediatelyUpdateAccountStoreIfExists(
-                                                            addedAccount.account,
-                                                        );
-                                                    }}
-                                                >
-                                                    Invite back to space
-                                                </Button>
-                                            </Box>
-                                        )}
                                     </Box>
                                 );
                             })}
