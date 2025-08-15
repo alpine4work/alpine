@@ -1,4 +1,4 @@
-import {AccountModelWithoutSpaceDataSchema} from "~/shared/accounts/account_model_without_space.js";
+import {AccountModelWithoutSpaceAndAvatarDataSchema} from "~/shared/accounts/account_model_without_space.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const spaceAccountStateDefault = {
@@ -15,13 +15,13 @@ export const SpaceAccountStateSchemas = {
     Removed: Schema.object({
         type: Schema.value("Removed"),
         removedTime: Schema.date.originalPropertyKey("time"),
-        oldAccountData: AccountModelWithoutSpaceDataSchema,
+        oldAccountData: AccountModelWithoutSpaceAndAvatarDataSchema,
         reason: Schema.enum(SpaceAccountStateRemovedReasons).default("ActionByAdmin"),
     }),
     InvitePending: Schema.object({
         type: Schema.value("InvitePending"),
         invitedTime: Schema.date,
-        pendingAccountData: AccountModelWithoutSpaceDataSchema,
+        pendingAccountData: AccountModelWithoutSpaceAndAvatarDataSchema,
     }),
 };
 

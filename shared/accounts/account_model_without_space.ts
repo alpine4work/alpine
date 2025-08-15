@@ -1,3 +1,4 @@
+import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -14,13 +15,21 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 export const unknownAccountId = assertId<AccountId>("nnkn0wnacc0nnt000000000000");
 
 export type AccountModelWithoutSpaceData = SchemaType<typeof AccountModelWithoutSpaceDataSchema>;
+export type AccountModelWithoutSpaceAndAvatarData = SchemaType<
+    typeof AccountModelWithoutSpaceAndAvatarDataSchema
+>;
 
-export const AccountModelWithoutSpaceDataSchema = Schema.object({
+export const AccountModelWithoutSpaceAndAvatarDataSchema = Schema.object({
     id: Schema.id<AccountId>(),
     version: Schema.integer,
     name: LabelStringSchema,
     nameVersion: Schema.integer,
 });
+export const AccountModelWithoutSpaceDataSchema = AccountModelWithoutSpaceAndAvatarDataSchema.merge(
+    Schema.object({
+        avatar: AvatarModelSchema.nullable().default(null),
+    }),
+);
 
 /**
  * Representation of an account in our system that we can share with
@@ -72,6 +81,7 @@ export class AccountModelWithoutSpace {
             version: 0,
             name: "Unknown",
             nameVersion: 0,
+            avatar: null,
         });
 
         return this._unknown;

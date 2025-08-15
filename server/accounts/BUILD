@@ -4,6 +4,7 @@ ts_project(
     name = "accounts",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/spaces",
         "//server/spaces/test_helpers",
     ],
     visibility = [
@@ -15,14 +16,15 @@ ts_project(
         "//:node_modules/date-fns",
         "//server/dynamo/core",
         "//server/emails",
+        "//server/helpers",
         "//server/jobs/core",
         "//server/tokens",
         "//shared/accounts",
+        "//shared/avatar",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
         "//shared/schema",
-        "//shared/tracer",
     ],
 )

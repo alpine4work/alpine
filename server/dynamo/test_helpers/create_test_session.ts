@@ -55,6 +55,7 @@ export function createTestSession(
         version: 0,
         name,
         nameVersion: 0,
+        avatar: null,
     });
 
     let sessionCreatedTime: Date | null = null;

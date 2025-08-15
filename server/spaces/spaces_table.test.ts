@@ -61,7 +61,10 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {
+    createTestAccountModel,
+    intoAccountModelWithoutSpaceAndAvatar,
+} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 const context = createTestContext();
 
@@ -877,7 +880,9 @@ test("`getAccountIfExists()` will return a removed account", async () => {
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: (await session2.account.get()).initialData,
+                    oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                        (await session2.account.get()).initialData,
+                    ),
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
@@ -981,7 +986,9 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: (await session2.account.get()).initialData,
+                    oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                        (await session2.account.get()).initialData,
+                    ),
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
@@ -1144,7 +1151,9 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: (await session2.account.get()).initialData,
+                    oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                        (await session2.account.get()).initialData,
+                    ),
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
@@ -1183,7 +1192,9 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: (await session2.account.get()).initialData,
+                    oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                        (await session2.account.get()).initialData,
+                    ),
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
@@ -1245,7 +1256,9 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: (await session2.account.get()).initialData,
+                    oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                        (await session2.account.get()).initialData,
+                    ),
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
@@ -1372,7 +1385,9 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    const originalSession2AccountInitialData = (await session2.account.get()).initialData;
+    const session2OldAccountData = intoAccountModelWithoutSpaceAndAvatar(
+        (await session2.account.get()).initialData,
+    );
 
     await removeSpaceAccount(session1.action(), {
         spaceId: space.id,
@@ -1405,7 +1420,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: originalSession2AccountInitialData,
+                    oldAccountData: session2OldAccountData,
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
@@ -1447,7 +1462,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
                 state: {
                     type: "Removed",
                     removedTime: expect.any(Date),
-                    oldAccountData: originalSession2AccountInitialData,
+                    oldAccountData: session2OldAccountData,
                     reason: "ActionByAdmin",
                 },
                 role: "Member",

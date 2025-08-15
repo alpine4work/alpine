@@ -18,6 +18,7 @@ import {
     AccountModelWithoutSpace,
     unknownAccountId,
 } from "~/shared/accounts/account_model_without_space.js";
+import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
@@ -98,6 +99,11 @@ const AccountsTable = DynamoTableSchema.new({
                          */
                         hasInternalAccess: Schema.boolean.optional(),
                     }),
+                },
+                {
+                    name: "Avatar",
+                    sortKeyAttributes: {},
+                    attributes: AvatarSchema,
                 },
             ],
         },
@@ -1059,6 +1065,8 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         version: accountItem.updateLockVersion ?? 0,
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
+        // TODO(ifitzsimmons, #add-avatar-support)
+        avatar: null,
     });
 }
 

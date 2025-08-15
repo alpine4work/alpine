@@ -238,6 +238,7 @@ test("creates title with mentions", () => {
                         version: 0,
                         name: "John Doe",
                         nameVersion: 0,
+                        avatar: null,
                     };
                 },
                 getSearchEntityIfExists: () => null,

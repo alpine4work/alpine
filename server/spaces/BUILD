@@ -23,6 +23,7 @@ ts_project(
         "//server/jobs/core",
         "//server/tokens",
         "//shared/accounts",
+        "//shared/avatar",
         "//shared/context",
         "//shared/error:error_core",
         "//shared/helpers",

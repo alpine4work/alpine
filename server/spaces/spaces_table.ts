@@ -36,9 +36,11 @@ import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_sess
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountModelWithoutSpace,
+    AccountModelWithoutSpaceAndAvatarData,
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -977,8 +979,9 @@ function createAccountModelFromItem(
     item: SpaceAccountItem,
     account: AccountModelWithoutSpace | null,
 ): AccountModel {
-    let accountData: AccountModelWithoutSpaceData;
+    let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
     let spaceAccountState: AccountModelDataSpaceState;
+    let avatar: AvatarModel | null;
 
     switch (item.state.type) {
         case "Active": {
@@ -987,6 +990,7 @@ function createAccountModelFromItem(
             spaceAccountState = {
                 type: "Active",
             };
+            avatar = account.initialData.avatar;
             break;
         }
         case "InvitePending": {
@@ -994,6 +998,8 @@ function createAccountModelFromItem(
             // given when the account was invited.
             accountData = item.state.pendingAccountData;
             spaceAccountState = item.state;
+            // TODO(ifitzsimmons, #remove-space-account-for-avatars)
+            avatar = null;
             break;
         }
         case "Removed": {
@@ -1002,6 +1008,8 @@ function createAccountModelFromItem(
             assert(account === null);
             accountData = item.state.oldAccountData;
             spaceAccountState = item.state;
+            // TODO(ifitzsimmons, #remove-space-account-for-avatars)
+            avatar = null;
             break;
         }
         default:
@@ -1010,6 +1018,7 @@ function createAccountModelFromItem(
 
     return new AccountModel({
         ...accountData,
+        avatar,
         space: {
             version: item.updateLockVersion ?? 0,
             addedTime: item.addedTime,
@@ -2018,6 +2027,13 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
             state: {type: "Active"},
             role: "Member",
         },
+        avatar: accountData.avatar
+            ? {
+                  avatarId: accountData.avatar.avatarId,
+                  version: accountData.avatar.version + smiMinValue,
+                  content: accountData.avatar.content,
+              }
+            : null,
     });
 }
 

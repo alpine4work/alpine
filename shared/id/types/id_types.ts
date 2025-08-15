@@ -18,6 +18,7 @@ type NominalChronologicalIdType<Type extends string> = ChronologicalId & {readon
 declare const type: unique symbol;
 
 export type AccountId = NominalRandomIdType<"Account">;
+export type AvatarId = NominalChronologicalIdType<"Avatar">;
 export type SessionId = NominalRandomIdType<"Session">;
 export type BrowserId = NominalRandomIdType<"Browser">;
 export type TraceId = NominalRandomIdType<"Trace">;

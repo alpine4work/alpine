@@ -102,7 +102,10 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
-import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {
+    createTestAccountModel,
+    intoAccountModelWithoutSpaceAndAvatar,
+} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 import.meta.jest.useFakeTimers();
 
@@ -7740,7 +7743,9 @@ test("can get a document with references as actors that don’t have access to t
                                     state: {
                                         type: "Removed",
                                         removedTime: expect.any(Date),
-                                        oldAccountData: (await session3.account.get()).initialData,
+                                        oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                                            (await session3.account.get()).initialData,
+                                        ),
                                         reason: "ActionByAdmin",
                                     },
                                     role: "Member",
@@ -7908,7 +7913,9 @@ test("can get a document with references as actors that don’t have access to t
                                     state: {
                                         type: "Removed",
                                         removedTime: expect.any(Date),
-                                        oldAccountData: (await session3.account.get()).initialData,
+                                        oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                                            (await session3.account.get()).initialData,
+                                        ),
                                         reason: "ActionByAdmin",
                                     },
                                     role: "Member",
@@ -8219,7 +8226,9 @@ test("can get a document with references as actors that don’t have access to t
                                     state: {
                                         type: "Removed",
                                         removedTime: expect.any(Date),
-                                        oldAccountData: (await session3.account.get()).initialData,
+                                        oldAccountData: intoAccountModelWithoutSpaceAndAvatar(
+                                            (await session3.account.get()).initialData,
+                                        ),
                                         reason: "ActionByAdmin",
                                     },
                                     role: "Member",

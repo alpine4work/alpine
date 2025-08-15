@@ -3,6 +3,7 @@ import {
     AccountModelWithoutSpaceData,
     AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
+import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
@@ -107,20 +108,37 @@ export class AccountModel implements AccountModelWithoutSpace {
         return `Account:${this.id}`;
     }
 
+    // TODO(ifitzsimmons, #add-avatar-tests): Add tests for this function.
     public static mergeData(data1: AccountModelData, data2: AccountModelData): AccountModelData {
-        if (data1.version >= data2.version && data1.space.version >= data2.space.version) {
+        const avatar1 = data1.avatar;
+        const avatar2 = data2.avatar;
+
+        if (
+            data1.version >= data2.version &&
+            data1.space.version >= data2.space.version &&
+            avatar1 === this.getLatestAvatarVersion(avatar1, avatar2)
+        ) {
             return data1;
         }
-        if (data2.version >= data1.version && data2.space.version >= data1.space.version) {
+        if (
+            data2.version >= data1.version &&
+            data2.space.version >= data1.space.version &&
+            avatar2 === this.getLatestAvatarVersion(avatar2, avatar1)
+        ) {
             return data2;
         }
-        return {
-            ...(data1.version >= data2.version ? data1 : data2),
 
+        const latestAccountData = data1.version >= data2.version ? data1 : data2;
+        const latestSpace = data1.space.version >= data2.space.version ? data1.space : data2.space;
+        const latestAvatar = this.getLatestAvatarVersion(avatar1, avatar2);
+
+        return {
+            ...latestAccountData,
             // `space` is updated separately from the rest of the account data. We have two
             // independently updating pieces of data in a `AccountModel` that we may load
             // at mismatched versions.
-            space: data1.space.version >= data2.space.version ? data1.space : data2.space,
+            space: latestSpace,
+            avatar: latestAvatar,
         };
     }
 
@@ -128,12 +146,16 @@ export class AccountModel implements AccountModelWithoutSpace {
         data1: AccountModelData,
         data2: AccountModelWithoutSpaceData,
     ): AccountModelData {
-        if (data1.version >= data2.version) {
+        const latestAvatar = this.getLatestAvatarVersion(data1.avatar, data2.avatar);
+        if (data1.version >= data2.version && data1.avatar === latestAvatar) {
             return data1;
         }
+
+        const latestAccountData = data1.version >= data2.version ? data1 : data2;
         return {
-            ...(data1.version >= data2.version ? data1 : data2),
+            ...latestAccountData,
             space: data1.space,
+            avatar: latestAvatar,
         };
     }
 
@@ -170,5 +192,26 @@ export class AccountModel implements AccountModelWithoutSpace {
             },
         });
         return this._unknown;
+    }
+
+    /**
+     * Given two AvatarModel objects, returns the latest avatar version. Tiebreaker (both
+     * versions are the same or both avatars are null) always goes to avatar1.
+     */
+    private static getLatestAvatarVersion(
+        avatar1: AvatarModel | null,
+        avatar2: AvatarModel | null,
+    ): AvatarModel | null {
+        if (avatar1 === null) {
+            if (avatar2 === null) return avatar1;
+            return avatar2;
+        }
+
+        if (avatar2 === null) {
+            return avatar1;
+        }
+
+        if (avatar1.version >= avatar2.version) return avatar1;
+        return avatar2;
     }
 }
