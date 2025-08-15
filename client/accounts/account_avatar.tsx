@@ -50,6 +50,7 @@ export function AccountAvatar({
             text={initialsText}
             size={size}
             backgroundBorderWidth={backgroundBorderWidth}
+            content={accountData.avatar?.content ?? null}
         />
     );
 }

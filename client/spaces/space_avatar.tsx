@@ -28,6 +28,8 @@ export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
             avatarTextClassName={sprinkles({
                 fontSize: "50",
             })}
+            // TODO(ifitzsimmons, #add-avatar-support)
+            content={null}
         />
     );
 }

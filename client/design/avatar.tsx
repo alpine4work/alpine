@@ -1,6 +1,13 @@
-import {backgroundColorVar, borderRadius as borderRadiusValues} from "~/client/styles/styles.js";
+import {useMemo} from "react";
+import {
+    BorderRadius,
+    backgroundColorVar,
+    borderRadius as borderRadiusValues,
+} from "~/client/styles/styles.js";
+import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
 import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // This component is rendered in hot paths (like `<TaskRowView>`) avoid using
@@ -33,7 +40,7 @@ export interface AvatarProps {
     /**
      * Border radius style. Defaults to "full" for circular avatars.
      */
-    borderRadius?: "none" | "full" | "0.5" | "1" | "1.5" | "2" | "2.5" | "3" | "3.5" | "4";
+    borderRadius?: BorderRadius;
 
     /**
      * Optional class name for the container.
@@ -49,6 +56,11 @@ export interface AvatarProps {
      * Optional background color for the avatar.
      */
     backgroundColor?: string;
+
+    /**
+     * Optional content for the avatar.
+     */
+    content: Uint8Array | null;
 }
 
 /**
@@ -68,7 +80,93 @@ export function Avatar({
     borderRadius = "full",
     avatarClassName,
     avatarTextClassName,
+    content,
 }: AvatarProps) {
+    return content ? (
+        <AccountAvatarWithImage
+            content={content}
+            borderRadius={borderRadius}
+            avatarClassName={avatarClassName}
+            size={size}
+        />
+    ) : (
+        <DefaultAccountAvatar
+            id={id}
+            text={text}
+            size={size}
+            backgroundColor={backgroundColor}
+            avatarClassName={avatarClassName}
+            avatarTextClassName={avatarTextClassName}
+            backgroundBorderWidth={backgroundBorderWidth}
+            borderRadius={borderRadius}
+        />
+    );
+}
+
+function AccountAvatarWithImage({
+    content,
+    borderRadius,
+    avatarClassName,
+    size,
+}: {
+    content: Uint8Array;
+    borderRadius: BorderRadius;
+    avatarClassName?: string;
+    size: Spacing;
+}) {
+    const imageUrl = useMemo(
+        () => `data:${avatarContentType};base64,${encodeBase64(content)}`,
+        [content],
+    );
+
+    return (
+        <span
+            className={avatarClassName}
+            style={{
+                width: spacing[size],
+                height: spacing[size],
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+            }}
+        >
+            <img
+                src={imageUrl}
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    borderRadius: borderRadiusValues[borderRadius],
+                }}
+                aria-hidden="true"
+                // Do not render an alt tag as avatars are not important for screen readers
+                alt=""
+            />
+        </span>
+    );
+}
+
+function DefaultAccountAvatar({
+    id,
+    text,
+    size,
+    backgroundColor,
+    avatarClassName,
+    avatarTextClassName,
+    backgroundBorderWidth,
+    borderRadius,
+}: {
+    id: AccountId | SpaceId;
+    text: string;
+    size: Spacing;
+    backgroundColor?: string;
+    avatarClassName?: string;
+    avatarTextClassName?: string;
+    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
+    borderRadius: BorderRadius;
+}) {
     // Get a consistent theme color based on the ID (same ID = same color always)
     const avatarColors =
         backgroundColor !== undefined
