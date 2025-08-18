@@ -90,6 +90,8 @@ export function getFileImageContentTypes(): ReadonlyArray<FileImageContentType> 
     return getObjectKeysWithKeyofType(fileImageContentTypes);
 }
 
+export const FileImageContentTypeSchema = Schema.enum(getFileImageContentTypes());
+
 /**
  * Document file types. All documents file types are converted to [PDF
  * (Portable Document Format)][1] a versatile file format created by Adobe.

@@ -84,8 +84,8 @@ export const getAccountByEmailAddressAsAdmin = defineRpc({
     },
 });
 
-export const updateAccountAvatar = defineRpc({
-    name: "updateAccountAvatar",
+export const finishUploadingAccountAvatar = defineRpc({
+    name: "finishUploadingAccountAvatar",
     input: {
         avatarContent: Schema.bytes,
         avatarId: Schema.id<AvatarId>(),

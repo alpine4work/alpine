@@ -13,6 +13,7 @@ import {
     putFileMultipartUploadPart,
 } from "~/server/edge/file_multipart_upload.js";
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
+import {uploadAvatar} from "~/server/edge/upload_avatar.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
@@ -25,6 +26,11 @@ import {
     createTraceServerResponseHandleSpanName,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
+import {
+    AvatarEntityPath,
+    isAvatarEntityPath,
+    printAvatarEntityObjectIntoTracerRoute,
+} from "~/shared/avatar/avatar_entity_path.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -64,7 +70,8 @@ type EdgeServiceRoute =
     | {type: "PutFileMultipartUploadPart"; spaceId: SpaceId; fileId: FileId; partNumber: string}
     | {type: "CompleteFileMultipartUpload"; spaceId: SpaceId; fileId: FileId}
     | {type: "File"; spaceId: SpaceId; fileId: FileId}
-    | {type: "FileCorsProxy"; url: string};
+    | {type: "FileCorsProxy"; url: string}
+    | {type: "UploadAvatar"; avatarEntityPath: AvatarEntityPath};
 
 async function handleFetch(
     request: Request,
@@ -348,6 +355,12 @@ async function handleFetch(
                     }
                 }
             }
+        }
+    } else if (url.pathname.startsWith("/api/avatar/")) {
+        const path = url.pathname.slice("/api/avatar/".length);
+        if (isAvatarEntityPath(path)) {
+            routeString = `/api/avatar/${printAvatarEntityObjectIntoTracerRoute(path)}`;
+            route = {type: "UploadAvatar", avatarEntityPath: path};
         }
     }
 
@@ -683,7 +696,8 @@ async function actuallyHandleFetch(
             case "UploadFile":
             case "CreateFileMultipartUpload":
             case "PutFileMultipartUploadPart":
-            case "CompleteFileMultipartUpload": {
+            case "CompleteFileMultipartUpload":
+            case "UploadAvatar": {
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // `FileProcessorService`. All WebSocket connection routes are enumerated above.
                 if (request.headers.has("upgrade"))
@@ -755,6 +769,18 @@ async function actuallyHandleFetch(
                             url,
                             span,
                             route,
+                        );
+                    }
+                    case "UploadAvatar": {
+                        return uploadAvatar(
+                            createContext,
+                            executionContext,
+                            env,
+                            tokenAgent,
+                            request,
+                            url,
+                            span,
+                            route.avatarEntityPath,
                         );
                     }
                     default:

@@ -139,6 +139,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/accounts:accounts",
     "//shared/alpha:alpha",
     "//shared/avatar:avatar",
+    "//shared/avatar/protocol:protocol",
     "//shared/chat:chat",
     "//shared/content:content",
     "//shared/content/code:code",

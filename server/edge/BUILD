@@ -17,6 +17,8 @@ alias(
 UPLOAD_FILE_SRCS = [
     "upload_file.ts",
     "file_multipart_upload.ts",
+    "internal/put_r2_object_with_span.ts",
+    "internal/authorize_request_and_get_metadata_with_session_token.ts",
 ]
 
 ts_project(
@@ -58,6 +60,8 @@ ts_project(
         "//server/tasks/notes_collaboration",
         "//server/tasks/router",
         "//server/tracer",
+        "//shared/avatar",
+        "//shared/avatar/protocol",
         "//shared/files",
         "//shared/helpers",
         "//shared/schema",

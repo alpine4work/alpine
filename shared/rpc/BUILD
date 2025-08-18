@@ -8,7 +8,6 @@ ts_project(
         "//shared/access",
         "//shared/accounts",
         "//shared/alpha",
-        "//shared/avatar",
         "//shared/chat",
         "//shared/content",
         "//shared/context",

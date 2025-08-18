@@ -117,7 +117,7 @@ export default implementRpcs(definitions, {
         },
     },
 
-    updateAccountAvatar: {
+    finishUploadingAccountAvatar: {
         visibility: ["EdgeService"],
         execute: async (context, input) => {
             const account = await updateAccountAvatar(context.actor.authorizeSession(), {
