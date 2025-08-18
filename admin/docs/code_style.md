@@ -1396,3 +1396,357 @@ network request when `context` changes.
 Also, the ESLint `react-hooks/exhaustive-deps` rule's auto fix is really handy and can help catch
 real bugs where your effect captures a stale value. Disabling it means you may run into bugs where
 your effect captures a stale value.
+
+## Testing
+
+### Use `describe` blocks to group related tests by API or high-level functionality
+
+When writing test suites, use `describe` blocks to organize tests by the API surface or high-level
+functionality being tested. This makes test output easier to parse, helps group related tests
+together, and enables `.skip()` and `.only()` in development for larger sets of tests.
+
+Within your `describe` blocks, you can also set up important test fixtures that are related to those
+specific tests, as opposed to the global scope.
+
+```ts
+// ✅ Yes
+
+describe("getChannelIfExists()", () => {
+    test("returns channel when it exists and user has access", async () => {
+        // ...
+    });
+
+    test("returns null when channel does not exist", async () => {
+        // ...
+    });
+
+    test("throws PermissionDeniedError when user lacks access", async () => {
+        // ...
+    });
+});
+
+describe("getChannelIfPossible()", () => {
+    test("returns result with channel when user has access", async () => {
+        // ...
+    });
+
+    test("returns null when channel does not exist", async () => {
+        // ...
+    });
+
+    test("returns error result when user lacks access", async () => {
+        // ...
+    });
+});
+```
+
+For React components, group tests by component behavior or user interactions:
+
+```ts
+// ✅ Yes
+
+describe("TaskList component", () => {
+    describe("task filtering", () => {
+        test("shows only completed tasks when filter is set to completed", () => {
+            // ...
+        });
+
+        test("shows all tasks when no filter is applied", () => {
+            // ...
+        });
+    });
+
+    describe("task creation", () => {
+        test("adds new task when form is submitted", () => {
+            // ...
+        });
+
+        test("shows validation error for empty task title", () => {
+            // ...
+        });
+    });
+});
+```
+
+Don't simply prefix a test case with the method name.
+
+```ts
+// ❌ No
+
+test("getChannelIfExists() - returns channel when it exists and user has access", async () => {
+    // ...
+});
+
+test("getChannelIfExists() - returns null when channel does not exist", async () => {
+    // ...
+});
+
+test("getChannelIfExists() - throws PermissionDeniedError when user lacks access", async () => {
+    // ...
+});
+
+test("getChannelIfPossible() - returns result with channel when user has access", async () => {
+    // ...
+});
+
+test("getChannelIfPossible() - returns null when channel does not exist", async () => {
+    // ...
+});
+
+test("getChannelIfPossible() - returns error result when user lacks access", async () => {
+    // ...
+});
+```
+
+Don't group tests within a single `test` call.
+
+```ts
+// ❌ No
+
+test("getChannelIfExists()", async () => {
+    {
+        // returns channel when it exists and user has access
+        // ...
+    }
+
+    {
+        // returns null when channel does not exist
+        // ...
+    }
+
+    {
+        // throws PermissionDeniedError when user lacks access
+        // ...
+    }
+});
+
+test("getChannelIfPossible()", async () => {
+    {
+        // returns result with channel when user has access
+        // ...
+    }
+
+    {
+        // returns null when channel does not exist
+        // ...
+    }
+
+    {
+        // returns error result when user lacks access
+        // ...
+    }
+});
+```
+
+**💡 Why?** Grouped tests make test output much easier to scan when you have failures. Instead of
+seeing a flat list of test names, you see a hierarchy that immediately tells you what area of
+functionality is broken. This is especially valuable when running tests in CI where you need to
+quickly identify what broke. During development, grouped tests also let you use `.only` to quickly
+iterate on tests you care about.
+
+_Note:_ All tests before 2025-08-15 were not written with this rule. Anything not using this rule is
+considered deprecated and we want to migrate to using `describe()`.
+
+### Use parameterized tests are strongly encouraged
+
+When you need to test the same logic with different inputs, use parameterized tests. Set up
+parameterization **outside** of the `test` function and include the parameterized values in the test
+name. There are a few methods of parameterizing tests that are recommended.
+
+Don't parameterize within a `test` function:
+
+```ts
+// ❌ No
+
+test("validates email addresses", () => {
+    const testCases = [
+        ["user@example.com", true],
+        ["user@", false],
+        ["userexample.com", false],
+    ];
+
+    testCases.forEach(([input, expected]) => {
+        // if this fails, it's difficult to determine which of the test cases failed
+        expect(isValidEmail(input)).toBe(expected);
+    });
+});
+```
+
+#### Test case loops
+
+Place all your test cases in an array, then loop over each with a clear test name. This method is
+helpful when you want to clearly state a large amount of cases. However, you cannot isolate tests
+with `.skip()` or `.only()` during development.
+
+```ts
+// ✅ Yes
+
+describe("isValidEmail()", () => {
+    const testCases = [
+        {
+            input: "user@example.com",
+            expected: true,
+        },
+        {
+            input: "user@",
+            expected: false,
+        },
+        {
+            input: "userexample.com",
+            expected: false,
+        },
+    ];
+
+    testCases.forEach(({input, expected}) => {
+        // Result:
+        //   isValidEmail()
+        //     returns true for user@example.com
+        //     returns false for user@
+        //     returns false for userexample.com
+        test(`returns ${expected} for ${input}`, () => {
+            const result = isValidEmail(input);
+            expect(result).toBe(expected);
+        });
+    });
+});
+```
+
+#### Test abstraction
+
+Create a common `testCase` method that you call separately from within individual tests. This is
+helpful when test names need more description in what they're testing, or you need quick control
+over which tests are executed during development.
+
+```ts
+// ✅ Yes
+
+describe("isValidEmail()", () => {
+    const testCase(input: string, expected: boolean) {
+        const result = isValidEmail(input);
+        expect(result).toBe(expected);
+    }
+
+    test("returns true for user@example.com", () => {
+        testCase("user@example.com", true);
+    });
+
+    test("returns false for user@", () => {
+        testCase("user@", false);
+    });
+
+    test("returns false for userexample.com", () => {
+        testCase("userexample.com", false);
+    });
+});
+```
+
+#### Programmatic test generation
+
+In some cases you may have a large amount of tests cases to cover that is not feasible to write out,
+or you want future test cases to be auto generated. In this case, you can generate objects to cover
+your test cases for you. However, these tests can grow to be difficult to read.
+
+```ts
+// ✅ Yes
+
+describe("multiply()", () => {
+    const firstParams = [1, 2, 3, 4, 5];
+    const secondParams = [6, 7, 8, 9, 10];
+    const thirdParams = [11, 12, 13, 14, 15];
+
+    const testCases = firstParams.flatMap(first =>
+        secondParams.flatMap(second =>
+            thirdParams.map(third => ({
+                first, second, third;
+            })),
+        ),
+    );
+
+    for (const {first, second, third} of testCases) {
+        test(`can multiply ${first}, ${second}, and ${third} without throwing`, () => {
+            multiply(first, second, third);
+        });
+    }
+});
+```
+
+**💡 Why?** Parameterized tests group common test cases, maintain readability, and help prevent test
+files that are thousands of lines of duplicate tests. Including parameterized values in test names
+helps you understand which specific case failed when looking at test output. When parameterizing
+within a test, failures do not clearly indicate which test case failed - often leading to the
+developer manually commenting out test cases to find the failure.
+
+### Assert everything you expect, but nothing more
+
+When writing test assertions in unit tests, assert everything that's relevant to what you're
+testing, but avoid asserting unrelated details. Assertions are free, but parsing through 1000
+unrelated test failures is not. This rule is relatively nuanced, and strongly applies to unit tests
+(integration and smoke tests can break this rule if the developer believes it makes sense).
+
+```ts
+// ✅ Yes
+
+test("creates new task with correct properties", async () => {
+    const task = await createTask(context, {
+        title: "Buy groceries",
+        dueDate: "2025-08-12",
+        assigneeId: "user123",
+    });
+
+    // Assert everything relevant to task creation
+    expect(task).toMatchObject({
+        title: "Buy groceries",
+        dueDate: "2025-08-12",
+        assigneeId: "user123",
+        status: "pending",
+        createdAt: expect.any(Date),
+        id: expect.stringMatching(/^task_[a-zA-Z0-9]+$/),
+    });
+});
+```
+
+Don't assert implementation details that aren't relevant to the behavior being tested:
+
+```ts
+// ❌ No
+
+test("creates new task with correct properties", async () => {
+    const task = await createTask(context, {
+        title: "Buy groceries",
+        dueDate: "2025-08-12",
+        assigneeId: "user123",
+    });
+
+    expect(task.title).toBe("Buy groceries");
+
+    // This assertion is testing behavior not related to the test title
+    // Add another test to assert this behavior
+    const totalTaskCount = getUserTotalTaskCount("user123");
+    expect(totalTaskCount).toBe(1);
+});
+```
+
+Don't under-assert and miss important behavior:
+
+```ts
+// ❌ No
+
+test("creates new task", async () => {
+    const task = await createTask(context, {
+        title: "Buy groceries",
+        dueDate: "2025-08-12",
+        assigneeId: "user123",
+    });
+
+    // This only tests that the function returns something truthy
+    expect(task).toBeTruthy();
+});
+```
+
+**💡 Why?** Comprehensive and targeted assertions help you catch regressions when refactoring code.
+Asserting irrelevant details makes tests brittle and creates noise when you need to find logic that
+actually broke. When 50 tests fail because you renamed an internal property, it becomes much harder
+to spot the 2 tests that failed because of an actual bug you introduced.
+
+_Note:_ All tests before 2025-08-15 were not written with this rule. Any tests written before this
+date were actually written with the opposite rule in mind, and we'd like to migrate.
