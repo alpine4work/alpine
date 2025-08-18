@@ -106,6 +106,22 @@ const AccountsTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: AvatarSchema,
                 },
+                {
+                    /**
+                     * Settings related to the account. These fields should be considered private
+                     * and not sent to other clients.
+                     */
+                    name: "Settings",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The ID of the space this account last opened.
+                         * Used for determining which default space to open to
+                         * when needing to route home.
+                         */
+                        lastOpenedSpaceId: Schema.id<SpaceId>().optional(),
+                    }),
+                },
             ],
         },
 
@@ -1309,6 +1325,79 @@ export async function internalUpdateOurAccountName<
 
         return createAccountModelFromItem(newAccountItem);
     });
+}
+
+/**
+ * Updates our last opened space ID.
+ *
+ * You should call `updateOurLastOpenedSpaceId()` in
+ * `//server/accounts/with_spaces` which brings together the account table
+ * update with the spaces table.
+ */
+export async function internalUpdateOurLastOpenedSpaceId(
+    context: Context<
+        DynamoContextModules & {
+            actor: DynamoSessionActorContextModule;
+            jobs: JobsContextModule;
+        }
+    >,
+    spaceId: SpaceId,
+    {
+        getOurAccountSpaceIds,
+    }: {
+        getOurAccountSpaceIds: () => Promise<{
+            spaceIds: ReadonlySet<SpaceId>;
+        }>;
+    },
+): Promise<void> {
+    const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Settings",
+        accountId: context.actor.getAccountId(),
+    });
+
+    const {spaceIds} = await getOurAccountSpaceIds();
+
+    if (!spaceIds.has(spaceId)) {
+        throw new PermissionDeniedError("You don’t have access to this space.");
+    }
+
+    if (accountSettingsItem) {
+        const updatedAccountSettingsItem = {
+            ...accountSettingsItem,
+            lastOpenedSpaceId: spaceId,
+        };
+
+        await AccountsTable.directlyUpdateItem(context, updatedAccountSettingsItem);
+    } else {
+        const newAccountSettingsItem = {
+            partitionType: "Account",
+            sortRangeType: "Settings",
+            accountId: context.actor.getAccountId(),
+            lastOpenedSpaceId: spaceId,
+        } as const;
+
+        await AccountsTable.createItem(context, newAccountSettingsItem);
+    }
+}
+
+export async function getAccountSettingsForTest(
+    context: DynamoContext,
+    accountId: AccountId,
+): Promise<{
+    lastOpenedSpaceId: SpaceId | undefined;
+}> {
+    assert(process.env.NODE_ENV === "test");
+
+    const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Settings",
+        accountId,
+    });
+
+    return {
+        lastOpenedSpaceId: accountSettingsItem?.lastOpenedSpaceId,
+    };
 }
 
 /**

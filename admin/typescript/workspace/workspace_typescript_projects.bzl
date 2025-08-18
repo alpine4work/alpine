@@ -65,6 +65,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/access/test_helpers:test_helpers",
     "//server/accounts:accounts",
     "//server/accounts/update_name:update_name",
+    "//server/accounts/with_spaces:with_spaces",
     "//server/alpha:alpha",
     "//server/apns:apns",
     "//server/chat/data:data",

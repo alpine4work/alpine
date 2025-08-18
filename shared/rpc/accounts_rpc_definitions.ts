@@ -48,6 +48,14 @@ export const updateOurAccountName = defineRpc({
     },
 });
 
+export const updateOurLastOpenedSpaceId = defineRpc({
+    name: "updateOurLastOpenedSpaceId",
+    input: {
+        lastOpenedSpaceId: Schema.id<SpaceId>(),
+    },
+    output: {},
+});
+
 export const registerOurAccountAppleDeviceToken = defineRpc({
     name: "registerOurAccountAppleDeviceToken",
     input: {

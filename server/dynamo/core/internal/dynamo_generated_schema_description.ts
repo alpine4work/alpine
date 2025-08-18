@@ -99,6 +99,28 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             }
+                        },
+                        "Settings": {
+                            "id": 2,
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "lastOpenedSpaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
                         }
                     }
                 },

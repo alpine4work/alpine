@@ -24,6 +24,7 @@ ts_project(
         ":all_rpc_implementations",
         "//server/accounts",
         "//server/accounts/update_name",
+        "//server/accounts/with_spaces",
         "//server/alpha",
         "//server/apns",
         "//server/chat/data",

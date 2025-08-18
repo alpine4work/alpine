@@ -93,6 +93,7 @@ ts_project(
         "//client/tracer",
         "//client/virtualized",
         "//server/accounts",
+        "//server/accounts/with_spaces",
         "//server/alpha",
         "//server/chat/data",
         "//server/content",

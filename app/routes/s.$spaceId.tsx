@@ -99,6 +99,7 @@ import {
     getAccountByIdAsAdmin,
     registerOurAccountAppleDeviceToken,
     updateOurAccountName,
+    updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     addSpaceAccount,
@@ -386,6 +387,16 @@ export default function SpaceLayoutRoute() {
             attachDevConsoleForAccountInProduction();
         }
     }, [loaderData]);
+
+    const lastOpenedSpaceIdRef = useRef<SpaceId | null>(null);
+    useEffect(() => {
+        if (lastOpenedSpaceIdRef.current === spaceId) return;
+        lastOpenedSpaceIdRef.current = spaceId;
+
+        void updateOurLastOpenedSpaceId(context, {
+            lastOpenedSpaceId: spaceId,
+        });
+    }, [spaceId, context]);
 
     const accountRegistry = useAccountRegistryForSpaceId(spaceId);
 
