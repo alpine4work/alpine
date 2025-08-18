@@ -202,7 +202,13 @@ async function createAppService({
         opensearch: opensearchContextModule,
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,
-        files: new FilesContextModule(tokenAgent),
+        files: new FilesContextModule({
+            tokenAgent,
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+        }),
         r2: createServiceCloudflareR2ContextModule(options),
     });
 

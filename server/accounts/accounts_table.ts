@@ -19,6 +19,7 @@ import {
     unknownAccountId,
 } from "~/shared/accounts/account_model_without_space.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
@@ -642,7 +643,11 @@ export async function internalGetAccountIdByEmailAddressIfExists(
  * provided email address. Sends the password to the account's email address.
  */
 export async function regenerateOneTimePasswordSignIn(
-    context: Context<DynamoContextModules & {email: EmailContextModuleBase}>,
+    context: Context<
+        DynamoContextModules & {email: EmailContextModuleBase} & {
+            constants: ServerConstantsContextModule;
+        }
+    >,
     emailAddress: EmailAddress,
 ): Promise<void> {
     const generatedTime = new Date();
@@ -717,6 +722,7 @@ export async function regenerateOneTimePasswordSignIn(
         templateName: "SignIn",
         templateProps: {
             code: password,
+            baseUrl: context.constants.edgeServiceUrl,
             emailAddress,
         },
     });

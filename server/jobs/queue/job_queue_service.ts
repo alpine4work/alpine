@@ -260,7 +260,13 @@ export async function run({
         apns: apnsContextModule,
         github: githubContextModule,
         scheduler: schedulerContextModule,
-        files: new FilesContextModule(tokenAgent),
+        files: new FilesContextModule({
+            tokenAgent,
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+        }),
         r2: createServiceCloudflareR2ContextModule(options),
     });
 

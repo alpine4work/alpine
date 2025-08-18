@@ -78,7 +78,13 @@ export async function run({
             ...options,
             fileProcessorServiceUrl: `http://localhost:${port}`,
         }),
-        files: new FilesContextModule(tokenAgent),
+        files: new FilesContextModule({
+            tokenAgent: tokenAgent,
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+        }),
     });
 
     const temporaryDirectoryPath = assertExists(

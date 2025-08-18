@@ -2,7 +2,6 @@ import {decode as decodeHtmlEntities} from "html-entities";
 import {render} from "mjml-react";
 import {ComponentProps} from "react";
 import {AlphaAccessRequestApprovedEmailTemplate} from "~/server/emails/internal/alpha_access_request_approved_email_template.js";
-import {RequestedAlphaAccessEmailTemplate} from "~/server/emails/internal/requested_alpha_access_email_template.js";
 import {SignInEmailTemplate} from "~/server/emails/internal/sign_in_email_template.js";
 import {SpaceInviteEmailTemplate} from "~/server/emails/internal/space_invite_email_template.js";
 
@@ -10,10 +9,6 @@ import {SpaceInviteEmailTemplate} from "~/server/emails/internal/space_invite_em
 // If we use maps or other iterables, we'll lose prop type validation.
 export const emailTemplates = {
     SignIn: createEmailTemplate(SignInEmailTemplate, "SignIn"),
-    RequestedAlphaAccess: createEmailTemplate(
-        RequestedAlphaAccessEmailTemplate,
-        "RequestedAlphaAccess",
-    ),
     AlphaAccessRequestApproved: createEmailTemplate(
         AlphaAccessRequestApprovedEmailTemplate,
         "AlphaAccessRequestApproved",

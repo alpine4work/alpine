@@ -38,10 +38,12 @@ export abstract class FilesContextModuleBase
 
 export class FilesContextModule extends FilesContextModuleBase {
     private readonly _tokenAgent: TokenAgent;
+    private readonly _edgeServiceUrl: string;
 
-    constructor(tokenAgent: TokenAgent) {
+    constructor({tokenAgent, edgeServiceUrl}: {tokenAgent: TokenAgent; edgeServiceUrl: string}) {
         super();
         this._tokenAgent = tokenAgent;
+        this._edgeServiceUrl = edgeServiceUrl;
     }
 
     public override async dangerouslySignFileUrlWithoutAuthorization(
@@ -50,7 +52,7 @@ export class FilesContextModule extends FilesContextModuleBase {
     ): Promise<URL> {
         return this._tokenAgent.privateSide.dangerouslySignShortLivedUrl(
             "EdgeService",
-            new URL(`https://alpine.inc/files/${spaceId}/${fileId}`),
+            new URL(`${this._edgeServiceUrl}/files/${spaceId}/${fileId}`),
             // Expire the signed URL after one full day, 24 hours.
             //
             // When a file is about to expire the client needs to execute the RPC
@@ -97,7 +99,10 @@ export class FilesContextModule extends FilesContextModuleBase {
     }
 
     public fork() {
-        return new FilesContextModule(this._tokenAgent);
+        return new FilesContextModule({
+            tokenAgent: this._tokenAgent,
+            edgeServiceUrl: this._edgeServiceUrl,
+        });
     }
 }
 
@@ -114,7 +119,7 @@ export class TestFilesContextModule extends FilesContextModuleBase {
         spaceId: SpaceId,
         fileId: FileId,
     ): Promise<URL> {
-        return new URL(`https://alpine.inc/files/${spaceId}/${fileId}`);
+        return new URL(`https://test.cyberworlds.dev/files/${spaceId}/${fileId}`);
     }
 
     public fork() {

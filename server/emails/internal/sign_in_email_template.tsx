@@ -16,10 +16,12 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export function SignInEmailTemplate({
     code,
     emailAddress,
+    baseUrl,
     shouldDangerouslyIncludeCodeInSubject = false,
 }: {
     code: string;
     emailAddress: string;
+    baseUrl: string;
     /**
      * It is convenient for one-time passwords to be in the email subject so if the
      * user has their phone nearby they can see a push notification with the code
@@ -72,10 +74,7 @@ export function SignInEmailTemplate({
                         <EmailText>
                             Return to where you were signing in and type the code above. Or sign in{" "}
                             <a
-                                // TODO(calebmer): Should use localhost in development?
-                                href={`https://alpine.inc/sign-in/${encodeURIComponent(
-                                    emailAddress,
-                                )}`}
+                                href={`${baseUrl}/sign-in/${encodeURIComponent(emailAddress)}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
@@ -91,8 +90,7 @@ export function SignInEmailTemplate({
                         <EmailText color="grey-60" fontSize="75">
                             If you aren’t trying to sign in to{" "}
                             <a
-                                // TODO(calebmer): Should use localhost in development?
-                                href="https://alpine.inc"
+                                href={baseUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}

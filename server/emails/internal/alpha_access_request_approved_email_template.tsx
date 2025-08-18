@@ -3,7 +3,7 @@ import {EmailText} from "~/server/emails/internal/helpers/email_text.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 
-export function AlphaAccessRequestApprovedEmailTemplate() {
+export function AlphaAccessRequestApprovedEmailTemplate({baseUrl}: {baseUrl: string}) {
     return (
         <Mjml>
             <MjmlHead>
@@ -19,8 +19,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                         <EmailText>
                             Thanks for requesting access to{" "}
                             <a
-                                // TODO(calebmer): Should use localhost in development?
-                                href="https://alpine.inc"
+                                href={baseUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
@@ -29,8 +28,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             </a>
                             . You can now{" "}
                             <a
-                                // TODO(calebmer): Should use localhost in development?
-                                href="https://alpine.inc/sign-in"
+                                href={`${baseUrl}/sign-in`}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
@@ -45,8 +43,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             There’s not much, it’s early stage, and works best on desktop (but will
                             work on mobile). We’ll continuously deploy updates to{" "}
                             <a
-                                // TODO(calebmer): Should use localhost in development?
-                                href="https://alpine.inc"
+                                href={baseUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{color: colors[`${defaultThemeColor}-60`]}}
