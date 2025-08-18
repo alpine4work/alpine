@@ -49,7 +49,13 @@ export abstract class EmailContextModuleBase<
                 const {emailTemplates} = await import(
                     "~/server/emails/internal/email_templates.js"
                 );
-                return emailTemplates[templateName](templateProps);
+
+                // TS is already validating templateProps assumes the props from
+                // templateName on emailTemplates. Given we don't know which templateName
+                // is going to be passed in here, TS has a hard time finding which props
+                // it expects here. The usage of this function should validate templateProps'
+                // just fine.
+                return emailTemplates[templateName](templateProps as any);
             },
         );
 

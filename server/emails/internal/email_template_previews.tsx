@@ -75,7 +75,7 @@ const emailTemplatePreviews: {
         {
             title: "Space invite",
             props: {
-                inviteUrl: "localhost:3000/spaces/invite/1234567890abcdef",
+                spaceUrl: "localhost:3000/spaces/invite/1234567890abcdef",
                 spaceName: "Test Space",
             },
         },
@@ -93,7 +93,7 @@ export const emailTemplatePreviewBySlug = new Map(
             {
                 title: preview.title,
                 render: (): RenderedEmail =>
-                    emailTemplates[name as keyof EmailTemplates](preview.props),
+                    emailTemplates[name as keyof EmailTemplates](preview.props as any),
             },
         ]),
     ),

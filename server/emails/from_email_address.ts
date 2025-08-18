@@ -34,6 +34,10 @@ export const FromEmailAddressAlias = {
         displayName: "Alpine",
         address: "sign-in@alpine.inc",
     },
+    Invitation: {
+        displayName: "Alpine",
+        address: "invitation@alpine.inc",
+    },
 } as const satisfies Record<string, FromEmailAddress>;
 
 export type FromEmailAddressAlias = keyof typeof FromEmailAddressAlias;
