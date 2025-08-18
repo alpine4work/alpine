@@ -13,7 +13,7 @@ import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/styles/styles.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
+import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
@@ -44,8 +44,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
         },
     };
 
-    const hideSettings =
-        process.env.NODE_ENV === "production" && space.id !== alpineCompanyKnownSpaceId;
+    const hideSettings = !hasSpaceSettingsFeature(space.id);
 
     return (
         <MenuButton

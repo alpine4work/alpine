@@ -22,6 +22,7 @@ import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 const titleBySettingsRoute = {
     general: "General settings",
@@ -106,19 +107,21 @@ function SettingsNavigationItem({
 }
 
 export default function SettingsLayout() {
-    if (process.env.NODE_ENV === "production")
-        throw new UnimplementedError("Shouldn’t be able to open settings in production");
-
     const platform = usePlatform();
 
     const location = useLocation();
     const navigation = useNavigation();
+    const {space} = useSpaceContextAndRequireSpaceAccess();
     const isMobile = platform === "mobile";
 
     const currentPathname = location.pathname;
     const nextPathname = (navigation.location ?? location)?.pathname;
 
     const currentRoute = parseSettingsRouteFromPathname(currentPathname);
+
+    if (!hasSpaceSettingsFeature(space.id)) {
+        throw new UnimplementedError("Space settings is not available");
+    }
 
     // First check if we're actually trying to parse a settings route
     // If this isn't a settings route at all (e.g., navigating to /home),

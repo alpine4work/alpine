@@ -9,15 +9,13 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 export function meta() {
     return [{title: `Space settings${metaTitlePostfix}`}];
 }
 
 export default function MobileSpaceSettingsRoute() {
-    if (process.env.NODE_ENV === "production")
-        throw new UnimplementedError("Shouldn’t be able to open settings in production");
-
     const platform = usePlatform();
     const {space} = useSpaceContextAndRequireSpaceAccess();
     const rootNavigate = useRootNavigate();
@@ -25,6 +23,10 @@ export default function MobileSpaceSettingsRoute() {
     // this route is accesible in desktop version as well so we give some max width for desktop
     // to make it look good.
     const maxWidth = platform !== "mobile" ? "96" : undefined;
+
+    if (!hasSpaceSettingsFeature(space.id)) {
+        throw new UnimplementedError("Space settings is not available");
+    }
 
     return (
         // NOTE: Since on `/more` we have "Space settings" in the title, "Space settings" makes

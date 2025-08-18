@@ -35,7 +35,7 @@ import {
     AccountModelDataWithInvitePendingState,
     AccountModelDataWithRemovedState,
 } from "~/shared/spaces/account_model.js";
-import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
+import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -46,7 +46,7 @@ const LoaderSchema = Schema.object({
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    if (process.env.NODE_ENV === "production" && spaceId !== alpineCompanyKnownSpaceId) {
+    if (!hasSpaceSettingsFeature(spaceId)) {
         throw new UnimplementedError("Space settings is not available");
     }
 

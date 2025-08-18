@@ -19,14 +19,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
+import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 const LoaderSchema = Schema.object({});
 
 export async function loader({params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    if (process.env.NODE_ENV === "production" && spaceId !== alpineCompanyKnownSpaceId) {
+    if (!hasSpaceSettingsFeature(spaceId)) {
         throw new UnimplementedError("Space settings is not available");
     }
 
