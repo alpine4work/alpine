@@ -1,5 +1,5 @@
 import {Action} from "@remix-run/router";
-import {ArrowLeft, ArrowRight, House, MagnifyingGlass, SignOut} from "phosphor-react";
+import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut} from "phosphor-react";
 import {useEffect, useState} from "react";
 import {useLocation, useNavigationType} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
@@ -14,11 +14,14 @@ import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/sp
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceSideBarSpacing} from "~/client/spaces/route_metadata.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
+import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceLayoutSideBar({
@@ -231,11 +234,30 @@ function SpaceLayoutSideBarNavigationButtons() {
 
 function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: AccountModel}) {
     const rootNavigate = useRootNavigate();
+    const {space} = useSpaceContextAndRequireSpaceAccess();
+
+    const hasProfileSettings = hasProfileSettingsFeature(space.id);
+    const hasNotificationSettings = hasNotificationSettingsFeature(space.id);
 
     return (
         <MenuButton
             placement="right-end"
             actions={[
+                ...(hasProfileSettings || hasNotificationSettings
+                    ? [
+                          {
+                              icon: <Gear />,
+                              label: "Settings",
+                              pressErrorTitle: "Couldn’t open settings",
+                              onPress: () =>
+                                  rootNavigate(
+                                      hasProfileSettings
+                                          ? `/s/${space.id}/settings/profile`
+                                          : `/s/${space.id}/settings/notifications`,
+                                  ),
+                          },
+                      ]
+                    : []),
                 {
                     icon: <SignOut />,
                     label: "Sign out",

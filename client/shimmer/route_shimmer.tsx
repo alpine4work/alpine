@@ -25,7 +25,9 @@ import {
 } from "~/client/shimmer/internal/mobile_back_button.js";
 import {MobileSettingsRowsShimmer} from "~/client/shimmer/internal/mobile_settings_rows_shimmer.js";
 import {SpaceGeneralSettingsRouteShimmer} from "~/client/shimmer/internal/space_general_settings_route_shimmer.js";
+import {SpaceNotificationsSettingsRouteShimmer} from "~/client/shimmer/internal/space_notification_settings_route_shimmer.js";
 import {SpacePeopleSettingsRouteShimmer} from "~/client/shimmer/internal/space_people_settings_route_shimmer.js";
+import {SpaceProfileSettingsRouteShimmer} from "~/client/shimmer/internal/space_profile_settings_route_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerFooter, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
@@ -229,6 +231,8 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
     "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
     "routes/s.$spaceId.settings.people": {component: SpacePeopleSettingsRouteShimmer},
+    "routes/s.$spaceId.settings.profile": {component: SpaceProfileSettingsRouteShimmer},
+    "routes/s.$spaceId.settings.notifications": {component: SpaceNotificationsSettingsRouteShimmer},
     "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},

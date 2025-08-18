@@ -32,7 +32,11 @@ export default function MoreRoute() {
         },
     });
 
-    const {isPressed: isAccountPressed, pressProps: accountPressProps} = usePress({});
+    const {isPressed: isAccountPressed, pressProps: accountPressProps} = usePress({
+        onPress: () => {
+            rootNavigate(`/s/${space.id}/settings/profile`);
+        },
+    });
 
     return (
         <SpaceRouteScrollView
@@ -108,7 +112,7 @@ export default function MoreRoute() {
                     <MobileSettingsRow
                         withBorderTop
                         icon={<Gear />}
-                        label="Space settings"
+                        label="Settings"
                         pressErrorTitle="Couldn’t open space settings"
                         onPress={async () => {
                             await rootNavigate(`/s/${space.id}/more/settings`);

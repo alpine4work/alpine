@@ -1,5 +1,5 @@
 import {Outlet, useLocation, useNavigation} from "@remix-run/react";
-import {IconContext, Users} from "phosphor-react";
+import {Envelope, IconContext, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
@@ -22,11 +22,15 @@ import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
+import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 const titleBySettingsRoute = {
     general: "General settings",
     people: "People settings",
+    profile: "Profile settings",
+    notifications: "Notification settings",
 } as const;
 type SettingsRoute = keyof typeof titleBySettingsRoute;
 
@@ -180,6 +184,36 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
         </Box>
     );
 
+    const profileSettingsNavigation = hasProfileSettingsFeature(space.id) ? (
+        <SettingsNavigationItem
+            icon={<User />}
+            label="Profile"
+            isActive={nextRoute === "profile"}
+            onPressStart={() => {
+                rootNavigate(`/s/${space.id}/settings/profile`);
+            }}
+        />
+    ) : null;
+
+    const notificationSettingsNavigation = hasNotificationSettingsFeature(space.id) ? (
+        <SettingsNavigationItem
+            icon={<Envelope />}
+            label="Notifications"
+            isActive={nextRoute === "notifications"}
+            onPressStart={() => {
+                rootNavigate(`/s/${space.id}/settings/notifications`);
+            }}
+        />
+    ) : null;
+
+    const userNavigation =
+        profileSettingsNavigation || notificationSettingsNavigation ? (
+            <>
+                {profileSettingsNavigation}
+                {notificationSettingsNavigation}
+            </>
+        ) : null;
+
     return (
         <Box
             position="relative"
@@ -238,6 +272,15 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                     <Box pointerEvents="auto" paddingRight="8">
                         <nav aria-label="Settings navigation">
                             <ul style={{listStyle: "none", margin: 0, padding: 0}}>
+                                {userNavigation}
+                                {userNavigation && (
+                                    <Box
+                                        border="transparent"
+                                        borderBottom="grey-5"
+                                        borderWidth="base"
+                                        marginY="2"
+                                    />
+                                )}
                                 <SettingsNavigationItem
                                     icon={<BuildingsIcon />}
                                     label="General"

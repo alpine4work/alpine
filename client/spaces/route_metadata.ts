@@ -98,6 +98,12 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.settings.people": {
         errorTitle: "Couldn’t open people settings",
     },
+    "routes/s.$spaceId.settings.profile": {
+        errorTitle: "Couldn’t open profile settings",
+    },
+    "routes/s.$spaceId.settings.notifications": {
+        errorTitle: "Couldn’t open notifications settings",
+    },
     "routes/s.$spaceId.tasks.$taskId._index": {
         errorTitle: "Couldn’t open task",
     },

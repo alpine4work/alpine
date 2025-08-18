@@ -1,4 +1,4 @@
-import {Users} from "phosphor-react";
+import {Envelope, Gear, Users} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
@@ -9,6 +9,8 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
+import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 export function meta() {
@@ -28,6 +30,36 @@ export default function MobileSpaceSettingsRoute() {
         throw new UnimplementedError("Space settings is not available");
     }
 
+    const profileSettingsNavigation = hasProfileSettingsFeature(space.id) ? (
+        <MobileSettingsRow
+            icon={<Gear />}
+            label="Profile"
+            pressErrorTitle="Couldn’t open profile settings"
+            onPress={async () => {
+                await rootNavigate(`/s/${space.id}/settings/profile`);
+            }}
+        />
+    ) : null;
+
+    const notificationSettingsNavigation = hasNotificationSettingsFeature(space.id) ? (
+        <MobileSettingsRow
+            icon={<Envelope />}
+            label="Notifications"
+            pressErrorTitle="Couldn’t open notification settings"
+            onPress={async () => {
+                await rootNavigate(`/s/${space.id}/settings/notifications`);
+            }}
+        />
+    ) : null;
+
+    const userNavigation =
+        profileSettingsNavigation || notificationSettingsNavigation ? (
+            <>
+                {profileSettingsNavigation}
+                {notificationSettingsNavigation}
+            </>
+        ) : null;
+
     return (
         // NOTE: Since on `/more` we have "Space settings" in the title, "Space settings" makes
         // much more sense here.
@@ -37,6 +69,8 @@ export default function MobileSpaceSettingsRoute() {
             title="Space settings"
         >
             <Box width="full" paddingX={screenPaddingX} maxWidth={maxWidth} marginX="center">
+                {userNavigation}
+                {userNavigation ? <Box marginY="2" /> : null}
                 <MobileSettingsRow
                     withBorderTop
                     icon={<BuildingsIcon />}
