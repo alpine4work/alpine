@@ -100,13 +100,8 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                     pressErrorTitle: "Couldn’t switch to space",
                                     onPress: async () => {
                                         if (otherSpace.id === space.id) return;
-                                        if (otherSpace.alphaAccessDefaultChannelId) {
-                                            await rootNavigate(
-                                                `/s/${otherSpace.id}/channels/${otherSpace.alphaAccessDefaultChannelId}`,
-                                            );
-                                        } else {
-                                            await rootNavigate(`/s/${otherSpace.id}`);
-                                        }
+
+                                        await rootNavigate(`/s/${otherSpace.id}`);
                                     },
                                 }),
                             );

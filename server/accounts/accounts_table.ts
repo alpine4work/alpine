@@ -1400,6 +1400,39 @@ export async function getAccountSettingsForTest(
     };
 }
 
+export async function internalGetOurDefaultSpaceId(
+    context: Context<
+        DynamoContextModules & {
+            actor: DynamoSessionActorContextModule;
+            jobs: JobsContextModule;
+        }
+    >,
+    {
+        getOurAccountSpaceIds,
+    }: {
+        getOurAccountSpaceIds: () => Promise<{
+            spaceIds: ReadonlySet<SpaceId>;
+        }>;
+    },
+): Promise<SpaceId> {
+    const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Settings",
+        accountId: context.actor.getAccountId(),
+    });
+
+    const {spaceIds} = await getOurAccountSpaceIds();
+
+    if (
+        !accountSettingsItem?.lastOpenedSpaceId ||
+        !spaceIds.has(accountSettingsItem.lastOpenedSpaceId)
+    ) {
+        return spaceIds.size > 0 ? spaceIds.values().next().value : null;
+    }
+
+    return accountSettingsItem.lastOpenedSpaceId;
+}
+
 /**
  * Save a 32-byte Apple device token for the acting account.
  *

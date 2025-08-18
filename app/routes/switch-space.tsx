@@ -92,13 +92,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                                 // new one.
                                 await new Promise(() => {});
                             } else {
-                                if (otherSpace.alphaAccessDefaultChannelId) {
-                                    await rootNavigate(
-                                        `/s/${otherSpace.id}/channels/${otherSpace.alphaAccessDefaultChannelId}`,
-                                    );
-                                } else {
-                                    await rootNavigate(`/s/${otherSpace.id}`);
-                                }
+                                await rootNavigate(`/s/${otherSpace.id}`);
                             }
                         }}
                     />
