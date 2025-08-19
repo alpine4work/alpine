@@ -24,23 +24,14 @@ module.exports = {
     // Always log with color. Bazel will strip color when it's not supported.
     color: true,
     platform: "node",
-    target: "node18",
-    format: "cjs",
-    // In Node.js v18 (AWS Lambda's latest Node.js version) `crypto` is not
-    // available as a global. Set it as a global at the top of generated JavaScript
-    // files. Some of our modules like `shared/id/id.ts` depend on a `crypto`
-    // global.
-    //
+    target: "node22",
+    format: "esm",
+    packages: "external",
     // Fine to use `banner` since we only generate one JavaScript file given
     // `splitting` is off.
-    banner: {js: 'globalThis.crypto = require("crypto").webcrypto;\n'},
     define: {
         "process.env.NODE_ENV": JSON.stringify(
             compilationMode === "opt" ? "production" : "development",
         ),
-        // `import.meta` doesn't work with a `cjs` output format. But we use
-        // `import.meta.jest` a lot to tell if we're in a unit test. Replace it with
-        // `undefined` to avoid esbuild warnings.
-        "import.meta.jest": "undefined",
     },
 };

@@ -290,6 +290,13 @@ oci_pull(
     platforms = ["linux/arm64/v8"],
 )
 
+oci_pull(
+    name = "lambda_node22_base",
+    image = "public.ecr.aws/lambda/nodejs:22",
+    digest = "sha256:7f5aacf13add8d94b0f9ab6604d3f7bdd3bcb5fc7bc7674c533ba40b14d0f087",
+    platforms = ["linux/arm64/v8"],
+)
+
 # The `Dockerfile` that builds this image lives at
 # `admin/aws/images/libreoffice/Dockerfile`.
 #
