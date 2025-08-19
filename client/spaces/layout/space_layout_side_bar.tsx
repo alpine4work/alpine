@@ -245,25 +245,29 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
             actions={[
                 ...(hasProfileSettings || hasNotificationSettings
                     ? [
-                          {
-                              icon: <Gear />,
-                              label: "Settings",
-                              pressErrorTitle: "Couldn’t open settings",
-                              onPress: () =>
-                                  rootNavigate(
-                                      hasProfileSettings
-                                          ? `/s/${space.id}/settings/profile`
-                                          : `/s/${space.id}/settings/notifications`,
-                                  ),
-                          },
+                          [
+                              {
+                                  icon: <Gear />,
+                                  label: "Settings",
+                                  pressErrorTitle: "Couldn’t open settings",
+                                  onPress: () =>
+                                      rootNavigate(
+                                          hasProfileSettings
+                                              ? `/s/${space.id}/settings/profile`
+                                              : `/s/${space.id}/settings/notifications`,
+                                      ),
+                              },
+                          ],
                       ]
                     : []),
-                {
-                    icon: <SignOut />,
-                    label: "Sign out",
-                    pressErrorTitle: "Couldn’t sign out",
-                    onPress: () => rootNavigate("/sign-out"),
-                },
+                [
+                    {
+                        icon: <SignOut />,
+                        label: "Sign out",
+                        pressErrorTitle: "Couldn’t sign out",
+                        onPress: () => rootNavigate("/sign-out"),
+                    },
+                ],
             ]}
         >
             <IconButton

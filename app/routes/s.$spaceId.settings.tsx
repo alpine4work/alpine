@@ -1,5 +1,5 @@
 import {Outlet, useLocation, useNavigation} from "@remix-run/react";
-import {Envelope, IconContext, User, Users} from "phosphor-react";
+import {Bell, IconContext, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
@@ -7,6 +7,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -26,13 +27,14 @@ import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_s
 import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
+type SettingsRoute = keyof typeof titleBySettingsRoute;
+
 const titleBySettingsRoute = {
-    general: "General settings",
+    general: "Space settings",
     people: "People settings",
-    profile: "Profile settings",
+    profile: "My profile settings",
     notifications: "Notification settings",
 } as const;
-type SettingsRoute = keyof typeof titleBySettingsRoute;
 
 function parseSettingsRouteFromPathname(pathname: string): SettingsRoute {
     const match = pathname.match(/^\/s\/([^/]+)\/settings\/([^/]+)/);
@@ -197,7 +199,7 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
 
     const notificationSettingsNavigation = hasNotificationSettingsFeature(space.id) ? (
         <SettingsNavigationItem
-            icon={<Envelope />}
+            icon={<Bell />}
             label="Notifications"
             isActive={nextRoute === "notifications"}
             onPressStart={() => {
@@ -206,7 +208,7 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
         />
     ) : null;
 
-    const userNavigation =
+    const accountNavigation =
         profileSettingsNavigation || notificationSettingsNavigation ? (
             <>
                 {profileSettingsNavigation}
@@ -272,14 +274,36 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                     <Box pointerEvents="auto" paddingRight="8">
                         <nav aria-label="Settings navigation">
                             <ul style={{listStyle: "none", margin: 0, padding: 0}}>
-                                {userNavigation}
-                                {userNavigation && (
+                                {accountNavigation && (
                                     <Box
-                                        border="transparent"
+                                        height="5"
+                                        marginX="1"
+                                        marginBottom="1"
                                         borderBottom="grey-5"
-                                        borderWidth="base"
-                                        marginY="2"
-                                    />
+                                        style={{
+                                            marginTop: `calc(-${spacing["5"]} + 1px)`,
+                                        }}
+                                    >
+                                        <Box paddingX="1.5" fontSize="50" color="grey-50">
+                                            My settings
+                                        </Box>
+                                    </Box>
+                                )}
+                                {accountNavigation}
+                                {accountNavigation && (
+                                    <>
+                                        <Spacer space="8" />
+                                        <Box
+                                            height="5"
+                                            marginX="1"
+                                            marginBottom="1"
+                                            borderBottom="grey-5"
+                                        >
+                                            <Box paddingX="1.5" fontSize="50" color="grey-50">
+                                                Space settings
+                                            </Box>
+                                        </Box>
+                                    </>
                                 )}
                                 <SettingsNavigationItem
                                     icon={<BuildingsIcon />}
