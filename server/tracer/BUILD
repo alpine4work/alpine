@@ -10,10 +10,10 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/fs-extra",
-        "//:node_modules/env-paths",
         "//:node_modules/fs-extra",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
         "//shared/schema",
         "//shared/tracer",
         "//shared/tracer/dev",

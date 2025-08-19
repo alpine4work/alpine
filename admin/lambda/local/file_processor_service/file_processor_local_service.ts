@@ -1,5 +1,6 @@
 import {startLambdaLocal} from "~/admin/lambda/local/start_lambda_local.js";
 import {handleInternalMiniflareGetObject} from "~/server/files/processor/file_processor_service_server.js";
+import {handleResizeAvatarRequest} from "~/server/files/processor/lambda/request_handlers/handle_resize_avatar_request.js";
 import {handleResizeFileRequest} from "~/server/files/processor/lambda/request_handlers/handle_resize_file_request.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
@@ -57,6 +58,12 @@ export async function run({
                 path: "/{spaceId}/resize/{fileId}",
                 handler: handleResizeFileRequest,
                 functionName: "ResizeFile",
+                timeoutMs: 30000, // 30 seconds
+            },
+            {
+                path: "/avatar",
+                handler: handleResizeAvatarRequest,
+                functionName: "CreateAvatar",
                 timeoutMs: 30000, // 30 seconds
             },
             {

@@ -1446,6 +1446,30 @@ export type TracerEventData = {
             readonly audioPreviewMetadataDurationMs?: number;
             readonly codePreviewContentDurationMs?: number;
         };
+
+        readonly avatar?: {
+            readonly resize?: {
+                /** The sharp quality used to resize and encode the Avatar. */
+                readonly quality?: number;
+
+                /** The content length of the avatar. */
+                readonly resizedContentLength?: number;
+
+                /** The ratio of the avatar's content length to the file's own content length. */
+                readonly resizedToOriginalContentLengthRatio?: number;
+
+                readonly request?: {
+                    /** The requested height of the avatar in pixels (ie 72). */
+                    readonly height?: number;
+
+                    /** The requested width of the avatar in pixels (ie 72). */
+                    readonly width?: number;
+
+                    /** The target content length of the avatar. */
+                    readonly maxContentLength?: number;
+                };
+            };
+        };
     };
 
     readonly space?: {
@@ -1490,6 +1514,22 @@ export type TracerEventData = {
          * file. When there are multiple codecs they're separated by a `/`.
          */
         readonly codecs?: string;
+    };
+
+    readonly sharp?: {
+        readonly avif?: {
+            /** The quality used to resize and encode the file. */
+            readonly quality?: number;
+
+            /** The effort (compression efficiency) used to resize and encode the file. */
+            readonly effort?: number;
+        };
+
+        /** The content length of the input file. */
+        readonly inputContentLength?: number;
+
+        /** The content length of the output file. */
+        readonly outputContentLength?: number;
     };
 };
 

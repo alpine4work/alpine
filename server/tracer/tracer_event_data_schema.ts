@@ -472,6 +472,18 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             audioPreviewMetadataDurationMs: Schema.float,
             codePreviewContentDurationMs: Schema.float,
         },
+        avatar: {
+            resize: {
+                quality: Schema.integer,
+                resizedContentLength: Schema.integer,
+                resizedToOriginalContentLengthRatio: Schema.float,
+                request: {
+                    height: Schema.integer,
+                    width: Schema.integer,
+                    maxContentLength: Schema.integer,
+                },
+            },
+        },
     },
     space: {
         members: {
@@ -493,6 +505,14 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     ffmpeg: {
         codecs: Schema.string,
+    },
+    sharp: {
+        avif: {
+            quality: Schema.integer,
+            effort: Schema.integer,
+        },
+        inputContentLength: Schema.integer,
+        outputContentLength: Schema.integer,
     },
 };
 

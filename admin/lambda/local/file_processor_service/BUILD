@@ -3,14 +3,17 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "file_processor_local_service_lib",
+    visibility = ["//admin/dev:__pkg__"],
     deps = [
         "//admin/lambda/local",
         "//server/files/processor:processor_lib",
+        "//server/helpers/node",
+        "//server/lambda",
         "//server/node",
+        "//shared/error",
         "//shared/helpers",
         "//shared/tracer",
     ],
-    visibility = ["//admin/dev:__pkg__"],
 )
 
 js_binary(

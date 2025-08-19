@@ -4,6 +4,7 @@ ts_project(
     name = "protocol",
     visibility = [
         "//server/edge:__subpackages__",
+        "//server/files/processor:__subpackages__"
     ],
     deps = [
         "//shared/accounts",
