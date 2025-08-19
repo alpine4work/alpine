@@ -326,18 +326,6 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "defaultSpaceId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": true
-                                    },
-                                    "authenticatedHomeUrl": {
-                                        "valueSchema": {
-                                            "type": "String"
-                                        },
-                                        "optional": true
-                                    },
                                     "appleReviewerSpaceId": {
                                         "valueSchema": {
                                             "type": "Id"

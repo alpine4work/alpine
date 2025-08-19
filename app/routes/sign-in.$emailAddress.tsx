@@ -23,11 +23,12 @@ import {
     appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,
 } from "~/server/accounts/accounts_table.js";
+import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/get_our_last_opened_space_id.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -108,25 +109,23 @@ export async function action({request, context, params}: LoaderArgs) {
         // responsible for redirecting the user. Use a custom protocol to signal to the
         // native app that it should take over.
         if (context.loader.getClientInfo().isNativeMobile) {
-            // TODO(calebmer): If the account has multiple spaces we should probably route
-            // them to a space switcher?
-            const configuration = await getAlphaConfiguration(context);
-
-            // Route the Apple reviewer to their space...
-            const spaceId =
-                emailAddress === appleReviewerAccountEmailAddress
-                    ? configuration.appleReviewerSpaceId ?? configuration.defaultSpaceId
-                    : configuration.defaultSpaceId;
-
-            if (!spaceId) {
-                throw new InternalError(
-                    "Expected `defaultSpaceId` in alpha configuration to sign in on mobile",
-                );
+            const url = new URL("cyberworlds://sign-in/finish");
+            const sessionContext = await context.actor.authenticate();
+            if (sessionContext.actor.type !== "Session") {
+                throw new PermissionDeniedError("Cannot load outside of Session context");
             }
 
-            const url = new URL("cyberworlds://sign-in/finish");
-
-            url.searchParams.set("spaceId", spaceId);
+            if (emailAddress === appleReviewerAccountEmailAddress) {
+                const configuration = await getAlphaConfiguration(context);
+                const spaceId = assertExists(configuration.appleReviewerSpaceId);
+                // Route the Apple reviewer to their space...
+                url.searchParams.set("spaceId", spaceId);
+            } else {
+                const defaultSpaceId = await getOurLastOpenedSpaceId(
+                    await sessionContext.actor.authenticate(),
+                );
+                url.searchParams.set("spaceId", defaultSpaceId);
+            }
 
             url.searchParams.set(
                 "session",

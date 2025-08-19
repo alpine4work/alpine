@@ -14,7 +14,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export function getAccountShortNameWithoutFullNameTooltip(
     accountData: AccountModelWithoutSpaceData,
 ): string {
-    const {givenName} = parseAccountNameAssumingWesternNameOrder(accountData);
+    const {givenName} = parseAccountNameAssumingWesternNameOrder(accountData.name);
     return givenName;
 }
 
@@ -34,14 +34,12 @@ export function getAccountShortNameWithoutFullNameTooltip(
  *
  * [1]: https://en.wikipedia.org/wiki/Personal_name#Western_name_order
  */
-export function parseAccountNameAssumingWesternNameOrder(
-    accountData: AccountModelWithoutSpaceData,
-): {
+export function parseAccountNameAssumingWesternNameOrder(accountName: string): {
     givenName: string;
     familyName: string | null;
 } {
-    assert(accountData.name.length > 0);
-    const nameParts = accountData.name.split(/\p{White_Space}/u);
+    assert(accountName.length > 0);
+    const nameParts = accountName.split(/\p{White_Space}/u);
     assert(nameParts.length > 0);
     const givenName = nameParts[0]!;
     const familyName = nameParts.length > 1 ? nameParts[nameParts.length - 1]! : null;

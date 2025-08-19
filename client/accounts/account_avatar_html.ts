@@ -30,7 +30,7 @@ export function getAccountAvatarInitials(accountData: AccountModelData) {
     // TODO(calebmer): If we ever support eastern name order of family name first
     // then given name, the initials should preserve that order. We shouldn't put
     // the given name initial first.
-    const {givenName, familyName} = parseAccountNameAssumingWesternNameOrder(accountData);
+    const {givenName, familyName} = parseAccountNameAssumingWesternNameOrder(accountData.name);
 
     // We use iterators instead of indexing into the name because iterators give us
     // full Unicode unicode code points. This means grapheme clusters will be

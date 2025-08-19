@@ -3,26 +3,18 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {TextInput} from "~/client/design/text_input.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {
-    getAlphaConfiguration,
-    getUndecidedAlphaAccessRequests,
-} from "~/server/alpha/alpha_access_table.js";
+import {getUndecidedAlphaAccessRequests} from "~/server/alpha/alpha_access_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model.js";
-import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
-    saveAlphaConfiguration,
 } from "~/shared/rpc/alpha_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -31,22 +23,17 @@ export function meta() {
 }
 
 const LoaderSchema = Schema.object({
-    configuration: AlphaConfigurationSchema,
     requests: Schema.array(AlphaAccessRequestModel.schema()),
 });
 
 export async function loader({context}: LoaderArgs) {
-    const [configuration, requests] = await runAllPromises([
-        getAlphaConfiguration(context),
-        getUndecidedAlphaAccessRequests(await context.actor.authenticate()),
-    ]);
-    return jsonWithSchema(LoaderSchema, {configuration, requests});
+    const requests = await getUndecidedAlphaAccessRequests(await context.actor.authenticate());
+    return jsonWithSchema(LoaderSchema, {requests});
 }
 
 export default function AlphaManagementPage() {
-    const context = useAppContext();
     const {locale, timeZone} = useClientInfo();
-    const {configuration, requests: loadedRequests} = useLoaderDataWithSchema(LoaderSchema);
+    const {requests: loadedRequests} = useLoaderDataWithSchema(LoaderSchema);
 
     const dateTimeFormatter = useMemo(() => {
         return getIntlDateTimeFormat({
@@ -68,11 +55,6 @@ export default function AlphaManagementPage() {
         request => !decidedEmailAddresses.has(request.emailAddress),
     );
 
-    const [defaultSpaceId, setAddAccountsToSpaceId] = useState(configuration.defaultSpaceId ?? "");
-    const [authenticatedHomeUrl, setAuthenticatedHomeUrl] = useState(
-        configuration.authenticatedHomeUrl ?? "",
-    );
-
     return (
         <Box display="flex" justifyContent="center" backgroundColor="grey-0" height="full">
             <main
@@ -91,48 +73,6 @@ export default function AlphaManagementPage() {
                 >
                     Alpha Control Panel
                 </h1>
-                <Box>
-                    <Spacer space="3" />
-                    <TextInput
-                        label="Space ID to add new accounts to"
-                        value={defaultSpaceId}
-                        onChange={setAddAccountsToSpaceId}
-                        fontStyle="code"
-                    />
-                    <Spacer space="3" />
-                    <TextInput
-                        label="URL to redirect accounts after signing in"
-                        value={authenticatedHomeUrl}
-                        onChange={setAuthenticatedHomeUrl}
-                        fontStyle="code"
-                    />
-                    <Spacer space="3" />
-                    <Box display="flex" justifyContent="flex-end">
-                        <Button
-                            variant="accent"
-                            pressErrorTitle="Couldn’t save configuration"
-                            onPress={async () => {
-                                let validatedAddAccountsToSpaceId: SpaceId | undefined;
-                                if (defaultSpaceId.length > 0) {
-                                    validatedAddAccountsToSpaceId =
-                                        Schema.id<SpaceId>().deserialize(defaultSpaceId);
-                                }
-
-                                await saveAlphaConfiguration(context, {
-                                    configuration: {
-                                        defaultSpaceId: validatedAddAccountsToSpaceId,
-                                        authenticatedHomeUrl:
-                                            authenticatedHomeUrl.length > 0
-                                                ? authenticatedHomeUrl
-                                                : undefined,
-                                    },
-                                });
-                            }}
-                        >
-                            Save
-                        </Button>
-                    </Box>
-                </Box>
                 <Spacer space="12" />
                 <Box borderTop="grey-10" />
                 <Spacer space="12" />

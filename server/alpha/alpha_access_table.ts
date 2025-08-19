@@ -10,7 +10,6 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
@@ -18,7 +17,7 @@ import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.
 import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_table.js";
 import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
 import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_table.js";
-import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
+import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -28,7 +27,7 @@ import {
     AlphaConfigurationSchema,
 } from "~/shared/alpha/alpha_configuration_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -101,30 +100,6 @@ const AlphaAccessTable = DynamoTableSchema.new({
         },
     ],
 });
-
-export async function seedTestAlphaConfiguration(context: DynamoContext) {
-    assert(process.env.NODE_ENV !== "production");
-    const {defaultSpaceId} = getDynamoSeedConstants();
-
-    await AlphaAccessTable.updateItem(
-        context,
-        {
-            partitionType: "AlphaConfiguration",
-            sortRangeType: "Configuration",
-        },
-        configuration => {
-            // If we have configured a default space, then don't update.
-            if (configuration?.defaultSpaceId) return configuration;
-
-            return {
-                partitionType: "AlphaConfiguration",
-                sortRangeType: "Configuration",
-                ...configuration,
-                defaultSpaceId,
-            };
-        },
-    );
-}
 
 /**
  * Sends a request for alpha access to the admin accounts managing alpha
@@ -245,10 +220,6 @@ export async function approveAlphaAccessRequest(
 ) {
     await authorizeInternalAccess(context);
 
-    const {defaultSpaceId} = await getAlphaConfiguration(context);
-    if (!defaultSpaceId)
-        throw new InternalError("Expected alpha configuration to include `defaultSpaceId`");
-
     const requestItem = await AlphaAccessTable.getItemIfExists(context, {
         partitionType: "AlphaAccessRequests",
         sortRangeType: "Request",
@@ -277,9 +248,10 @@ export async function approveAlphaAccessRequest(
         }),
     ]);
 
-    await addSpaceAccount(context, {
-        spaceId: defaultSpaceId,
-        accountId,
+    const shortName = parseAccountNameAssumingWesternNameOrder(requestItem.name);
+    await createAlphaSpaceAsAdmin(context, {
+        name: `${shortName.givenName}’s Space`,
+        ownerAccountId: accountId,
     });
 }
 
