@@ -57,10 +57,9 @@ export default function InviteAcceptRoute() {
                 spaceId: context.space.id,
             });
 
-            // TODO(imjoshin, #permissions-stale-on-navigate): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/h6q3njtjbdmwwz13w1es8sbavw
-            // hard set the URL to the space index after accepting the invite
-            // to avoid any issues with auth state updates.
-            window.location.href = `/s/${context.space.id}`;
+            // We use from=invite to tell remix to revalidate our space loader data
+            // This will re-evalutate permissions and let the user immediately click on resources
+            navigate(`/s/${context.space.id}?from=invite`);
         })();
     }, [appContext, context.space.id, navigate]);
 

@@ -172,8 +172,15 @@ export function links(): Array<LinkDescriptor> {
 }
 
 // Run the loader again only when the `SpaceId` changes.
-export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextParams}) =>
-    currentParams.spaceId !== nextParams.spaceId;
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentParams,
+    nextParams,
+    nextUrl,
+}) => {
+    const newSpace = currentParams.spaceId !== nextParams.spaceId;
+    const fromInvite = nextUrl.searchParams.get("from") === "invite";
+    return newSpace || fromInvite;
+};
 
 export async function loader({context: loaderContext, params, request}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
@@ -493,6 +500,15 @@ export default function SpaceLayoutRoute() {
             setSearchQueryText(null);
         }
     }, [loaderData.type, platform, searchParams, setSearchQueryText]);
+
+    useEffect(() => {
+        // Delete our 'from' flag if present. We don't need it by the time react mounts.
+        if (searchParams.get("from")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("from");
+            setSearchParams(newSearchParams);
+        }
+    }, [searchParams, setSearchParams]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",
