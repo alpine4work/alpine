@@ -1,4 +1,4 @@
-load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
+load("//admin/aws/lambda:aws_lambda_deprecated.bzl", "aws_lambda_deprecated")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 
@@ -15,7 +15,7 @@ ts_project(
     ],
 )
 
-aws_lambda(
+aws_lambda_deprecated(
     name = "deploy_script",
     srcs = [":deploy_script_lib"],
     entry_point = "opensearch_deploy_script_lambda.js",

@@ -3,7 +3,7 @@ load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@npm//:aws-cdk/package_json.bzl", cdk_bin = "bin")
-load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
+load("//admin/aws/lambda:aws_lambda_deprecated.bzl", "aws_lambda_deprecated")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -73,7 +73,7 @@ cdk_bin.cdk_binary(
     },
 )
 
-aws_lambda(
+aws_lambda_deprecated(
     name = "empty_lambda",
     entry_point = "internal/empty.cjs",
 )
