@@ -28,15 +28,15 @@ import {
     TargetType,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {LambdaTarget} from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
-import {ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
-import {Architecture, Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
-import {RetentionDays} from "aws-cdk-lib/aws-logs";
+import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
+import {Function as LambdaFunction} from "aws-cdk-lib/aws-lambda";
 import {ISecret, Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
+import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_constants.js";
@@ -101,7 +101,7 @@ export class AwsFileProcessorService extends Construct {
     ) {
         super(parentConstruct, "FileProcessorService");
 
-        const secrets = Secret.fromSecretNameV2(
+        const secret = Secret.fromSecretNameV2(
             this,
             "SecretsImport",
             "FileProcessorServiceSecrets",
@@ -123,17 +123,14 @@ export class AwsFileProcessorService extends Construct {
         // For this particular code block, we'll remove the block scope
         // New FileProcessorService
         {
-            const sharedEnvironmentVariables = this._getSharedEnvironmentVariables({
-                secrets,
-                cloudflareAccountId,
-            });
-
-            const {resizeLambda, resizeFileLambdaTargetGroup} = this._getResizeFileLambda({
-                sharedEnvironmentVariables,
+            const {resizeFileLambda, resizeFileLambdaTargetGroup} = this._getResizeFileLambda({
                 vpc,
                 dynamo,
+                secret,
+                sqs,
+                cloudflareAccountId,
             });
-            this.resizeLambda = resizeLambda;
+            this.resizeLambda = resizeFileLambda;
             this.fileProcessorServiceTargetGroup = resizeFileLambdaTargetGroup;
         }
 
@@ -146,7 +143,7 @@ export class AwsFileProcessorService extends Construct {
                 cloudflareAccountId,
                 dynamo,
                 sqs,
-                secrets,
+                secret,
                 loadBalancer: this.fileProcessorServiceLoadBalancer,
             });
             this.legacyFileProcessorServiceTargetGroup = fileProcessorServiceTargetGroup;
@@ -214,76 +211,36 @@ export class AwsFileProcessorService extends Construct {
         }
     }
 
-    private _getSharedEnvironmentVariables({
-        secrets,
-        cloudflareAccountId,
-    }: {
-        secrets: ISecret;
-        cloudflareAccountId: string;
-    }) {
-        return {
-            NODE_ENV: "production",
-            CLOUDFLARE_ACCOUNT_ID: cloudflareAccountId,
-            // TODO(ifitzsimmons, 2025-08-06): Unwrapping each individual secret as plain text
-            // increases the size of the environment variables past the 4 KB limit. That aside, it
-            // feel a tad risky. For example, the secrets were printed to our deploy job in plain
-            // text when this deployment failed. Using the secret ARN is more secure and obviously
-            // gets us below the environment variable size limit. However, we'll need to pay
-            // the cost of fetching the secrets from Secrets Manager at runtime.
-            // I believe we can mitigate this by leaning on reserved concurrency and Lambda
-            // Execution Context reuse.
-            // FOR NOW, RESIZE FILE LAMBDA WILL NOT WORK. I am making this change to unblock the
-            // deploy pipeline. I think this change is safe because none of our services should
-            // invoke the resize file lambda. I'll update this comment once I've spoken with the
-            // team.
-            FILE_PROCESSOR_SERVICE_SECRETS_ARN: secrets.secretArn,
-        };
-    }
-
     private _getResizeFileLambda({
-        sharedEnvironmentVariables,
         vpc,
         dynamo,
+        secret,
+        sqs,
+        cloudflareAccountId,
     }: {
-        sharedEnvironmentVariables: Record<string, string>;
         vpc: Vpc;
         dynamo: AwsDynamo;
+        secret: ISecret;
+        sqs: AwsSqs;
+        cloudflareAccountId: string;
     }) {
-        const resizeFileExectutionRole = new Role(this, "ResizeFileLambdaExecutionRole", {
-            assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-            managedPolicies: [
-                ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"),
-                ManagedPolicy.fromAwsManagedPolicyName(
-                    "service-role/AWSLambdaVPCAccessExecutionRole",
-                ),
-            ],
-        });
-        dynamo.grantReadDataForTable(resizeFileExectutionRole, "Files", {
-            disallowQuery: true,
-        });
-        const resizeFileLambdaRelativePath =
-            process.env.CDK_LITE === "true"
-                ? "cyberworlds/admin/aws/empty_lambda"
-                : "cyberworlds/server/files/processor/resize_file_lambda";
-
-        const resizeFileLambdaPath = joinPath(runfilesPath, `${resizeFileLambdaRelativePath}.zip`);
-        const resizeFileLambdaHandler = `${resizeFileLambdaRelativePath}.handler`;
-
-        const resizeLambda = new LambdaFunction(this, "ResizeFile", {
-            runtime: Runtime.NODEJS_22_X,
-            // https://aws.amazon.com/blogs/apn/comparing-aws-lambda-arm-vs-x86-performance-cost-and-analysis-2/
-            architecture: Architecture.ARM_64,
+        const resizeFileLambda = new AwsHttpLambda(this, "ResizeFile", {
+            bazelConfiguration: {
+                bazelTarget: "//server/files/processor:resize_file_lambda",
+                handlerFilePath: "lambda/resize_file_lambda",
+            },
+            sqs,
+            cloudflareAccountId,
             vpc,
-            role: resizeFileExectutionRole,
-            code: Code.fromAsset(resizeFileLambdaPath),
-            handler: resizeFileLambdaHandler,
             memorySize: 4096, // 4GB RAM (~2 vCPUs)
             // Intentionally short timeout to ensure that the lambda is killed
             // if it's not able to complete the resize operation.
             timeout: Duration.seconds(30),
-            environment: sharedEnvironmentVariables,
-            logRetention: RetentionDays.ONE_WEEK,
-            deadLetterQueueEnabled: true,
+            secret,
+            provisionedConcurrentExecutions: 5,
+        });
+        dynamo.grantReadDataForTable(resizeFileLambda.executionRole, "Files", {
+            disallowQuery: true,
         });
 
         const resizeFileLambdaTargetGroup = new ApplicationTargetGroup(
@@ -291,12 +248,12 @@ export class AwsFileProcessorService extends Construct {
             "ResizeFileLambdaTargetGroup",
             {
                 targetType: TargetType.LAMBDA,
-                targets: [new LambdaTarget(resizeLambda)],
+                targets: [new LambdaTarget(resizeFileLambda.lambdaFunction)],
                 vpc,
             },
         );
 
-        return {resizeLambda, resizeFileLambdaTargetGroup};
+        return {resizeFileLambda: resizeFileLambda.lambdaFunction, resizeFileLambdaTargetGroup};
     }
 
     private _createLegacyFileProcessorService({
@@ -305,7 +262,7 @@ export class AwsFileProcessorService extends Construct {
         cloudflareAccountId,
         dynamo,
         sqs,
-        secrets,
+        secret,
         loadBalancer,
     }: {
         vpc: Vpc;
@@ -313,7 +270,7 @@ export class AwsFileProcessorService extends Construct {
         cloudflareAccountId: string;
         dynamo: AwsDynamo;
         sqs: AwsSqs;
-        secrets: ISecret;
+        secret: ISecret;
         loadBalancer: ApplicationLoadBalancer;
     }) {
         // File processing needs a lot of memory so we need larger instance sizes than
@@ -428,38 +385,35 @@ export class AwsFileProcessorService extends Construct {
             user: "www-data",
             portMappings: [{containerPort: port, hostPort: port}],
             secrets: {
-                APP_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
-                    "appServicePublicKey",
-                ),
+                APP_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(secret, "appServicePublicKey"),
                 EDGE_SERVICE_FAMILY_PUBLIC_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "edgeServiceFamilyPublicKey",
                 ),
                 TASK_REALTIME_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "taskRealtimeServicePublicKey",
                 ),
                 JOB_QUEUE_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "jobQueueServicePublicKey",
                 ),
                 FILE_PROCESSOR_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "fileProcessorServicePublicKey",
                 ),
                 FILE_PROCESSOR_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "fileProcessorServicePrivateKey",
                 ),
-                TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
-                HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
+                TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secret, "tokenAgentSecret"),
+                HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secret, "honeycombApiKey"),
                 CLOUDFLARE_R2_ACCESS_KEY_ID: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "cloudflareR2AccessKeyId",
                 ),
                 CLOUDFLARE_R2_SECRET_ACCESS_KEY: EcsSecret.fromSecretsManager(
-                    secrets,
+                    secret,
                     "cloudflareR2SecretAccessKey",
                 ),
             },

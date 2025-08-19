@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
-load("//admin/aws/lambda:aws_lambda_deprecated.bzl", "aws_lambda_deprecated")
+load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
 load("//admin/bazel:production_transition.bzl", "production_transition", "production_transition_executable")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -137,17 +137,10 @@ production_transition(
 )
 
 # Lambda for file resizing (replaces ECS endpoint)
-aws_lambda_deprecated(
+aws_lambda(
     name = "resize_file_lambda",
     srcs = [":processor_lib"],
     entry_point = "lambda/resize_file_lambda.js",
-    external_deps = [
-        "//:node_modules/@aws-sdk/client-sqs",
-        "//:node_modules/@types/aws-lambda",
-        "//:node_modules/fs-extra",
-        "//:node_modules/sharp",
-        "//:node_modules/undici",
-    ],
     visibility = ["//admin/aws:__pkg__"],
 )
 
