@@ -101,12 +101,7 @@ import {
     updateOurAccountName,
     updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
-import {
-    addSpaceAccount,
-    createAlphaSpaceAsAdmin,
-    dangerouslyAddSpaceAccountAsAdmin,
-    removeSpaceAccount,
-} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {createAlphaSpaceAsAdmin} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchOptions,
@@ -440,22 +435,6 @@ export default function SpaceLayoutRoute() {
         createAlphaSpaceAsAdmin: async (input: {name: string; ownerAccountId: AccountId}) => {
             const output = await createAlphaSpaceAsAdmin(context, input);
             return output;
-        },
-        addSpaceAccount: async (input: {spaceId: SpaceId; accountId: AccountId}) => {
-            await addSpaceAccount(context, input);
-        },
-        // TODO(calebmer): Delete this ASAP. We need it while we're still in our alpha
-        // period but it's dangerous to let Alpine employees add arbitrary accounts to
-        // any space.
-        dangerouslyAddSpaceAccountAsAdmin: async (input: {
-            spaceId: SpaceId;
-            accountId: AccountId;
-        }) => {
-            const output = await dangerouslyAddSpaceAccountAsAdmin(context, input);
-            return output;
-        },
-        removeSpaceAccount: async (input: {spaceId: SpaceId; accountId: AccountId}) => {
-            await removeSpaceAccount(context, input);
         },
     }));
 
