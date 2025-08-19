@@ -1,7 +1,7 @@
 import {startLambdaLocal} from "~/admin/lambda/local/start_lambda_local.js";
 import {handleInternalMiniflareGetObject} from "~/server/files/processor/file_processor_service_server.js";
-import {handleResizeAvatarRequest} from "~/server/files/processor/lambda/request_handlers/handle_resize_avatar_request.js";
-import {handleResizeFileRequest} from "~/server/files/processor/lambda/request_handlers/handle_resize_file_request.js";
+import {handleResizeAvatarRequest} from "~/server/files/processor/resize_avatar/handle_resize_avatar_request.js";
+import {handleResizeFileRequest} from "~/server/files/processor/resize_file/handle_resize_file_request.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createLambdaActionContext,

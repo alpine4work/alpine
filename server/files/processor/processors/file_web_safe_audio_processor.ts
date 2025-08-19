@@ -1,6 +1,6 @@
 import {spawn} from "child_process";
 import {addMinutes} from "date-fns";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
+import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
     ffmpegExecutablePath,

@@ -12,6 +12,7 @@ ts_project(
     deps = [
         ":app_wrapper_paths_lib",
         "//:node_modules/@inquirer/prompts",
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@types/express",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
@@ -20,13 +21,10 @@ ts_project(
         "//:node_modules/ansi-styles",
         "//:node_modules/chalk",
         "//:node_modules/chokidar",
-        "//:node_modules/express",
+        "//:node_modules/date-fns",
         "//:node_modules/fast-glob",
         "//:node_modules/fs-extra",
-        "//:node_modules/get-port",
         "//:node_modules/murmurhash",
-        "//:node_modules/pretty-ms",
-        "//:node_modules/strip-ansi",
         "//:node_modules/ws",
         "//:node_modules/yargs",
         "//admin/cron",
@@ -39,6 +37,7 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
+        "//shared/schema",
     ],
 )
 

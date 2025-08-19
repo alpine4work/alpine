@@ -1,6 +1,7 @@
+// #TODO(#file-processor-service-migration): Remove this file
 import {Readable as ReadableStream} from "stream";
 import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
-import {FileProcessorServiceProcessContext} from "~/server/files/processor/file_processor_service_context.js";
+import {FileProcessorServiceProcessContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {resizeFile} from "~/server/files/processor/resize_file.js";
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";

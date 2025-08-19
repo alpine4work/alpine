@@ -1,5 +1,5 @@
 import {Readable as ReadableStream} from "stream";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
+import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

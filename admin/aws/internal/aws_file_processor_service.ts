@@ -79,9 +79,11 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // [4]: https://www.libreoffice.org
 export class AwsFileProcessorService extends Construct {
     private readonly resizeLambda: LambdaFunction;
+    private readonly resizeAvatarLambda: LambdaFunction;
     private readonly fileProcessorServiceLoadBalancer: ApplicationLoadBalancer;
     private readonly legacyFileProcessorServiceTargetGroup: ApplicationTargetGroup;
-    private readonly fileProcessorServiceTargetGroup: ApplicationTargetGroup;
+    private readonly resizeFileTargetGroup: ApplicationTargetGroup;
+    private readonly resizeAvatarTargetGroup: ApplicationTargetGroup;
 
     constructor(
         parentConstruct: Construct,
@@ -119,25 +121,29 @@ export class AwsFileProcessorService extends Construct {
         // are ready to migrate to the new service, we'll remove the legacy resources
         // and replace them with the new resources. See discussion here
         // https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/248/resizeFile-Lambda-with-Local-runtime#comment-PRRC_kwDOH2ktg86E_0S-
-        //
-        // For this particular code block, we'll remove the block scope
-        // New FileProcessorService
-        {
-            const {resizeFileLambda, resizeFileLambdaTargetGroup} = this._getResizeFileLambda({
-                vpc,
-                dynamo,
-                secret,
-                sqs,
-                cloudflareAccountId,
-            });
-            this.resizeLambda = resizeFileLambda;
-            this.fileProcessorServiceTargetGroup = resizeFileLambdaTargetGroup;
-        }
+        const {resizeFileLambda, resizeFileTargetGroup} = getResizeFileLambda(this, {
+            vpc,
+            dynamo,
+            secret,
+            sqs,
+            cloudflareAccountId,
+        });
+        this.resizeLambda = resizeFileLambda;
+        this.resizeFileTargetGroup = resizeFileTargetGroup;
+
+        const {resizeAvatarLambda, resizeAvatarTargetGroup} = getResizeAvatarLambda(this, {
+            vpc,
+            secret,
+            sqs,
+            cloudflareAccountId,
+        });
+        this.resizeAvatarLambda = resizeAvatarLambda;
+        this.resizeAvatarTargetGroup = resizeAvatarTargetGroup;
 
         // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Delete this
         // Old FileProcessorService
-        {
-            const {fileProcessorServiceTargetGroup} = this._createLegacyFileProcessorService({
+        const {fileProcessorServiceTargetGroup: legacyFileProcessorServiceTargetGroup} =
+            this._createLegacyFileProcessorService({
                 vpc,
                 ecsCluster,
                 cloudflareAccountId,
@@ -146,114 +152,16 @@ export class AwsFileProcessorService extends Construct {
                 secret,
                 loadBalancer: this.fileProcessorServiceLoadBalancer,
             });
-            this.legacyFileProcessorServiceTargetGroup = fileProcessorServiceTargetGroup;
-        }
+        this.legacyFileProcessorServiceTargetGroup = legacyFileProcessorServiceTargetGroup;
 
-        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove this once we've
-        // migrated to the new service
-        //
-        //  Set up weighted routing to the new and old services
-        {
-            const listener = this.fileProcessorServiceLoadBalancer.addListener("Listener", {
-                protocol: ApplicationProtocol.HTTPS,
-                port: 443,
-                certificates: [
-                    new Certificate(this, "Certificate", {
-                        domainName: "files.alpine.inc",
-                        validation: CertificateValidation.fromDns(),
-                    }),
-                ],
-            });
-
-            // Create a parameter for easy weight adjustment
-            const resizeFileLambdaWeight = new CfnParameter(this, "ResizeFileServiceLambdaWeight", {
-                type: "Number",
-                default: 0,
-                minValue: 0,
-                maxValue: 100,
-                description: "Percentage of traffic to send to ResizeFileService Lambda (0-100)",
-            });
-
-            const legacyFileProcessorServiceWeight = new CfnParameter(
-                this,
-                "LegacyFileProcessorServiceWeight",
-                {
-                    type: "Number",
-                    default: 100,
-                    minValue: 0,
-                    maxValue: 100,
-                    description:
-                        "Percentage of traffic to send to Legacy FileProcessorService (0-100)",
-                },
-            );
-
-            listener.addAction("WeightedResizeFileRouting", {
-                conditions: [ListenerCondition.pathPatterns(["/*/resize/*"])],
-                action: ListenerAction.weightedForward([
-                    {
-                        targetGroup: this.legacyFileProcessorServiceTargetGroup,
-                        weight: legacyFileProcessorServiceWeight.valueAsNumber,
-                    }, // 100% to existing
-                    {
-                        targetGroup: this.fileProcessorServiceTargetGroup,
-                        weight: resizeFileLambdaWeight.valueAsNumber,
-                    }, // 0% to new
-                ]),
-                priority: 100,
-            });
-
-            // TODO(ifitzsimmons, #file-processor-service-migration): Once we've
-            // migrated, remove the weighted route action above and change the target group to
-            // this.fileProcessorServiceTargetGroup. This is a default action.
-            listener.addTargetGroups("FileProcessorServiceRouting", {
-                targetGroups: [this.legacyFileProcessorServiceTargetGroup], // Routes to this target group
-            });
-        }
-    }
-
-    private _getResizeFileLambda({
-        vpc,
-        dynamo,
-        secret,
-        sqs,
-        cloudflareAccountId,
-    }: {
-        vpc: Vpc;
-        dynamo: AwsDynamo;
-        secret: ISecret;
-        sqs: AwsSqs;
-        cloudflareAccountId: string;
-    }) {
-        const resizeFileLambda = new AwsHttpLambda(this, "ResizeFile", {
-            bazelConfiguration: {
-                bazelTarget: "//server/files/processor:resize_file_lambda",
-                handlerFilePath: "lambda/resize_file_lambda",
+        createListenerWithRouting(this, {
+            loadBalancer: this.fileProcessorServiceLoadBalancer,
+            targetGroups: {
+                legacyFileProcessorServiceTargetGroup,
+                resizeFileTargetGroup,
+                resizeAvatarTargetGroup,
             },
-            sqs,
-            cloudflareAccountId,
-            vpc,
-            memorySize: 4096, // 4GB RAM (~2 vCPUs)
-            // Intentionally short timeout to ensure that the lambda is killed
-            // if it's not able to complete the resize operation.
-            timeout: Duration.seconds(30),
-            secret,
-            provisionedConcurrentExecutions: 5,
         });
-        dynamo.grantReadDataForTable(resizeFileLambda.executionRole, "Files", {
-            disallowQuery: true,
-        });
-
-        const resizeFileLambdaTargetGroup = new ApplicationTargetGroup(
-            this,
-            "ResizeFileLambdaTargetGroup",
-            {
-                targetType: TargetType.LAMBDA,
-                targets: [new LambdaTarget(resizeFileLambda.lambdaFunction)],
-                vpc,
-            },
-        );
-
-        return {resizeFileLambda: resizeFileLambda.lambdaFunction, resizeFileLambdaTargetGroup};
     }
 
     private _createLegacyFileProcessorService({
@@ -518,6 +426,178 @@ export class AwsFileProcessorService extends Construct {
 
         return {fileProcessorServiceTargetGroup};
     }
+}
+
+function getResizeFileLambda(
+    scope: Construct,
+    {
+        vpc,
+        dynamo,
+        secret,
+        sqs,
+        cloudflareAccountId,
+    }: {
+        vpc: Vpc;
+        dynamo: AwsDynamo;
+        secret: ISecret;
+        sqs: AwsSqs;
+        cloudflareAccountId: string;
+    },
+) {
+    const resizeFileLambda = new AwsHttpLambda(scope, "ResizeFile", {
+        bazelConfiguration: {
+            bazelTarget: "//server/files/processor/resize_file:resize_file_lambda",
+            handlerFilePath: "lambda/resize_file_lambda",
+        },
+        sqs,
+        cloudflareAccountId,
+        vpc,
+        memorySize: 4096, // 4GB RAM (~2 vCPUs)
+        // Intentionally short timeout to ensure that the lambda is killed
+        // if it's not able to complete the resize operation.
+        timeout: Duration.seconds(30),
+        secret,
+        provisionedConcurrentExecutions: 5,
+    });
+    dynamo.grantReadDataForTable(resizeFileLambda.executionRole, "Files", {
+        disallowQuery: true,
+    });
+
+    const resizeFileTargetGroup = new ApplicationTargetGroup(scope, "ResizeFileLambdaTargetGroup", {
+        targetType: TargetType.LAMBDA,
+        targets: [new LambdaTarget(resizeFileLambda.lambdaFunction)],
+        vpc,
+    });
+
+    return {resizeFileLambda: resizeFileLambda.lambdaFunction, resizeFileTargetGroup};
+}
+
+function getResizeAvatarLambda(
+    scope: Construct,
+    {
+        vpc,
+        secret,
+        sqs,
+        cloudflareAccountId,
+    }: {
+        vpc: Vpc;
+        secret: ISecret;
+        sqs: AwsSqs;
+        cloudflareAccountId: string;
+    },
+) {
+    const resizeAvatarLambda = new AwsHttpLambda(scope, "ResizeAvatar", {
+        bazelConfiguration: {
+            bazelTarget: "//server/files/processor/resize_avatar:resize_avatar_lambda",
+            handlerFilePath: "lambda/resize_avatar_lambda",
+        },
+        sqs,
+        cloudflareAccountId,
+        vpc,
+        memorySize: 4096, // 4GB RAM (~2 vCPUs)
+        // Intentionally short timeout to ensure that the lambda is killed
+        // if it's not able to complete the resize operation.
+        timeout: Duration.seconds(30),
+        secret,
+        provisionedConcurrentExecutions: 2,
+    });
+
+    const resizeAvatarTargetGroup = new ApplicationTargetGroup(
+        scope,
+        "ResizeAvatarLambdaTargetGroup",
+        {
+            targetType: TargetType.LAMBDA,
+            targets: [new LambdaTarget(resizeAvatarLambda.lambdaFunction)],
+            vpc,
+        },
+    );
+
+    return {
+        resizeAvatarLambda: resizeAvatarLambda.lambdaFunction,
+        resizeAvatarTargetGroup,
+    };
+}
+
+function createListenerWithRouting(
+    scope: Construct,
+    {
+        loadBalancer,
+        targetGroups,
+    }: {
+        loadBalancer: ApplicationLoadBalancer;
+        targetGroups: {
+            legacyFileProcessorServiceTargetGroup: ApplicationTargetGroup;
+            resizeFileTargetGroup: ApplicationTargetGroup;
+            resizeAvatarTargetGroup: ApplicationTargetGroup;
+        };
+    },
+) {
+    const listener = loadBalancer.addListener("Listener", {
+        protocol: ApplicationProtocol.HTTPS,
+        port: 443,
+        certificates: [
+            new Certificate(scope, "Certificate", {
+                domainName: "files.alpine.inc",
+                validation: CertificateValidation.fromDns(),
+            }),
+        ],
+    });
+
+    // Create a parameter for easy weight adjustment
+    const resizeFileLambdaWeight = new CfnParameter(scope, "ResizeFileServiceLambdaWeight", {
+        type: "Number",
+        default: 0,
+        minValue: 0,
+        maxValue: 100,
+        description: "Percentage of traffic to send to ResizeFileService Lambda (0-100)",
+    });
+
+    const legacyFileProcessorServiceWeight = new CfnParameter(
+        scope,
+        "LegacyFileProcessorServiceWeight",
+        {
+            type: "Number",
+            default: 100,
+            minValue: 0,
+            maxValue: 100,
+            description: "Percentage of traffic to send to Legacy FileProcessorService (0-100)",
+        },
+    );
+
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove this once we've
+    // migrated to the new service
+    //
+    //  Set up weighted routing to the new and old services
+    listener.addAction("WeightedResizeFileRouting", {
+        conditions: [ListenerCondition.pathPatterns(["/*/resize/*"])],
+        action: ListenerAction.weightedForward([
+            {
+                targetGroup: targetGroups.legacyFileProcessorServiceTargetGroup,
+                weight: legacyFileProcessorServiceWeight.valueAsNumber,
+            }, // 100% to existing
+            {
+                targetGroup: targetGroups.resizeFileTargetGroup,
+                weight: resizeFileLambdaWeight.valueAsNumber,
+            }, // 0% to new
+        ]),
+        priority: 100,
+    });
+
+    listener.addTargetGroups("ResizeAvatarRouting", {
+        targetGroups: [targetGroups.resizeAvatarTargetGroup],
+        conditions: [
+            ListenerCondition.pathPatterns(["/avatar"]),
+            ListenerCondition.httpRequestMethods(["POST"]),
+        ],
+        priority: 101,
+    });
+
+    // TODO(ifitzsimmons, #file-processor-service-migration): Once we've
+    // migrated, remove the weighted route action above and change the target group to
+    // this.fileProcessorServiceTargetGroup. This is a default action.
+    listener.addTargetGroups("FileProcessorServiceRouting", {
+        targetGroups: [targetGroups.legacyFileProcessorServiceTargetGroup], // Routes to this target group
+    });
 }
 
 /**

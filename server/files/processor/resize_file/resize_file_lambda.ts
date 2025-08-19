@@ -1,4 +1,4 @@
-import {handleResizeFileRequest} from "~/server/files/processor/lambda/request_handlers/handle_resize_file_request.js";
+import {handleResizeFileRequest} from "~/server/files/processor/resize_file/handle_resize_file_request.js";
 import {createHttpLambdaHandler} from "~/server/lambda/create_http_lambda_handler.js";
 
 // Used for tracing. Keeps span naming consistent with existing ECS service.

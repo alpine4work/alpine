@@ -7,6 +7,7 @@ ts_project(
         "//admin/cron:__pkg__",
         "//app:__pkg__",
         "//server:__subpackages__",
+        "//admin/aws:__pkg__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-sqs",

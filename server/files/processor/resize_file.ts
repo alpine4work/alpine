@@ -5,13 +5,13 @@ import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
 import {getFileIfExistsAsUploader} from "~/server/files/data/files_table.js";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
-import {sharpTimeoutSeconds} from "~/server/files/processor/processors/file_image_processor_base.js";
+import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {
     ffmpegExecutablePath,
     ffmpegThreadCount,
     parseFfmpegStderrInputCodecNames,
 } from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
+import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";

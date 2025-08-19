@@ -1,4 +1,4 @@
-import {resizeAvatar} from "~/server/files/processor/resize_avatar.js";
+import {resizeAvatar} from "~/server/files/processor/resize_avatar/resize_avatar.js";
 import {LambdaProcessContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {createDynamoActorSessionContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";

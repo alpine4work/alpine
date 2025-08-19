@@ -6,6 +6,8 @@ ts_project(
     visibility = ["//admin/dev:__pkg__"],
     deps = [
         "//admin/lambda/local",
+        "//server/files/processor/resize_avatar",
+        "//server/files/processor/resize_file",
         "//server/files/processor:processor_lib",
         "//server/helpers/node",
         "//server/lambda",

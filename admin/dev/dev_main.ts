@@ -103,14 +103,6 @@ const fileProcessorDevInspectorPort = parsePort(env.FILE_PROCESSOR_DEV_INSPECTOR
 const fileProcessorDevPrivatePorts = parsePorts(env.FILE_PROCESSOR_DEV_PRIVATE_PORTS);
 const fileProcessorServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
 
-const lambdaLocalFileProcessorServicePort = parsePort(env.LAMBDA_LOCAL_FILE_PROCESSOR_SERVICE_PORT);
-const lambdaLocalFileProcessorServiceDevInspectorPort = parsePort(
-    env.LAMBDA_LOCAL_FILE_PROCESSOR_SERVICE_DEV_INSPECTOR_PORT,
-);
-const lambdaLocalFileProcessorServiceDevPrivatePorts = parsePorts(
-    env.LAMBDA_LOCAL_FILE_PROCESSOR_SERVICE_DEV_PRIVATE_PORTS,
-);
-
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
 const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
@@ -429,8 +421,8 @@ function createArtifacts() {
             server: new MutexValue<ArtifactServer | null>(null),
         },
         {
-            bazelTarget: "//server/files/processor",
-            executablePath: "server/files/processor/processor.sh",
+            bazelTarget: "//admin/lambda/local/file_processor_service:lambda_runtime",
+            executablePath: "admin/lambda/local/file_processor_service/lambda_runtime.sh",
             stdioPrefix: "flp",
             ports: {
                 publicPort: fileProcessorDevPort,
@@ -439,35 +431,6 @@ function createArtifacts() {
             },
             args: [
                 `--inspectorPort=${fileProcessorDevInspectorPort}`,
-                `--appServicePublicKey=${appServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
-                `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
-                `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--ensureLocalCachePath=${ensureLocalCachePath}`,
-                `--dynamoLocalPort=${dynamoLocalPort}`,
-                `--edgeServiceUrl=${edgeServiceUrl}`,
-                `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
-                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
-                `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
-                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
-            ],
-            server: new MutexValue<ArtifactServer | null>(null),
-        },
-        {
-            bazelTarget: "//admin/lambda/local/file_processor_service:lambda_runtime",
-            executablePath: "admin/lambda/local/file_processor_service/lambda_runtime.sh",
-            stdioPrefix: "flp",
-            ports: {
-                publicPort: lambdaLocalFileProcessorServicePort,
-                privatePorts: lambdaLocalFileProcessorServiceDevPrivatePorts,
-                privatePortIndex: 0,
-            },
-            args: [
-                `--inspectorPort=${lambdaLocalFileProcessorServiceDevInspectorPort}`,
                 `--appServicePublicKey=${appServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,

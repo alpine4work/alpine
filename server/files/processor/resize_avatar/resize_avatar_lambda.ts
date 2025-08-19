@@ -1,8 +1,8 @@
-import {handleResizeAvatarRequest} from "~/server/files/processor/lambda/request_handlers/handle_resize_avatar_request.js";
+import {handleResizeAvatarRequest} from "~/server/files/processor/resize_avatar/handle_resize_avatar_request.js";
 import {createHttpLambdaHandler} from "~/server/lambda/create_http_lambda_handler.js";
 
 // Used for tracing. Keeps span naming consistent with existing ECS service.
-const route = "/avatar/{entityType}/{entityId}/{version}";
+const route = "/avatar";
 
 /**
  * Lambda handler for avatar creation from any image type.

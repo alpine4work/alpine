@@ -3,7 +3,7 @@ import {addMinutes} from "date-fns";
 import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
+import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {

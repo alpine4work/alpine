@@ -14,6 +14,7 @@ ts_project(
         "//server/dynamo/core:__subpackages__",
         "//server/dynamo/test_helpers:__pkg__",
         "//server/spaces/test_helpers:__pkg__",
+        "//admin/aws:__pkg__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-dynamodb",

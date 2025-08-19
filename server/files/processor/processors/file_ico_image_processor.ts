@@ -2,12 +2,10 @@ import decodeIco from "decode-ico";
 import sharp from "sharp";
 import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {finished} from "stream/promises";
-import {
-    processFileImagePreviewPlaceholder,
-    rethrowClassifiedSharpError,
-    sharpTimeoutSeconds,
-} from "~/server/files/processor/processors/file_image_processor_base.js";
+import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
+import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethrow_classified_sharp_error.js";
+import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";

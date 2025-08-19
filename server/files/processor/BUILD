@@ -1,6 +1,5 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
-load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
 load("//admin/bazel:production_transition.bzl", "production_transition", "production_transition_executable")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -40,6 +39,7 @@ ts_project(
     },
     visibility = [
         "//server/files/processor/test_helpers:__pkg__",
+        "//server/files/processor/resize_file:__pkg__",
         "//admin/lambda/local/file_processor_service:__pkg__",
     ],
     deps = [
@@ -48,19 +48,18 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/decode-ico",
         "//:node_modules/sharp",
-        "//server/accounts",
         "//server/cloudflare/r2",
         "//server/context",
         "//server/files/data",
+        "//server/files/processor/context",
+        "//server/files/processor/error",
+        "//server/files/processor/sharp",
         "//server/helpers",
         "//server/helpers/node",
         "//server/jobs/queue/consumer",
-        "//server/lambda",
         "//server/node",
         "//server/spaces",
         "//server/tokens",
-        "//shared/avatar",
-        "//shared/avatar/protocol",
         "//shared/content/code",
         "//shared/context",
         "//shared/error",
@@ -133,19 +132,5 @@ production_transition_executable(
 production_transition(
     name = "processor_image_tarball_production",
     target = ":processor_image_tarball",
-    visibility = ["//admin/aws:__pkg__"],
-)
-
-# Lambda for file resizing (replaces ECS endpoint)
-aws_lambda(
-    name = "resize_file_lambda",
-    srcs = [":processor_lib"],
-    entry_point = "lambda/resize_file_lambda.js",
-    visibility = ["//admin/aws:__pkg__"],
-)
-
-production_transition(
-    name = "resize_file_lambda_production",
-    target = ":resize_file_lambda",
     visibility = ["//admin/aws:__pkg__"],
 )

@@ -1,10 +1,8 @@
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
-import {
-    rethrowClassifiedSharpError,
-    sharpTimeoutSeconds,
-} from "~/server/files/processor/processors/file_image_processor_base.js";
+import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethrow_classified_sharp_error.js";
+import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
 import {waitForNodeReadableStreamUint8Array} from "~/server/helpers/node/wait_for_node_readable_stream_uint8_array.js";
 import {AvatarEntityPath} from "~/shared/avatar/avatar_entity_path.js";
@@ -81,7 +79,7 @@ export async function resizeAvatar(
             JSON.stringify(
                 ResizeAvatarForUploadResponseSchema.serialize({
                     ok: true,
-                    content: new Uint8Array(result.data),
+                    content: new Uint8Array(data),
                 }),
             ),
             {
