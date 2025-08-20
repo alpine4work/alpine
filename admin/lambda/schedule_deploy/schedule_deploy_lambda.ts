@@ -1,5 +1,5 @@
+/* eslint-disable no-console */
 import {SQSClient, SendMessageCommand} from "@aws-sdk/client-sqs";
-import type {APIGatewayProxyResult} from "aws-lambda";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 
@@ -7,9 +7,7 @@ type ScheduleDeployLambdaInputEvent = {
     commitSha?: string;
 };
 
-export async function handler({
-    commitSha,
-}: ScheduleDeployLambdaInputEvent): Promise<APIGatewayProxyResult> {
+export async function handler({commitSha}: ScheduleDeployLambdaInputEvent): Promise<void> {
     try {
         const jobQueueUrl = process.env.JOB_QUEUE_URL;
         const awsRegion = process.env.AWS_REGION;
@@ -26,6 +24,8 @@ export async function handler({
             throw new InvalidArgumentError("commitSha is required in the invocation");
         }
 
+        console.log(`Scheduling deploy for commit ${commitSha}`);
+
         const sqsClient = new SQSClient({
             region: awsRegion,
         });
@@ -41,29 +41,16 @@ export async function handler({
             tracerContext: null,
         };
 
+        console.log(`Sending message: ${JSON.stringify(messageBody, null, 2)}`);
         const command = new SendMessageCommand({
             QueueUrl: jobQueueUrl,
             MessageBody: JSON.stringify(JobQueueMessageBodySchema.serialize(messageBody)),
-            DelaySeconds: 10,
         });
 
-        const result = await sqsClient.send(command);
-
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                message: "Deploy scheduled successfully",
-                messageId: result.MessageId,
-                commitSha,
-            }),
-        };
+        await sqsClient.send(command);
+        console.log(`Successfully scheduled deploy for commit ${commitSha}`);
     } catch (error) {
-        return {
-            statusCode: 500,
-            body: JSON.stringify({
-                error: "Failed to schedule deploy",
-                details: error instanceof Error ? error.message : String(error),
-            }),
-        };
+        console.error("Failed to schedule deploy");
+        console.error(error);
     }
 }
