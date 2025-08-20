@@ -1,5 +1,5 @@
 import {Node} from "prosemirror-model";
-import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_table.js";
+import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_actions.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
     DocumentStepCountByAccountId,

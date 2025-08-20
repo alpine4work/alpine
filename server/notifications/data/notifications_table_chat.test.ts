@@ -1,5 +1,5 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
-import {processSendShareNotificationJob} from "~/server/chat/data/chat_table.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";

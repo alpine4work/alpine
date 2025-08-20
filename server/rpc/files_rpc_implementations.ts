@@ -1,4 +1,4 @@
-import {FileChatAuthorizer} from "~/server/chat/data/chat_table.js";
+import {FileChatAuthorizer} from "~/server/chat/data/chat_actions.js";
 import {FileDocumentAuthorizer} from "~/server/documents/data/documents_table.js";
 import {
     FileAuthorizer,
