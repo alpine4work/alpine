@@ -1,4 +1,4 @@
-import {Envelope, Gear, Users} from "phosphor-react";
+import {Bell, User, Users} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
@@ -14,7 +14,7 @@ import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_fe
 import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 export function meta() {
-    return [{title: `Space settings${metaTitlePostfix}`}];
+    return [{title: `Settings${metaTitlePostfix}`}];
 }
 
 export default function MobileSpaceSettingsRoute() {
@@ -32,7 +32,8 @@ export default function MobileSpaceSettingsRoute() {
 
     const profileSettingsNavigation = hasProfileSettingsFeature(space.id) ? (
         <MobileSettingsRow
-            icon={<Gear />}
+            withBorderTop
+            icon={<User />}
             label="Profile"
             pressErrorTitle="Couldn’t open profile settings"
             onPress={async () => {
@@ -43,7 +44,8 @@ export default function MobileSpaceSettingsRoute() {
 
     const notificationSettingsNavigation = hasNotificationSettingsFeature(space.id) ? (
         <MobileSettingsRow
-            icon={<Envelope />}
+            withBorderTop={!hasProfileSettingsFeature(space.id)}
+            icon={<Bell />}
             label="Notifications"
             pressErrorTitle="Couldn’t open notification settings"
             onPress={async () => {
@@ -61,33 +63,50 @@ export default function MobileSpaceSettingsRoute() {
         ) : null;
 
     return (
-        // NOTE: Since on `/more` we have "Space settings" in the title, "Space settings" makes
-        // much more sense here.
         <SpaceRouteScrollView
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
-            title="Space settings"
+            title="Settings"
         >
-            <Box width="full" paddingX={screenPaddingX} maxWidth={maxWidth} marginX="center">
-                {userNavigation}
-                {userNavigation ? <Box marginY="2" /> : null}
-                <MobileSettingsRow
-                    withBorderTop
-                    icon={<BuildingsIcon />}
-                    label="General"
-                    pressErrorTitle="Couldn’t open general settings"
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/settings/general`);
-                    }}
-                />
-                <MobileSettingsRow
-                    icon={<Users />}
-                    label="People"
-                    pressErrorTitle="Couldn’t open people settings"
-                    onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/settings/people`);
-                    }}
-                />
+            <Box
+                width="full"
+                paddingX={screenPaddingX}
+                maxWidth={maxWidth}
+                marginX="center"
+                display="flex"
+                flexDirection="column"
+                gap="4"
+            >
+                {userNavigation ? (
+                    <Box>
+                        <Box paddingX="2.5" paddingY="2.5" fontSize="50" color="grey-50">
+                            My settings
+                        </Box>
+                        {userNavigation}
+                    </Box>
+                ) : null}
+                <Box>
+                    <Box paddingX="2.5" paddingY="2.5" fontSize="50" color="grey-50">
+                        Space settings
+                    </Box>
+                    <MobileSettingsRow
+                        withBorderTop
+                        icon={<BuildingsIcon />}
+                        label="General"
+                        pressErrorTitle="Couldn’t open general settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/settings/general`);
+                        }}
+                    />
+                    <MobileSettingsRow
+                        icon={<Users />}
+                        label="People"
+                        pressErrorTitle="Couldn’t open people settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/settings/people`);
+                        }}
+                    />
+                </Box>
             </Box>
         </SpaceRouteScrollView>
     );
