@@ -1,10 +1,11 @@
 import prettyBytes from "pretty-bytes";
 import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
-import {authorizeRequestAndGetMetadataWithSessionToken} from "~/server/edge/internal/authorize_request_and_get_metadata_with_session_token.js";
+import {authorizeRequestAndGetSessionToken} from "~/server/edge/internal/authorize_request_and_get_session_token.js";
 import {
     PutR2ObjectBucketInterface,
     putR2ObjectWithSpan,
 } from "~/server/edge/internal/put_r2_object_with_span.js";
+import {validateContentMetadataAndGetCanonicalContentType} from "~/server/edge/internal/validate_content_metadata_and_get_canonical_content_type.js";
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
@@ -12,6 +13,7 @@ import {avatarContentType, maxAvatarUploadContentLength} from "~/shared/avatar/a
 import {AvatarEntityPath, parseAvatarEntityPath} from "~/shared/avatar/avatar_entity_path.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {ResizeAvatarForUploadResponseSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_response_schema.js";
+import {UploadAvatarRequestSchema} from "~/shared/avatar/protocol/upload_avatar_request_schema.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -20,7 +22,6 @@ import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {FileImageContentType, isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
@@ -46,20 +47,32 @@ export async function uploadAvatar(
     avatarEntityPath: AvatarEntityPath,
 ): Promise<Response> {
     try {
-        if (parseAvatarEntityPath(avatarEntityPath).type === "space") {
+        if (request.method !== "POST") throw new InvalidArgumentError("Must use `POST` method");
+
+        const {type} = parseAvatarEntityPath(avatarEntityPath);
+        if (type === "space") {
             throw new UnimplementedError("Spaces are not supported yet");
         }
 
-        const requestBody = request.body;
-        assert(requestBody);
+        const requestBody = UploadAvatarRequestSchema.deserialize(await request.json());
+
+        // TODO(#add-space-avatar-support): validate that the types match
+        if (type === "account" && requestBody.type !== "UploadAccountAvatar") {
+            throw new InvalidArgumentError("Expected `UploadAccountAvatar` request");
+        }
 
         const fileProcessorServiceUrl = env.FILE_PROCESSOR_SERVICE_URL;
         if (!fileProcessorServiceUrl) {
             throw new InternalError("Missing `FILE_PROCESSOR_SERVICE_URL` env variable");
         }
 
-        const {contentType, contentLength, sessionCookieToken} =
-            await authorizeRequestAndGetMetadataWithSessionToken(tokenAgent, request);
+        const contentLength = requestBody.content.length;
+        const contentType = validateContentMetadataAndGetCanonicalContentType({
+            originalContentType: requestBody.contentType,
+            contentLength,
+        });
+
+        const sessionCookieToken = await authorizeRequestAndGetSessionToken(tokenAgent, request);
         const context = createContext(sessionCookieToken);
 
         if (contentLength > maxAvatarUploadContentLength) {
@@ -74,7 +87,7 @@ export async function uploadAvatar(
 
         if (!isFileImageContentType(contentType)) {
             throw new InternalError(
-                quote`Unsupported \`Content-Type\` header ${contentType} for avatar processing`,
+                quote`Unsupported \`Content-Type\` ${contentType} for avatar processing`,
             );
         }
 
@@ -84,7 +97,7 @@ export async function uploadAvatar(
         const originalKey = `${avatarEntityPath}/original/${avatarId}`;
         await putR2ObjectWithSpan(span, {
             key: originalKey,
-            body: requestBody,
+            body: requestBody.content,
             contentType,
             contentLength,
             bucketName: avatarsBucketName,

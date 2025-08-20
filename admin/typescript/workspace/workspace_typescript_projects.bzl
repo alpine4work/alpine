@@ -24,6 +24,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//app/integration_tests:integration_tests_lib",
     "//app/static:static_lib",
     "//client/accounts:accounts",
+    "//client/avatar:avatar",
     "//client/blobs:blobs",
     "//client/blobs/helpers:helpers",
     "//client/blobs/script:script_lib",

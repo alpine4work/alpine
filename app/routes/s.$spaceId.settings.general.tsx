@@ -1,4 +1,5 @@
 import {useId, useRef, useState} from "react";
+import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -9,8 +10,9 @@ import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
 } from "~/client/messaging/inline_editor_toolbar.js";
-import {SpaceAvatarUploader} from "~/client/spaces/layout/settings/space_avatar_uploader.js";
+import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
+import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -147,7 +149,9 @@ export default function SpaceGeneralSettingsRoute() {
                             Recommended size is 256x256px
                         </Box>
                     </Box>
-                    <SpaceAvatarUploader space={originalSpace} />
+                    <AvatarUploader borderRadius={spaceAvatarBorderRadius}>
+                        <SpaceAvatar space={originalSpace} size="12" />
+                    </AvatarUploader>
                 </Box>
             </Box>
             {shouldShowConfirmSaveNameDialog && (

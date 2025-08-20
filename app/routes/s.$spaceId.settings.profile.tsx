@@ -1,5 +1,7 @@
 import {useId, useRef, useState} from "react";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -14,12 +16,16 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {UploadAvatarRequestSchema} from "~/shared/avatar/protocol/upload_avatar_request_schema.js";
+import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateOurAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 const LoaderSchema = Schema.object({});
 
@@ -79,6 +85,33 @@ export default function SpaceProfileSettingsRoute() {
         inputElement.selectionEnd = inputElement.value.length;
     }, [name]);
 
+    const handleUploadAvatar = async (file: File) => {
+        const response = await fetchWithTracer(
+            context.tracer.getTracer(),
+            new URL(`/api/avatar/account/${account.id}`, window.location.href),
+            {
+                serviceName: "EdgeService",
+                route: "/api/avatar/account/:accountId",
+                method: "POST",
+                body: JSON.stringify(
+                    UploadAvatarRequestSchema.serialize({
+                        type: "UploadAccountAvatar",
+                        contentType: file.type,
+                        content: await waitForReadableStreamUint8Array(file.stream()),
+                    }),
+                ),
+            },
+            async response => {
+                const responseData = await response.json();
+                const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
+                if (!responseBody.ok) throw responseBody.error;
+                return responseBody;
+            },
+        );
+
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(response.account);
+    };
+
     return (
         <>
             <Box display="flex" flexDirection="column" gap="6" width="full">
@@ -125,6 +158,32 @@ export default function SpaceProfileSettingsRoute() {
                             />
                         )}
                     </Box>
+                </Box>
+                <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
+                    <Box>
+                        <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
+                            Avatar
+                        </Box>
+                        <Box
+                            paddingTop="1"
+                            fontSize="75"
+                            color="grey-60"
+                            userSelect="text"
+                            style={{
+                                // Allow contextual alternate glyphs in regular text content.
+                                //
+                                // Particularly the "x" in "256x256".
+                                //
+                                // eslint-disable-next-line string-quotes
+                                fontFeatureSettings: '"calt" on',
+                            }}
+                        >
+                            Recommended size is 256x256px
+                        </Box>
+                    </Box>
+                    <AvatarUploader onUploadAvatar={handleUploadAvatar}>
+                        <AccountAvatar account={account} size="12" />
+                    </AvatarUploader>
                 </Box>
             </Box>
             {shouldShowConfirmSaveNameDialog && (

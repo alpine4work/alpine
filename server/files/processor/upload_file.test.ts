@@ -284,7 +284,11 @@ test("must use POST method to upload route", async () => {
 
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "GET",
-        headers: {connection: "close", cookie: await sessionCookie(session)},
+        headers: {
+            connection: "close",
+            cookie: await sessionCookie(session),
+            "content-type": "image/jpeg",
+        },
     });
     const responseBody = UploadFileResponseSchema.deserialize(await response.json());
 
@@ -340,7 +344,7 @@ test("must provide a valid Content-Type header to upload route", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError("Unsupported `Content-Type` header `application/example`"),
+        error: new InvalidArgumentError("Unsupported `Content-Type` `application/example`"),
     });
 });
 
