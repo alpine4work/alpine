@@ -3,7 +3,7 @@ import {
     authorizeInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountTransactionEntries,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,

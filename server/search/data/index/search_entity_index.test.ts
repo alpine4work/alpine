@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {

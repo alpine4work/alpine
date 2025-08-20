@@ -1,4 +1,4 @@
-import {createSessionForTest} from "~/server/accounts/accounts_table.js";
+import {createSessionForTest} from "~/server/accounts/accounts_actions.js";
 import {
     authorizeSpaceAccess,
     dangerouslyGetAccountStubIfExistsWithoutAuthorization,

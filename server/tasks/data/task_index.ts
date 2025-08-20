@@ -1,4 +1,4 @@
-import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
+import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_actions.js";
 import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";

@@ -7,7 +7,7 @@ import {
     getAccountByIdAsAdmin,
     getAccountIdByEmailAddressIfExists,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {
     DynamoActorContextModule,
     DynamoImpersonatedAccountActorContextModule,

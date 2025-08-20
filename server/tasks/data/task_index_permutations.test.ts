@@ -1,5 +1,5 @@
 import fs from "fs";
-import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";

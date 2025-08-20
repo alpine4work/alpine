@@ -1,6 +1,6 @@
 import murmurhash from "murmurhash";
 import {Node} from "prosemirror-model";
-import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
+import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {
     getContentReferencesForServerPrintSingleLineTextSnippet,
     printContentSingleLineTextSnippetForServer,

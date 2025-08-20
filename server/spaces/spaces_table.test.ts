@@ -2,7 +2,7 @@ import {
     deleteAccountAppleDeviceTokenIfExists,
     registerOurAccountAppleDeviceToken,
     updateOurAccountName,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";

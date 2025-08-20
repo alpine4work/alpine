@@ -1,4 +1,4 @@
-import {Session} from "~/server/accounts/accounts_table.js";
+import {Session} from "~/server/accounts/accounts_actions.js";
 import {
     DynamoActorContextModule,
     DynamoAnonymousActorContextModule,

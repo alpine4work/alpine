@@ -23,7 +23,7 @@ import {
     appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,
     getOurLastOpenedSpaceId,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

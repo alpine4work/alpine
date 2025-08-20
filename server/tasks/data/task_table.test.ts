@@ -5,7 +5,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {
     updateOurAccountName,
     updateOurAccountNameBeforeExecuteTestCheckpoint,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";

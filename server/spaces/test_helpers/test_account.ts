@@ -2,7 +2,7 @@ import {
     createAccountEmailAddressForTest,
     createAccountForTest,
     dangerouslyGetAccountIfExistsWithoutCaching,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";

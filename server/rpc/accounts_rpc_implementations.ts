@@ -5,7 +5,7 @@ import {
     updateAccountAvatar,
     updateOurAccountName,
     updateOurLastOpenedSpaceId,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";

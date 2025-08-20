@@ -72,6 +72,12 @@ const crawlPromise = new Lazy(async () => {
             await runAllPromises(
                 paths.map(async path => {
                     const module = await import(path);
+                    const pathParts = path.split("/");
+                    const lastDirectoryName = pathParts[pathParts.length - 2]; // Get second-to-last element (last is filename)
+                    if (lastDirectoryName === "internal") {
+                        // We allow these sensitive exports within internal packages
+                        return;
+                    }
 
                     // Verify that a module object does not export a `DynamoTableSchema` or
                     // `OpensearchIndex`. We expect `DynamoTableSchema`s to be private to the
@@ -82,7 +88,7 @@ const crawlPromise = new Lazy(async () => {
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports a \`DynamoTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
+                                )} exports a \`DynamoTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the package where it was defined`,
                             );
                         }
 
@@ -91,7 +97,7 @@ const crawlPromise = new Lazy(async () => {
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports a \`DynamoGeneralRealtimeTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
+                                )} exports a \`DynamoGeneralRealtimeTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the package where it was defined`,
                             );
                         }
 
@@ -100,7 +106,7 @@ const crawlPromise = new Lazy(async () => {
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports an \`OpensearchIndex\` as ${moduleExportName}, OpenSearch indexes should be private to the module where it was defined`,
+                                )} exports an \`OpensearchIndex\` as ${moduleExportName}, OpenSearch indexes should be private to the package where it was defined`,
                             );
                         }
                     }

@@ -1,4 +1,4 @@
-import {seedTestAccounts} from "~/server/accounts/accounts_table.js";
+import {seedTestAccounts} from "~/server/accounts/accounts_actions.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/forum_table.js";

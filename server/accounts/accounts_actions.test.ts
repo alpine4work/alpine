@@ -15,7 +15,7 @@ import {
     regenerateOneTimePasswordSignIn,
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
     updateOurLastOpenedSpaceId,
-} from "~/server/accounts/accounts_table.js";
+} from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";

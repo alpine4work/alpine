@@ -1,4 +1,4 @@
-import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_table.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
