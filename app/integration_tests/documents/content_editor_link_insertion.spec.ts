@@ -1,6 +1,6 @@
 import {Locator, Page, ViewportSize, expect, test as playwrightTest} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {createDocument} from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {

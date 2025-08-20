@@ -1,4 +1,4 @@
-import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_table.js";
 import {
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,

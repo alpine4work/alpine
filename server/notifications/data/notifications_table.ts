@@ -7,7 +7,7 @@ import {
     authorizeChatAccessForAccount,
     authorizeChatAccessIfPossible,
     getChatAccountIds,
-} from "~/server/chat/data/chat_actions.js";
+} from "~/server/chat/data/chat_table.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
