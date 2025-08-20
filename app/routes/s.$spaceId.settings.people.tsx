@@ -325,7 +325,16 @@ export default function SpacePeopleSettingsRoute() {
                             gap="3"
                         >
                             <AccountAvatar account={account} size="8" />
-                            <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
+                            <Box
+                                fontStyle="semi-bold"
+                                fontSize="100"
+                                userSelect="text"
+                                data-testid={
+                                    process.env.NODE_ENV === "production"
+                                        ? undefined
+                                        : "InviteAccountName"
+                                }
+                            >
                                 {account.name}
                             </Box>
                             <Box flexGrow="1" />

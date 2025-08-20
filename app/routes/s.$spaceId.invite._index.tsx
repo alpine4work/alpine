@@ -77,7 +77,7 @@ export default function HomeRoute() {
 
         // We use from=invite to tell remix to revalidate our space loader data
         // This will re-evalutate permissions and let the user immediately click on resources
-        navigate(`${destination}?from=invite`);
+        navigate(`${destination}?from=invite`, {replace: true});
     };
 
     const initialAppRenderId = useInitialAppRenderId();

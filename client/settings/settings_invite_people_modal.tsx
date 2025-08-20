@@ -284,6 +284,11 @@ export function SettingsInvitePeopleModal({
                                     // eslint-disable-next-line string-quotes
                                     fontFeatureSettings: '"calt" on',
                                 }}
+                                data-testid={
+                                    process.env.NODE_ENV === "production"
+                                        ? undefined
+                                        : "InviteErroredEmailAddresses"
+                                }
                             >
                                 Couldn’t invite{" "}
                                 <PrettyNumber

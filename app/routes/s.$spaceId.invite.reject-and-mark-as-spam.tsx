@@ -3,6 +3,7 @@ import {useEffect, useMemo, useState} from "react";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {BrandLogoIcon} from "~/client/icons/brand/brand_logo_icon.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -45,17 +46,26 @@ export default function InviteRejectAndMarkAsSpamRoute() {
     const navigate = useNavigate();
     const appContext = useAppContext();
     const context = useSpaceContext();
+    const reporter = useReporter();
 
     // TODO(#theme-color)
     const themeColor = defaultThemeColor;
 
+    const [rejectedComplete, setRejectedComplete] = useState(false);
+
     useEffect(() => {
         void (async () => {
-            await rejectSpaceAccountInviteAsSpam(appContext, {
-                spaceId: context.space.id,
-            });
+            try {
+                await rejectSpaceAccountInviteAsSpam(appContext, {
+                    spaceId: context.space.id,
+                });
+
+                setRejectedComplete(true);
+            } catch (error) {
+                reporter.displayError("Failed to reject invite", error);
+            }
         })();
-    }, [appContext, context.space.id, navigate]);
+    }, [appContext, context.space.id, navigate, reporter]);
 
     const initialAppRenderId = useInitialAppRenderId();
     const [idForGeneration] = useState(initialAppRenderId ?? generateId());
@@ -92,6 +102,10 @@ export default function InviteRejectAndMarkAsSpamRoute() {
                         space again.
                     </Box>
                     <Box>You may now leave this window.</Box>
+                    {/* For integration tests, we need some way to know the request completed */}
+                    {process.env.NODE_ENV !== "production" && rejectedComplete && (
+                        <Box data-testid="RejectSpaceAccountInviteAsSpamCompleted" />
+                    )}
                 </Box>
             </Box>
         </Box>
