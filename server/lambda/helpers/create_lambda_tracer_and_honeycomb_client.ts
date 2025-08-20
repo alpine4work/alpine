@@ -10,14 +10,15 @@ export function createLambdaTracerAndHoneycombClient({
     serviceName,
     jsHost,
     promiseWaiter,
+    honeycombApiKey,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
     promiseWaiter: PromiseWaiter;
+    honeycombApiKey?: string;
 }): [TracerRoot, HoneycombTracerClient | null] {
     // If a Honeycomb API key is not provided in production then we get no logging
     // from our service.
-    const honeycombApiKey: string | undefined = process.env.HONEYCOMB_API_KEY;
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
         throw new InternalError(
             "Must provide `honeycombApiKey` environment variable in production",

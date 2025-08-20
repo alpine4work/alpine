@@ -9,6 +9,7 @@ ts_project(
         "//admin/lambda/local/file_processor_service:__subpackages__"
     ],
     deps = [
+        "//server/aws",
         "//server/files/processor:processor_lib",
         "//server/lambda",
         "//server/spaces",

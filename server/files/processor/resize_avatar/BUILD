@@ -11,6 +11,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/sharp",
+        "//server/aws",
         "//server/files/data",
         "//server/files/processor/sharp",
         "//server/helpers",

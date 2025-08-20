@@ -126,7 +126,9 @@ export async function getServiceTokenAgentKeyFromOption(arg: string): Promise<st
         delete process.env[envKey];
 
         return envValue;
-    } else {
+    } else if (arg.startsWith("/")) {
         return fs.readFile(arg, "utf8");
+    } else {
+        return arg;
     }
 }

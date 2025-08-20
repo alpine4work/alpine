@@ -1,3 +1,4 @@
+import {FileProcessorServiceSecretsSchema} from "~/server/aws/file_processor_service_secrets_schema.js";
 import {handleResizeAvatarRequest} from "~/server/files/processor/resize_avatar/handle_resize_avatar_request.js";
 import {createHttpLambdaHandler} from "~/server/lambda/create_http_lambda_handler.js";
 
@@ -11,6 +12,7 @@ const route = "/avatar";
  */
 export const handler = createHttpLambdaHandler({
     handleRequest: handleResizeAvatarRequest,
+    serviceSecretsSchema: FileProcessorServiceSecretsSchema,
     route,
     serviceName: "FileProcessorService",
     tokenServiceName: "FileProcessorService",

@@ -1,4 +1,6 @@
+import {GetSecretValueCommand, SecretsManagerClient} from "@aws-sdk/client-secrets-manager";
 import os from "os";
+import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     createServiceCloudflareR2ContextModule,
@@ -21,9 +23,11 @@ import {ServerConstantsContextModule} from "~/shared/context/constants_context_m
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -34,6 +38,7 @@ export const lambdaActionContextOptions = {
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
+    honeycombApiKey: {type: "string", optional: true},
 } as const;
 
 export type LambdaActionContext = Context<{
@@ -102,41 +107,39 @@ export function createLambdaActionContext({
     });
 }
 
-export function getLambdaActionContextOptions(): LambdaActionContextOptions {
-    // Parse all environment variables into options (same for all Lambda functions)
+async function getServiceSecretsFromArn(
+    secretArn: string,
+    serviceSecretsSchema: Schema<ServerSecrets>,
+): Promise<ServerSecrets> {
+    const client = new SecretsManagerClient({});
+    const response = await client.send(
+        new GetSecretValueCommand({
+            SecretId: secretArn,
+        }),
+    );
+
+    if (!response || !response.SecretString)
+        throw new InternalError("Failed to fetch secrets from AWS Secrets Manager");
+
+    return serviceSecretsSchema.deserialize(JSON.parse(response.SecretString));
+}
+
+export async function getLambdaActionContextOptions(
+    serviceSecretsSchema: Schema<ServerSecrets>,
+): Promise<LambdaActionContextOptions> {
+    // Get the secret ARN from environment variables
+    const secretArn = assertExists(
+        process.env.SECRET_ARN,
+        "Missing SECRET_ARN environment variable",
+    );
+
+    // Fetch all secrets from AWS Secrets Manager
+    const secret = await getServiceSecretsFromArn(secretArn, serviceSecretsSchema);
+
+    // Parse all environment variables and secrets into options
     return {
         temporaryDirectoryPath: os.tmpdir(),
-        // Service token agent options
-        appServicePublicKey: assertExists(
-            process.env.APP_SERVICE_PUBLIC_KEY,
-            "Missing APP_SERVICE_PUBLIC_KEY",
-        ),
-        edgeServiceFamilyPublicKey: assertExists(
-            process.env.EDGE_SERVICE_FAMILY_PUBLIC_KEY,
-            "Missing EDGE_SERVICE_FAMILY_PUBLIC_KEY",
-        ),
-        taskRealtimeServicePublicKey: assertExists(
-            process.env.TASK_REALTIME_SERVICE_PUBLIC_KEY,
-            "Missing TASK_REALTIME_SERVICE_PUBLIC_KEY",
-        ),
-        jobQueueServicePublicKey: assertExists(
-            process.env.JOB_QUEUE_SERVICE_PUBLIC_KEY,
-            "Missing JOB_QUEUE_SERVICE_PUBLIC_KEY",
-        ),
-        fileProcessorServicePublicKey: assertExists(
-            process.env.FILE_PROCESSOR_SERVICE_PUBLIC_KEY,
-            "Missing FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
-        ),
-        servicePrivateKey: assertExists(
-            process.env.FILE_PROCESSOR_SERVICE_PRIVATE_KEY,
-            "Missing FILE_PROCESSOR_SERVICE_PRIVATE_KEY",
-        ),
-        tokenAgentSecret: assertExists(
-            process.env.TOKEN_AGENT_SECRET,
-            "Missing TOKEN_AGENT_SECRET",
-        ),
-
-        // Server process context options (simplified for Lambda)
+        ...secret,
         // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): remove these options
         ensureLocalCachePath: process.env.ENSURE_LOCAL_CACHE_PATH || "/tmp/cache",
         dynamoLocalPort: process.env.DYNAMO_LOCAL_PORT || "8000", // Not used in production Lambda
@@ -149,14 +152,6 @@ export function getLambdaActionContextOptions(): LambdaActionContextOptions {
         cloudflareAccountId: assertExists(
             process.env.CLOUDFLARE_ACCOUNT_ID,
             "Missing CLOUDFLARE_ACCOUNT_ID",
-        ),
-        cloudflareR2AccessKeyId: assertExists(
-            process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
-            "Missing CLOUDFLARE_R2_ACCESS_KEY_ID",
-        ),
-        cloudflareR2SecretAccessKey: assertExists(
-            process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
-            "Missing CLOUDFLARE_R2_SECRET_ACCESS_KEY",
         ),
     };
 }

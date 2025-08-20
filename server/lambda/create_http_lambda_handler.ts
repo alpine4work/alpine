@@ -1,4 +1,5 @@
 import {APIGatewayProxyEvent, APIGatewayProxyHandler, Context as LambdaContext} from "aws-lambda";
+import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {createLambdaTracerAndHoneycombClient} from "~/server/lambda/helpers/create_lambda_tracer_and_honeycomb_client.js";
 import {
@@ -17,11 +18,13 @@ import {
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export function createHttpLambdaHandler({
     handleRequest,
+    serviceSecretsSchema,
     route,
     serviceName,
     tokenServiceName,
@@ -42,30 +45,35 @@ export function createHttpLambdaHandler({
             tokenAgent: TokenAgent;
         },
     ) => Promise<Response>;
+    serviceSecretsSchema: Schema<ServerSecrets>;
     route: string;
     serviceName: TracerServiceName;
     tokenServiceName: TokenServiceName;
 }): APIGatewayProxyHandler {
-    const options = getLambdaActionContextOptions();
-    const tokenAgentPromise = createServiceTokenAgent({
-        serviceName: tokenServiceName,
-        options,
-    }).catch(error => {
-        throw error;
-    });
+    const tokenAgentAndOptionsPromise = getLambdaActionContextOptions(serviceSecretsSchema).then(
+        options => {
+            return createServiceTokenAgent({
+                serviceName: tokenServiceName,
+                options,
+            }).then(tokenAgent => {
+                return {tokenAgent, options};
+            });
+        },
+    );
     const awsSigner = new AwsRequestSigner();
 
     // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Convert to Lambda Response
     // Streaming so that we can run cleanup processes after sending responses to clients.
     // https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html
     return async (event: APIGatewayProxyEvent, lambdaContext: LambdaContext) => {
-        const tokenAgent = await tokenAgentPromise;
+        const {tokenAgent, options} = await tokenAgentAndOptionsPromise;
 
         const promiseWaiter = new PromiseWaiter();
         const [tracer, honeycombTracerClient] = createLambdaTracerAndHoneycombClient({
             serviceName,
             jsHost: "Node",
             promiseWaiter,
+            honeycombApiKey: options.honeycombApiKey,
         });
 
         const url = getUrl(event);
@@ -75,6 +83,7 @@ export function createHttpLambdaHandler({
             method: event.httpMethod,
             headers: new Headers(event.headers as Record<string, string>),
             signal: abortController.signal,
+            body: event.body,
         });
         const spanName = createTraceServerResponseHandleSpanName(tracer, request, route);
         const {span, finishSpan} = startTracerSpanFromPropagationContextHeader(
@@ -138,7 +147,7 @@ export function createHttpLambdaHandler({
 }
 
 function getUrl(event: APIGatewayProxyEvent) {
-    const host = assertExists(event.headers.host || event.headers.Host);
+    const host = assertExists(event.headers.host || event.headers.Host, "Missing host in request");
     const protocol = "http";
     const baseUrl = `${protocol}://${host}`;
 

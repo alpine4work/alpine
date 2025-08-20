@@ -16,20 +16,23 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@smithy/types",
+        "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@types/ws",
         "//:node_modules/bufferutil",  # Optional module that improves `ws` performance
         "//:node_modules/utf-8-validate",  # Optional module that improves `ws` performance
+        "//:node_modules/fs-extra",
         "//:node_modules/ws",
         "//server/context",
         "//server/dynamo/core",
-        "//server/emails",
+        "//server/helpers/node",
+        "//server/jobs/core",
+        "//server/tokens",
         "//server/tracer",
         "//server/web_socket",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",
-        "//shared/schema",
         "//shared/tracer",
     ],
 )

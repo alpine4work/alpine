@@ -66,6 +66,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/accounts:accounts",
     "//server/alpha:alpha",
     "//server/apns:apns",
+    "//server/aws:aws",
     "//server/chat/data:data",
     "//server/chat/realtime:realtime",
     "//server/chat/test_helpers:test_helpers",

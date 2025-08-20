@@ -48,6 +48,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/decode-ico",
         "//:node_modules/sharp",
+        "//server/aws",
         "//server/cloudflare/r2",
         "//server/context",
         "//server/files/data",
@@ -65,6 +66,7 @@ ts_project(
         "//shared/files",
         "//shared/helpers",
         "//shared/id",
+        "//shared/schema",
         "//shared/tracer",
     ],
 )
