@@ -1,13 +1,13 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
+    getAndUpdateFeedEntries,
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
-} from "~/server/feed/data/feed_table.js";
-import {getAndUpdateFeedEntries} from "~/server/feed/read/feed_read.js";
+} from "~/server/feed/feed_table.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -15,6 +15,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import.meta.jest.useFakeTimers();
 
 const context = createTestContext({
+    forumInjection,
     processJob: async (context, job) => {
         if (job.type === "AddFeedCandidateEntry") {
             await processAddFeedCandidateEntryJob(context, job);
@@ -44,7 +45,7 @@ test(
         const session2 = await space.createSession();
 
         expect(
-            await getAndUpdateFeedEntries(TestTask.action(session2), {
+            await getAndUpdateFeedEntries(session2.action(), {
                 spaceId: space.id,
                 limit: 1000,
             }),

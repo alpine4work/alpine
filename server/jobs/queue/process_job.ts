@@ -2,7 +2,7 @@ import {processSendShareNotificationJob} from "~/server/chat/data/chat_table.js"
 import {
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
-} from "~/server/feed/data/feed_table.js";
+} from "~/server/feed/feed_table.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";

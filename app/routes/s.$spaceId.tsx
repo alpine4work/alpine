@@ -66,10 +66,7 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
-import {
-    InboxSessionActionContextWithBroadcast,
-    getInbox,
-} from "~/server/notifications/data/notifications_table.js";
+import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
@@ -229,7 +226,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 // Kick off some requests, but don't await yet
                 const deferredPromises = [
                     context.actor.getAccountAndHasInternalAccess(),
-                    getInbox(context as InboxSessionActionContextWithBroadcast, {spaceId}),
+                    getInbox(context.actor.authorizeSession(), {spaceId}),
                 ] as const;
 
                 // Await on data that we absolutely need first

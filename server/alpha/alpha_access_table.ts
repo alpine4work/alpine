@@ -15,7 +15,6 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_table.js";
-import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
 import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_table.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
@@ -29,7 +28,6 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator.js";
@@ -357,21 +355,6 @@ export async function createAlphaSpaceAsAdmin(
                 welcomeChannelId,
                 createdTime,
             }),
-        favoriteSearchEntity: (
-            context,
-            {spaceId: otherSpaceId, accountId: otherAccountId, entityId},
-        ) => {
-            // Double check to make sure the function is only favoriting entities for the
-            // account we're adding.
-            assert(otherSpaceId === spaceId);
-            assert(otherAccountId === ownerAccountId);
-
-            return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
-                spaceId: otherSpaceId,
-                accountId: otherAccountId,
-                entityId,
-            });
-        },
     });
 
     return {

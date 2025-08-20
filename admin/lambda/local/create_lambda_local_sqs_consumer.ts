@@ -2,18 +2,14 @@ import {Context as LambdaContext, SQSEvent, SQSHandler, SQSRecord} from "aws-lam
 import {randomUUID} from "crypto";
 import {createLambdaEventMockWithUnimplementedErrors} from "~/admin/lambda/local/internal/create_lambda_event_mock_with_unimplemented_errors.js";
 import {createLambdaLocalEventContext} from "~/admin/lambda/local/internal/create_lambda_local_event_context.js";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {FilesContextModule} from "~/server/context/files_context_module.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
+import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
 
 export type LambdaLocalSqsConsumerOptions = {
     /**
@@ -62,15 +58,7 @@ export type LambdaLocalSqsConsumerOptions = {
  * Polls local SQS for messages and invokes the Lambda handler.
  */
 export function createLambdaLocalSqsConsumer(
-    context: Context<
-        Replace<
-            ServerProcessContextModules,
-            {
-                r2: CloudflareR2ContextModule;
-                files: FilesContextModule;
-            }
-        >
-    >,
+    context: LambdaActionContext,
     shutdownManager: ShutdownManager,
     {handler, sqs, timeoutMs = 30000, functionName}: LambdaLocalSqsConsumerOptions,
 ) {

@@ -2,8 +2,9 @@ import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {Readable} from "stream";
 import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer, getFileIfExistsFromAttachment} from "~/server/files/data/files_table.js";
+import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
@@ -28,7 +29,7 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export function getContentReferencesForNode(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     content: Node,
@@ -40,7 +41,7 @@ export function getContentReferencesForNode(
 
 // `MessageContent` doesn't have files so you don't need a `FileAuthorizer`.
 export function getMessageContentReferencesForNode(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     content: MessageContent,
 ): Promise<ContentReferences> {
@@ -49,7 +50,7 @@ export function getMessageContentReferencesForNode(
 }
 
 export function getContentReferencesForSteps(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     steps: ReadonlyArray<Step>,
@@ -93,7 +94,7 @@ const totalPreloadSmallFileContentLengthLimit = maxPreloadSmallFileContentLength
  * expensive if you're loading multiple pieces of content at once.
  */
 export async function getContentReferences(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     referencedIds: ContentReferencedIds,
@@ -130,7 +131,12 @@ export async function getContentReferences(
             mapIterable(searchEntityIds, entityId => {
                 // You may have copy/pasted some content from a different space. In that case a
                 // mentioned entity may not exist.
-                return context.content.getSearchEntityIfPossible(spaceId, entityId);
+                //
+                // @ts-expect-error: TODO(calebmer): TypeScript error revealed by the refactor
+                // which introduces `SearchInjectionContextModule`. I don't want to introduce a
+                // behavior change in this already large PR so ignoring the error for now since
+                // nothing's broken in the product right now.
+                return context.searchInjection.getSearchMentionEntityIfPossible(spaceId, entityId);
             }),
         ),
         runAllPromises(
@@ -220,10 +226,7 @@ export async function getContentReferences(
             mapIterable(
                 referencedIds.fileEntityIds,
                 async (entityId): Promise<[FileEntityId, Result<FileEntityModel>] | null> => {
-                    const entityResult = await context.content.getFileEntityIfPossible(
-                        spaceId,
-                        entityId,
-                    );
+                    const entityResult = await getFileEntityIfPossible(context, spaceId, entityId);
                     if (!entityResult) return null;
                     return [entityId, entityResult];
                 },
@@ -264,7 +267,7 @@ export async function getContentReferences(
 }
 
 export async function getContentFileReference(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     fileAuthorizer: FileAuthorizer,

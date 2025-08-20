@@ -1,11 +1,13 @@
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {prepareTaskActionForClient} from "~/server/tasks/data/prepare_task_action_for_client.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeProcessContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -40,9 +42,9 @@ export interface TaskRealtimeUpdateEventConnection {
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
     readonly actor: TaskAuthorizationActor;
-    sendEvent(context: ServerProcessContext, event: TaskRealtimeEvent): void;
+    sendEvent(context: TaskRealtimeProcessContext, event: TaskRealtimeEvent): void;
     isReferencedCollectionAccessAuthorized(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<boolean>;
 }
@@ -314,7 +316,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     }
 
     protected async _buildEvent(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         connection: TaskRealtimeUpdateEventConnection,
         event: TaskRealtimeWorkingUpdateEvent,
     ): Promise<TaskRealtimeUpdateEvent | null> {
@@ -521,7 +523,7 @@ export class TaskRealtimeActionTransactionUpdateEventBuilder extends TaskRealtim
      * finalizing events. Once all `waitUntil()` promises have resolved you may
      * not call any new methods on this class.
      */
-    public async finishAndSendEvents(context: TaskSystemActionContext) {
+    public async finishAndSendEvents(context: TaskRealtimeSystemActionContext) {
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
 
         await this._finish();
@@ -569,7 +571,7 @@ export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdate
      * responsible for sending this event to the client.
      */
     public async finishAndBuildEvent(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
     ): Promise<TaskRealtimeUpdateEvent | null> {
         await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
 

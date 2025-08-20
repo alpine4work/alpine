@@ -1,6 +1,6 @@
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";
 import {
     TaskRealtimeStoreCollectionEntry,
     TaskRealtimeStoreInternal,
@@ -49,7 +49,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      * this event.
      */
     onReferencedTaskAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ): void;
@@ -61,7 +61,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      * should apply these task actions.
      */
     onReferencedTaskUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -92,7 +92,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      * this event.
      */
     onReferencedCollectionAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ): void;
@@ -105,7 +105,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      * should apply these actions.
      */
     onReferencedCollectionUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
@@ -154,7 +154,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     protected abstract _getStore(): TaskRealtimeStoreInternal;
 
     private _onReferencedTaskAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -189,7 +189,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     public onReferencedTaskUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -276,7 +276,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     protected _trackTaskDependenciesFromAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -321,7 +321,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     protected _trackTaskDependenciesFromUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -452,7 +452,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     private _trackNewParentTaskDependency(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newParentTaskId: TaskId,
     ) {
@@ -595,7 +595,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     private _onReferencedCollectionAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
@@ -620,7 +620,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     public onReferencedCollectionUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,

@@ -1,9 +1,10 @@
 import fs from "fs";
-import {internalUpdateOurAccountName} from "~/server/accounts/accounts_table.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {getAccount, getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
@@ -13,6 +14,7 @@ import {
     getTaskIndexDocAssigneePosition,
     isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -23,7 +25,11 @@ import {
     testTaskActionPermutations,
 } from "~/shared/tasks/test_helpers/test_task_action_permutations.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    spacesInjection,
+    tasksInjection,
+});
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
@@ -67,14 +73,18 @@ testTaskActionPermutations({
             if (account.initialData.nameVersion === action.accountNameVersion) {
                 assert(account.initialData.name === action.accountName);
             } else if (account.initialData.nameVersion < action.accountNameVersion) {
-                await internalUpdateOurAccountName(
-                    context.action(action.accountId === session2.accountId ? session2 : session1),
+                await updateOurAccountName(
+                    context
+                        .action(action.accountId === session2.accountId ? session2 : session1)
+                        .clone({
+                            tasksInjection: context.tasksInjection.cloneForTest({
+                                // NOTE(calebmer, 2025-08-18): Match behavior of test from before the
+                                // `TasksInjectionContextModule` refactor.
+                                internalGetUpdateOurAccountNameTaskTransactionEntries: () => [],
+                            }),
+                        }),
                     action.accountName,
-                    {
-                        nameVersionForTest: action.accountNameVersion,
-                        getOurAccountSpaceIds,
-                        getTaskTransactionEntries: () => [],
-                    },
+                    {nameVersionForTest: action.accountNameVersion},
                 );
             }
         }

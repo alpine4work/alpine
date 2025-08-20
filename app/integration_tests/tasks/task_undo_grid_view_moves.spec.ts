@@ -4,7 +4,6 @@ import {expectTaskRowViewPriority} from "~/app/integration_tests/tasks/helpers/e
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -106,7 +105,7 @@ test.beforeAll(async () => {
 
         promiseWaiter.waitUntil(
             mutexes[taskIndex % mutexes.length]!.withLock(async () => {
-                await commitTaskActionTransaction(TestTask.action(session1), space.id, actions);
+                await commitTaskActionTransaction(session1.action(), space.id, actions);
 
                 logTaskIndex++;
                 // eslint-disable-next-line no-console

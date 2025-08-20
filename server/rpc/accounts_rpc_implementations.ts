@@ -3,9 +3,9 @@ import {
     getAccountByIdAsAdmin,
     registerOurAccountAppleDeviceToken,
     updateAccountAvatar,
+    updateOurAccountName,
+    updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_table.js";
-import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
-import {updateOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/update_our_last_opened_space_id.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";

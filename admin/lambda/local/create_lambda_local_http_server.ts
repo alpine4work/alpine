@@ -2,7 +2,7 @@ import {Context as LambdaContext} from "aws-lambda";
 import {randomUUID} from "crypto";
 import {IncomingMessage, ServerResponse, createServer} from "http";
 import {createLambdaLocalEventContext} from "~/admin/lambda/local/internal/create_lambda_local_event_context.js";
-import {LambdaProcessContext} from "~/server/lambda/helpers/lambda_action_context.js";
+import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {
     createStandardizedRequest,
     sendStandardizedResponse,
@@ -26,7 +26,7 @@ export type LambdaLocalRoute = {
      * The Lambda handler function for this route
      */
     handler: (
-        processContext: LambdaProcessContext,
+        processContext: LambdaActionContext,
         {
             request,
             url,
@@ -58,7 +58,7 @@ export type LambdaLocalRoute = {
  * Routes requests to appropriate Lambda handlers based on URL path patterns.
  */
 export function createLambdaLocalHttpServer(
-    processContext: LambdaProcessContext,
+    processContext: LambdaActionContext,
     {
         port,
         shutdownManager,
@@ -95,7 +95,7 @@ export function createLambdaLocalHttpServer(
 }
 
 async function handleRequest(
-    processContext: LambdaProcessContext,
+    processContext: LambdaActionContext,
     {
         req,
         res,

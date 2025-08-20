@@ -14,11 +14,11 @@ import {
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {
     acceptSpaceAccountInvite,
+    addSpaceAccount,
     getSpaceAccountsCacheForTest,
     removeSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";

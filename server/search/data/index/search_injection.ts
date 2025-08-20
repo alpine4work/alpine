@@ -1,0 +1,8 @@
+import {SearchInjection} from "~/server/context/injection_context_module.js";
+import {getSearchMentionEntityIfPossible} from "~/server/search/data/index/search_entity_index.js";
+import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
+
+export const searchInjection: SearchInjection = {
+    getSearchMentionEntityIfPossible,
+    dangerouslyFavoriteSearchEntityWithoutAuthorization,
+};

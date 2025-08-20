@@ -1,11 +1,12 @@
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {PostRealtimeDurableObject} from "~/server/forum/realtime/post_realtime_durable_object.js";
 import {
     testMessagingRealtimeImplementation,
-    testMessagingRealtimeImplementationContextOptions,
+    testMessagingRealtimeImplementationSearchInjection,
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
@@ -19,7 +20,10 @@ import {
     updatePostCommentContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
-const context = createTestWorkerContext(testMessagingRealtimeImplementationContextOptions);
+const context = createTestWorkerContext({
+    documentsInjection,
+    searchInjection: testMessagingRealtimeImplementationSearchInjection,
+});
 const {connectForTest} = PostRealtimeDurableObject.test(context);
 const space = createTestSpace(context);
 const session = createTestSession(context, space);

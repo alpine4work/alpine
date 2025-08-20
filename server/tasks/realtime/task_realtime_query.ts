@@ -1,13 +1,15 @@
 import {RBTree} from "bintrees";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {OpensearchClientDocWithId} from "~/server/opensearch/opensearch_client.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeProcessContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
 import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {
@@ -358,7 +360,10 @@ export class TaskRealtimeQuery {
      * Callers are expected to look again at the number of tasks and decide whether
      * to load more tasks or not.
      */
-    public async loadMoreTasks(context: TaskSystemActionContext, limit: number): Promise<void> {
+    public async loadMoreTasks(
+        context: TaskRealtimeSystemActionContext,
+        limit: number,
+    ): Promise<void> {
         assert(!this._isDestroyed);
         assert(Number.isInteger(limit));
         if (limit < 0) return;
@@ -427,7 +432,10 @@ export class TaskRealtimeQuery {
      * 7. Load tasks from step 5 we think we might need to add to our query and
      *    test if they are actually visible in our query or not.
      */
-    private async _loadMoreTasks(context: TaskSystemActionContext, limit: number): Promise<void> {
+    private async _loadMoreTasks(
+        context: TaskRealtimeSystemActionContext,
+        limit: number,
+    ): Promise<void> {
         assert(limit >= 0);
 
         // Our query is already fully loaded!
@@ -485,7 +493,7 @@ export class TaskRealtimeQuery {
     // We do return a promise for some async followup work but this function should
     // not be marked as `async`!
     private _loadMoreTasksSync(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         limit: number,
         afterCursor: TaskQuerySortCursor | null,
         loadedTasks: Array<OpensearchClientDocWithId<TaskId, TaskIndexActualDoc>>,
@@ -786,7 +794,7 @@ export class TaskRealtimeQuery {
      * If expectations fail then we throw an error in dev and test.
      */
     public onVisibleTaskUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -924,7 +932,7 @@ export class TaskRealtimeQuery {
      * If expectations fail then we throw an error in dev and test.
      */
     public maybeAddVisibleTask(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         task: TaskIndexDoc,
     ): {isVisible: boolean} {
@@ -974,7 +982,7 @@ export class TaskRealtimeQuery {
         return {isVisible: true};
     }
 
-    public onFatalError(context: ServerProcessContext, error: InternalError) {
+    public onFatalError(context: TaskRealtimeProcessContext, error: InternalError) {
         for (const subscription of this._subscriptions) {
             subscription.onFatalError(context, error);
         }

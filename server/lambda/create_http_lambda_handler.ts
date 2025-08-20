@@ -2,7 +2,7 @@ import {APIGatewayProxyEvent, APIGatewayProxyHandler, Context as LambdaContext} 
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {createLambdaTracerAndHoneycombClient} from "~/server/lambda/helpers/create_lambda_tracer_and_honeycomb_client.js";
 import {
-    LambdaProcessContext,
+    LambdaActionContext,
     createLambdaActionContext,
     getLambdaActionContextOptions,
 } from "~/server/lambda/helpers/lambda_action_context.js";
@@ -27,7 +27,7 @@ export function createHttpLambdaHandler({
     tokenServiceName,
 }: {
     handleRequest: (
-        processContext: LambdaProcessContext,
+        processContext: LambdaActionContext,
         {
             request,
             url,

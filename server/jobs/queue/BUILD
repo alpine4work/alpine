@@ -13,7 +13,7 @@ ts_project(
         "//server/apns",
         "//server/content/context_module",
         "//server/deploy/data",
-        "//server/feed/data",
+        "//server/feed",
         "//server/jobs/core",
         "//server/jobs/queue/consumer",
         "//server/language_models/all_mini_lm_l6_v2",

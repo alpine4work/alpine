@@ -1,5 +1,5 @@
 import {resizeAvatar} from "~/server/files/processor/resize_avatar/resize_avatar.js";
-import {LambdaProcessContext} from "~/server/lambda/helpers/lambda_action_context.js";
+import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {createDynamoActorSessionContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
@@ -8,7 +8,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export async function handleResizeAvatarRequest(
-    processContext: LambdaProcessContext,
+    contextWithoutActor: LambdaActionContext,
     {
         request,
         span,
@@ -30,9 +30,9 @@ export async function handleResizeAvatarRequest(
     assert(size);
     assert(maxContentLength);
 
-    const context = processContext.clone({
+    const context = contextWithoutActor.clone({
         actor: await createDynamoActorSessionContextModule(
-            processContext,
+            contextWithoutActor,
             request.headers,
             tokenAgent,
         ),

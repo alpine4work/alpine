@@ -1,12 +1,10 @@
 import {CalendarDate} from "@internationalized/date";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {
     TaskCollectionIndexActualDoc,
     TaskCollectionIndexDoc,
@@ -16,6 +14,10 @@ import {
     getTaskIndexDocsIfExist,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeProcessContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
 import {
     TaskRealtimeCollectionSubscription,
@@ -90,7 +92,7 @@ export class TaskRealtimeStore {
     constructor(options: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
-        ensureFullActionHistory: (context: TaskSystemActionContext) => Promise<void>;
+        ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
         scheduleEviction: () => void;
         onFatalError: () => void;
     }) {
@@ -107,7 +109,7 @@ export class TaskRealtimeStore {
         this._internal.assertEmptyForTest();
     }
 
-    private _handleFatalError(context: ServerProcessContext, error: unknown) {
+    private _handleFatalError(context: TaskRealtimeProcessContext, error: unknown) {
         if (this._isDestroyed) return;
 
         context.tracer.withSpanSync("Destroying task realtime query store", context => {
@@ -136,7 +138,7 @@ export class TaskRealtimeStore {
      * `this._withErrorHandling.bind(this)`.
      */
     private readonly _withFatalErrorHandling = <Value>(
-        context: ServerProcessContext,
+        context: TaskRealtimeProcessContext,
         action: () => Promise<Value>,
     ): Promise<Value> => {
         assert(!this._isDestroyed);
@@ -167,7 +169,7 @@ export class TaskRealtimeStore {
     };
 
     public async loadQuery(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         options: {
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -197,7 +199,7 @@ export class TaskRealtimeStore {
     }
 
     public subscribeToTask(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {taskId, callbacks}: {taskId: TaskId; callbacks: TaskRealtimeTaskSubscriptionCallbacks},
     ): Promise<TaskRealtimeTaskSubscription> {
@@ -209,7 +211,7 @@ export class TaskRealtimeStore {
     }
 
     public subscribeToCollection(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {
             collectionId,
@@ -232,7 +234,7 @@ export class TaskRealtimeStore {
     }
 
     public applyActionTransaction(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         actionTransaction: {
             actions: ReadonlyArray<TaskAction>;
             clientId: TaskRealtimeClientId | null;
@@ -248,7 +250,10 @@ export class TaskRealtimeStore {
         );
     }
 
-    public async getTask(context: TaskSystemActionContext, taskId: TaskId): Promise<TaskIndexDoc> {
+    public async getTask(
+        context: TaskRealtimeSystemActionContext,
+        taskId: TaskId,
+    ): Promise<TaskIndexDoc> {
         assert(!this._isDestroyed);
 
         // No error handling since this method is relatively self contained and should
@@ -260,7 +265,7 @@ export class TaskRealtimeStore {
     }
 
     public async getCollection(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionIndexDoc> {
         assert(!this._isDestroyed);
@@ -285,7 +290,7 @@ export class TaskRealtimeStore {
         return this._internal.getCollectionIfLoaded(collectionId);
     }
 
-    public evict(context: ServerProcessContext): void {
+    public evict(context: TaskRealtimeProcessContext): void {
         assert(!this._isDestroyed);
 
         try {
@@ -313,7 +318,9 @@ export class TaskRealtimeStoreInternal {
      * promise resolves. If our service was recently discovered that means we
      * haven't been receiving actions so we don't have a full view of history.
      */
-    public readonly ensureFullActionHistory: (context: TaskSystemActionContext) => Promise<void>;
+    public readonly ensureFullActionHistory: (
+        context: TaskRealtimeSystemActionContext,
+    ) => Promise<void>;
 
     /**
      * Tell our realtime server that we should schedule an eviction for this store.
@@ -436,7 +443,7 @@ export class TaskRealtimeStoreInternal {
     }: {
         spaceId: SpaceId;
         actionHistory: ReadonlyTaskRealtimeActionHistory;
-        ensureFullActionHistory: (context: TaskSystemActionContext) => Promise<void>;
+        ensureFullActionHistory: (context: TaskRealtimeSystemActionContext) => Promise<void>;
         scheduleEviction: () => void;
     }) {
         this.spaceId = spaceId;
@@ -583,7 +590,7 @@ export class TaskRealtimeStoreInternal {
      * more tasks.
      */
     public async loadQuery(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         {
             filters,
             sorts,
@@ -624,7 +631,7 @@ export class TaskRealtimeStoreInternal {
      *   load the task from OpenSearch and check
      */
     public applyActionTransaction(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         actionTransaction: {
             actions: ReadonlyArray<TaskAction>;
             clientId: TaskRealtimeClientId | null;
@@ -655,7 +662,7 @@ export class TaskRealtimeStoreInternal {
     // data structures while assuming no concurrent code is running which would
     // observe a partial state.
     private _applyActionTransactionSync(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
@@ -1010,7 +1017,7 @@ export class TaskRealtimeStoreInternal {
     }
 
     private async _applyActionTransactionAsync(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         queriesByMaybeAddVisibleTaskIdToLoad: Map<TaskId, Set<TaskRealtimeQuery>>,
         eventBuilder: TaskRealtimeActionTransactionUpdateEventBuilder,
     ) {
@@ -1063,7 +1070,7 @@ export class TaskRealtimeStoreInternal {
      * already available in the store.
      */
     public loadTaskEntry(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
     ): PromiseImmediate<TaskRealtimeStoreTaskEntry> {
         // If we've already loaded the task, great! No need to load it now.
@@ -1086,7 +1093,7 @@ export class TaskRealtimeStoreInternal {
     }
 
     private _loadTaskEntryIfExists(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskId: TaskId,
     ): Promise<TaskRealtimeStoreTaskEntry | null> {
         if (!this._scheduledTaskLoadBatch) {
@@ -1121,7 +1128,7 @@ export class TaskRealtimeStoreInternal {
     }
 
     private async _executeLoadTaskBatch(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
             promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
@@ -1149,7 +1156,7 @@ export class TaskRealtimeStoreInternal {
     // updating our internal store state and we don't want to think about
     // concurrent readers/writers.
     private _executeLoadTaskBatchSync(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         taskLoadBatch: Array<{
             taskId: TaskId;
             promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
@@ -1234,7 +1241,7 @@ export class TaskRealtimeStoreInternal {
      * Batches and dedupes load requests behind the scenes.
      */
     public loadCollectionEntry(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): PromiseImmediate<TaskRealtimeStoreCollectionEntry> {
         // If we've already loaded the collection, great! No need to load it now.
@@ -1260,7 +1267,7 @@ export class TaskRealtimeStoreInternal {
     }
 
     private _loadCollectionEntryIfExists(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<TaskRealtimeStoreCollectionEntry | null> {
         if (!this._scheduledCollectionLoadBatch) {
@@ -1295,7 +1302,7 @@ export class TaskRealtimeStoreInternal {
     }
 
     private async _executeLoadCollectionBatch(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
             collectionId: TaskCollectionId;
             promiseResolver: PromiseResolver<TaskRealtimeStoreCollectionEntry | null>;
@@ -1323,7 +1330,7 @@ export class TaskRealtimeStoreInternal {
     // updating our internal store state and we don't want to think about
     // concurrent readers/writers.
     private _executeLoadCollectionBatchSync(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionLoadBatch: Array<{
             collectionId: TaskCollectionId;
             promiseResolver: PromiseResolver<TaskRealtimeStoreCollectionEntry | null>;
@@ -1534,7 +1541,7 @@ export class TaskRealtimeStoreInternal {
         }
     }
 
-    public onFatalError(context: ServerProcessContext, error: InternalError) {
+    public onFatalError(context: TaskRealtimeProcessContext, error: InternalError) {
         for (const query of this._queries.values()) {
             query.onFatalError(context, error);
         }

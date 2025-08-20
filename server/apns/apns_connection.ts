@@ -5,7 +5,8 @@ import {
     ApnsAlertNotificationOptions,
 } from "~/server/apns/apns_alert_notification.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     DeadlineExceededError,
     InternalError,
@@ -94,7 +95,7 @@ const requestTimeoutMs = 10_000;
  */
 export class ApnsConnection {
     private readonly _id: ApnsConnectionId;
-    private readonly _processContext: ServerProcessContext;
+    private readonly _processContext: Context<{tracer: TracerContextModule}>;
     private readonly _session: http2.ClientHttp2Session;
 
     private _hasCloseError = false;
@@ -105,7 +106,7 @@ export class ApnsConnection {
     private readonly _pingInterval: Interval;
 
     public static connect(
-        processContext: ServerProcessContext,
+        processContext: Context<{tracer: TracerContextModule}>,
         actionContext: ServerActionContext,
         {certificate, certificatePrivateKey}: {certificate: string; certificatePrivateKey: string},
     ) {
@@ -148,7 +149,7 @@ export class ApnsConnection {
 
     private constructor(
         id: ApnsConnectionId,
-        processContext: ServerProcessContext,
+        processContext: Context<{tracer: TracerContextModule}>,
         session: http2.ClientHttp2Session,
     ) {
         this._id = id;

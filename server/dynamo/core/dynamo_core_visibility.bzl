@@ -11,7 +11,7 @@ DYNAMO_CORE_VISIBILITY = [
     "//server/context",
     "//server/deploy/data",
     "//server/documents/data",
-    "//server/feed/data",
+    "//server/feed",
     "//server/files/data",
     "//server/forum/data",
     "//server/node",

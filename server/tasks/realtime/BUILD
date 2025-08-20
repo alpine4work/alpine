@@ -6,7 +6,6 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "realtime_lib",
     test_deps = [
-        "//server/accounts/update_name",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/realtime/test_helpers",

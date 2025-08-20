@@ -22,8 +22,8 @@ import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/style
 import {
     appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,
+    getOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_table.js";
-import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/get_our_last_opened_space_id.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

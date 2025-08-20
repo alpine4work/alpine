@@ -2,9 +2,13 @@ import {differenceInHours, differenceInMinutes, subHours} from "date-fns";
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
+    SessionInterface,
+} from "~/server/context/dynamo_actor_context_module.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+} from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
@@ -13,7 +17,6 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountModelWithoutSpace,
     unknownAccountId,
@@ -37,7 +40,6 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, AvatarId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -570,7 +572,7 @@ export function createAccountTransactionEntries({
  * internal access to make this request.
  */
 export async function getAccountByIdAsAdmin(
-    context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
+    context: ServerActionContext,
     accountId: AccountId,
 ): Promise<AccountModelWithoutSpace> {
     await authorizeInternalAccess(context);
@@ -595,7 +597,7 @@ export async function getAccountByIdAsAdmin(
  * internal access to make this request.
  */
 export async function getAccountByEmailAddressAsAdmin(
-    context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
+    context: ServerActionContext,
     emailAddress: string,
 ): Promise<AccountModelWithoutSpace> {
     await authorizeInternalAccess(context);
@@ -621,8 +623,8 @@ export async function getAccountByEmailAddressAsAdmin(
  *     b) An AccountId alone provides no access without additional authentication
  *   Additionally, there's no way to directly call this function from the client.
  */
-export async function internalGetAccountIdByEmailAddressIfExists(
-    context: Context<{actor: DynamoActorContextModule} & DynamoContextModules>,
+export async function getAccountIdByEmailAddressIfExists(
+    context: ServerActionContext,
     emailAddress: string,
 ): Promise<AccountId | null> {
     const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
@@ -1010,7 +1012,7 @@ export async function rewindAccountEmailAddressOneTimePasswordSignInStateTimeFor
     );
 }
 
-export class Session {
+export class Session implements SessionInterface {
     public readonly id: SessionId;
     public readonly accountId: AccountId;
     private readonly _preloadedAccount: {
@@ -1233,44 +1235,12 @@ export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoin
 /**
  * Updates an account's name. When we update an account's name we also need to
  * update our search index and task index since the account name is present in
- * both indexes. This Bazel package does not have access to `//server/spaces`
- * or `//server/tasks/data` (this would create a circular dependency) so
- * instead we export a low level update function that requires you to inject
- * some logic for updating tasks.
- *
- * You should call `updateOurAccountName()` in
- * `//server/accounts/update_name` which brings together the account table
- * update with the task table update.
+ * both indexes.
  */
-export async function internalUpdateOurAccountName<
-    Modules extends DynamoContextModules & {
-        actor: DynamoSessionActorContextModule;
-        jobs: JobsContextModule;
-    },
->(
-    context: Context<Modules>,
+export async function updateOurAccountName(
+    context: ServerSessionActionContext,
     name: string,
-    {
-        nameVersionForTest,
-        getOurAccountSpaceIds,
-        getTaskTransactionEntries,
-    }: {
-        nameVersionForTest?: number;
-        getOurAccountSpaceIds: (
-            context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
-        ) => Promise<{
-            spaceIds: ReadonlySet<SpaceId>;
-            getConditionCheckTransactionEntry: () => DynamoTransactionEntry;
-        }>;
-        getTaskTransactionEntries: (
-            context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
-            options: {
-                spaceIds: ReadonlySet<SpaceId>;
-                name: string;
-                nameVersion: number;
-            },
-        ) => Array<DynamoTransactionEntry>;
-    },
+    {nameVersionForTest}: {nameVersionForTest?: number} = {},
 ): Promise<AccountModelWithoutSpace> {
     LabelStringSchema.validate?.(name, {
         errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
@@ -1288,13 +1258,15 @@ export async function internalUpdateOurAccountName<
         const nameVersion = nameVersionForTest ?? accountItem.nameVersion + 1;
 
         // We commit an update account name task action in all the spaces an account is in.
-        const {spaceIds, getConditionCheckTransactionEntry} = await getOurAccountSpaceIds(context);
+        const {spaceIds, getConditionCheckTransactionEntry} =
+            await context.spacesInjection.getOurAccountSpaceIds();
 
-        const taskTransactionEntries = getTaskTransactionEntries(context, {
-            spaceIds,
-            name,
-            nameVersion,
-        });
+        const taskTransactionEntries =
+            context.tasksInjection.internalGetUpdateOurAccountNameTaskTransactionEntries({
+                spaceIds,
+                name,
+                nameVersion,
+            });
 
         await updateOurAccountNameBeforeExecuteTestCheckpoint.waitForTest(
             context.actor.getAccountId(),
@@ -1306,14 +1278,18 @@ export async function internalUpdateOurAccountName<
             nameVersion,
         };
 
-        await DynamoTableSchema.executeTransaction(context, [
+        const transactionEntries = [
             AccountsTable.transactionDirectlyUpdateItem(newAccountItem),
-
-            // Don't commit if the account's spaces changed without us knowing.
-            getConditionCheckTransactionEntry(),
-
             ...taskTransactionEntries,
-        ]);
+        ];
+
+        // Don't commit if the account's spaces changed without us knowing.
+        {
+            const transactionEntry = getConditionCheckTransactionEntry();
+            if (transactionEntry) transactionEntries.push(transactionEntry);
+        }
+
+        await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
         // Reindex the account in all space search indexes where it appears. This may
         // recursively update any search entities where the account is mentioned.
@@ -1334,27 +1310,11 @@ export async function internalUpdateOurAccountName<
 }
 
 /**
- * Updates our last opened space ID.
- *
- * You should call `updateOurLastOpenedSpaceId()` in
- * `//server/accounts/with_spaces` which brings together the account table
- * update with the spaces table.
+ * Updates our last opened `SpaceId`.
  */
-export async function internalUpdateOurLastOpenedSpaceId(
-    context: Context<
-        DynamoContextModules & {
-            actor: DynamoSessionActorContextModule;
-            jobs: JobsContextModule;
-        }
-    >,
+export async function updateOurLastOpenedSpaceId(
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
-    {
-        getOurAccountSpaceIds,
-    }: {
-        getOurAccountSpaceIds: () => Promise<{
-            spaceIds: ReadonlySet<SpaceId>;
-        }>;
-    },
 ): Promise<void> {
     const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
         partitionType: "Account",
@@ -1362,7 +1322,7 @@ export async function internalUpdateOurLastOpenedSpaceId(
         accountId: context.actor.getAccountId(),
     });
 
-    const {spaceIds} = await getOurAccountSpaceIds();
+    const {spaceIds} = await context.spacesInjection.getOurAccountSpaceIds();
 
     if (!spaceIds.has(spaceId)) {
         throw new PermissionDeniedError("You don’t have access to this space.");
@@ -1406,20 +1366,8 @@ export async function getAccountSettingsForTest(
     };
 }
 
-export async function internalGetOurDefaultSpaceId(
-    context: Context<
-        DynamoContextModules & {
-            actor: DynamoSessionActorContextModule;
-            jobs: JobsContextModule;
-        }
-    >,
-    {
-        getOurAccountSpaceIds,
-    }: {
-        getOurAccountSpaceIds: () => Promise<{
-            spaceIds: ReadonlySet<SpaceId>;
-        }>;
-    },
+export async function getOurLastOpenedSpaceId(
+    context: ServerSessionActionContext,
 ): Promise<SpaceId> {
     const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
         partitionType: "Account",
@@ -1427,7 +1375,7 @@ export async function internalGetOurDefaultSpaceId(
         accountId: context.actor.getAccountId(),
     });
 
-    const {spaceIds} = await getOurAccountSpaceIds();
+    const {spaceIds} = await context.spacesInjection.getOurAccountSpaceIds();
 
     if (
         !accountSettingsItem?.lastOpenedSpaceId ||

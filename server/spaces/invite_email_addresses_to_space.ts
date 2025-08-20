@@ -1,6 +1,4 @@
-import {internalGetAccountIdByEmailAddressIfExists} from "~/server/accounts/accounts_table.js";
-import {ServerSessionActionWithEmailContext} from "~/server/context/server_action_context.js";
-import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
+import {ServerSessionActionContextWithEmail} from "~/server/context/server_action_context.js";
 import {
     authorizeSpaceAccess,
     internalValidateInviteEmailAddressToSpace,
@@ -30,7 +28,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
  *   Additionally, there's no way to directly call this function from the client.
  */
 export async function inviteEmailAddressesToSpace(
-    context: ServerSessionActionWithEmailContext,
+    context: ServerSessionActionContextWithEmail,
     {
         spaceId,
         emailAddresses,
@@ -64,9 +62,6 @@ export async function inviteEmailAddressesToSpace(
                 const result = await internalValidateInviteEmailAddressToSpace(context, {
                     spaceId,
                     emailAddress,
-                    getAccountIdByEmailAddressIfExists: async emailAddress => {
-                        return internalGetAccountIdByEmailAddressIfExists(context, emailAddress);
-                    },
                 });
 
                 if (!result.ok) {
@@ -84,18 +79,7 @@ export async function inviteEmailAddressesToSpace(
                 }
 
                 try {
-                    const account = await result.internalInviteEmailAddressToSpace(context, {
-                        favoriteSearchEntity: (
-                            context,
-                            {spaceId: otherSpaceId, accountId: otherAccountId, entityId},
-                        ) => {
-                            return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
-                                spaceId: otherSpaceId,
-                                accountId: otherAccountId,
-                                entityId,
-                            });
-                        },
-                    });
+                    const account = await result.inviteEmailAddressToSpace(context);
 
                     accounts.push(account);
                 } catch (error) {

@@ -13,13 +13,13 @@ import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/searc
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    createDocumentNotFoundError,
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
+import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,

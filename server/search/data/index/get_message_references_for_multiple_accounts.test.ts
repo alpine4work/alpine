@@ -1,4 +1,4 @@
-import {ServerContentSystemActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {FileDocumentAuthorizer} from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -9,12 +9,13 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {opensearchClientExecuteOperationTestCounter} from "~/server/opensearch/opensearch_client.js";
 import {
-    getSearchMentionEntityIfPossible,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityJob,
 } from "~/server/search/data/index/search_entity_index.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {emptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
@@ -45,14 +46,8 @@ afterEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
-        return getSearchMentionEntityIfPossible(
-            // @ts-expect-error
-            context,
-            spaceId,
-            entityId,
-        );
-    },
+    searchInjection,
+    tasksInjection,
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
@@ -84,7 +79,7 @@ const context = createTestContext({
 // test as-is since it still covers some useful behavior. Mainly around caching
 // when we request data from multiple independent actors in the same action.
 async function getMessageReferencesForMultipleAccounts(
-    context: ServerContentSystemActionContext,
+    context: ServerSystemActionContext,
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     referencedIds: MessageReferencedIds,
     accountIds: ReadonlySet<AccountId>,

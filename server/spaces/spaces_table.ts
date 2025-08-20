@@ -1,22 +1,23 @@
 import _Fuse from "fuse.js";
 import {
     AccountDevice,
-    authorizeInternalAccess,
     checkAccountVersionConditionCheck,
     createAccountTransactionEntries,
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
+    getAccountIdByEmailAddressIfExists,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
     DynamoSystemActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
+} from "~/server/context/dynamo_actor_context_module.js";
+import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
-    ServerSessionActionWithEmailContext,
+    ServerSessionActionContextWithEmail,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -318,15 +319,21 @@ export async function addSpaceAccountForTest(
 ) {
     assert(process.env.NODE_ENV === "test");
 
-    await internalAddSpaceAccountWithoutAuthorization(context, {
-        spaceId,
-        accountId,
-        // Don't add `TaskPersonal` favorite search entity in our test environment.
-        // That would require all server tests taking a dependency on
-        // `//server/search/data`.
-        favoriteSearchEntity: asyncNoop,
-        role,
-    });
+    await addSpaceAccountWithoutAuthorization(
+        context.clone({
+            searchInjection: context.searchInjection.cloneForTest({
+                // Don't add `TaskPersonal` favorite search entity in our test environment.
+                // That would require all server tests taking a dependency on
+                // `//server/search/data`.
+                dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
+            }),
+        }),
+        {
+            spaceId,
+            accountId,
+            role,
+        },
+    );
 }
 
 /**
@@ -343,15 +350,12 @@ export async function getSpaceAccountForTest(
 }
 
 export async function seedTestSpaces(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-    {
-        favoriteSearchEntity,
-    }: {
-        favoriteSearchEntity: (
-            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-        ) => Promise<unknown>;
-    },
+    context: Context<
+        DynamoContextModules & {
+            jobs: JobsContextModule;
+            searchInjection: SearchInjectionContextModule;
+        }
+    >,
 ) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();
@@ -373,10 +377,9 @@ export async function seedTestSpaces(
 
     if (!spaceAccountItem || spaceAccountItem.state.type !== "Active") {
         try {
-            await internalAddSpaceAccountWithoutAuthorization(context, {
+            await addSpaceAccountWithoutAuthorization(context, {
                 spaceId: defaultSpaceId,
                 accountId: adminAccountId,
-                favoriteSearchEntity,
                 // make default space account as "Owner" since it is the first account in the space.
                 role: "Owner",
             });
@@ -411,7 +414,6 @@ export async function internalCreateAlphaSpaceAsAdmin(
         ownerAccountId,
         welcomeChannelId,
         createWelcomeChannelTransactionEntries,
-        favoriteSearchEntity,
     }: {
         spaceId: SpaceId;
         createdTime: Date;
@@ -419,10 +421,6 @@ export async function internalCreateAlphaSpaceAsAdmin(
         ownerAccountId: AccountId;
         welcomeChannelId: ChannelId;
         createWelcomeChannelTransactionEntries: Array<DynamoTransactionEntry>;
-        favoriteSearchEntity: (
-            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-        ) => Promise<unknown>;
     },
 ): Promise<void> {
     // Make sure the account exists before adding it to a space...
@@ -440,77 +438,33 @@ export async function internalCreateAlphaSpaceAsAdmin(
         ...createWelcomeChannelTransactionEntries,
     ]);
 
-    await internalAddSpaceAccountWithoutAuthorization(context, {
+    await addSpaceAccountWithoutAuthorization(context, {
         spaceId,
         accountId: ownerAccountId,
-        favoriteSearchEntity,
         role: "Owner",
     });
 }
 
 /**
  * Add an account to some space. Only space admins may call this method.
- *
- * Labeled as internal since you need to provide `favoriteSearchEntity()` (or
- * more specifically `dangerouslyFavoriteSearchEntityWithoutAuthorization()`)
- * from `//server/search/data` to call this function.
- *
- * Instead you should call `addSpaceAccount()` in `//server/spaces/with_search`
- * that integrates this function with `//server/search/data`.
  */
-export async function internalAddSpaceAccount(
+export async function addSpaceAccount(
     context: ServerActionContext,
     {
         spaceId,
         accountId,
-        favoriteSearchEntity,
         role,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
-        favoriteSearchEntity: (
-            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-        ) => Promise<unknown>;
         role?: SpaceRole;
     },
 ): Promise<AccountModel> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
-    return internalAddSpaceAccountWithoutAuthorization(context, {
+    return addSpaceAccountWithoutAuthorization(context, {
         spaceId,
         accountId,
-        favoriteSearchEntity,
-        role,
-    });
-}
-
-// TODO(calebmer): Delete this ASAP. We need it while we're still in our alpha
-// period but it's dangerous to let Alpine employees add arbitrary accounts to
-// any space.
-export async function internalDangerouslyAddSpaceAccountAsAdmin(
-    context: ServerActionContext,
-    {
-        spaceId,
-        accountId,
-        favoriteSearchEntity,
-        role,
-    }: {
-        spaceId: SpaceId;
-        accountId: AccountId;
-        favoriteSearchEntity: (
-            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-        ) => Promise<unknown>;
-        role?: SpaceRole;
-    },
-): Promise<AccountModel> {
-    await authorizeInternalAccess(context);
-
-    return internalAddSpaceAccountWithoutAuthorization(context, {
-        spaceId,
-        accountId,
-        favoriteSearchEntity,
         role,
     });
 }
@@ -713,25 +667,21 @@ async function getAddSpaceAccountTransactionEntries({
  * to add any user to any space they could easily compromise the data privacy
  * of spaces. You must authorize the actor is allowed to add accounts when
  * calling this function from an exported function.
- *
- * Labeled as internal since you need to provide `favoriteSearchEntity()` (or
- * more specifically `dangerouslyFavoriteSearchEntityWithoutAuthorization()`)
- * from `//server/search/data` to call this function.
  */
-async function internalAddSpaceAccountWithoutAuthorization(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+async function addSpaceAccountWithoutAuthorization(
+    context: Context<
+        DynamoContextModules & {
+            jobs: JobsContextModule;
+            searchInjection: SearchInjectionContextModule;
+        }
+    >,
     {
         spaceId,
         accountId,
-        favoriteSearchEntity,
         role = "Member",
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
-        favoriteSearchEntity: (
-            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-        ) => Promise<unknown>;
         role?: SpaceRole;
     },
 ): Promise<AccountModel> {
@@ -834,7 +784,7 @@ async function internalAddSpaceAccountWithoutAuthorization(
     // non-critical initialization logic. If any initialization here fails, the
     // account will still be successfully created, but there may be some small
     // issues.
-    await favoriteSearchEntity(context, {
+    await context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
         spaceId,
         accountId,
         entityId: "TaskPersonal",
@@ -1764,7 +1714,14 @@ export async function authorizeSpaceAccessIfPossible(
  * `AccountId` must be a member of the system actor's space.
  */
 export async function authorizeOwnAccountAccess(
-    context: ServerActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
     accountId: AccountId,
 ) {
     switch (context.actor.type) {
@@ -2273,27 +2230,15 @@ export async function getSpaceIfPossible(
  *
  * The function ensures proper authorization and maintains the space membership state
  * in the database.
- *
- * Labeled as internal since you need to provide `addSpaceAccount()`
- * from `//server/spaces/with_search` to call this function.
- *
- * You should call `inviteAccountToSpace()` in
- * `//server/spaces/with_search` instead of this function that integrates this function with
- * `//server/spaces/with_search:addSpaceAccount` to add the account to the space.
  */
 async function inviteEmailAddressToSpaceWithoutRetryTransaction(
-    context: ServerSessionActionWithEmailContext,
+    context: ServerSessionActionContextWithEmail,
     {
         emailAddress,
         existingAccountId,
         spaceId,
-        favoriteSearchEntity,
     }: {
         spaceId: SpaceId;
-        favoriteSearchEntity: (
-            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-        ) => Promise<unknown>;
         emailAddress: EmailAddress;
         existingAccountId: AccountId | undefined;
     },
@@ -2405,7 +2350,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         // non-critical initialization logic. If any initialization here fails, the
         // account will still be successfully created, but there may be some small
         // issues.
-        await favoriteSearchEntity(context, {
+        await context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
             spaceId,
             accountId,
             entityId: "TaskPersonal",
@@ -2440,13 +2385,6 @@ async function validateEmailAddressForInviteInSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
     emailAddress: string,
-    {
-        getAccountIdByEmailAddressIfExists,
-    }: {
-        getAccountIdByEmailAddressIfExists: (
-            emailAddress: EmailAddress,
-        ) => Promise<AccountId | null>;
-    },
 ): Promise<
     | {
           ok: false;
@@ -2465,7 +2403,7 @@ async function validateEmailAddressForInviteInSpace(
         return {ok: false, reason: "Invalid"};
     }
 
-    const accountId = await getAccountIdByEmailAddressIfExists(validatedEmailAddress);
+    const accountId = await getAccountIdByEmailAddressIfExists(context, validatedEmailAddress);
 
     const spaceAccountItem = accountId
         ? await getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
@@ -2484,18 +2422,17 @@ async function validateEmailAddressForInviteInSpace(
     return {ok: true, accountId, validatedEmailAddress};
 }
 
+/**
+ * Should only be called by `inviteEmailAddressesToSpace()`.
+ */
 export async function internalValidateInviteEmailAddressToSpace(
-    context: ServerSessionActionWithEmailContext,
+    context: ServerSessionActionContextWithEmail,
     {
         spaceId,
         emailAddress,
-        getAccountIdByEmailAddressIfExists,
     }: {
         spaceId: SpaceId;
         emailAddress: string;
-        getAccountIdByEmailAddressIfExists: (
-            emailAddress: EmailAddress,
-        ) => Promise<AccountId | null>;
     },
 ): Promise<
     | {
@@ -2506,20 +2443,12 @@ export async function internalValidateInviteEmailAddressToSpace(
     | {
           ok: true;
           emailAddress: string;
-          internalInviteEmailAddressToSpace: (
-              context: ServerSessionActionWithEmailContext,
-              options: {
-                  favoriteSearchEntity: (
-                      context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-                      options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
-                  ) => Promise<unknown>;
-              },
+          inviteEmailAddressToSpace: (
+              context: ServerSessionActionContextWithEmail,
           ) => Promise<AccountModel>;
       }
 > {
-    const result = await validateEmailAddressForInviteInSpace(context, spaceId, emailAddress, {
-        getAccountIdByEmailAddressIfExists,
-    });
+    const result = await validateEmailAddressForInviteInSpace(context, spaceId, emailAddress);
 
     if (!result.ok) {
         return {
@@ -2534,7 +2463,7 @@ export async function internalValidateInviteEmailAddressToSpace(
     return {
         ok: true,
         emailAddress: emailAddress,
-        internalInviteEmailAddressToSpace: async (context, options) => {
+        inviteEmailAddressToSpace: async context => {
             let hasAlreadyAttempted = false;
 
             return context.dynamo.retryTransaction(async context => {
@@ -2549,9 +2478,6 @@ export async function internalValidateInviteEmailAddressToSpace(
                         context,
                         spaceId,
                         emailAddress,
-                        {
-                            getAccountIdByEmailAddressIfExists,
-                        },
                     );
 
                     if (!result.ok) {
@@ -2565,7 +2491,6 @@ export async function internalValidateInviteEmailAddressToSpace(
                     spaceId,
                     emailAddress: validatedEmailAddress,
                     existingAccountId: accountId ?? undefined,
-                    favoriteSearchEntity: options.favoriteSearchEntity,
                 });
 
                 return account;

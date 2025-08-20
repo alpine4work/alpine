@@ -7,11 +7,16 @@ import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {Readable as ReadableStream} from "stream";
 import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -110,6 +115,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
     const context = createTestContext({
         shouldStartOpensearch: true,
         shouldSendJobsToSqs: true,
+        documentsInjection,
+        forumInjection,
+        searchInjection,
+        spacesInjection,
+        tasksInjection,
     });
 
     const edgeServicePortPromise = getPort();

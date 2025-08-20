@@ -1,6 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
+import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {updateChannelName, updatePostContent} from "~/server/forum/data/forum_table.js";
@@ -14,7 +15,7 @@ import {
 } from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
@@ -50,24 +51,21 @@ afterEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
-        const newContext = context.clone({
-            tasks: new TestTaskContextModule({
-                shouldSkipIndexing: !testContext.isOpensearchEnabled,
-                dangerouslyEscalateToSystemContext: testContext.escalateToSystemContext,
-                // Always return null for any `getTaskWithoutDependenciesIfPossible()` calls or
-                // `getCollectionIfPossible()` calls made by
-                // `fallbackGetSearchEntityBaseIfPossible()` instead of throwing.
-                alwaysNotFound: true,
-            }),
-        });
+    tasksInjection,
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+            const newContext = context.clone({
+                tasks: new TestTaskContextModule({
+                    dangerouslyEscalateToSystemContext: testContext.escalateToSystemContext,
+                    // Always return null for any `getTaskWithoutDependenciesIfPossible()` calls or
+                    // `getCollectionIfPossible()` calls made by
+                    // `fallbackGetSearchEntityBaseIfPossible()` instead of throwing.
+                    alwaysNotFound: true,
+                }),
+            });
 
-        return getSearchMentionEntityIfPossible(
-            // @ts-expect-error
-            newContext,
-            spaceId,
-            entityId,
-        );
+            return getSearchMentionEntityIfPossible(newContext, spaceId, entityId);
+        },
     },
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {

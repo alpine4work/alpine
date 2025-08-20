@@ -1,5 +1,5 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
@@ -10,7 +10,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageReferencedIds, MessageReferences} from "~/shared/messaging/message_references.js";
 
 export async function getMessageReferences(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     referencedIds: MessageReferencedIds,

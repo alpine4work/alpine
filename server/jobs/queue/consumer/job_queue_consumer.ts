@@ -5,9 +5,7 @@ import {
     ReceiveMessageCommand,
     SQSClient,
 } from "@aws-sdk/client-sqs";
-import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {
@@ -20,6 +18,7 @@ import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_desc
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {AbortedError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {Queue} from "~/shared/helpers/array/queue.js";
@@ -31,6 +30,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();
@@ -92,7 +92,7 @@ const receiveMessagesVisibilityTimeoutSeconds = !import.meta.jest ? 30 : 3;
  */
 export class JobQueueConsumer<
     QueueName extends JobQueueName,
-    ProcessContextModules extends ServerProcessContextModules,
+    ProcessContextModules extends {process: ProcessContextModule; tracer: TracerContextModule},
 > {
     private readonly _processContext: Context<ProcessContextModules>;
     private readonly _queueName: JobQueueName;
@@ -102,14 +102,29 @@ export class JobQueueConsumer<
     private readonly _sqsQueueName: string;
 
     private readonly _processJob: (
-        context: Context<ProcessContextModules & ServerSystemActionContextModules>,
+        context: Context<
+            Replace<
+                ProcessContextModules,
+                {
+                    tracer: TracerContextModule;
+                    cache: CacheContextModule;
+                    batch: BatchContextModule;
+                    actor: DynamoSystemActorContextModule;
+                }
+            >
+        >,
         job: JobDescription & {type: JobTypeByQueueName[QueueName]},
         jobStartTime: Date,
         span: TracerSpan,
     ) => Promise<void>;
 
     private readonly _processMaintenanceJob: (
-        context: Context<ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">>,
+        context: Context<
+            Replace<
+                ProcessContextModules,
+                {tracer: TracerContextModule; cache: CacheContextModule; batch: BatchContextModule}
+            >
+        >,
         job: QueueName extends "Default" ? MaintenanceJobDescription : never,
         jobStartTime: Date,
         span: TracerSpan,
@@ -180,14 +195,31 @@ export class JobQueueConsumer<
             maxFiberCount: number;
             maxFiberMessageCount: number;
             processJob: (
-                context: Context<ProcessContextModules & ServerSystemActionContextModules>,
+                context: Context<
+                    Replace<
+                        ProcessContextModules,
+                        {
+                            tracer: TracerContextModule;
+                            cache: CacheContextModule;
+                            batch: BatchContextModule;
+                            actor: DynamoSystemActorContextModule;
+                        }
+                    >
+                >,
                 job: JobDescription & {type: JobTypeByQueueName[QueueName]},
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
             processMaintenanceJob?: (
                 context: Context<
-                    ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">
+                    Replace<
+                        ProcessContextModules,
+                        {
+                            tracer: TracerContextModule;
+                            cache: CacheContextModule;
+                            batch: BatchContextModule;
+                        }
+                    >
                 >,
                 job: QueueName extends "Default" ? MaintenanceJobDescription : never,
                 jobStartTime: Date,
@@ -270,7 +302,7 @@ export class JobQueueConsumer<
 
     public static start<
         QueueName extends JobQueueName,
-        ProcessContextModules extends ServerProcessContextModules,
+        ProcessContextModules extends {process: ProcessContextModule; tracer: TracerContextModule},
     >(
         context: Context<ProcessContextModules>,
         options: {
@@ -280,14 +312,31 @@ export class JobQueueConsumer<
             maxFiberCount: number;
             maxFiberMessageCount: number;
             processJob: (
-                context: Context<ProcessContextModules & ServerSystemActionContextModules>,
+                context: Context<
+                    Replace<
+                        ProcessContextModules,
+                        {
+                            tracer: TracerContextModule;
+                            cache: CacheContextModule;
+                            batch: BatchContextModule;
+                            actor: DynamoSystemActorContextModule;
+                        }
+                    >
+                >,
                 job: JobDescription & {type: JobTypeByQueueName[QueueName]},
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
             processMaintenanceJob?: (
                 context: Context<
-                    ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">
+                    Replace<
+                        ProcessContextModules,
+                        {
+                            tracer: TracerContextModule;
+                            cache: CacheContextModule;
+                            batch: BatchContextModule;
+                        }
+                    >
                 >,
                 job: QueueName extends "Default" ? MaintenanceJobDescription : never,
                 jobStartTime: Date,
@@ -816,8 +865,11 @@ export class JobQueueConsumer<
                 }
 
                 await this._processContext.with<
-                    Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
+                    {
                         tracer: TracerContextModule;
+                        cache: CacheContextModule;
+                        batch: BatchContextModule;
+                        actor: DynamoSystemActorContextModule;
                     },
                     void
                 >(
@@ -839,9 +891,7 @@ export class JobQueueConsumer<
                     },
                     actionContext =>
                         this._processJob(
-                            actionContext as Context<
-                                ProcessContextModules & ServerSystemActionContextModules
-                            >,
+                            actionContext,
                             messageBody.job as JobDescription & {
                                 type: JobTypeByQueueName[QueueName];
                             },
@@ -859,11 +909,10 @@ export class JobQueueConsumer<
                 }
 
                 await this._processContext.with<
-                    Omit<
-                        ServerSystemActionContextModules,
-                        keyof ServerProcessContextModules | "actor"
-                    > & {
+                    {
                         tracer: TracerContextModule;
+                        cache: CacheContextModule;
+                        batch: BatchContextModule;
                     },
                     void
                 >(
@@ -874,10 +923,7 @@ export class JobQueueConsumer<
                     },
                     actionContext =>
                         this._processMaintenanceJob(
-                            actionContext as Context<
-                                ProcessContextModules &
-                                    Omit<ServerSystemActionContextModules, "actor">
-                            >,
+                            actionContext,
                             messageBody.job as JobQueueName extends "Default"
                                 ? MaintenanceJobDescription
                                 : never,

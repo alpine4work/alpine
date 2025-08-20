@@ -3,6 +3,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -45,7 +46,10 @@ import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.
 import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
 import {testClock} from "~/shared/test_helpers/test_clock.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    tasksInjection,
+});
 
 async function testLoadTaskRealtimeQueries(
     actionContext: ServerActionContext,

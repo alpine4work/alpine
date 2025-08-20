@@ -8,19 +8,23 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 
 const baseContext = createTestWorkerContext();
 
-const context = {
-    ...baseContext,
-    action: (session, options?) => {
-        return baseContext.action(session, options).clone({
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const originalAction = baseContext.action;
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const originalSystemAction = baseContext.systemAction;
+
+const context = Object.assign(baseContext, {
+    action: function (session, options?) {
+        return originalAction.call(this, session, options).clone({
             rpc: new LocalRpcContextModule(),
         });
     },
-    systemAction: (spaceId, options?) => {
-        return baseContext.systemAction(spaceId, options).clone({
+    systemAction: function (spaceId, options?) {
+        return originalSystemAction.call(this, spaceId, options).clone({
             rpc: new LocalRpcContextModule(),
         });
     },
-} satisfies TestContext;
+} satisfies Partial<TestContext>);
 
 const {fetchForTest, connectForTest} = MyAccountDurableObject.test(context);
 const space = createTestSpace(context);

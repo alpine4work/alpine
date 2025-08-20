@@ -11,6 +11,7 @@ ts_project(
         "//admin/opensearch:__subpackages__",
         "//app:__pkg__",
         "//server/content/context_module:__pkg__",
+        "//server/context:__pkg__",
         "//server/dynamo/test_helpers:__pkg__",
         "//server/rpc:__subpackages__",
     ],

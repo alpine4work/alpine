@@ -2,8 +2,9 @@ import {
     getContentFileReference,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -23,7 +24,7 @@ import {
  * `MessagePayload` (what we store in the database).
  */
 export async function createMessagePayloadModel(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     payload: MessagePayload,
@@ -59,7 +60,7 @@ export async function createMessagePayloadModel(
 }
 
 export async function getMessageContentPayloadModelFile(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     fileId: FileId | FileEntityId,
@@ -69,7 +70,7 @@ export async function getMessageContentPayloadModelFile(
         if (!file) throw new NotFoundError("File not found");
         return file;
     } else {
-        const fileEntityResult = await context.content.getFileEntityIfPossible(spaceId, fileId);
+        const fileEntityResult = await getFileEntityIfPossible(context, spaceId, fileId);
 
         // Only returns null if we've exceeded the file entity recursion depth. If the
         // entity doesn't exist we return a result object with a not found error.

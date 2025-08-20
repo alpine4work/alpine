@@ -1,6 +1,6 @@
 import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
-import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
+import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
@@ -38,11 +38,6 @@ import {
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
-    TaskActionContext,
-    TaskSessionActionContext,
-    TaskSystemActionContext,
-} from "~/server/tasks/data/task_action_context.js";
-import {
     TaskCollectionIndexActualDoc,
     TaskCollectionIndexDocType,
 } from "~/server/tasks/data/task_collection_index_doc.js";
@@ -54,6 +49,11 @@ import {
     getTaskIndexDocDisplayStatus,
     isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeActionContext,
+    TaskRealtimeSessionActionContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -228,7 +228,7 @@ function getTaskIndexSearchEntityJobDelaySeconds(generation: number) {
  *
  * Throws an error in production.
  */
-export async function ensureLocalTaskIndexesIfEnabled(context: TaskActionContext) {
+export async function ensureLocalTaskIndexesIfEnabled(context: TaskRealtimeActionContext) {
     assert(process.env.NODE_ENV !== "production");
 
     await runAllPromises([
@@ -258,7 +258,7 @@ export async function deployTaskIndexes(tracer: TracerBase, client: OpensearchCl
  * OpenSearch.
  */
 export async function runIndexTaskInitialAssigneePositionMigrationForTask(
-    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    context: Context<DynamoContextModules & {opensearch: OpensearchContextModule}>,
     spaceId: SpaceId,
     taskId: TaskId,
 ) {
@@ -354,7 +354,7 @@ export async function getTaskCollectionIndexDocsIfExist(
  * to the index in the background.
  */
 export async function getTaskFromIndex(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     taskId: TaskId,
 ): Promise<{
@@ -378,7 +378,7 @@ export async function getTaskFromIndex(
  * to the index in the background.
  */
 export async function getTaskFromIndexIfExists(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     taskId: TaskId,
 ): Promise<{
@@ -473,7 +473,7 @@ export async function getTaskFromIndexIfExists(
  * to the index in the background.
  */
 export async function getTaskCollectionFromIndex(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionModel> {
@@ -492,7 +492,7 @@ export async function getTaskCollectionFromIndex(
  * to the index in the background.
  */
 export async function getTaskCollectionFromIndexIfExists(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionModel | null> {
@@ -579,7 +579,7 @@ export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheck
  *   is valid.
  */
 export function indexTaskActionTransactionAssumingItsCommitted(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     actionTransaction: {
         spaceId: SpaceId;
         committedTime: Date;
@@ -622,7 +622,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
 }
 
 export function indexTaskActionTransactionAssumingItsCommittedForTest(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
@@ -640,7 +640,7 @@ export function indexTaskActionTransactionAssumingItsCommittedForTest(
 }
 
 function actuallyIndexTaskActionTransactionAssumingItsCommitted(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
@@ -679,7 +679,7 @@ function actuallyIndexTaskActionTransactionAssumingItsCommitted(
  * in place.
  */
 class TaskActionTransactionIndexState {
-    private readonly _context: TaskSystemActionContext;
+    private readonly _context: TaskRealtimeSystemActionContext;
     public readonly spaceId: SpaceId;
     public readonly retry: (error?: unknown) => never;
     private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>;
@@ -714,7 +714,7 @@ class TaskActionTransactionIndexState {
     >();
 
     private constructor(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         spaceId: SpaceId,
         retry: (error?: unknown) => never,
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
@@ -728,7 +728,7 @@ class TaskActionTransactionIndexState {
     }
 
     public static async index(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         spaceId: SpaceId,
         actorId: AccountId | null,
         actions: ReadonlyArray<TaskAction>,
@@ -1651,7 +1651,7 @@ export const indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint =
  * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
 function indexTaskUpdateAccountNameActionAssumingItsCommitted(
-    context: TaskSystemActionContext,
+    context: Context<DynamoContextModules & {opensearch: OpensearchContextModule}>,
     spaceId: SpaceId,
     action: TaskUpdateAccountNameAction,
 ) {
@@ -1969,7 +1969,7 @@ export async function queryTaskIndex(
  * should be run whenever the task changes.
  */
 export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
-    context: TaskSessionActionContext,
+    context: TaskRealtimeSessionActionContext,
     {spaceId, taskId}: {spaceId: SpaceId; taskId: TaskId},
     action: () => Promise<Value>,
 ): Promise<Value> {

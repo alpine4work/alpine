@@ -1,4 +1,3 @@
-import {Session} from "~/server/accounts/accounts_table.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
     ActorContextModuleBase,
@@ -129,6 +128,32 @@ export class DynamoUnknownActorContextModule extends ContextModuleBase<{
     }
 }
 
+export interface SessionInterface {
+    readonly id: SessionId;
+    readonly accountId: AccountId;
+
+    getAccount(
+        context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            cache: CacheContextModule;
+        }>,
+    ): Promise<AccountModelWithoutSpace>;
+
+    getAccountAndHasInternalAccess(
+        context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            cache: CacheContextModule;
+        }>,
+    ): Promise<{
+        readonly account: AccountModelWithoutSpace;
+        readonly hasInternalAccess: boolean;
+    }>;
+}
+
 /**
  * An actor which has a session. A session can only be created by a user who
  * successfully passed an authentication challenge (e.g. enters a one time
@@ -140,7 +165,7 @@ export class DynamoSessionActorContextModule
 {
     public readonly type = "Session";
 
-    private readonly _session: Session;
+    private readonly _session: SessionInterface;
 
     /**
      * Name of the service which initiated the current action. If the browser
@@ -148,7 +173,7 @@ export class DynamoSessionActorContextModule
      */
     public readonly serviceName: ActorServiceName;
 
-    private constructor(serviceName: ActorServiceName, session: Session) {
+    private constructor(serviceName: ActorServiceName, session: SessionInterface) {
         super(() => Promise.resolve(this));
         this.serviceName = serviceName;
         this._session = session;
@@ -160,7 +185,7 @@ export class DynamoSessionActorContextModule
      * the right one so you only get access to the RPCs made available to your
      * service.
      */
-    public static dangerouslyNew(serviceName: ActorServiceName, session: Session) {
+    public static dangerouslyNew(serviceName: ActorServiceName, session: SessionInterface) {
         return new DynamoSessionActorContextModule(serviceName, session);
     }
 

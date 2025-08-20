@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {getContentReferences} from "~/server/content/get_content_references.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {
     authorizeSpaceAccessIfPossible,
@@ -24,7 +24,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * stubs assuming you've already authorized access.
  */
 export async function getContentReferencesAssumingViewAccessWithOptionalSpaceAccess(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     content: Node,

@@ -2,15 +2,16 @@ import {finishInitializingDynamoTableSchemas} from "~/server/dynamo/core/dynamo_
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {allMigrations} from "~/server/migration/all_migrations.js";
 import {
-    createServerProcessContext,
-    serverProcessContextOptions,
-} from "~/server/node/create_server_process_context.js";
+    createServerBasicProcessContextModules,
+    serverBasicProcessContextOptions,
+} from "~/server/node/create_server_basic_process_context_modules.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -56,7 +57,7 @@ export const options = {
     migration: {type: "string"},
     segmentIndex: {type: "string", default: "0"},
     totalSegmentCount: {type: "string", default: "1"},
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
 } as const;
 
@@ -93,12 +94,13 @@ export async function run({
 
     const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 
-    const processContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        awsSigner,
-        options,
-    }).clone({
+    const processContext = Context.new({
+        ...createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
         opensearch: opensearchContextModule,
     });
 

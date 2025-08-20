@@ -7,7 +7,6 @@ import {
     commitTaskActionTransaction,
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
-import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -73,7 +72,7 @@ export class TestTaskCollection {
             accessPolicy = access;
         }
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateCollection",
                 time,
@@ -100,7 +99,7 @@ export class TestTaskCollection {
             return item.accessPolicy.value;
         },
         set: async (session, accessPolicy) => {
-            await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            await commitTaskActionTransaction(session.action(), session.space.id, [
                 {
                     type: "UpdateCollection",
                     time: testClock.nowLogical(),
@@ -115,7 +114,7 @@ export class TestTaskCollection {
     });
 
     public async delete(session: TestSpaceSession) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateCollection",
                 time: testClock.nowLogical(),
@@ -128,7 +127,7 @@ export class TestTaskCollection {
     }
 
     public async undelete(session: TestSpaceSession) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateCollection",
                 time: testClock.nowLogical(),
@@ -141,7 +140,7 @@ export class TestTaskCollection {
     }
 
     public async updateName(session: TestSpaceSession, name: string) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateCollection",
                 time: testClock.nowLogical(),
@@ -155,7 +154,7 @@ export class TestTaskCollection {
     }
 
     public async updateColor(session: TestSpaceSession, color: ThemeColor | null) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateCollection",
                 time: testClock.nowLogical(),

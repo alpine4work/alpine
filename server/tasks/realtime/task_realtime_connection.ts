@@ -1,13 +1,13 @@
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerSessionActionContext,
-    ServerSessionActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeProcessContext,
+    TaskRealtimeSessionActionContext,
+    TaskRealtimeSessionActionContextModules,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {
     TaskAuthorizationActor,
     authorizeTaskCollectionIndexDocAccessIfPossibleForActor,
@@ -101,14 +101,14 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: TaskSystemActionContext) => Promise<Value>,
+        action: (context: TaskRealtimeSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
     public readonly sendEvent: (
-        context: ServerProcessContext,
+        context: TaskRealtimeProcessContext,
         event: TaskRealtimeEvent,
     ) => SafeFloatingPromise<void>;
-    private readonly _closeWithError: (context: ServerProcessContext, error: unknown) => void;
-    private readonly _resetAuthorizationTimer: (context: ServerProcessContext) => void;
+    private readonly _closeWithError: (context: TaskRealtimeProcessContext, error: unknown) => void;
+    private readonly _resetAuthorizationTimer: (context: TaskRealtimeProcessContext) => void;
 
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
@@ -145,14 +145,14 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<Value>,
+            action: (context: TaskRealtimeSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         sendEvent: (
-            context: ServerProcessContext,
+            context: TaskRealtimeProcessContext,
             event: TaskRealtimeEvent,
         ) => SafeFloatingPromise<void>;
-        closeWithError: (context: ServerProcessContext, error: unknown) => void;
-        resetAuthorizationTimer: (context: ServerProcessContext) => void;
+        closeWithError: (context: TaskRealtimeProcessContext, error: unknown) => void;
+        resetAuthorizationTimer: (context: TaskRealtimeProcessContext) => void;
     }) {
         this._server = server;
         this.spaceId = spaceId;
@@ -163,10 +163,12 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         this._resetAuthorizationTimer = resetAuthorizationTimer;
     }
 
-    public async handleClose(context: ServerProcessContext) {
+    public async handleClose(context: TaskRealtimeProcessContext) {
         await runAllPromises(
             mapIterable(
-                concatIterables<{unsubscribe: (context: ServerProcessContext) => Promise<void>}>(
+                concatIterables<{
+                    unsubscribe: (context: TaskRealtimeProcessContext) => Promise<void>;
+                }>(
                     this._querySubscriptionById.values(),
                     this._taskSubscriptionById.values(),
                     this._collectionSubscriptionById.values(),
@@ -176,7 +178,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         );
     }
 
-    public async authorize(context: ServerSessionActionContext) {
+    public async authorize(context: TaskRealtimeSessionActionContext) {
         await runAllPromises([
             // 1. Authorize that we still have access to the space:
             authorizeSpaceAccess(context, this.spaceId),
@@ -264,15 +266,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     public async transformEvent(
-        context: ServerSessionActionContext,
+        context: TaskRealtimeSessionActionContext,
         eventStub: TaskRealtimeEvent,
     ): Promise<TaskRealtimeEvent> {
         return eventStub;
     }
 
     private _subscribeToQuery(
-        sessionContext: ServerSessionActionContext,
-        systemContext: TaskSystemActionContext,
+        sessionContext: TaskRealtimeSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         input: {
             limit: number;
@@ -294,8 +296,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     private async _actuallySubscribeToQuery(
-        sessionContext: ServerSessionActionContext,
-        systemContext: TaskSystemActionContext,
+        sessionContext: TaskRealtimeSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {
             limit,
@@ -520,8 +522,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     private _subscribeToTask(
-        sessionContext: ServerSessionActionContext,
-        systemContext: TaskSystemActionContext,
+        sessionContext: TaskRealtimeSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
     ): Promise<{
@@ -571,8 +573,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     private _subscribeToCollection(
-        sessionContext: ServerSessionActionContext,
-        systemContext: TaskSystemActionContext,
+        sessionContext: TaskRealtimeSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
     ): Promise<{
@@ -633,7 +635,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
-        ServerSessionActionContextModules,
+        TaskRealtimeSessionActionContextModules,
         typeof TaskRealtimeProtocol
     > = {
         subscribeToQuery: (sessionContext, input) => {
@@ -1061,7 +1063,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     >();
 
     private _onDirectlySubscribedTaskAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -1231,7 +1233,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     private _onDirectlySubscribedCollectionAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
@@ -1741,7 +1743,9 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         },
     };
 
-    private async _authorizeReferencedTasksAndCollections(context: TaskSystemActionContext) {
+    private async _authorizeReferencedTasksAndCollections(
+        context: TaskRealtimeSystemActionContext,
+    ) {
         const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
         // Create a snapshot of `referencedTaskStateById` while we're reauthorizing.
@@ -1984,7 +1988,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     }
 
     public async isReferencedCollectionAccessAuthorized(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,
     ): Promise<boolean> {
         const referencedCollectionState = this._referencedCollectionStateById.get(collectionId);

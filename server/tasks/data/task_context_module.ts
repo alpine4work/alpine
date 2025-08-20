@@ -1,15 +1,14 @@
+import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerActionContextModules} from "~/server/context/server_action_context.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
-import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
+    ServerActionContextModules,
+    ServerSessionActionContextModules,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
 import {
-    afterCommitTaskActionTransactionEventEmitterForTest,
-    createTaskCollectionNotFoundError,
-    createTaskNotFoundError,
-} from "~/server/tasks/data/task_table.js";
+    TaskContextModuleActionTransaction,
+    TaskContextModuleBase,
+} from "~/server/context/task_context_module_base.js";
+import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -18,25 +17,22 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {UnimplementedError, UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {
-    AccountId,
-    SpaceId,
-    TaskActionTransactionId,
-    TaskCollectionId,
-    TaskId,
-    TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
+import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {
+    createTaskCollectionNotFoundError,
+    createTaskNotFoundError,
+} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetCollectionOutputSchema,
@@ -47,162 +43,6 @@ import {
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-
-export type TaskContextModuleActionTransaction = {
-    readonly spaceId: SpaceId;
-    readonly committedTime: Date;
-    readonly actionTransactionId: TaskActionTransactionId;
-    readonly actions: ReadonlyArray<TaskAction>;
-    readonly actorId: AccountId | null;
-    readonly clientId: TaskRealtimeClientId | null;
-};
-
-export abstract class TaskContextModuleBase extends ContextModuleBase<ServerActionContextModules> {
-    protected readonly _dangerouslyEscalateToSystemContext: <Value>(
-        context: Context<{
-            tracer: TracerContextModule;
-            actor: DynamoActorContextModule;
-            cache: CacheContextModule;
-            batch: BatchContextModule;
-        }>,
-        spaceId: SpaceId,
-        action: (context: TaskSystemActionContext) => Promise<Value>,
-    ) => Promise<Value>;
-
-    constructor({
-        dangerouslyEscalateToSystemContext,
-    }: {
-        dangerouslyEscalateToSystemContext: <Value>(
-            context: Context<{
-                tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
-                cache: CacheContextModule;
-                batch: BatchContextModule;
-            }>,
-            spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<Value>,
-        ) => Promise<Value>;
-    }) {
-        super();
-        this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
-    }
-
-    /**
-     * Index an action transaction after its been committed. This function must be
-     * called at-least-once for every committed action transaction. It is ok to
-     * call this function multiple times, though.
-     */
-    public indexActionTransactionAssumingItsCommitted(
-        actionTransaction: TaskContextModuleActionTransaction,
-    ): Promise<void> {
-        return this._dangerouslyEscalateToSystemContext(
-            this._context,
-            actionTransaction.spaceId,
-            context => indexTaskActionTransactionAssumingItsCommitted(context, actionTransaction),
-        );
-    }
-
-    /**
-     * Apply an action transaction in all the `TaskRealtimeService` servers that
-     * provide realtime task data for `SpaceId`. `TaskRealtimeService` then sends
-     * the action to connected WebSockets as well.
-     */
-    public abstract applyActionTransactionInRealtimeService(
-        actionTransaction: TaskContextModuleActionTransaction,
-    ): Promise<void>;
-
-    /**
-     * Execute some queries.
-     *
-     * We execute our queries in a running `TaskRealtimeService` instance for the
-     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
-     */
-    public abstract loadQueries(
-        spaceId: SpaceId,
-        input: TaskRealtimeLoadQueriesInput,
-    ): Promise<TaskRealtimeLoadQueriesOutput>;
-
-    /**
-     * Get a task without any dependencies (doesn't load parent tasks, task
-     * collections, or accounts referenced by the task). If you want to load a task
-     * with its dependencies you may call `loadQueries()` and only pass a single
-     * `TaskId`.
-     *
-     * We execute our queries in a running `TaskRealtimeService` instance for the
-     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
-     */
-    public abstract getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-        spaceId: SpaceId,
-        taskId: TaskId,
-    ): Promise<Result<TaskModel> | null>;
-
-    /**
-     * Get a task without any dependencies (doesn't load parent tasks, task
-     * collections, or accounts referenced by the task). If you want to load a task
-     * with its dependencies you may call `loadQueries()` and only pass a single
-     * `TaskId`.
-     *
-     * We execute our queries in a running `TaskRealtimeService` instance for the
-     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
-     */
-    public abstract getTaskWithoutDependencies(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-        spaceId: SpaceId,
-        taskId: TaskId,
-    ): Promise<TaskModel>;
-
-    /**
-     * Get a collection.
-     *
-     * We execute our queries in a running `TaskRealtimeService` instance for the
-     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
-     */
-    public abstract getCollectionIfPossible(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-    ): Promise<Result<TaskCollectionModel> | null>;
-
-    /**
-     * Get a collection.
-     *
-     * We execute our queries in a running `TaskRealtimeService` instance for the
-     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
-     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
-     * up `TaskRealtimeService` so when our client connects via WebSocket the data
-     * it needs is already loaded.
-     */
-    public abstract getCollection(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-    ): Promise<TaskCollectionModel>;
-}
 
 /**
  * Helps perform work related to tasks that needs to interact with other
@@ -225,12 +65,12 @@ export class TaskContextModule extends TaskContextModuleBase {
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
+                actor?: DynamoActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<Value>,
+            action: (context: ServerSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
     }) {
         super({dangerouslyEscalateToSystemContext});
@@ -244,6 +84,7 @@ export class TaskContextModule extends TaskContextModuleBase {
      * the action to connected WebSockets as well.
      */
     public override applyActionTransactionInRealtimeService(
+        this: TaskContextModule & ContextModuleBase<Omit<ServerActionContextModules, "actor">>,
         actionTransaction: TaskContextModuleActionTransaction,
     ) {
         return this._context.tracer.withSpan(
@@ -339,6 +180,7 @@ export class TaskContextModule extends TaskContextModuleBase {
      * it needs is already loaded.
      */
     public override async loadQueries(
+        this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         input: TaskRealtimeLoadQueriesInput,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
@@ -386,10 +228,7 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
+        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<Result<TaskModel> | null> {
@@ -431,10 +270,7 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getTaskWithoutDependencies(
-        this: TaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
+        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<TaskModel> {
@@ -445,10 +281,7 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getCollectionIfPossible(
-        this: TaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
+        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<Result<TaskCollectionModel> | null> {
@@ -490,10 +323,7 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getCollection(
-        this: TaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
+        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionModel> {
@@ -537,116 +367,5 @@ export async function waitForProcessTaskActionTransactionsForTest() {
 
     if (errors.length > 0) {
         throw createAggregateError(errors);
-    }
-}
-
-export class TestTaskContextModule extends TaskContextModuleBase {
-    private readonly _shouldSkipIndexing: boolean;
-    private readonly _alwaysNotFound: boolean;
-
-    constructor({
-        dangerouslyEscalateToSystemContext,
-        shouldSkipIndexing,
-        alwaysNotFound = false,
-    }: {
-        dangerouslyEscalateToSystemContext: <Value>(
-            context: Context<{
-                tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
-                cache: CacheContextModule;
-                batch: BatchContextModule;
-            }>,
-            spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<Value>,
-        ) => Promise<Value>;
-        shouldSkipIndexing: boolean;
-        alwaysNotFound?: boolean;
-    }) {
-        assert(process.env.NODE_ENV === "test");
-
-        super({dangerouslyEscalateToSystemContext});
-        this._shouldSkipIndexing = shouldSkipIndexing;
-        this._alwaysNotFound = alwaysNotFound;
-    }
-
-    public override async indexActionTransactionAssumingItsCommitted(
-        actionTransaction: TaskContextModuleActionTransaction,
-    ): Promise<void> {
-        // In tests, if OpenSearch is disabled we allow you to construct a tasks
-        // context module that skips task indexing.
-        if (this._shouldSkipIndexing) return;
-
-        await super.indexActionTransactionAssumingItsCommitted(actionTransaction);
-    }
-
-    public override async applyActionTransactionInRealtimeService(): Promise<void> {
-        // Noop in tests...
-    }
-
-    public override loadQueries(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        spaceId: SpaceId,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        input: TaskRealtimeLoadQueriesInput,
-    ): Promise<TaskRealtimeLoadQueriesOutput> {
-        throw new UnimplementedError(
-            "`TestTaskContextModule.loadQueries()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
-    }
-
-    public override getTaskWithoutDependenciesIfPossible(
-        this: TestTaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-    ): Promise<null> {
-        if (this._alwaysNotFound) return Promise.resolve(null);
-
-        throw new UnimplementedError(
-            "`TestTaskContextModule.getTaskWithoutDependenciesIfPossible()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
-    }
-
-    public override getTaskWithoutDependencies(
-        this: TestTaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-        spaceId: SpaceId,
-        taskId: TaskId,
-    ): Promise<never> {
-        if (this._alwaysNotFound) throw createTaskNotFoundError(taskId);
-
-        throw new UnimplementedError(
-            "`TestTaskContextModule.getTaskWithoutDependencies()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
-    }
-
-    public override getCollectionIfPossible(
-        this: TestTaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-    ): Promise<null> {
-        if (this._alwaysNotFound) return Promise.resolve(null);
-
-        throw new UnimplementedError(
-            "`TestTaskContextModule.getCollectionIfPossible()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
-    }
-
-    public override getCollection(
-        this: TestTaskContextModule &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-    ): Promise<never> {
-        if (this._alwaysNotFound) throw createTaskCollectionNotFoundError(collectionId);
-
-        throw new UnimplementedError(
-            "`TestTaskContextModule.getCollection()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
     }
 }

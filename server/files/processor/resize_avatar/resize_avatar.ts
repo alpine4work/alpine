@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethrow_classified_sharp_error.js";
 import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
@@ -22,7 +22,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * - Encodes to AVIF
  */
 export async function resizeAvatar(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     span: TracerSpan,
     {
         requestSignal,

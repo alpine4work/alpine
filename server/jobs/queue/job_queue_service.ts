@@ -1,9 +1,5 @@
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
-import {
-    DynamoActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
 import {
     ApnsContextModule,
@@ -14,9 +10,19 @@ import {
     createServiceCloudflareR2ContextModule,
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
-import {ContentContextModule} from "~/server/content/context_module/content_context_module.js";
+import {
+    DynamoActorContextModule,
+    DynamoSystemActorContextModule,
+} from "~/server/context/dynamo_actor_context_module.js";
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    SearchInjectionContextModule,
+    SpacesInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
 import {
     GithubContextModule,
     UnimplementedGithubContextModule,
@@ -25,6 +31,8 @@ import {
     SchedulerContextModule,
     UnimplementedSchedulerContextModule,
 } from "~/server/deploy/data/scheduler_context_module.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
@@ -33,7 +41,6 @@ import {
     JobQueueServiceProcessContextModules,
     JobQueueServiceSystemActionContext,
     JobQueueServiceSystemActionContextModules,
-    MaintenanceJobQueueServiceSystemActionContextModules,
 } from "~/server/jobs/queue/job_queue_service_context.js";
 import {processJob} from "~/server/jobs/queue/process_job.js";
 import {processMaintenanceJob} from "~/server/jobs/queue/process_maintenance_job.js";
@@ -41,9 +48,9 @@ import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {
-    createServerProcessContext,
-    serverProcessContextOptions,
-} from "~/server/node/create_server_process_context.js";
+    createServerBasicProcessContextModules,
+    serverBasicProcessContextOptions,
+} from "~/server/node/create_server_basic_process_context_modules.js";
 import {
     createServiceTokenAgent,
     getServiceTokenAgentKeyFromOption,
@@ -55,10 +62,12 @@ import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
-import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -87,7 +96,7 @@ export const options = {
     githubAppClientSecret: {type: "string"},
     githubAppInstallationId: {type: "string"},
     ...serviceTokenAgentOptions,
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
     ...serviceCloudflareR2Options,
 } as const;
@@ -134,12 +143,14 @@ export async function run({
 
     const awsSigner = new AwsRequestSigner();
 
-    const baseProcessContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        awsSigner,
-        options,
-    });
+    const basicProcessContext = Context.new(
+        createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+    );
 
     const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 
@@ -191,7 +202,7 @@ export async function run({
     if (process.env.NODE_ENV === "test") {
         apnsContextModule = new TestApnsContextModule();
     } else {
-        const apnsConnectionPool = new ApnsConnectionPool(baseProcessContext, {
+        const apnsConnectionPool = new ApnsConnectionPool(basicProcessContext, {
             certificate: apnsCertificate,
             certificatePrivateKey: apnsCertificatePrivateKey,
         });
@@ -247,19 +258,46 @@ export async function run({
                   ),
               });
 
-    const processContext: JobQueueServiceProcessContext = baseProcessContext.clone({
-        edge: new EdgeServiceContextModule({
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
-            ),
-            tokenAgent,
-        }),
-        opensearch: opensearchContextModule,
-        languageModel: new LanguageModelContextModule(languageModel),
-        apns: apnsContextModule,
-        github: githubContextModule,
-        scheduler: schedulerContextModule,
+    // Jobs are already processed in a system context so this isn't actually an
+    // escalation but we still need it for compatibility.
+    //
+    // It's important we use new caches + batchers here. We don't want to load some
+    // data at a higher permission level then let the session context see it. So we
+    // derive our new context from the process context to help avoid reusing any
+    // request-level caches.
+    const dangerouslyEscalateToSystemContext = <Value>(
+        context: Context<{
+            tracer: TracerContextModule;
+            actor?: DynamoActorContextModule;
+            cache: CacheContextModule;
+            batch: BatchContextModule;
+        }>,
+        spaceId: SpaceId,
+        action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
+    ): Promise<Value> => {
+        return processContext.with<
+            Omit<
+                JobQueueServiceSystemActionContextModules,
+                Exclude<keyof JobQueueServiceProcessContextModules, "tracer">
+            >,
+            Value
+        >(
+            {
+                tracer: new TracerContextModule(context.tracer.getTracer()),
+                cache: context.cache.forkForChangedActor(),
+                batch: context.batch.forkForChangedActor(),
+                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                    // `context.actor` is `undefined` for maintenance jobs.
+                    context.actor?.serviceName ?? "JobQueueService",
+                    spaceId,
+                ),
+            },
+            action,
+        );
+    };
+
+    const processContext: JobQueueServiceProcessContext = basicProcessContext.clone({
+        r2: createServiceCloudflareR2ContextModule(options),
         files: new FilesContextModule({
             tokenAgent,
             edgeServiceUrl: assertExists(
@@ -267,7 +305,28 @@ export async function run({
                 "`edgeServiceUrl` option is required",
             ),
         }),
-        r2: createServiceCloudflareR2ContextModule(options),
+        edge: new EdgeServiceContextModule({
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+            tokenAgent,
+        }),
+        tasks: new TaskContextModule({
+            tokenAgent,
+            router: taskRealtimeServiceRouter,
+            dangerouslyEscalateToSystemContext,
+        }),
+        opensearch: opensearchContextModule,
+        languageModel: new LanguageModelContextModule(languageModel),
+        apns: apnsContextModule,
+        github: githubContextModule,
+        scheduler: schedulerContextModule,
+        documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
+        forumInjection: new ForumInjectionContextModule(forumInjection),
+        searchInjection: new SearchInjectionContextModule(searchInjection),
+        spacesInjection: new SpacesInjectionContextModule(spacesInjection),
+        tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {
@@ -279,131 +338,8 @@ export async function run({
         maxFiberCount: 10,
         maxFiberMessageCount: 10,
 
-        processJob: (_actionContext, job, jobStartTime, span) => {
-            // Jobs are already processed in a system context so this isn't actually an
-            // escalation but we still need it for compatibility.
-            //
-            // It's important we use new caches + batchers here. We don't want to load some
-            // data at a higher permission level then let the session context see it. So we
-            // derive our new context from the process context to help avoid reusing any
-            // request-level caches.
-            const dangerouslyEscalateToSystemContext = <Value>(
-                context: Context<{
-                    tracer: TracerContextModule;
-                    actor: DynamoActorContextModule;
-                    cache: CacheContextModule;
-                    batch: BatchContextModule;
-                }>,
-                spaceId: SpaceId,
-                action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
-            ): Promise<Value> => {
-                return processContext.with<
-                    Omit<
-                        JobQueueServiceSystemActionContextModules,
-                        Exclude<keyof JobQueueServiceProcessContextModules, "tracer">
-                    >,
-                    Value
-                >(
-                    {
-                        tracer: new TracerContextModule(context.tracer.getTracer()),
-                        cache: context.cache.forkForChangedActor(),
-                        batch: context.batch.forkForChangedActor(),
-                        actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            context.actor.serviceName,
-                            spaceId,
-                        ),
-                        content: new ContentContextModule(),
-                        tasks: new TaskContextModule({
-                            tokenAgent,
-                            router: taskRealtimeServiceRouter,
-                            dangerouslyEscalateToSystemContext,
-                        }),
-                    },
-                    action,
-                );
-            };
-
-            const actionContext = _actionContext.clone<
-                Omit<
-                    JobQueueServiceSystemActionContextModules,
-                    | keyof ServerSystemActionContextModules
-                    | keyof JobQueueServiceProcessContextModules
-                >
-            >({
-                content: new ContentContextModule(),
-                tasks: new TaskContextModule({
-                    tokenAgent,
-                    router: taskRealtimeServiceRouter,
-                    dangerouslyEscalateToSystemContext,
-                }),
-            });
-
-            return processJob(actionContext, job, jobStartTime, span);
-        },
-        processMaintenanceJob: (_actionContext, job, jobStartTime, span) => {
-            // Maintenance jobs have access to all spaces, so this is actually a
-            // de-escalation of permissions. But we still need the function for
-            // compatibility.
-            //
-            // It's important we use new caches + batchers here. We don't want to load some
-            // data at a higher permission level then let the session context see it. So we
-            // derive our new context from the process context to help avoid reusing any
-            // request-level caches.
-            const dangerouslyEscalateToSystemContext = <Value>(
-                context: Context<{
-                    tracer: TracerContextModule;
-                    cache: CacheContextModule;
-                    batch: BatchContextModule;
-                }>,
-                spaceId: SpaceId,
-                action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
-            ): Promise<Value> => {
-                return processContext.with<
-                    Omit<
-                        JobQueueServiceSystemActionContextModules,
-                        Exclude<keyof JobQueueServiceProcessContextModules, "tracer">
-                    >,
-                    Value
-                >(
-                    {
-                        tracer: new TracerContextModule(context.tracer.getTracer()),
-                        cache: context.cache.forkForChangedActor(),
-                        batch: context.batch.forkForChangedActor(),
-                        actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            // Maintenance jobs don't have an actor. Escalating to a system context isn't
-                            // actually dangerous, it's a de-escalation of permission. Say our actor's
-                            // source is the job queue service.
-                            "JobQueueService",
-                            spaceId,
-                        ),
-                        content: new ContentContextModule(),
-                        tasks: new TaskContextModule({
-                            tokenAgent,
-                            router: taskRealtimeServiceRouter,
-                            dangerouslyEscalateToSystemContext,
-                        }),
-                    },
-                    action,
-                );
-            };
-
-            const actionContext = _actionContext.clone<
-                Omit<
-                    MaintenanceJobQueueServiceSystemActionContextModules,
-                    | keyof ServerSystemActionContextModules
-                    | keyof JobQueueServiceProcessContextModules
-                >
-            >({
-                content: new ContentContextModule(),
-                tasks: new TaskContextModule({
-                    tokenAgent,
-                    router: taskRealtimeServiceRouter,
-                    dangerouslyEscalateToSystemContext,
-                }),
-            });
-
-            return processMaintenanceJob(actionContext, job, jobStartTime, span);
-        },
+        processJob,
+        processMaintenanceJob,
     });
 
     shutdownManager.registerListenerForIngressTraffic("Stopping job queue consumer", async () => {

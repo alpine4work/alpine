@@ -1,5 +1,6 @@
-import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
@@ -11,6 +12,7 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {backfillTaskActionTransactionHistoryTestCounter} from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {taskRealtimeStoreBeforeLoadTaskTestCheckpoint} from "~/server/tasks/realtime/task_realtime_store.js";
 import {
     TestTaskRealtimeServer,
@@ -35,7 +37,11 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {testClock} from "~/shared/test_helpers/test_clock.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    spacesInjection,
+    tasksInjection,
+});
 
 async function testQueryTaskIndex(
     space: TestSpace,
@@ -4210,7 +4216,7 @@ test("query after creator account name update applied and refreshed", async () =
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.wait();
 
@@ -4279,7 +4285,7 @@ test("query after creator account name update applied but not refreshed", async 
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -4371,7 +4377,7 @@ test("query before creator account name update applied but not refreshed", async
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -4470,7 +4476,7 @@ test("update introduces task with creator account name update to query when inde
         session1.account.id,
     );
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -4666,7 +4672,7 @@ test("query after closer account name update applied and refreshed", async () =>
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.wait();
 
@@ -4765,7 +4771,7 @@ test("query after closer account name update applied but not refreshed", async (
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -4907,7 +4913,7 @@ test("query before closer account name update applied but not refreshed", async 
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -5047,7 +5053,7 @@ test("update introduces task with closer account name update to query when index
         session1.account.id,
     );
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -5273,7 +5279,7 @@ test("query after assignee account name update applied and refreshed", async () 
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.wait();
 
@@ -5360,7 +5366,7 @@ test("query after assignee account name update applied but not refreshed", async
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -5478,7 +5484,7 @@ test("query before assignee account name update applied but not refreshed", asyn
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -5599,7 +5605,7 @@ test("update introduces task with assignee account name update to query when ind
         session1.account.id,
     );
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -5811,7 +5817,7 @@ test("query after assigner account name update applied and refreshed", async () 
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.wait();
 
@@ -5898,7 +5904,7 @@ test("query after assigner account name update applied but not refreshed", async
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6016,7 +6022,7 @@ test("query before assigner account name update applied but not refreshed", asyn
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6137,7 +6143,7 @@ test("update introduces task with assigner account name update to query when ind
         session1.account.id,
     );
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -6381,7 +6387,7 @@ test("query before creator, closer, assignee, and assigner account name update a
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session), newAccountName);
+    await updateOurAccountName(session.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6520,7 +6526,7 @@ test("referenced creator gets correct account name when query is loaded before",
         tasks: [],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6569,7 +6575,7 @@ test("referenced creator gets correct account name when query is loaded after", 
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6660,7 +6666,7 @@ test("referenced closer gets correct account name when query is loaded before", 
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6741,7 +6747,7 @@ test("referenced closer gets correct account name when query is loaded after", a
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6840,7 +6846,7 @@ test("referenced assignee gets correct account name when query is loaded before"
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6909,7 +6915,7 @@ test("referenced assignee gets correct account name when query is loaded after",
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -6996,7 +7002,7 @@ test("referenced assigner gets correct account name when query is loaded before"
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -7065,7 +7071,7 @@ test("referenced assigner gets correct account name when query is loaded after",
     expect(session1.account.initialName).not.toEqual(newAccountName);
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await server.waitForApplyActionTransactions();
     await ProcessContextModule.waitForTestTasks();
@@ -7121,8 +7127,8 @@ test("tasks reorder when creator account name changes", async () => {
         TestTask.create(session2),
     ]);
 
-    await updateOurAccountName(TestTask.action(session1), "a");
-    await updateOurAccountName(TestTask.action(session2), "b");
+    await updateOurAccountName(session1.action(), "a");
+    await updateOurAccountName(session2.action(), "b");
 
     await server.wait();
 
@@ -7152,7 +7158,7 @@ test("tasks reorder when creator account name changes", async () => {
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), "c");
+    await updateOurAccountName(session1.action(), "c");
 
     await server.wait();
 
@@ -7207,8 +7213,8 @@ test("tasks reorder when assignee account name changes", async () => {
     await task1.updateAssignee(session2, session1);
     await task2.updateAssignee(session2, session2);
 
-    await updateOurAccountName(TestTask.action(session1), "a");
-    await updateOurAccountName(TestTask.action(session2), "b");
+    await updateOurAccountName(session1.action(), "a");
+    await updateOurAccountName(session2.action(), "b");
 
     await server.wait();
 
@@ -7246,7 +7252,7 @@ test("tasks reorder when assignee account name changes", async () => {
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), "c");
+    await updateOurAccountName(session1.action(), "c");
 
     await server.wait();
 
@@ -7309,8 +7315,8 @@ test("tasks reorder when assigner account name changes", async () => {
     await task1.updateAssignee(session1, session2);
     await task2.updateAssignee(session2, session2);
 
-    await updateOurAccountName(TestTask.action(session1), "a");
-    await updateOurAccountName(TestTask.action(session2), "b");
+    await updateOurAccountName(session1.action(), "a");
+    await updateOurAccountName(session2.action(), "b");
 
     await server.wait();
 
@@ -7348,7 +7354,7 @@ test("tasks reorder when assigner account name changes", async () => {
         ],
     });
 
-    await updateOurAccountName(TestTask.action(session1), "c");
+    await updateOurAccountName(session1.action(), "c");
 
     await server.wait();
 

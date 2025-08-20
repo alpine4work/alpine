@@ -5,7 +5,6 @@ ts_project(
     test_deps = [
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
-        "//server/accounts/update_name",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
@@ -57,7 +56,7 @@ ts_project(
         "//server/access",
         "//server/content",
         "//server/dynamo/core",
-        "//server/feed/data",
+        "//server/feed",
         "//server/helpers",
         "//server/helpers/node",
         "//server/messaging/helpers",

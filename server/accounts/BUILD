@@ -14,6 +14,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/date-fns",
+        "//server/context",
         "//server/dynamo/core",
         "//server/emails",
         "//server/helpers",

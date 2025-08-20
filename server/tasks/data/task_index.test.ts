@@ -1,6 +1,7 @@
-import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_table.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -12,6 +13,7 @@ import {
     indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint,
     indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint,
 } from "~/server/tasks/data/task_index.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -27,7 +29,11 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 import {testClock} from "~/shared/test_helpers/test_clock.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    spacesInjection,
+    tasksInjection,
+});
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
@@ -457,7 +463,7 @@ test("updating account name updates inlined creator account name in index", asyn
     );
     expect((await task3.getIndexDoc()).creator.workingAccountNameVersion).toEqual(0);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName1);
+    await updateOurAccountName(session1.action(), newAccountName1);
 
     expect((await task1.getIndexDoc()).creator.workingAccountName).toEqual(newAccountName1);
     expect((await task1.getIndexDoc()).creator.workingAccountNameVersion).toEqual(1);
@@ -470,7 +476,7 @@ test("updating account name updates inlined creator account name in index", asyn
     );
     expect((await task3.getIndexDoc()).creator.workingAccountNameVersion).toEqual(0);
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName2);
+    await updateOurAccountName(session1.action(), newAccountName2);
 
     expect((await task1.getIndexDoc()).creator.workingAccountName).toEqual(newAccountName2);
     expect((await task1.getIndexDoc()).creator.workingAccountNameVersion).toEqual(2);
@@ -558,7 +564,7 @@ test("updating account name updates inlined closer account name in index", async
         closedTime: expect.any(TaskFilterableTime),
     });
 
-    await updateOurAccountName(TestTask.action(session2), newAccountName1);
+    await updateOurAccountName(session2.action(), newAccountName1);
 
     expect((await task1.getIndexDoc()).status.value).toEqual({
         type: "Closed",
@@ -597,7 +603,7 @@ test("updating account name updates inlined closer account name in index", async
         closedTime: expect.any(TaskFilterableTime),
     });
 
-    await updateOurAccountName(TestTask.action(session2), newAccountName2);
+    await updateOurAccountName(session2.action(), newAccountName2);
 
     expect((await task1.getIndexDoc()).status.value).toEqual({
         type: "Closed",
@@ -916,7 +922,7 @@ test("updating account name updates inlined assigner and assignee account names 
         assignedTime: expect.any(TaskFilterableTime),
     });
 
-    await updateOurAccountName(TestTask.action(session2), newAccountName1);
+    await updateOurAccountName(session2.action(), newAccountName1);
 
     expect((await task1.getIndexDoc()).assignee.value).toEqual({
         assignee: {
@@ -971,7 +977,7 @@ test("updating account name updates inlined assigner and assignee account names 
         assignedTime: expect.any(TaskFilterableTime),
     });
 
-    await updateOurAccountName(TestTask.action(session2), newAccountName2);
+    await updateOurAccountName(session2.action(), newAccountName2);
 
     expect((await task1.getIndexDoc()).assignee.value).toEqual({
         assignee: {
@@ -1045,7 +1051,7 @@ test("if account name updates during indexing it will still be correctly updated
     const pausePromise2 = indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint.pauseForTest(
         session.account.id,
     );
-    await updateOurAccountName(TestTask.action(session), newAccountName);
+    await updateOurAccountName(session.action(), newAccountName);
     (await pausePromise2).unpause();
 
     expect(await getTaskIndexDocIfExistsForTest(context, space.id, task.id)).toEqual(null);
@@ -1086,7 +1092,7 @@ test("if account name updates during indexing it will still be correctly update 
     const pausePromise2 = indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint.pauseForTest(
         session.account.id,
     );
-    await updateOurAccountName(TestTask.action(session), newAccountName);
+    await updateOurAccountName(session.action(), newAccountName);
     (await pausePromise2).unpause();
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
@@ -1164,13 +1170,13 @@ test("if account name updates during indexing it will still be correctly update 
     const pausePromise2 = indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint.pauseForTest(
         session1.account.id,
     );
-    await updateOurAccountName(TestTask.action(session1), newAccountName1);
+    await updateOurAccountName(session1.action(), newAccountName1);
     (await pausePromise2).unpause();
 
     const pausePromise3 = indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint.pauseForTest(
         session2.account.id,
     );
-    await updateOurAccountName(TestTask.action(session2), newAccountName2);
+    await updateOurAccountName(session2.action(), newAccountName2);
     (await pausePromise3).unpause();
 
     expect((await getTaskIndexDocIfExistsForTest(context, space.id, task.id))?.creator).toEqual({
@@ -1237,7 +1243,7 @@ test("account name update will still work when there’s a version conflict", as
         session.account.id,
     );
 
-    await updateOurAccountName(TestTask.action(session), newAccountName);
+    await updateOurAccountName(session.action(), newAccountName);
 
     const {unpause} = await pausePromise1;
 
@@ -1524,7 +1530,7 @@ test("updates approximate action counts", async () => {
         ]),
     );
 
-    await updateOurAccountName(TestTask.action(session2), "Foo Bar");
+    await updateOurAccountName(session2.action(), "Foo Bar");
     await ProcessContextModule.waitForTestTasks();
 
     expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
@@ -1737,7 +1743,7 @@ test("updating account name updates inlined creator account name of 100+ tasks i
         })),
     );
 
-    await updateOurAccountName(TestTask.action(session1), newAccountName);
+    await updateOurAccountName(session1.action(), newAccountName);
 
     await ProcessContextModule.waitForTestTasks();
 

@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
+import {updateOurAccountName} from "~/server/accounts/accounts_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createPost, updateChannelName, updatePostContent} from "~/server/forum/data/forum_table.js";
@@ -16,9 +16,12 @@ import {
     searchChannelsByAffinity,
     searchChannelsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -71,14 +74,9 @@ const indexSearchEntityTestCheckpoint = new TestCheckpoint<SpaceId>();
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
-        return getSearchMentionEntityIfPossible(
-            // @ts-expect-error
-            context,
-            spaceId,
-            entityId,
-        );
-    },
+    searchInjection,
+    spacesInjection,
+    tasksInjection,
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
@@ -2210,7 +2208,7 @@ test("post mention updates if post updates", async () => {
         },
     });
 
-    await updateOurAccountName(TestTask.action(session), "Oof");
+    await updateOurAccountName(session.action(), "Oof");
 
     await runAllTimersAndWaitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
@@ -2485,11 +2483,7 @@ test("can index post with cyclic mention", async () => {
     expect(getCount()).toEqual(0);
 
     expect(
-        await getSearchMentionEntityIfPossible(
-            TestTask.action(session),
-            space.id,
-            `Post:${post.id}`,
-        ),
+        await getSearchMentionEntityIfPossible(session.action(), space.id, `Post:${post.id}`),
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
@@ -2757,11 +2751,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     ).toEqual(null);
 
     expect(
-        await getSearchMentionEntityIfPossible(
-            TestTask.action(session),
-            space.id,
-            `Post:${postA.id}`,
-        ),
+        await getSearchMentionEntityIfPossible(session.action(), space.id, `Post:${postA.id}`),
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
@@ -2773,11 +2763,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     });
 
     expect(
-        await getSearchMentionEntityIfPossible(
-            TestTask.action(session),
-            space.id,
-            `Post:${postB.id}`,
-        ),
+        await getSearchMentionEntityIfPossible(session.action(), space.id, `Post:${postB.id}`),
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
@@ -2789,11 +2775,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     });
 
     expect(
-        await getSearchMentionEntityIfPossible(
-            TestTask.action(session),
-            space.id,
-            `Post:${postC.id}`,
-        ),
+        await getSearchMentionEntityIfPossible(session.action(), space.id, `Post:${postC.id}`),
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({
@@ -2805,11 +2787,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     });
 
     expect(
-        await getSearchMentionEntityIfPossible(
-            TestTask.action(session),
-            space.id,
-            `Post:${postE.id}`,
-        ),
+        await getSearchMentionEntityIfPossible(session.action(), space.id, `Post:${postE.id}`),
     ).toEqual({
         isPrivate: false,
         entity: new SearchEntityModel({

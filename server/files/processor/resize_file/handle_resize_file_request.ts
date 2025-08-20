@@ -1,6 +1,6 @@
 import os from "os";
 import {resizeFile} from "~/server/files/processor/resize_file.js";
-import {LambdaProcessContext} from "~/server/lambda/helpers/lambda_action_context.js";
+import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -12,7 +12,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 const temporaryDirectoryPath = os.tmpdir();
 
 export async function handleResizeFileRequest(
-    processContext: LambdaProcessContext,
+    processContext: LambdaActionContext,
     {
         request,
         url,

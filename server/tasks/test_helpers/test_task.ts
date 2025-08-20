@@ -13,7 +13,6 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
@@ -129,34 +128,9 @@ export class TestTask extends TestCommentRoomBase {
             titleState = new MutexValue(title);
         }
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, actions);
+        await commitTaskActionTransaction(session.action(), session.space.id, actions);
 
         return new TestTask(session.context, session.space, id, time, titleState);
-    }
-
-    /**
-     * Creates an action context for functions like `commitTaskActionTransaction()`
-     * which need the task context module.
-     */
-    public static action(session: TestSession) {
-        return session.action().clone({
-            tasks: new TestTaskContextModule({
-                shouldSkipIndexing: !session.context.isOpensearchEnabled,
-                dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
-            }),
-        });
-    }
-
-    /**
-     * Creates an action including an instance of `TaskContextModuleBase`.
-     */
-    public static systemAction(space: TestSpace) {
-        return space.systemAction().clone({
-            tasks: new TestTaskContextModule({
-                shouldSkipIndexing: !space.context.isOpensearchEnabled,
-                dangerouslyEscalateToSystemContext: space.context.escalateToSystemContext,
-            }),
-        });
     }
 
     protected override _getRoomKey() {
@@ -234,7 +208,7 @@ export class TestTask extends TestCommentRoomBase {
     public async delete(session: TestSpaceSession) {
         const time = testClock.nowLogical();
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -250,7 +224,7 @@ export class TestTask extends TestCommentRoomBase {
         session: TestSpaceSession,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -276,7 +250,7 @@ export class TestTask extends TestCommentRoomBase {
                       closedTime: TaskFilterableTime.test(time),
                   };
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -300,7 +274,7 @@ export class TestTask extends TestCommentRoomBase {
 
         if (assignee instanceof TestSession) assignee = assignee.account;
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -336,7 +310,7 @@ export class TestTask extends TestCommentRoomBase {
     ) {
         const time = testClock.nowLogical();
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -357,7 +331,7 @@ export class TestTask extends TestCommentRoomBase {
         priority: TaskPriority | null,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -375,7 +349,7 @@ export class TestTask extends TestCommentRoomBase {
         dueDate: CalendarDate | null,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -393,7 +367,7 @@ export class TestTask extends TestCommentRoomBase {
         collection: TestTaskCollection,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -415,7 +389,7 @@ export class TestTask extends TestCommentRoomBase {
         position: TaskPosition,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -434,7 +408,7 @@ export class TestTask extends TestCommentRoomBase {
     public async removeCollection(session: TestSpaceSession, collection: TestTaskCollection) {
         const time = testClock.nowLogical();
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -452,7 +426,7 @@ export class TestTask extends TestCommentRoomBase {
         task: TestTask | null,
         {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
     ) {
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        await commitTaskActionTransaction(session.action(), session.space.id, [
             {
                 type: "UpdateTask",
                 time,
@@ -469,7 +443,7 @@ export class TestTask extends TestCommentRoomBase {
         await this._titleState.withLock(async titleStateRef => {
             titleStateRef.current = applyTaskTitleUpdate(titleStateRef.current, titleUpdate);
 
-            await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            await commitTaskActionTransaction(session.action(), session.space.id, [
                 {
                     type: "UpdateTask",
                     time: testClock.nowLogical(),

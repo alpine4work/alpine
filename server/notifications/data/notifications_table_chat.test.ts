@@ -77,32 +77,34 @@ const context = createTestContext({
             // Noop for other jobs...
         }
     },
-    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
-        const entityIdObject = parseSearchDynamicEntityId(entityId);
-        if (entityIdObject.type !== "Document") {
-            throw new UnimplementedError(
-                quote`Loading search entity for ${entityIdObject.type} is unimplemented`,
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+            const entityIdObject = parseSearchDynamicEntityId(entityId);
+            if (entityIdObject.type !== "Document") {
+                throw new UnimplementedError(
+                    quote`Loading search entity for ${entityIdObject.type} is unimplemented`,
+                );
+            }
+
+            assert(isServerActionContext(context));
+
+            const documentResult = await getDocumentPreviewIfPossible(
+                context,
+                entityIdObject.documentId,
             );
-        }
+            if (!documentResult) return null;
+            if (!documentResult.ok) return {isPrivate: true};
 
-        assert(isServerActionContext(context));
-
-        const documentResult = await getDocumentPreviewIfPossible(
-            context,
-            entityIdObject.documentId,
-        );
-        if (!documentResult) return null;
-        if (!documentResult.ok) return {isPrivate: true};
-
-        return {
-            isPrivate: false,
-            entity: new SearchEntityModel({
-                id: entityId,
-                title: documentResult.value.getTitle(),
-                titleVersion: {type: "Integer", version: documentResult.value.version},
-                media: null,
-            }),
-        };
+            return {
+                isPrivate: false,
+                entity: new SearchEntityModel({
+                    id: entityId,
+                    title: documentResult.value.getTitle(),
+                    titleVersion: {type: "Integer", version: documentResult.value.version},
+                    media: null,
+                }),
+            };
+        },
     },
 });
 

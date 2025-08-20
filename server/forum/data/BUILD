@@ -18,7 +18,6 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/spaces/with_search",
         "//shared/content",
     ],
     visibility = [
@@ -33,7 +32,7 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//server/dynamo/core/general_realtime",
-        "//server/feed/data",
+        "//server/feed",
         "//server/files/data",
         "//server/helpers",
         "//server/jobs/core",

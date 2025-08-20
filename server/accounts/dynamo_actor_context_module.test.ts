@@ -1,4 +1,4 @@
-import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";

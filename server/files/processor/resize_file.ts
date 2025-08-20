@@ -4,8 +4,8 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {getFileIfExistsAsUploader} from "~/server/files/data/files_table.js";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {
     ffmpegExecutablePath,
     ffmpegThreadCount,
@@ -113,7 +113,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
  * [8]: https://www.reddit.com/r/CloudFlare/comments/17do770/new_cloudflare_images_pricing_still_seems/
  */
 export async function resizeFile(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     parentSpan: TracerSpan,
     {
         url,

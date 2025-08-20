@@ -4,7 +4,9 @@ import {
 } from "~/server/apns/apns_alert_notification.js";
 import {ApnsConnection} from "~/server/apns/apns_connection.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -52,7 +54,10 @@ type ApnsConnectionPoolConnection = {
  * request comes in.
  */
 export class ApnsConnectionPool {
-    private readonly _processContext: ServerProcessContext;
+    private readonly _processContext: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+    }>;
     private readonly _certificate: string;
     private readonly _certificatePrivateKey: string;
 
@@ -63,7 +68,10 @@ export class ApnsConnectionPool {
     private _connections: Array<ApnsConnectionPoolConnection> = [];
 
     constructor(
-        processContext: ServerProcessContext,
+        processContext: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+        }>,
         {certificate, certificatePrivateKey}: {certificate: string; certificatePrivateKey: string},
     ) {
         this._processContext = processContext;

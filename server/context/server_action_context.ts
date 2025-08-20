@@ -5,7 +5,7 @@ import {
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
+} from "~/server/context/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -52,7 +52,7 @@ export type ServerActionContextModules = MergeObjectIntersection<
  */
 export type ServerSessionActionContext = Context<ServerSessionActionContextModules>;
 
-export type ServerSessionActionWithEmailContext = Context<
+export type ServerSessionActionContextWithEmail = Context<
     ServerSessionActionContextModules & {
         email: EmailContextModuleBase;
     }

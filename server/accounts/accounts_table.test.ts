@@ -9,13 +9,17 @@ import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
     getAccountEmailAddressForTest,
+    getAccountSettingsForTest,
     getAppleReviewerAccountPasswordForTest,
+    getOurLastOpenedSpaceId,
     regenerateOneTimePasswordSignIn,
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
+    updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
-import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {getAccountIfExists, removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
@@ -29,7 +33,13 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 const appleReviewerAccountPassword = getAppleReviewerAccountPasswordForTest();
-const context = createTestContext();
+
+const context = createTestContext({
+    spacesInjection,
+    tasksInjection: {
+        internalGetUpdateOurAccountNameTaskTransactionEntries: () => [],
+    },
+});
 
 async function createTestAccount({
     isEmailAddressVerified = false,
@@ -1154,4 +1164,124 @@ test("can authorize internal access", async () => {
     await expect(
         authorizeInternalAccess(context.impersonatedAccountAction(space.id, account2.id)),
     ).rejects.toThrow("Impersonated account actor does not have internal access");
+});
+
+describe("updateOurLastOpenedSpaceId()", () => {
+    test("should allow updating the lastOpenedSpaceId for the current session", async () => {
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+
+        const session = await space1.createSession();
+        await space2.addAccount(session);
+
+        await updateOurLastOpenedSpaceId(session.action(), space1.id);
+
+        const result1 = await getAccountSettingsForTest(session.action(), session.account.id);
+        expect(result1.lastOpenedSpaceId).toBe(space1.id);
+
+        await updateOurLastOpenedSpaceId(session.action(), space2.id);
+
+        const result2 = await getAccountSettingsForTest(session.action(), session.account.id);
+        expect(result2.lastOpenedSpaceId).toBe(space2.id);
+    });
+
+    test("does not allow updating the lastOpenedSpaceId to a space the session in not a member of", async () => {
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+
+        const session = await space1.createSession();
+
+        await expect(updateOurLastOpenedSpaceId(session.action(), space2.id)).rejects.toThrow(
+            new PermissionDeniedError("You don’t have access to this space."),
+        );
+    });
+
+    test("does not allow updating the lastOpenedSpaceId to a space the session is invited to", async () => {
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+        const space2OwnerSession = await space2.createSession({role: "Owner"});
+
+        const session = await space1.createSession();
+        const email = await session.account.createEmailAddress();
+
+        await space2.inviteEmailAddress(space2OwnerSession.action(), email);
+
+        await expect(updateOurLastOpenedSpaceId(session.action(), space2.id)).rejects.toThrow(
+            new PermissionDeniedError("You don’t have access to this space."),
+        );
+    });
+
+    test("does not allow updating the lastOpenedSpaceId to a space the session is removed from", async () => {
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+        const space2OwnerSession = await space2.createSession({role: "Owner"});
+
+        const session = await space1.createSession();
+        await space2.addAccount(session);
+
+        await removeSpaceAccount(space2OwnerSession.action(), {
+            spaceId: space2.id,
+            accountId: session.account.id,
+        });
+
+        await expect(updateOurLastOpenedSpaceId(session.action(), space2.id)).rejects.toThrow(
+            new PermissionDeniedError("You don’t have access to this space."),
+        );
+    });
+});
+
+describe("getOurLastOpenedSpaceId()", () => {
+    test("should return the correct spaceId for a space we have access to", async () => {
+        const space1 = await TestSpace.create(context);
+        const session = await space1.createSession();
+
+        await updateOurLastOpenedSpaceId(session.action(), space1.id);
+
+        const result = await getOurLastOpenedSpaceId(session.action());
+        expect(result).toBe(space1.id);
+    });
+
+    test("defaults when the lastOpenedSpaceId is set to an account we’re invited to", async () => {
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+        const space2OwnerSession = await space2.createSession({role: "Owner"});
+        const session = await space1.createSession();
+        const email = await session.account.createEmailAddress();
+
+        // Add our account and update the space ID
+        await space2.addAccount(session);
+        await updateOurLastOpenedSpaceId(session.action(), space2.id);
+
+        // Remove the account and re-invite it
+        await removeSpaceAccount(space2OwnerSession.action(), {
+            spaceId: space2.id,
+            accountId: session.account.id,
+        });
+        await space2.inviteEmailAddress(space2OwnerSession.action(), email);
+
+        // Should default to our first space
+        const result = await getOurLastOpenedSpaceId(session.action());
+        expect(result).toBe(space1.id);
+    });
+
+    test("defaults when the lastOpenedSpaceId is set to an account we’re removed from", async () => {
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+        const space2OwnerSession = await space2.createSession({role: "Owner"});
+        const session = await space1.createSession();
+
+        // Add our account and update the space ID
+        await space2.addAccount(session);
+        await updateOurLastOpenedSpaceId(session.action(), space2.id);
+
+        // Remove the account and re-invite it
+        await removeSpaceAccount(space2OwnerSession.action(), {
+            spaceId: space2.id,
+            accountId: session.account.id,
+        });
+
+        // Should default to our first space
+        const result = await getOurLastOpenedSpaceId(session.action());
+        expect(result).toBe(space1.id);
+    });
 });

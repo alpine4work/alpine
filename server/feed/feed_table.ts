@@ -1,25 +1,34 @@
 import {compareDesc} from "date-fns";
 import {
     ServerActionContext,
-    ServerSessionActionContextModules,
+    ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
-import {Context} from "~/shared/context/context.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
+import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
+import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
-import {FeedEntryModel} from "~/shared/feed/feed_entry_model.js";
+import {
+    FeedChannelEntryModel,
+    FeedDocumentEntryModel,
+    FeedEntryModel,
+    FeedPostEntryModel,
+    FeedTaskCollectionEntryModel,
+    FeedWelcomeEntryModel,
+} from "~/shared/feed/feed_entry_model.js";
 import {FeedEntry, FeedEntrySchema, getFeedEntryTime} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
@@ -28,6 +37,7 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {createTaskCollectionNotFoundError} from "~/shared/tasks/task_error_messages.js";
 
 // Ideally block items are ~2kb in size each. From one basic experiment, 10
 // post entries are 1.78kb as a minified JSON string. We'd really benefit from
@@ -494,45 +504,12 @@ export async function addFeedAccountCandidateEntry(
     });
 }
 
-export type InternalFeedReadFunctions<ContextModules extends ServerSessionActionContextModules> = {
-    /**
-     * Authorize the feed entity. If not possible, return an `ok: false` result
-     * instead of throwing an error.
-     */
-    readonly authorizeFeedEntryIfPossible: (
-        context: Context<ContextModules>,
-        entry: FeedEntry,
-    ) => Promise<Result<unknown, ErrorBase>>;
-
-    /**
-     * Create a feed entry model from the feed entry. If the session actor has lost
-     * access to the feed entry then return an error.
-     */
-    readonly createFeedEntryModelIfPossible: (
-        context: Context<ContextModules>,
-        spaceId: SpaceId,
-        entry: FeedEntry,
-    ) => Promise<Result<FeedEntryModel, ErrorBase>>;
-};
-
 /**
- * You shouldn't call this function. Call `getAndUpdateFeedEntries()` instead.
- *
- * The `//server/feed/data` package is a dependency of most other server
- * packages (e.g. `//server/forum/data` needs to depend on `//server/feed/data`
- * to add feed candidate entries). However, when reading a feed our reader
- * function needs to depend on all the packages that might have data in the
- * feed! (e.g. To show a document preview we need `//server/documents/data`
- * as a dependency.) So to avoid creating a cycle between packages we split
- * `//server/feed/data` into this, core, package and `//server/feed/read` which
- * depends on all the packages we need to render the feed (e.g.
- * `//server/forum/data`, `//server/documents/data`, etc.).
+ * Gets the feed entries at the top of the session actor's feed. First we
+ * update the actor's feed before returning entries.
  */
-export async function internalGetAndUpdateFeedEntries<
-    ContextModules extends ServerSessionActionContextModules,
->(
-    functions: InternalFeedReadFunctions<ContextModules>,
-    context: Context<ContextModules>,
+export async function getAndUpdateFeedEntries(
+    context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<{
     startCursor: FeedEntryCursor | null;
@@ -540,8 +517,6 @@ export async function internalGetAndUpdateFeedEntries<
     hasMoreEntries: boolean;
     entries: Array<FeedEntryModel>;
 }> {
-    const {createFeedEntryModelIfPossible} = functions;
-
     await authorizeSpaceAccess(context, spaceId);
 
     const accountId = context.actor.getAccountId();
@@ -557,23 +532,7 @@ export async function internalGetAndUpdateFeedEntries<
                     accountId,
                 });
 
-                const newEntryBlocks = await updateFeedEntries(
-                    functions,
-                    // Since this is in a `retryTransaction()` loop the type `Replace`s the
-                    // `dynamo` context module (which we check in a `cast()`). We're ok treating
-                    // this as `Context<ContextModules>` since practically there should be no
-                    // difference.
-                    cast<
-                        Context<
-                            Replace<
-                                Replace<ContextModules, {tracer: TracerContextModule}>,
-                                {dynamo: DynamoContextModule}
-                            >
-                        >
-                    >(context) as Context<ContextModules>,
-                    spaceId,
-                    feedItem,
-                );
+                const newEntryBlocks = await updateFeedEntries(context, spaceId, feedItem);
                 return {feedItem, newEntryBlocks};
             }),
     );
@@ -690,14 +649,11 @@ export async function internalGetAndUpdateFeedEntries<
     }
 }
 
-async function updateFeedEntries<ContextModules extends ServerSessionActionContextModules>(
-    functions: InternalFeedReadFunctions<ContextModules>,
-    context: Context<ContextModules>,
+async function updateFeedEntries(
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
     feedItem: FeedAttributesItem | null,
 ): Promise<ReadonlyArray<FeedEntryBlockItem>> {
-    const {authorizeFeedEntryIfPossible} = functions;
-
     // Limit the number of feed candidates we look at. This does mean if the user
     // is joining the space for the first time or opening a space again after a
     // long time away they may miss some feed entries. We accept this possibility.
@@ -869,23 +825,13 @@ async function updateFeedEntries<ContextModules extends ServerSessionActionConte
 }
 
 /**
- * You shouldn't call this function. Call `getFeedEntries()` instead.
- *
- * The `//server/feed/data` package is a dependency of most other server
- * packages (e.g. `//server/forum/data` needs to depend on `//server/feed/data`
- * to add feed candidate entries). However, when reading a feed our reader
- * function needs to depend on all the packages that might have data in the
- * feed! (e.g. To show a document preview we need `//server/documents/data`
- * as a dependency.) So to avoid creating a cycle between packages we split
- * `//server/feed/data` into this, core, package and `//server/feed/read` which
- * depends on all the packages we need to render the feed (e.g.
- * `//server/forum/data`, `//server/documents/data`, etc.).
+ * Paginate through an account's feed from top to bottom without updating the
+ * feed. If you're loading the top of the account's feed generally you'll want
+ * `getAndUpdateFeedEntries()` to make sure you're showing the latest stuff
+ * that's been happening in the space.
  */
-export async function internalGetFeedEntries<
-    ContextModules extends ServerSessionActionContextModules,
->(
-    functions: InternalFeedReadFunctions<ContextModules>,
-    context: Context<ContextModules>,
+export async function getFeedEntries(
+    context: ServerSessionActionContext,
     {
         spaceId,
         limit,
@@ -903,8 +849,6 @@ export async function internalGetFeedEntries<
     hasMoreEntries: boolean;
     entries: Array<FeedEntryModel>;
 }> {
-    const {createFeedEntryModelIfPossible} = functions;
-
     await authorizeSpaceAccess(context, spaceId);
 
     let startCursor: FeedEntryCursor | null = null;
@@ -1020,5 +964,115 @@ export async function internalGetFeedEntries<
         }
 
         throw error;
+    }
+}
+
+/**
+ * Authorize the feed entity. If not possible, return an `ok: false` result
+ * instead of throwing an error.
+ */
+async function authorizeFeedEntryIfPossible(
+    context: ServerSessionActionContext,
+    entry: FeedEntry,
+): Promise<Result<unknown, ErrorBase>> {
+    switch (entry.type) {
+        case "Welcome": {
+            return okResult;
+        }
+        case "Post": {
+            return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
+        }
+        case "Document": {
+            return context.documentsInjection.authorizeDocumentAccessIfPossible(
+                entry.documentId,
+                "View",
+            );
+        }
+        case "TaskCollection": {
+            const result = await context.tasksInjection.authorizeTaskCollectionAccessIfPossible(
+                entry.collectionId,
+                "View",
+            );
+            if (!result) throw createTaskCollectionNotFoundError(entry.collectionId);
+            return result;
+        }
+        case "Channel": {
+            return context.forumInjection.authorizeChannelAccessIfPossible(entry.channelId, "View");
+        }
+        default:
+            throw exhaustive(entry);
+    }
+}
+
+/**
+ * Create a feed entry model from the feed entry. If the session actor has lost
+ * access to the feed entry then return an error.
+ */
+async function createFeedEntryModelIfPossible(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    entry: FeedEntry,
+): Promise<Result<FeedEntryModel, ErrorBase>> {
+    switch (entry.type) {
+        case "Welcome": {
+            return {ok: true, value: new FeedWelcomeEntryModel({addedTime: entry.addedTime})};
+        }
+        case "Post": {
+            const result = await context.forumInjection.getPostIfPossible(entry.postId);
+            return mapResult(result, post => new FeedPostEntryModel({post}));
+        }
+        case "Document": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileDocumentEntityModelIfPossible(context, entry.documentId),
+            ]);
+
+            return mapResult(
+                result,
+                document =>
+                    new FeedDocumentEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        document,
+                    }),
+            );
+        }
+        case "TaskCollection": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileTaskCollectionEntityModelIfPossible(context, spaceId, entry.collectionId),
+            ]);
+
+            return mapResult(
+                result,
+                collection =>
+                    new FeedTaskCollectionEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        collection,
+                    }),
+            );
+        }
+        case "Channel": {
+            const [sharer, result] = await runAllPromises([
+                getAccount(context, spaceId, entry.sharerId),
+                getFileChannelEntityModelIfPossible(context, entry.channelId),
+            ]);
+
+            return mapResult(
+                result,
+                channel =>
+                    new FeedChannelEntryModel({
+                        sharer,
+                        sharedTime: entry.sharedTime,
+                        event: entry.event,
+                        channel,
+                    }),
+            );
+        }
+        default:
+            throw exhaustive(entry);
     }
 }

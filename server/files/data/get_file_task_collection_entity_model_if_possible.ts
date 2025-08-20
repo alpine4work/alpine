@@ -1,7 +1,5 @@
-import {ServerContentActionContextModules} from "~/server/context/server_content_action_context.js";
-import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
-import {Context} from "~/shared/context/context.js";
 import {ErrorBase, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -42,7 +40,7 @@ export function enableMockFileTaskCollectionEntityModelForTest() {
 }
 
 export async function getFileTaskCollectionEntityModelIfPossible(
-    context: Context<ServerContentActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: ServerActionContext,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<Result<FileTaskCollectionEntityModel, ErrorBase>> {

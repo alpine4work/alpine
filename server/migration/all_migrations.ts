@@ -1,5 +1,6 @@
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_table.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexEverySearchEntityMigration,
     runIndexPostAndChannelSearchEntitiesMigration,
@@ -13,11 +14,21 @@ import {
     runIndexEveryTaskActionStep2Of2,
     runIndexTaskInitialAssigneePositionMigration,
 } from "~/server/tasks/data/task_table.js";
+import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 export const allMigrations: {
     [key: string]: (
-        context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+        context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            jobs: JobsContextModule;
+            constants: ServerConstantsContextModule;
+            opensearch: OpensearchContextModule;
+        }>,
         options: {segmentIndex: number; totalSegmentCount: number},
     ) => Promise<void>;
 } = {

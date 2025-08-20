@@ -1,6 +1,8 @@
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
+import {
+    TaskRealtimeProcessContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {TaskRealtimeStoreCollectionEntry} from "~/server/tasks/realtime/task_realtime_store.js";
 import {
     TaskRealtimeUnsubscribeUpdateEventBuilder,
@@ -20,14 +22,14 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      * after this. Subscribers should present an error to users or attempt to
      * reconnect.
      */
-    onFatalError(context: ServerProcessContext, error: InternalError): void;
+    onFatalError(context: TaskRealtimeProcessContext, error: InternalError): void;
 
     /**
      * When we first subscribe to a collection, this function is called so the
      * subscriber gets the initial collection.
      */
     onCollectionSubscribe(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ): void;
@@ -36,7 +38,7 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      * Called whenever the collection we're subscribed to updates.
      */
     onCollectionUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
@@ -61,7 +63,7 @@ export class TaskRealtimeCollectionSubscription {
     private readonly _internal: TaskRealtimeCollectionSubscriptionInternal;
 
     constructor(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionEntry: TaskRealtimeStoreCollectionEntry,
         callbacks: TaskRealtimeCollectionSubscriptionCallbacks,
@@ -89,7 +91,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
     private _isSubscribed = true;
 
     constructor(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionEntry: TaskRealtimeStoreCollectionEntry,
         callbacks: TaskRealtimeCollectionSubscriptionCallbacks,
@@ -120,7 +122,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
     }
 
     public onCollectionUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
@@ -139,7 +141,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
         );
     }
 
-    public onFatalError(context: ServerProcessContext, error: InternalError) {
+    public onFatalError(context: TaskRealtimeProcessContext, error: InternalError) {
         try {
             this._callbacks.onFatalError(context, error);
         } catch (error) {

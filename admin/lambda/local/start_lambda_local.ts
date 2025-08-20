@@ -6,7 +6,7 @@ import {
     LambdaLocalSqsConsumerOptions,
     createLambdaLocalSqsConsumer,
 } from "~/admin/lambda/local/create_lambda_local_sqs_consumer.js";
-import {LambdaProcessContext} from "~/server/lambda/helpers/lambda_action_context.js";
+import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -28,7 +28,7 @@ export type LambdaRuntimeServerOptions = {
  * Routes requests to appropriate Lambda handlers based on URL path patterns.
  */
 export function startLambdaLocal(
-    processContext: LambdaProcessContext,
+    processContext: LambdaActionContext,
     shutdownManager: ShutdownManager,
     tokenAgent: TokenAgent,
     port: number,

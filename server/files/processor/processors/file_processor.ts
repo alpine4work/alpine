@@ -1,5 +1,5 @@
 import {Readable as ReadableStream} from "stream";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -97,7 +97,7 @@ export type FileProcessorTemplate<
     readonly hasPreview: HasPreview;
 
     process(
-        context: FileProcessorServiceActionContext,
+        context: FileProcessorActionContext,
         options: {
             spaceId: SpaceId;
             fileId: FileId;

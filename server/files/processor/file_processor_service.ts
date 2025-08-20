@@ -4,21 +4,23 @@ import {
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
+import {FileProcessorProcessContext} from "~/server/files/data/file_processor_context.js";
 import {createFileProcessorServiceServer} from "~/server/files/processor/file_processor_service_server.js";
 import {processFile} from "~/server/files/processor/process_file.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {
-    createServerProcessContext,
-    serverProcessContextOptions,
-} from "~/server/node/create_server_process_context.js";
+    createServerBasicProcessContextModules,
+    serverBasicProcessContextOptions,
+} from "~/server/node/create_server_basic_process_context_modules.js";
 import {
     createServiceTokenAgent,
     serviceTokenAgentOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -30,7 +32,7 @@ export const options = {
     port: {type: "string"},
     temporaryDirectoryPath: {type: "string"},
     ...serviceTokenAgentOptions,
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
 } as const;
 
@@ -68,12 +70,13 @@ export async function run({
         options,
     });
 
-    const processContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        awsSigner,
-        options,
-    }).clone({
+    const processContext: FileProcessorProcessContext = Context.new({
+        ...createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
         r2: createServiceCloudflareR2ContextModule({
             ...options,
             fileProcessorServiceUrl: `http://localhost:${port}`,

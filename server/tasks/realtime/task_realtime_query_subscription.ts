@@ -1,7 +1,9 @@
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeProcessContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
 import {
     TaskRealtimeTaskReferencesSubscriptionBase,
@@ -44,7 +46,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * after this. Subscribers should present an error to users or attempt to
          * reconnect.
          */
-        onFatalError(context: ServerProcessContext, error: InternalError): void;
+        onFatalError(context: TaskRealtimeProcessContext, error: InternalError): void;
 
         /**
          * A task is added to the query subscription's loaded range. May happen when:
@@ -58,7 +60,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * this is the first time the client is seeing the task.
          */
         onLoadedTaskAdd(
-            context: TaskSystemActionContext,
+            context: TaskRealtimeSystemActionContext,
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             newTask: TaskIndexDoc,
         ): void;
@@ -70,7 +72,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * Clients should apply these actions locally.
          */
         onLoadedTaskUpdate(
-            context: TaskSystemActionContext,
+            context: TaskRealtimeSystemActionContext,
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             taskId: TaskId,
             oldTask: TaskIndexDoc,
@@ -96,7 +98,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
 export class TaskRealtimeQuerySubscription {
     private readonly _internal: TaskRealtimeQuerySubscriptionInternal;
     private readonly _withFatalErrorHandling: <Value>(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         action: () => Promise<Value>,
     ) => Promise<Value>;
 
@@ -104,7 +106,7 @@ export class TaskRealtimeQuerySubscription {
         query: TaskRealtimeQuery,
         callbacks: TaskRealtimeQuerySubscriptionCallbacks,
         withFatalErrorHandling: <Value>(
-            context: TaskSystemActionContext,
+            context: TaskRealtimeSystemActionContext,
             action: () => Promise<Value>,
         ) => Promise<Value>,
     ) {
@@ -139,7 +141,7 @@ export class TaskRealtimeQuerySubscription {
      * Returns the current loaded state of our subscription.
      */
     public loadMoreTasks(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): Promise<{
@@ -268,7 +270,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
      * subscription's state.
      */
     public async loadMoreTasks(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): Promise<{
@@ -294,7 +296,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     // state synchronously. We enforce this part is synchronous so we know that no
     // concurrent actions will happen while we're updating our state.
     private _loadMoreTasksSync(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): {
@@ -322,7 +324,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     public onVisibleTaskAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -342,7 +344,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     public onVisibleTaskUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -385,7 +387,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     public onVisibleTaskRemove(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
@@ -406,7 +408,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     private _onLoadedTaskAdd(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -435,7 +437,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     private _onLoadedTaskUpdate(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -501,7 +503,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         this._callbacks.onLoadedTaskRemove(eventBuilder, oldTask, actions);
     }
 
-    public onFatalError(context: ServerProcessContext, error: InternalError) {
+    public onFatalError(context: TaskRealtimeProcessContext, error: InternalError) {
         try {
             this._callbacks.onFatalError(context, error);
         } catch (error) {

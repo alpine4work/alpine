@@ -8,26 +8,20 @@ import {
     authorizeChatAccessIfPossible,
     getChatAccountIds,
 } from "~/server/chat/data/chat_table.js";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
-import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
-import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
+    ServerActionContext,
     ServerActionContextModules,
     ServerImpersonatedAccountActionContext,
+    ServerSessionActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
-import {
-    ServerContentActionContext,
-    ServerContentSessionActionContext,
-    ServerContentSystemActionContext,
-} from "~/server/context/server_content_action_context.js";
 import {
     FileDocumentAuthorizer,
     authorizeDocumentAccessIfPossible,
@@ -69,7 +63,6 @@ import {
     NotificationCreateTaskCommentEvent,
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
-import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -84,7 +77,6 @@ import {
     getTaskNotificationSubscribers,
     getTaskOwnerIfPossible,
 } from "~/server/tasks/data/task_table.js";
-import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
@@ -163,31 +155,6 @@ import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/no
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-type InboxActionExtraBroadcastContextModules = {
-    edge: EdgeServiceContextModuleBase;
-    content: ContentContextModuleBase;
-    opensearch: OpensearchContextModule;
-    files: FilesContextModuleBase;
-    r2: CloudflareR2ContextModule;
-};
-
-export type InboxActionContextModulesWithBroadcast = ServerActionContextModules &
-    InboxActionExtraBroadcastContextModules;
-
-export type InboxActionContextWithBroadcast = Context<InboxActionContextModulesWithBroadcast>;
-
-export type InboxSessionActionContextModulesWithBroadcast = ServerSessionActionContextModules &
-    InboxActionExtraBroadcastContextModules;
-
-export type InboxSessionActionContextWithBroadcast =
-    Context<InboxSessionActionContextModulesWithBroadcast>;
-
-export type InboxSystemActionContextModulesWithBroadcast = ServerSystemActionContextModules &
-    InboxActionExtraBroadcastContextModules;
-
-export type InboxSystemActionContextWithBroadcast =
-    Context<InboxSystemActionContextModulesWithBroadcast>;
 
 /**
  * The initial generation of a new inbox.
@@ -1245,9 +1212,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
  * the inbox entry to avoid loading data with a system permission level.
  */
 function protectInboxEntryModelBuilder<Value>(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {accountId}: {accountId: AccountId},
-    action: (context: ServerContentActionContext) => Promise<Value>,
+    action: (context: ServerActionContext) => Promise<Value>,
 ): Promise<Value> {
     switch (context.actor.type) {
         case "Anonymous": {
@@ -1480,7 +1447,7 @@ function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttri
  * Get the session account's inbox in the provided space.
  */
 export async function getInbox(
-    context: InboxSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1520,7 +1487,7 @@ export async function getInbox(
  * inboxes for spaces the actor has lost access to.
  */
 export async function getOurAccountInboxes(
-    context: ServerContentSessionActionContext,
+    context: ServerSessionActionContext,
     spaceIds: ReadonlySet<SpaceId>,
 ): Promise<ReadonlyArray<DynamoGeneralRealtimeItem<InboxModel>>> {
     const inboxes = await parallelMapAsyncIterableToArray(
@@ -1553,7 +1520,7 @@ export async function getOurAccountInboxes(
  * Get the entries for the current account's inbox.
  */
 export async function getInboxEntries(
-    context: ServerContentSessionActionContext,
+    context: ServerSessionActionContext,
     {
         spaceId,
         filter,
@@ -1636,7 +1603,7 @@ export async function getInboxEntries(
  * Get a single inbox for the actor based on the provided key.
  */
 export async function getInboxEntry(
-    context: ServerContentSessionActionContext,
+    context: ServerSessionActionContext,
     {
         spaceId,
         key,
@@ -1666,7 +1633,7 @@ export async function getInboxEntry(
  * This will backfill updates both for non-archived and archived entries.
  */
 export async function backfillInboxEntries(
-    context: ServerContentSessionActionContext,
+    context: ServerSessionActionContext,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1692,7 +1659,7 @@ export async function backfillInboxEntries(
 // will be directly added to the top of the inbox while the user is actively
 // observing.
 export async function observeInbox(
-    context: InboxSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1847,7 +1814,7 @@ function getInboxEntryKey(itemKey: InboxEntryItemKey): InboxEntryKey {
  * `processNotificationEvent()`.
  */
 export async function archiveInboxEntry(
-    context: Context<InboxSessionActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<{archiveTime: Date}> {
     return archiveInboxEntryItemKey(
@@ -1866,7 +1833,7 @@ export async function archiveInboxEntry(
  * primary inbox so the user can easily find it.
  */
 export function unarchiveInboxEntry(
-    context: InboxSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
     return unarchiveInboxEntryItemKey(
@@ -1880,7 +1847,7 @@ export function unarchiveInboxEntry(
 }
 
 async function archiveInboxEntryItemKey(
-    context: Context<InboxSessionActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -2005,7 +1972,7 @@ async function archiveInboxEntryItemKey(
 }
 
 async function unarchiveInboxEntryItemKey(
-    context: InboxSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -2061,7 +2028,7 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * This function is idempotent.
  */
 export async function processNotificationEvent(
-    context: Context<InboxSystemActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {
@@ -2075,7 +2042,7 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: Context<InboxSystemActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {
@@ -2166,7 +2133,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * as a whole will be idempotent.
      */
     updateInboxEntry: (
-        context: InboxSystemActionContextWithBroadcast,
+        context: ServerSystemActionContext,
         event: Event,
         options: {
             info: Info;
@@ -2214,7 +2181,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * [1]: https://developer.apple.com/design/human-interface-guidelines/notifications
      */
     getAlertContent: (
-        context: ServerContentSystemActionContext,
+        context: ServerSystemActionContext,
         event: Event,
         options: {
             info: Info;
@@ -2228,7 +2195,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         body: string;
     }>;
 }): (
-    context: Context<InboxSystemActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
     event: Event,
     span: TracerSpan,
 ) => Promise<void> {
@@ -2583,7 +2550,7 @@ type UpdateInboxEntryResult = {
  * when possible which means we need `update` to be idempotent.
  */
 async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
-    context: InboxSystemActionContextWithBroadcast,
+    context: ServerSystemActionContext,
     event: NotificationEvent,
     accountId: AccountId,
     itemKey: ItemKey,
@@ -2601,9 +2568,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
     return context.dynamo.retryTransaction(run);
 
-    async function run(
-        context: InboxSystemActionContextWithBroadcast,
-    ): Promise<UpdateInboxEntryResult | null> {
+    async function run(context: ServerSystemActionContext): Promise<UpdateInboxEntryResult | null> {
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
@@ -2846,7 +2811,7 @@ function getInboxEntryLatestUpdateTime(
 }
 
 async function printNotificationEventAlertContentBody(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     fileAuthorizer: FileAuthorizer,
     event: {spaceId: SpaceId; isContentSnippetComplete: boolean; contentSnippet: Node},
 ) {
@@ -3889,7 +3854,7 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
  * underlying channel posts inbox entry so it will accumulate no new posts.
  */
 export async function getInboxChannelPostsEntryPosts(
-    context: InboxSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         spaceId,
         channelId,
@@ -4072,7 +4037,7 @@ export async function getInboxChannelPostsEntryPosts(
  * new threads.
  */
 export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
-    context: InboxSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         spaceId,
         documentId,

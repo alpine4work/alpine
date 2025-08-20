@@ -1,5 +1,4 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -9,21 +8,11 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
-import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContext,
-    ServerActionContextModules,
     ServerSessionActionContext,
-    ServerSessionActionContextModules,
     ServerSystemActionContext,
-    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
-import {
-    ServerContentActionContext,
-    ServerContentSessionActionContext,
-} from "~/server/context/server_content_action_context.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -38,10 +27,7 @@ import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
-import {
-    addFeedAccountCandidateEntry,
-    addFeedCandidateEntry,
-} from "~/server/feed/data/feed_table.js";
+import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_table.js";
 import {
     FileAuthorizer,
     attachFileFromAttachment,
@@ -65,7 +51,6 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {
     AccessLevel,
     AccessPolicy,
@@ -117,7 +102,11 @@ import {
     DynamoGeneralRealtimeChannelOrPostEvent,
 } from "~/shared/forum/channel_realtime_protocol.js";
 import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post_search_entity_title.js";
-import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
+import {
+    channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+    createChannelNotFoundError,
+    createPostNotFoundError,
+} from "~/shared/forum/forum_error_messages.js";
 import {
     PostContent,
     PostContentSchema,
@@ -183,30 +172,6 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-
-type ForumActionExtraBroadcastContextModules = {
-    edge: EdgeServiceContextModuleBase;
-    content: ContentContextModuleBase;
-    files: FilesContextModuleBase;
-    r2: CloudflareR2ContextModule;
-};
-
-export type ForumActionContextModulesWithBroadcast = ServerActionContextModules &
-    ForumActionExtraBroadcastContextModules;
-
-export type ForumActionContextWithBroadcast = Context<ForumActionContextModulesWithBroadcast>;
-
-export type ForumSessionActionContextModulesWithBroadcast = ServerSessionActionContextModules &
-    ForumActionExtraBroadcastContextModules;
-
-export type ForumSessionActionContextWithBroadcast =
-    Context<ForumSessionActionContextModulesWithBroadcast>;
-
-export type ForumSystemActionContextModulesWithBroadcast = ServerSystemActionContextModules &
-    ForumActionExtraBroadcastContextModules;
-
-export type ForumSystemActionContextWithBroadcast =
-    Context<ForumSystemActionContextModulesWithBroadcast>;
 
 /**
  * The max contribution count in the `Contributors` DynamoDB item.
@@ -1032,7 +997,7 @@ export async function* expensiveScanEveryPostCommentForMigration(
  * migration won't have been run.
  */
 export async function runMoveForumChannelsAndPostsMigration(
-    context: ServerProcessContext,
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     let n = 0;
@@ -1194,7 +1159,7 @@ export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntr
  * Create a new channel.
  */
 export async function createChannel(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         spaceId,
         channelId = generateId<ChannelId>(),
@@ -1218,7 +1183,7 @@ export async function createChannel(
     id: ChannelId;
     createdTime: Date;
     getDynamoGeneralRealtimeItem: (
-        context: ServerContentActionContext,
+        context: ServerActionContext,
     ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1444,7 +1409,7 @@ async function authorizeChannelItemAccessIfPossible(
 }
 
 async function createChannelModelFromItem(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     item: {
         readonly channelId: ChannelId;
         readonly spaceId: SpaceId;
@@ -1482,7 +1447,7 @@ async function createChannelModelFromItem(
  * channel instead of returning null.
  */
 export async function getChannelIfPossible(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     channelId: ChannelId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = emptyObject,
 ): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, ErrorBase> | null> {
@@ -1520,7 +1485,7 @@ export async function getChannelIfPossible(
  * channel doesn't exist or throws if you don't have access to the channel.
  */
 export async function getChannelIfExists(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel> | null> {
@@ -1529,26 +1494,12 @@ export async function getChannelIfExists(
     return unwrapResult(channel);
 }
 
-export function createChannelNotFoundError(channelId: ChannelId) {
-    return new NotFoundError("Channel not found", {
-        aggregateDedupeKey: channelId,
-        displayMessage: errorDisplayMessage`This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.`,
-    });
-}
-
-export function createPostNotFoundError(postId: PostId) {
-    return new NotFoundError("Post not found", {
-        aggregateDedupeKey: postId,
-        displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,
-    });
-}
-
 /**
  * Gets the channel object with the provided `ChannelId`. Throws if the channel
  * doesn't exist or you don't have access to the channel.
  */
 export async function getChannel(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel>> {
@@ -1565,7 +1516,7 @@ export async function getChannel(
  * then we put the account who contributed first, first in the list.
  */
 export async function getChannelContributors(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     channelId: ChannelId,
     {limit, consistency = "Eventual"}: {limit: number; consistency?: DynamoReadConsistency},
 ): Promise<Array<AccountModel>> {
@@ -1668,7 +1619,7 @@ export function serializeForumRealtimeTableOpaqueItemKeyForTest(
  * realtime query so the data can be kept up-to-date in realtime.
  */
 export function getChannelAndMetadataIfPossible(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         channelId,
         postFilesLimit,
@@ -1806,7 +1757,7 @@ export function getChannelAndMetadataIfPossible(
  * realtime query so the data can be kept up-to-date in realtime.
  */
 export async function getChannelAndMetadata(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     options: {
         channelId: ChannelId;
         postFilesLimit: number;
@@ -1824,7 +1775,7 @@ export async function getChannelAndMetadata(
  * disconnected from realtime.
  */
 export async function backfillChannelAndMetadata(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         channelId,
         readTime,
@@ -2251,7 +2202,7 @@ export async function sendChannelShareNotification(
  * Updates the name of the channel.
  */
 export async function updateChannelName(
-    context: ForumActionContextWithBroadcast,
+    context: ServerActionContext,
     {
         channelId,
         name,
@@ -2260,7 +2211,7 @@ export async function updateChannelName(
         name: string;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
@@ -2315,7 +2266,7 @@ export async function updateChannelName(
  * Updates the description of the channel.
  */
 export async function updateChannelDescription(
-    context: ForumActionContextWithBroadcast,
+    context: ServerActionContext,
     {
         channelId,
         description,
@@ -2324,7 +2275,7 @@ export async function updateChannelDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
@@ -2373,7 +2324,7 @@ export async function updateChannelDescription(
  * Updates the name and description of the channel.
  */
 export async function updateChannelNameAndDescription(
-    context: ForumActionContextWithBroadcast,
+    context: ServerActionContext,
     {
         channelId,
         name,
@@ -2384,7 +2335,7 @@ export async function updateChannelNameAndDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
@@ -2437,7 +2388,7 @@ export async function updateChannelNameAndDescription(
 }
 
 async function updateChannelAccessPolicyBase(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         channelId,
         updateAccessPolicy,
@@ -2448,7 +2399,7 @@ async function updateChannelAccessPolicyBase(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
@@ -2465,7 +2416,7 @@ async function updateChannelAccessPolicyBase(
                 channelItem: ChannelAttributesItem;
                 shouldAddFeedCandidateEntry: boolean;
                 getDynamoGeneralRealtimeEventTransaction: (
-                    context: ServerContentActionContext,
+                    context: ServerActionContext,
                 ) => Promise<{
                     readTime: Date;
                     eventTransaction: ReadonlyArray<
@@ -2616,7 +2567,7 @@ async function updateChannelAccessPolicyBase(
  * the channel to update the channel's access policy.
  */
 export async function updateChannelAccessPolicy(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         channelId,
         accessPolicy,
@@ -2627,7 +2578,7 @@ export async function updateChannelAccessPolicy(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
@@ -2647,7 +2598,7 @@ export async function updateChannelAccessPolicy(
  * the entire access policy.
  */
 export async function addAccountGrantsToChannelAccessPolicy(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         channelId,
         accountGrantById,
@@ -2658,7 +2609,7 @@ export async function addAccountGrantsToChannelAccessPolicy(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
@@ -2689,7 +2640,7 @@ export function getChannelPostsPartitionKey(channelId: ChannelId): DynamoIndexPa
  * post will be the first in the array.
  */
 export async function getChannelPosts(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         channelId,
         limit,
@@ -2717,7 +2668,7 @@ export async function getChannelPosts(
  * disconnected from realtime.
  */
 export async function backfillChannelPosts(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {channelId, readTime}: {channelId: ChannelId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
@@ -2755,7 +2706,7 @@ function getPostContentFileIds(content: PostContent): Set<FileId> {
  * provided so we can delete the draft.
  */
 export async function createPost(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         channelId,
         draftId = null,
@@ -2769,7 +2720,7 @@ export async function createPost(
     id: PostId;
     spaceId: SpaceId;
     createdTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
     }>;
@@ -2832,7 +2783,7 @@ export async function createPost(
 
     let result: {
         getEvent: (
-            context: ServerContentActionContext,
+            context: ServerActionContext,
         ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
     };
 
@@ -3088,7 +3039,7 @@ export async function createPost(
  * Gets the post with the provided `PostId`.
  */
 export async function getPost(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     postId: PostId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<PostModel>> {
@@ -3101,7 +3052,7 @@ export async function getPost(
  * if the post doesn't exist in the database.
  */
 export async function getPostIfPossible(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<Result<DynamoGeneralRealtimeItem<PostModel>, ErrorBase>> {
@@ -3218,7 +3169,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
 }
 
 async function createPostModelFromItem(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     channelPromise: MaybePromise<ChannelPreviewModel>,
     item: {
         readonly postId: PostId;
@@ -3409,11 +3360,11 @@ export async function getPostNotificationSubscribers(
  * Update the contents of a post if you are the post's author.
  */
 export function updatePostContent(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{
     contentUpdatedTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
     }>;
@@ -3457,7 +3408,7 @@ export function updatePostContent(
 
         let result: {
             getEvent: (
-                context: ServerContentActionContext,
+                context: ServerActionContext,
             ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
         };
 
@@ -3729,7 +3680,7 @@ export async function authorizePostAccessIfPossible(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: ForumSessionActionContextWithBroadcast,
+    context: ServerSessionActionContext,
     {
         postId,
         parentCommentIndex,
@@ -4022,7 +3973,7 @@ export async function createPostComment(
  * Get a single post comment.
  */
 export async function getPostComment(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -4083,7 +4034,7 @@ export async function getPostCommentPayload(
 }
 
 async function createPostCommentModelFromItem(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
@@ -4380,7 +4331,7 @@ export function deletePostComment(
  * one request.
  */
 export async function getPostAndInitialComments(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postId,
         commentLimit,
@@ -4488,7 +4439,7 @@ export async function getPostAndInitialComments(
  * Paginate through post comments from start to finish.
  */
 export async function getPostCommentsFromStart(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postId,
         limit,
@@ -4564,7 +4515,7 @@ export async function getPostCommentsFromStart(
 }
 
 async function getPostCommentsFromStartAssumingAuthorizedPost(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postId,
         getSpaceId,
@@ -4686,7 +4637,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
  * Paginate through post comments from finish to start.
  */
 export async function getPostCommentsFromEnd(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postId,
         limit,
@@ -4762,7 +4713,7 @@ export async function getPostCommentsFromEnd(
 }
 
 async function getPostCommentsFromEndAssumingAuthorizedPost(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postId,
         getSpaceId,
@@ -4906,7 +4857,7 @@ export type PostCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillPostComments(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postId,
         clientCommentCount,
@@ -5017,7 +4968,7 @@ export async function backfillPostComments(
 }
 
 async function queryPostCommentChangeLogAssumingAuthorizedPost(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         postItem,
         lastCommentChangeTime,
@@ -5177,7 +5128,7 @@ export async function createOrReplacePostDraft(
  * Get the post draft with the provided `PostDraftId` if it exists.
  */
 export async function getPostDraftIfExists(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     accountId: AccountId,
     draftId: PostDraftId,
@@ -5246,7 +5197,7 @@ const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
  * Converts realtime event stubs into full realtime event objects.
  */
 export async function getChannelRealtimeEvent(
-    context: ServerContentSessionActionContext,
+    context: ServerSessionActionContext,
     channelId: ChannelId,
     eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
 ): Promise<ReadonlyArray<DynamoGeneralRealtimeChannelOrPostEvent>> {
@@ -5301,7 +5252,7 @@ export async function getChannelRealtimeEvent(
  * Converts realtime event stubs into full realtime event objects.
  */
 export async function getPostRealtimeEvent(
-    context: ServerContentSessionActionContext,
+    context: ServerSessionActionContext,
     postId: PostId,
     eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEventStub>,
 ): Promise<ReadonlyArray<DynamoGeneralRealtimePostEvent>> {

@@ -1,5 +1,5 @@
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";
 import {
     TaskAuthorizationActor,
     authorizeTaskIndexDocAccessIfPossibleForActor,
@@ -25,7 +25,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
  * anymore.
  */
 export function getTaskGridViewExpansionStateChildrenQueries<Result>(
-    context: TaskSystemActionContext,
+    context: TaskRealtimeSystemActionContext,
     {
         server,
         spaceId,

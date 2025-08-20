@@ -9,25 +9,29 @@ import {
 } from "~/admin/opensearch/local/start_opensearch_local.js";
 import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {Session} from "~/server/accounts/accounts_table.js";
+import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
 import {
     DynamoAnonymousActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
+} from "~/server/context/dynamo_actor_context_module.js";
+import {TestFilesContextModule} from "~/server/context/files_context_module.js";
 import {
-    ContentContextModuleBase,
-    TestContentContextModule,
-    TestContentContextModuleOptions,
-} from "~/server/context/content_context_module_base.js";
-import {
-    FilesContextModuleBase,
-    TestFilesContextModule,
-} from "~/server/context/files_context_module.js";
+    DocumentsInjection,
+    DocumentsInjectionContextModule,
+    ForumInjection,
+    ForumInjectionContextModule,
+    SearchInjection,
+    SearchInjectionContextModule,
+    SpacesInjection,
+    SpacesInjectionContextModule,
+    TasksInjection,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
 import {
     ServerAnonymousActionContextModules,
     ServerImpersonatedAccountActionContextModules,
@@ -36,6 +40,7 @@ import {
     ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
@@ -52,7 +57,6 @@ import {
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {
@@ -68,6 +72,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -87,11 +92,6 @@ process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
 type TestContextExtraModules = {
     email: EmailContextModuleBase;
-    opensearch: OpensearchContextModule;
-    edge: EdgeServiceContextModuleBase;
-    content: ContentContextModuleBase;
-    files: FilesContextModuleBase;
-    r2: CloudflareR2ContextModule;
 };
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
@@ -194,7 +194,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     readonly escalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor: ActorContextModule;
+            actor?: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -243,24 +243,26 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
 export function createTestContext(
     options: {
         shouldStartOpensearch?: boolean;
-    } & TestContentContextModuleOptions<TestContextModules> &
-        (
-            | {
-                  shouldSendJobsToSqs: true;
-                  processJob?: undefined;
-              }
-            | {
-                  shouldSendJobsToSqs?: false;
-                  processJob?: (
-                      context: Context<
-                          TestSystemActionContextModules & {apns: ApnsContextModuleBase}
-                      >,
-                      job: JobDescription,
-                      jobStartTime: Date,
-                      span: TracerSpan,
-                  ) => Promise<void>;
-              }
-        ) = {},
+        documentsInjection?: Partial<DocumentsInjection>;
+        forumInjection?: Partial<ForumInjection>;
+        searchInjection?: Partial<SearchInjection>;
+        spacesInjection?: Partial<SpacesInjection>;
+        tasksInjection?: Partial<TasksInjection>;
+    } & (
+        | {
+              shouldSendJobsToSqs: true;
+              processJob?: undefined;
+          }
+        | {
+              shouldSendJobsToSqs?: false;
+              processJob?: (
+                  context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+                  job: JobDescription,
+                  jobStartTime: Date,
+                  span: TracerSpan,
+              ) => Promise<void>;
+          }
+    ) = {},
 ): TestContext {
     const {shouldStartOpensearch = false, shouldSendJobsToSqs = false} = options;
     let {processJob} = options;
@@ -392,7 +394,7 @@ export function createTestContext(
     const escalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor: ActorContextModule;
+            actor?: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -408,7 +410,7 @@ export function createTestContext(
                 cache: context.cache.forkForChangedActor(),
                 batch: context.batch.forkForChangedActor(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
-                    context.actor.serviceName,
+                    context.actor?.serviceName ?? "Test",
                     spaceId,
                 ),
             },
@@ -508,6 +510,26 @@ export function createTestContext(
     const opensearchContextModule = OpensearchContextModule.test();
     const jobsContextModule = JobsContextModule.test();
 
+    let searchInjection = options.searchInjection;
+    let tasksInjection = options.tasksInjection;
+
+    // Automatically inject a noop for `dangerouslyFavoriteSearchEntityWithoutAuthorization`.
+    // That way adding a space account (common in tests) doesn't fail when we haven't
+    // injected this rather ugly function name.
+    searchInjection = {
+        dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
+        ...searchInjection,
+    };
+
+    // If OpenSearch is disabled we don't need to index task actions. Noop instead
+    // of throw.
+    if (!shouldStartOpensearch) {
+        tasksInjection = {
+            indexTaskActionTransactionAssumingItsCommitted: asyncNoop,
+            ...tasksInjection,
+        };
+    }
+
     const processContext = Context.new<TestContextModules>({
         process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(testTracer),
@@ -517,9 +539,16 @@ export function createTestContext(
         jobs: jobsContextModule,
         constants: constantsContextModule,
         edge: new TestLocalEdgeServiceContextModule(),
-        content: new TestContentContextModule(options),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
+        documentsInjection: DocumentsInjectionContextModule.test(options.documentsInjection),
+        forumInjection: ForumInjectionContextModule.test(options.forumInjection),
+        searchInjection: SearchInjectionContextModule.test(searchInjection),
+        spacesInjection: SpacesInjectionContextModule.test(options.spacesInjection),
+        tasksInjection: TasksInjectionContextModule.test(tasksInjection),
+        tasks: new TestTaskContextModule({
+            dangerouslyEscalateToSystemContext: escalateToSystemContext,
+        }),
     });
 
     const helpers: TestContextHelpers<any> = {

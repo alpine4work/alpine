@@ -35,7 +35,6 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible, getAccount} from "~/server/spaces/spaces_table.js";
 import {
-    createTaskNotFoundError,
     getTaskNotesContentAndOptionalInitialComments,
     getTaskNotesContentIfExists,
 } from "~/server/tasks/data/task_table.js";
@@ -62,6 +61,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {

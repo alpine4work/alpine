@@ -30,11 +30,11 @@ import {
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {
     acceptSpaceAccountInvite,
+    addSpaceAccount,
     getSpaceAccountsCacheForTest,
     removeSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
@@ -98,32 +98,34 @@ const context = createTestContext({
             // Noop for other jobs...
         }
     },
-    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
-        const entityIdObject = parseSearchDynamicEntityId(entityId);
-        if (entityIdObject.type !== "Document") {
-            throw new UnimplementedError(
-                quote`Loading search entity for ${entityIdObject.type} is unimplemented`,
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+            const entityIdObject = parseSearchDynamicEntityId(entityId);
+            if (entityIdObject.type !== "Document") {
+                throw new UnimplementedError(
+                    quote`Loading search entity for ${entityIdObject.type} is unimplemented`,
+                );
+            }
+
+            assert(isServerActionContext(context));
+
+            const documentResult = await getDocumentPreviewIfPossible(
+                context,
+                entityIdObject.documentId,
             );
-        }
+            if (!documentResult) return null;
+            if (!documentResult.ok) return {isPrivate: true};
 
-        assert(isServerActionContext(context));
-
-        const documentResult = await getDocumentPreviewIfPossible(
-            context,
-            entityIdObject.documentId,
-        );
-        if (!documentResult) return null;
-        if (!documentResult.ok) return {isPrivate: true};
-
-        return {
-            isPrivate: false,
-            entity: new SearchEntityModel({
-                id: entityId,
-                title: documentResult.value.getTitle(),
-                titleVersion: {type: "Integer", version: documentResult.value.version},
-                media: null,
-            }),
-        };
+            return {
+                isPrivate: false,
+                entity: new SearchEntityModel({
+                    id: entityId,
+                    title: documentResult.value.getTitle(),
+                    titleVersion: {type: "Integer", version: documentResult.value.version},
+                    media: null,
+                }),
+            };
+        },
     },
 });
 

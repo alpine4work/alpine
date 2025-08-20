@@ -2,17 +2,20 @@ import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/da
 import {addDays, addHours} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateOurAccountNameBeforeExecuteTestCheckpoint} from "~/server/accounts/accounts_table.js";
-import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
+import {
+    updateOurAccountName,
+    updateOurAccountNameBeforeExecuteTestCheckpoint,
+} from "~/server/accounts/accounts_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccountForTest,
@@ -22,7 +25,6 @@ import {
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     authorizeTaskAccess,
     authorizeTaskAccessIfPossible,
@@ -49,6 +51,7 @@ import {
     updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessLevel, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
@@ -114,6 +117,8 @@ afterEach(() => {
 });
 
 const context = createTestContext({
+    spacesInjection,
+    tasksInjection,
     processJob: async (context, job) => {
         jobs.push(job);
     },
@@ -167,17 +172,7 @@ function textSlice(text: string) {
 }
 
 describe("old style", () => {
-    const context = {
-        ...baseContext,
-        action: session => {
-            return baseContext.action(session).clone({
-                tasks: new TestTaskContextModule({
-                    shouldSkipIndexing: true,
-                    dangerouslyEscalateToSystemContext: baseContext.escalateToSystemContext,
-                }),
-            });
-        },
-    } satisfies TestContext;
+    const context = baseContext;
 
     const space = createTestSpace(context);
     const session1 = createTestSession(context, space);
@@ -15011,7 +15006,7 @@ test("can delete a task and all its children when it has no children", async () 
 
     const actionTime = testClock.nowLogical();
 
-    expect(await deleteTaskAndAllChildren(TestTask.action(session), task.id, actionTime)).toEqual({
+    expect(await deleteTaskAndAllChildren(session.action(), task.id, actionTime)).toEqual({
         spaceId: space.id,
         actions: [
             {
@@ -15033,7 +15028,7 @@ test("can’t delete a task and all its children when the task doesn’t exist",
     const actionTime = testClock.nowLogical();
 
     await expect(
-        deleteTaskAndAllChildren(TestTask.action(session), generateId(), actionTime),
+        deleteTaskAndAllChildren(session.action(), generateId(), actionTime),
     ).rejects.toThrow(NotFoundError);
 });
 
@@ -15048,9 +15043,9 @@ test("can’t delete a task and all its children when you don’t have access to
 
     const actionTime = testClock.nowLogical();
 
-    await expect(
-        deleteTaskAndAllChildren(TestTask.action(session2), task.id, actionTime),
-    ).rejects.toThrow(PermissionDeniedError);
+    await expect(deleteTaskAndAllChildren(session2.action(), task.id, actionTime)).rejects.toThrow(
+        PermissionDeniedError,
+    );
 
     expect((await task.getItem()).deletedTime).toEqual(null);
 });
@@ -15078,13 +15073,13 @@ test("can delete a task and all its children when you have access to the task th
 
     const actionTime = testClock.nowLogical();
 
-    await expect(
-        deleteTaskAndAllChildren(TestTask.action(session2), task.id, actionTime),
-    ).rejects.toThrow(PermissionDeniedError);
+    await expect(deleteTaskAndAllChildren(session2.action(), task.id, actionTime)).rejects.toThrow(
+        PermissionDeniedError,
+    );
 
     expect((await task.getItem()).deletedTime).toEqual(null);
 
-    expect(await deleteTaskAndAllChildren(TestTask.action(session3), task.id, actionTime)).toEqual({
+    expect(await deleteTaskAndAllChildren(session3.action(), task.id, actionTime)).toEqual({
         spaceId: space.id,
         actions: [
             {
@@ -15143,7 +15138,7 @@ test("can delete a task and all its children", async () => {
     const actionTime = testClock.nowLogical();
 
     expect(
-        (await deleteTaskAndAllChildren(TestTask.action(session), task1.id, actionTime)).actions
+        (await deleteTaskAndAllChildren(session.action(), task1.id, actionTime)).actions
             .slice()
             .sort((action1, action2) =>
                 defaultCompareStrings(JSON.stringify(action1), JSON.stringify(action2)),
@@ -15309,11 +15304,7 @@ test("can handle race conditions when deleting a task and all of it’s children
     );
 
     const actionTime = testClock.nowLogical();
-    const deletePromise = deleteTaskAndAllChildren(
-        TestTask.action(session),
-        parentTask1.id,
-        actionTime,
-    );
+    const deletePromise = deleteTaskAndAllChildren(session.action(), parentTask1.id, actionTime);
 
     const {unpause} = await pausePromise;
 
@@ -15428,11 +15419,7 @@ test("can handle race conditions when deleting a task with parent and all of it�
     );
 
     const actionTime = testClock.nowLogical();
-    const deletePromise = deleteTaskAndAllChildren(
-        TestTask.action(session),
-        parentTask1.id,
-        actionTime,
-    );
+    const deletePromise = deleteTaskAndAllChildren(session.action(), parentTask1.id, actionTime);
 
     const {unpause} = await pausePromise;
 
@@ -15551,7 +15538,7 @@ test("the delete a task with all its children function has the same effect as co
     ];
 
     const {extraActions: extraActions1} = await commitTaskActionTransaction(
-        TestTask.action(session),
+        session.action(),
         space.id,
         actions1,
     );
@@ -15559,7 +15546,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await task1.getItem())).not.toEqual(await task2.getItem());
 
     const {actions: actions2} = await deleteTaskAndAllChildren(
-        TestTask.action(session),
+        session.action(),
         task2.id,
         deletedTime,
     );
@@ -15636,7 +15623,7 @@ test("the delete a task with all its children function has the same effect as co
     ];
 
     const {extraActions: extraActions1} = await commitTaskActionTransaction(
-        TestTask.action(session),
+        session.action(),
         space.id,
         actions1,
     );
@@ -15644,7 +15631,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await task1.getItem())).not.toEqual(await task2.getItem());
 
     const {actions: actions2} = await deleteTaskAndAllChildren(
-        TestTask.action(session),
+        session.action(),
         task2.id,
         deletedTime,
     );
@@ -15748,7 +15735,7 @@ test("the delete a task with all its children function has the same effect as co
     ];
 
     const {extraActions: extraActions1} = await commitTaskActionTransaction(
-        TestTask.action(session),
+        session.action(),
         space.id,
         actions1,
     );
@@ -15758,7 +15745,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await task1b.getItem())).not.toEqual(await task2b.getItem());
 
     const {actions: actions2} = await deleteTaskAndAllChildren(
-        TestTask.action(session),
+        session.action(),
         task2.id,
         deletedTime,
     );
@@ -15888,7 +15875,7 @@ test("the delete a task with all its children function has the same effect as co
     ];
 
     const {extraActions: extraActions1} = await commitTaskActionTransaction(
-        TestTask.action(session),
+        session.action(),
         space.id,
         actions1,
     );
@@ -15898,7 +15885,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await task1b.getItem())).not.toEqual(await task2b.getItem());
 
     const {actions: actions2} = await deleteTaskAndAllChildren(
-        TestTask.action(session),
+        session.action(),
         task2.id,
         deletedTime,
     );
@@ -16359,7 +16346,7 @@ test("commits an update name action when the account’s name updates", async ()
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
 
-    await updateOurAccountName(TestTask.action(session), newAccountName1);
+    await updateOurAccountName(session.action(), newAccountName1);
 
     expect((await session.get()).initialData.name).toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
@@ -16382,7 +16369,7 @@ test("commits an update name action when the account’s name updates", async ()
         },
     ]);
 
-    await updateOurAccountName(TestTask.action(session), newAccountName2);
+    await updateOurAccountName(session.action(), newAccountName2);
 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).toEqual(newAccountName2);
@@ -16435,7 +16422,7 @@ test("doesn’t an update name action when the account is in no spaces", async (
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
 
-    await updateOurAccountName(TestTask.action(session), newAccountName1);
+    await updateOurAccountName(session.action(), newAccountName1);
 
     expect((await session.get()).initialData.name).toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
@@ -16444,7 +16431,7 @@ test("doesn’t an update name action when the account is in no spaces", async (
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([]);
 
-    await updateOurAccountName(TestTask.action(session), newAccountName2);
+    await updateOurAccountName(session.action(), newAccountName2);
 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).toEqual(newAccountName2);
@@ -16472,7 +16459,7 @@ test("commits an update name action when the account’s name updates to every s
         session.account.id,
     );
 
-    const updatePromise = updateOurAccountName(TestTask.action(session), newAccountName);
+    const updatePromise = updateOurAccountName(session.action(), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -16533,7 +16520,7 @@ test("commits an update name action when the account’s name updates to every s
         session.account.id,
     );
 
-    const updatePromise = updateOurAccountName(TestTask.action(session), newAccountName);
+    const updatePromise = updateOurAccountName(session.action(), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -16962,7 +16949,7 @@ test("correctly updates collection task counts when deleting task and all childr
         }),
     );
 
-    await deleteTaskAndAllChildren(TestTask.action(session), task2.id, testClock.nowLogical());
+    await deleteTaskAndAllChildren(session.action(), task2.id, testClock.nowLogical());
 
     expect(await collection1.getItem()).toEqual(
         expect.objectContaining({
@@ -17146,7 +17133,7 @@ test("multiple actions that update collection item count in one transaction", as
     );
 
     const time2 = testClock.nowLogical();
-    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+    await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
             time: time2,
@@ -17224,7 +17211,7 @@ test("multiple actions that update collection item count in one transaction and 
     );
 
     const time2 = testClock.nowLogical();
-    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+    await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
             time: time2,
@@ -17317,7 +17304,7 @@ test("multiple actions that update collection item count in one transaction and 
     );
 
     const time2 = testClock.nowLogical();
-    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+    await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateCollection",
             time: time2,
@@ -17410,7 +17397,7 @@ test("multiple actions that update collection item count in one transaction and 
     );
 
     const time2 = testClock.nowLogical();
-    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+    await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
             time: time2,
@@ -17498,7 +17485,7 @@ test("a collection action and an action that indirectly updates collection task 
     );
 
     const time2 = testClock.nowLogical();
-    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+    await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
             time: time2,
@@ -17541,7 +17528,7 @@ test("a collection action and an action that indirectly updates collection task 
     );
 
     const time3 = testClock.nowLogical();
-    await commitTaskActionTransaction(TestTask.action(session), space.id, [
+    await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateCollection",
             time: time3,
@@ -17596,7 +17583,7 @@ test("account can remove access from itself", async () => {
         true,
     );
 
-    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+    await commitTaskActionTransaction(session1.action(), space.id, [
         {
             type: "UpdateTask",
             time: testClock.nowLogical(),
@@ -17616,7 +17603,7 @@ test("account can remove access from itself", async () => {
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -17711,7 +17698,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
         )?.ok,
     ).toEqual(false);
 
-    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+    await commitTaskActionTransaction(session1.action(), space.id, [
         {
             type: "UpdateTask",
             time: testClock.nowLogical(),
@@ -17784,7 +17771,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
     ).toEqual(false);
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -17881,7 +17868,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -17921,7 +17908,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -17943,7 +17930,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -17988,7 +17975,7 @@ test("account can remove access from itself but can’t grant it back with an in
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18028,7 +18015,7 @@ test("account can remove access from itself but can’t grant it back with an in
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18051,7 +18038,7 @@ test("account can remove access from itself but can’t grant it back with an in
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18100,7 +18087,7 @@ test("account can remove access from itself but can’t use another account’s 
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18140,7 +18127,7 @@ test("account can remove access from itself but can’t use another account’s 
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18163,7 +18150,7 @@ test("account can remove access from itself but can’t use another account’s 
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session3),
+            session3.action(),
             space.id,
             [
                 {
@@ -18212,7 +18199,7 @@ test("account can remove access from itself but can’t grant itself access back
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18252,7 +18239,7 @@ test("account can remove access from itself but can’t grant itself access back
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18275,7 +18262,7 @@ test("account can remove access from itself but can’t grant itself access back
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18299,7 +18286,7 @@ test("account can remove access from itself but can’t grant itself access back
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18350,7 +18337,7 @@ test("account can remove access from itself but can’t grant itself access back
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18390,7 +18377,7 @@ test("account can remove access from itself but can’t grant itself access back
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18416,7 +18403,7 @@ test("account can remove access from itself but can’t grant itself access back
     try {
         await expect(
             commitTaskActionTransaction(
-                TestTask.action(session1),
+                session1.action(),
                 space.id,
                 [
                     {
@@ -18469,7 +18456,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18506,7 +18493,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
         true,
     );
 
-    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+    await commitTaskActionTransaction(session1.action(), space.id, [
         {
             type: "UpdateTask",
             time: testClock.nowLogical(),
@@ -18526,7 +18513,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18549,7 +18536,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18598,7 +18585,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18614,7 +18601,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18682,7 +18669,7 @@ test("account can’t remove access from itself then grant it back with lease th
     const initialOrderTime = testClock.nowLogical();
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18745,7 +18732,7 @@ test("account can’t remove access from itself then grant it back with lease th
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18760,7 +18747,7 @@ test("account can’t remove access from itself then grant it back with lease th
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -18796,7 +18783,7 @@ test("account can’t remove access from itself then grant it back with lease th
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18820,7 +18807,7 @@ test("account can’t remove access from itself then grant it back with lease th
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18847,7 +18834,7 @@ test("account can’t remove access from itself then grant it back with lease th
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -18890,7 +18877,7 @@ test("account can’t remove access from itself then grant it back with lease th
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18948,7 +18935,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -18988,7 +18975,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -19013,7 +19000,7 @@ test("account can remove access from itself but can’t grant it back if another
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -19061,7 +19048,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -19101,7 +19088,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -19122,11 +19109,11 @@ test("account can remove access from itself but can’t grant it back if another
         false,
     );
 
-    await deleteTaskAndAllChildren(TestTask.action(session2), task1.id, testClock.nowLogical());
+    await deleteTaskAndAllChildren(session2.action(), task1.id, testClock.nowLogical());
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -19174,7 +19161,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {
@@ -19214,7 +19201,7 @@ test("account can remove access from itself but can’t grant it back if another
     );
 
     await expect(
-        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
                 time: testClock.nowLogical(),
@@ -19244,7 +19231,7 @@ test("account can remove access from itself but can’t grant it back if another
 
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -24407,7 +24394,7 @@ test("can only send share notifications when committing an update access policy 
     const time1 = testClock.nowLogical();
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -24447,7 +24434,7 @@ test("can only send share notifications when committing an update access policy 
     const time2 = testClock.nowLogical();
     await expect(
         commitTaskActionTransaction(
-            TestTask.action(session1),
+            session1.action(),
             space.id,
             [
                 {
@@ -24479,7 +24466,7 @@ test("can only send share notifications when committing an update access policy 
 
     const time3 = testClock.nowLogical();
     await commitTaskActionTransaction(
-        TestTask.action(session1),
+        session1.action(),
         space.id,
         [
             {

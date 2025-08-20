@@ -14,6 +14,7 @@ import {
     documentCollaborationContentManagerBeforeUpdateTestCheckpoint,
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {
     FileDocumentAuthorizer,
     createDocumentComment,
@@ -25,7 +26,7 @@ import {attachFileAsUploader} from "~/server/files/data/files_table.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     testMessagingRealtimeImplementation,
-    testMessagingRealtimeImplementationContextOptions,
+    testMessagingRealtimeImplementationSearchInjection,
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -66,7 +67,10 @@ import {
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 
-const context = createTestWorkerContext(testMessagingRealtimeImplementationContextOptions);
+const context = createTestWorkerContext({
+    documentsInjection,
+    searchInjection: testMessagingRealtimeImplementationSearchInjection,
+});
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);
 
 function massageDocument(document: DocumentModel) {

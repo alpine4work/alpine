@@ -12,11 +12,6 @@ import {AppService, AppServiceConstants} from "~/app/app_service_types.js";
 import {authenticateDynamoActorContextModule} from "~/app/helpers/authenticate_dynamo_actor_context_module.js";
 import {createAppServerRoutes} from "~/app/router/app_server_routes.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
-import {
-    DynamoActorContextModule,
-    DynamoSystemActorContextModule,
-    DynamoUnknownActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
 import {
     ApnsContextModule,
@@ -24,15 +19,29 @@ import {
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
 import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
-import {ContentContextModule} from "~/server/content/context_module/content_context_module.js";
+import {
+    DynamoActorContextModule,
+    DynamoSystemActorContextModule,
+    DynamoUnknownActorContextModule,
+} from "~/server/context/dynamo_actor_context_module.js";
+import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
+import {
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    SearchInjectionContextModule,
+    SpacesInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
-import {createServerProcessContext} from "~/server/node/create_server_process_context.js";
+import {createServerBasicProcessContextModules} from "~/server/node/create_server_basic_process_context_modules.js";
 import {
     createServiceTokenAgent,
     getServiceTokenAgentKeyFromOption,
@@ -42,11 +51,13 @@ import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {createServiceOpensearchContextModule} from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {getSpaceAccountsCacheForTest} from "~/server/spaces/spaces_table.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
-import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
@@ -128,12 +139,14 @@ async function createAppService({
                   ),
               );
 
-    const baseProcessContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        awsSigner,
-        options,
-    });
+    const basicProcessContext = Context.new(
+        createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+    );
 
     const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 
@@ -172,7 +185,7 @@ async function createAppService({
     if (process.env.NODE_ENV === "test") {
         apnsContextModule = new TestApnsContextModule();
     } else {
-        const apnsConnectionPool = new ApnsConnectionPool(baseProcessContext, {
+        const apnsConnectionPool = new ApnsConnectionPool(basicProcessContext, {
             certificate: apnsCertificate,
             certificatePrivateKey: apnsCertificatePrivateKey,
         });
@@ -187,21 +200,52 @@ async function createAppService({
         apnsContextModule = new ApnsContextModule(apnsConnectionPool);
     }
 
-    const processContext: AppServiceProcessContext = baseProcessContext.clone({
-        email:
-            process.env.NODE_ENV === "production"
-                ? new SesEmailContextModule()
-                : new NoopEmailContextModule(),
-        edge: new EdgeServiceContextModule({
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
-            ),
-            tokenAgent,
-        }),
+    // Sometimes we want to upgrade a session actor to a system actor. This gives
+    // the action escalated the system permission level which is dangerous! The
+    // system permission level has broad access to a space. We should tightly
+    // control what code is allowed to call this function, only allowed context
+    // modules get access and those context modules are expected to treat this as a
+    // private variable.
+    //
+    // It's important we use new caches + batchers here. We don't want to load some
+    // data at a higher permission level then let the session context see it. So we
+    // derive our new context from the process context to help avoid reusing any
+    // request-level caches.
+    const dangerouslyEscalateToSystemContext = <Value>(
+        context: Context<{
+            tracer: TracerContextModule;
+            actor?: DynamoActorContextModule;
+            cache: CacheContextModule;
+            batch: BatchContextModule;
+        }>,
+        spaceId: SpaceId,
+        action: (context: AppServiceSystemActionContext) => Promise<Value>,
+    ): Promise<Value> => {
+        return processContext.with<
+            Omit<
+                AppServiceSystemActionContextModules,
+                Exclude<keyof AppServiceProcessContextModules, "tracer">
+            >,
+            Value
+        >(
+            {
+                tracer: new TracerContextModule(context.tracer.getTracer()),
+                cache: context.cache.forkForChangedActor(),
+                batch: context.batch.forkForChangedActor(),
+                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                    // `context.actor` is `undefined` for maintenance jobs. Though we shouldn't be
+                    // running maintenance jobs in `AppService`. Handle the case anyway.
+                    context.actor?.serviceName ?? "AppService",
+                    spaceId,
+                ),
+            },
+            action,
+        );
+    };
+
+    const processContext: AppServiceProcessContext = basicProcessContext.clone({
         opensearch: opensearchContextModule,
-        languageModel: new LanguageModelContextModule(languageModel),
-        apns: apnsContextModule,
+        r2: createServiceCloudflareR2ContextModule(options),
         files: new FilesContextModule({
             tokenAgent,
             edgeServiceUrl: assertExists(
@@ -209,7 +253,29 @@ async function createAppService({
                 "`edgeServiceUrl` option is required",
             ),
         }),
-        r2: createServiceCloudflareR2ContextModule(options),
+        edge: new EdgeServiceContextModule({
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+            tokenAgent,
+        }),
+        tasks: new TaskContextModule({
+            router: taskRealtimeServiceRouter,
+            tokenAgent,
+            dangerouslyEscalateToSystemContext,
+        }),
+        email:
+            process.env.NODE_ENV === "production"
+                ? new SesEmailContextModule()
+                : new NoopEmailContextModule(),
+        languageModel: new LanguageModelContextModule(languageModel),
+        apns: apnsContextModule,
+        documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
+        forumInjection: new ForumInjectionContextModule(forumInjection),
+        searchInjection: new SearchInjectionContextModule(searchInjection),
+        spacesInjection: new SpacesInjectionContextModule(spacesInjection),
+        tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
     let hasSeededDynamo = false;
@@ -290,47 +356,6 @@ async function createAppService({
             }
 
             return withSessionCookie(tokenAgent, request, async sessionCookie => {
-                // Sometimes we want to upgrade a session actor to a system actor. This gives
-                // the action escalated the system permission level which is dangerous! The
-                // system permission level has broad access to a space. We should tightly
-                // control what code is allowed to call this function, only allowed context
-                // modules get access and those context modules are expected to treat this as a
-                // private variable.
-                //
-                // It's important we use new caches + batchers here. We don't want to load some
-                // data at a higher permission level then let the session context see it. So we
-                // derive our new context from the process context to help avoid reusing any
-                // request-level caches.
-                const dangerouslyEscalateToSystemContext = <Value>(
-                    context: Context<{
-                        tracer: TracerContextModule;
-                        actor: DynamoActorContextModule;
-                        cache: CacheContextModule;
-                        batch: BatchContextModule;
-                    }>,
-                    spaceId: SpaceId,
-                    action: (context: AppServiceSystemActionContext) => Promise<Value>,
-                ): Promise<Value> => {
-                    return processContext.with<
-                        Omit<
-                            AppServiceSystemActionContextModules,
-                            Exclude<keyof AppServiceProcessContextModules, "tracer">
-                        >,
-                        Value
-                    >(
-                        {
-                            tracer: new TracerContextModule(context.tracer.getTracer()),
-                            cache: context.cache.forkForChangedActor(),
-                            batch: context.batch.forkForChangedActor(),
-                            actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                context.actor.serviceName,
-                                spaceId,
-                            ),
-                        },
-                        action,
-                    );
-                };
-
                 const loaderContextModule = new LoaderContextModule(request, {
                     tokenAgent,
                     sessionCookie,
@@ -350,12 +375,6 @@ async function createAppService({
                         cache: CacheContextModule.new(),
                         batch: BatchContextModule.new(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
-                        content: new ContentContextModule(),
-                        tasks: new TaskContextModule({
-                            router: taskRealtimeServiceRouter,
-                            tokenAgent,
-                            dangerouslyEscalateToSystemContext,
-                        }),
                     },
                     context => {
                         // The first time our server process runs in development, seed DynamoDB with

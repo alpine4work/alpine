@@ -7,7 +7,7 @@ import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js"
 import {serviceCloudflareR2Options} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {serverProcessContextOptions} from "~/server/node/create_server_process_context.js";
+import {serverBasicProcessContextOptions} from "~/server/node/create_server_basic_process_context_modules.js";
 import {serviceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
@@ -48,7 +48,7 @@ export const options = {
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
     ...serviceTokenAgentOptions,
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
     ...serviceCloudflareR2Options,
 } as const;

@@ -3,22 +3,20 @@ import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
-    ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -28,7 +26,7 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {addFeedCandidateEntry} from "~/server/feed/data/feed_table.js";
+import {addFeedCandidateEntry} from "~/server/feed/feed_table.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {
     ActorContextModule,
@@ -48,12 +46,7 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {
-    TaskSessionActionContext,
-    TaskSessionActionContextModules,
-} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
-import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
     ensureLocalTaskIndexesIfEnabled,
     indexTaskActionTransactionAssumingItsCommitted,
@@ -62,6 +55,11 @@ import {
     withSendTaskIndexSearchEntityJobIfNeeded,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeActionContext,
+    TaskRealtimeProcessContext,
+    TaskRealtimeSessionActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {
     AccessLevel,
     AccessPolicy,
@@ -168,6 +166,8 @@ import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/pri
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
+    createTaskCollectionNotFoundError,
+    createTaskNotFoundError,
     taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
     taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/tasks/task_error_messages.js";
@@ -981,7 +981,7 @@ export async function* expensiveScanEveryTaskAndTaskCollectionForMigration(
  * OpenSearch.
  */
 export async function runIndexTaskInitialAssigneePositionMigration(
-    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    context: Context<DynamoContextModules & {opensearch: OpensearchContextModule}>,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     assert(context.tracer.getRoot().serviceName === "MigrationService");
@@ -1023,7 +1023,7 @@ export async function runIndexTaskInitialAssigneePositionMigration(
  * steps to guarantee tasks are created before updated.
  */
 export async function runIndexEveryTaskActionStep1Of2(
-    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    context: TaskRealtimeProcessContext,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     const {serviceName: unknownServiceName} = context.tracer.getRoot();
@@ -1083,7 +1083,7 @@ export async function runIndexEveryTaskActionStep1Of2(
  * steps to guarantee tasks are created before updated.
  */
 export async function runIndexEveryTaskActionStep2Of2(
-    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    context: TaskRealtimeProcessContext,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     const {serviceName: unknownServiceName} = context.tracer.getRoot();
@@ -1273,7 +1273,7 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
  * property).
  */
 export function commitTaskActionTransaction(
-    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
     options: {
@@ -1392,7 +1392,7 @@ export function commitTaskActionTransaction(
 }
 
 async function afterCommitTaskActionTransaction(
-    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: ServerSessionActionContext,
     actionTransactionItem: TaskActionTransactionItem,
 ) {
     const processPromise = processTaskActionTransaction(context, actionTransactionItem);
@@ -1435,9 +1435,7 @@ async function afterCommitTaskActionTransaction(
  * the provided `span`.
  */
 export async function retryUnprocessedTaskActionTransactions(
-    context: Context<
-        Omit<ServerSessionActionContextModules, "actor"> & {tasks: TaskContextModuleBase}
-    >,
+    context: Context<Omit<ServerActionContextModules, "actor">>,
     span: TracerSpan,
 ) {
     const currentTime = Date.now();
@@ -1478,9 +1476,7 @@ export async function retryUnprocessedTaskActionTransactions(
 }
 
 function processTaskActionTransaction(
-    context: Context<
-        Omit<ServerSessionActionContextModules, "actor"> & {tasks: TaskContextModuleBase}
-    >,
+    context: Context<Omit<ServerActionContextModules, "actor">>,
     actionTransactionItem: TaskActionTransactionItem,
 ): Promise<void> & {
     applyActionTransactionInRealtimeServicePromise: Promise<void>;
@@ -3419,7 +3415,7 @@ export const deleteTaskAndAllChildrenBeforeExecuteTestCheckpoint = new TestCheck
  * functionality needs to be implemented on the server.
  */
 export function deleteTaskAndAllChildren(
-    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: ServerSessionActionContext,
     taskId: TaskId,
     actionTime: HybridLogicalTime,
     options?: {clientId?: TaskRealtimeClientId},
@@ -3692,7 +3688,7 @@ export function deleteTaskAndAllChildren(
  * functionality needs to be implemented on the server.
  */
 export function duplicateTaskAndAllChildren(
-    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: ServerSessionActionContext,
     taskId: TaskId,
     actionTime: HybridLogicalTime,
     timeZone: TimeZone,
@@ -3917,7 +3913,7 @@ export function duplicateTaskAndAllChildren(
  * once the transaction has committed begins indexing the action.
  */
 export function internalGetUpdateOurAccountNameTaskTransactionEntries(
-    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: ServerSessionActionContext,
     {
         spaceIds,
         name,
@@ -3961,20 +3957,6 @@ export function internalGetUpdateOurAccountNameTaskTransactionEntries(
             },
         }),
     );
-}
-
-export function createTaskCollectionNotFoundError(collectionId: TaskCollectionId) {
-    return new NotFoundError("Task collection not found", {
-        aggregateDedupeKey: collectionId,
-        displayMessage: errorDisplayMessage`This task collection doesn’t exist. Try searching “my task collections” to see collections you’ve created.`,
-    });
-}
-
-export function createTaskNotFoundError(taskId: TaskId) {
-    return new NotFoundError("Task not found", {
-        aggregateDedupeKey: taskId,
-        displayMessage: errorDisplayMessage`This task doesn’t exist. Try searching “my tasks” to see tasks you’ve created.`,
-    });
 }
 
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();
@@ -4203,7 +4185,7 @@ export type TaskAuthorizationActor =
 assertAssignableTypes<ActorContextModule, TaskAuthorizationActor>();
 
 async function authorizeTaskCollectionItemAccess(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ): Promise<void> {
@@ -4218,7 +4200,7 @@ async function authorizeTaskCollectionItemAccess(
 }
 
 async function authorizeTaskCollectionItemAccessAllowingDeletedTasks(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ): Promise<void> {
@@ -4401,7 +4383,7 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
  * before using the `loaders` object.
  */
 export async function authorizeTaskCollectionAccess(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     collectionId: TaskCollectionId,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -4431,7 +4413,7 @@ export async function authorizeTaskCollectionAccess(
  * before using the `loaders` object.
  */
 export async function authorizeTaskCollectionAccessIfPossible(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     collectionId: TaskCollectionId,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -4501,7 +4483,7 @@ export function authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
  * before using the `loaders` object.
  */
 export async function authorizeTaskAccess(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -4542,7 +4524,7 @@ export async function authorizeTaskAccess(
  * before using the `loaders` object.
  */
 export async function authorizeTaskAccessIfPossible(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -5001,7 +4983,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
 }
 
 export async function getTaskComment(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
     const [{spaceId}, commentsSummaryItem] = await runAllPromises([
@@ -5055,7 +5037,7 @@ export async function getTaskCommentPayload(
 }
 
 async function createTaskCommentModelFromItem(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     item: TaskCommentItem,
 ): Promise<TaskCommentModel> {
@@ -5508,7 +5490,7 @@ export async function createTaskComment(
 }
 
 export async function getTaskCommentsFromStart(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         taskId,
         limit,
@@ -5562,7 +5544,7 @@ export async function getTaskCommentsFromStart(
 }
 
 async function getTaskCommentsFromStartAssumingAuthorizedTask(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         taskId,
         getSpaceId,
@@ -5688,7 +5670,7 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
  * function name says "optional" initial comments.
  */
 export async function getTaskNotesContentAndOptionalInitialComments(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
 ): Promise<{
     notes: {
@@ -5796,7 +5778,7 @@ export async function getTaskNotesContentAndOptionalInitialComments(
 }
 
 export async function getTaskCommentsFromEnd(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         taskId,
         limit,
@@ -5850,7 +5832,7 @@ export async function getTaskCommentsFromEnd(
 }
 
 async function getTaskCommentsFromEndAssumingAuthorizedTask(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         taskId,
         getSpaceId,
@@ -5977,7 +5959,7 @@ export type TaskCommentChangesResult =
       };
 
 export async function backfillTaskComments(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         taskId,
         clientCommentCount,
@@ -6071,7 +6053,7 @@ export async function backfillTaskComments(
 }
 
 async function queryTaskCommentChangeLogAssumingAuthorizedTask(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     {
         commentsSummaryItem,
         spaceId,
@@ -6237,7 +6219,7 @@ export function authorizeTaskIndexDocAccessIfPossibleForActor(
  * representation of tasks.
  */
 export async function authorizeTaskQueryAccess(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     {
         spaceId,
         filters,
@@ -6538,7 +6520,7 @@ export function getTaskNotesContentWithoutReferences(
  * doesn't exist.
  */
 export function getTaskNotesContentIfExists(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;
@@ -6575,7 +6557,7 @@ export function getTaskNotesContentIfExists(
  * doesn't exist.
  */
 export async function getTaskNotesContent(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;
@@ -6598,7 +6580,7 @@ export async function getTaskNotesContent(
  * track of old steps (unlike document content). There’s no way to recover!
  */
 export function updateTaskNotesContent(
-    context: TaskSessionActionContext,
+    context: ServerSessionActionContext,
     {
         spaceId,
         taskId,
@@ -6844,7 +6826,7 @@ export async function updateTaskGridViewExpansionState(
  * time.
  */
 export async function getTaskGridViewExpansionState(
-    context: ServerSessionActionContext,
+    context: TaskRealtimeSessionActionContext,
     {
         spaceId,
         browserId,

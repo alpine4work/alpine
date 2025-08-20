@@ -4,12 +4,16 @@ import {
     DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerActionContextBase} from "~/server/context/server_action_context.js";
+} from "~/server/context/dynamo_actor_context_module.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     InvalidArgumentError,
     PermissionDeniedError,
@@ -24,7 +28,12 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * Create a `DynamoActorContextModule` from an HTTP `Authorization` header.
  */
 export async function createDynamoActorContextModule(
-    context: ServerActionContextBase,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
     requestHeaders: Headers,
     tokenAgent: TokenAgent,
     spaceId: SpaceId,
@@ -60,7 +69,12 @@ export async function createDynamoActorContextModule(
 }
 
 export async function createDynamoActorSessionContextModule(
-    context: ServerActionContextBase,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
     requestHeaders: Headers,
     tokenAgent: TokenAgent,
     spaceId?: SpaceId,

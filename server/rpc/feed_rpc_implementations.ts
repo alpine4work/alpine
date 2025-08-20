@@ -1,4 +1,4 @@
-import {getFeedEntries} from "~/server/feed/read/feed_read.js";
+import {getFeedEntries} from "~/server/feed/feed_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/feed_rpc_definitions.js";
 

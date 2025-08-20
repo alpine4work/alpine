@@ -14,10 +14,12 @@ import {
     searchTaskCollectionsByAffinity,
     searchTaskCollectionsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
@@ -52,6 +54,8 @@ beforeEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
+    searchInjection,
+    tasksInjection,
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {

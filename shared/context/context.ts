@@ -107,6 +107,11 @@ export type ContextWithDestroy<Modules extends {[key: string]: ContextModuleBase
     };
 
 /**
+ * Get the modules object type from a context.
+ */
+export type ContextModulesType<T extends Context<any>> = T[typeof modulesTypeSymbol];
+
+/**
  * For a `Modules` object type, construct a new object type with the
  * dependencies from each module. We can use this type to make sure we've
  * satisfied all our module requirements.

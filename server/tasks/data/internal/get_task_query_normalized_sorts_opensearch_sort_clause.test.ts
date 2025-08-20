@@ -1,15 +1,15 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import createJsonBigInt from "json-bigint";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
     convertTaskQuerySortCursorToOpensearchCursor,
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
-import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskIndexDoc, TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -34,17 +34,9 @@ import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 
-const baseContext = createTestContext({shouldStartOpensearch: true});
-
-const context = Object.assign(baseContext.cloneWithHelpers({}), {
-    taskAction: (session => {
-        return baseContext.action(session).clone({
-            tasks: new TestTaskContextModule({
-                shouldSkipIndexing: false,
-                dangerouslyEscalateToSystemContext: baseContext.escalateToSystemContext,
-            }),
-        });
-    }) satisfies TestContext["action"],
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    tasksInjection,
 });
 
 // 16:00 should be noon in `defaultTimeZone`.
@@ -247,7 +239,7 @@ test("sorts by created time by default", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -266,7 +258,7 @@ test("sorts by created time by default", async () => {
     const time3: HybridLogicalTime = [time2[0] + 1, 0];
     clock.tick(time3);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time2,
@@ -295,7 +287,7 @@ test("sorts by created time by default", async () => {
     const time5: HybridLogicalTime = [time4[0], time4[1] + 1];
     clock.tick(time5);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time4,
@@ -333,7 +325,7 @@ test("sort tiebreaks with task id", async () => {
 
     const time = clock.now();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time,
@@ -401,7 +393,7 @@ test("sorts by created time", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -426,7 +418,7 @@ test("sorts by created time", async () => {
     const time3: HybridLogicalTime = [time2[0] + 1, 0];
     clock.tick(time3);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time2,
@@ -465,7 +457,7 @@ test("sorts by created time", async () => {
     const time5: HybridLogicalTime = [time4[0], time4[1] + 1];
     clock.tick(time5);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time4,
@@ -514,7 +506,7 @@ test("sorts by display status", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -633,7 +625,7 @@ test("sorts by priority", async () => {
     const task5Id = generateId<TaskId>();
     const task6Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -775,7 +767,7 @@ test("sorts by assignee", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -911,7 +903,7 @@ test("sorts by creator", async () => {
     const task3Id = generateId<TaskId>();
     const task4Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -924,7 +916,7 @@ test("sorts by creator", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -947,7 +939,7 @@ test("sorts by creator", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -983,7 +975,7 @@ test("sorts by assigner", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1019,7 +1011,7 @@ test("sorts by assigner", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1068,7 +1060,7 @@ test("sorts by assigner", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session3), space.id, [
+    await commitTaskActionTransaction(context.action(session3), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1121,7 +1113,7 @@ test("sorts by due date", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1200,7 +1192,7 @@ test("sorts by due date", async () => {
         parseAbsolute(new Date(clock3.now()[0]).toISOString(), "UTC"),
     );
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1253,7 +1245,7 @@ test("sorts by assigned time", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1385,7 +1377,7 @@ test("sorts by closed time", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1562,7 +1554,7 @@ test("sorts by activated time", async () => {
     const task5Id = generateId<TaskId>();
     const task6Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -1772,7 +1764,7 @@ test("sorts by collection position", async () => {
     const collection1Id = generateId<TaskCollectionId>();
     const collection2Id = generateId<TaskCollectionId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateCollection",
             time: clock.now(),
@@ -1899,7 +1891,7 @@ test("sorts by collection position", async () => {
     const time8 = clock.now();
     const time9 = clock.now();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time1,
@@ -1992,7 +1984,7 @@ test("sorts by collection position", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2039,7 +2031,7 @@ test("sorts by collection position", async () => {
         ]),
     ).toEqual([task8Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id, task7Id]);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2097,7 +2089,7 @@ test("sorts by parent position", async () => {
         [parentTask1Id, parentTask2Id] = [parentTask2Id, parentTask1Id];
     }
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2282,7 +2274,7 @@ test("sorts by parent position", async () => {
     const time8 = clock.now();
     const time9 = clock.now();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time1,
@@ -2366,7 +2358,7 @@ test("sorts by parent position", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2431,7 +2423,7 @@ test("sorts by parent position", async () => {
         parentTask2Id,
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2512,7 +2504,7 @@ test("sorts by assignee position", async () => {
     const task7Id = generateId<TaskId>();
     const task8Id = generateId<TaskId>();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2663,7 +2655,7 @@ test("sorts by assignee position", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2699,7 +2691,7 @@ test("sorts by assignee position", async () => {
     const time8 = clock.now();
     const time9 = clock.now();
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: time1,
@@ -2900,7 +2892,7 @@ test("sorts by assignee position", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session2), space.id, [
+    await commitTaskActionTransaction(context.action(session2), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2925,7 +2917,7 @@ test("sorts by assignee position", async () => {
         },
     ]);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),
@@ -2984,7 +2976,7 @@ test("sorts by assignee position", async () => {
         ]),
     ).toEqual([task8Id, task7Id, task5Id, task4Id, task1Id, task2Id, task3Id, task6Id]);
 
-    await commitTaskActionTransaction(context.taskAction(session1), space.id, [
+    await commitTaskActionTransaction(context.action(session1), space.id, [
         {
             type: "UpdateTask",
             time: clock.now(),

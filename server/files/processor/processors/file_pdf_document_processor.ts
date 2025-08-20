@@ -4,7 +4,7 @@ import {join as joinPath} from "path";
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {
     FileProcessor,
@@ -82,7 +82,7 @@ export function createFilePdfDocumentProcessor(
 }
 
 export function processPdfDocumentFile(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     inputPath: string,
     {
         signal,

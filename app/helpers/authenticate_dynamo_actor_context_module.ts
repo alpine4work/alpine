@@ -4,7 +4,7 @@ import {
     DynamoAnonymousActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
+} from "~/server/context/dynamo_actor_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";

@@ -28,7 +28,7 @@ ts_project(
         "//server/content",
         "//server/context",
         "//server/dynamo/core",
-        "//server/feed/data",
+        "//server/feed",
         "//server/files/data",
         "//server/helpers",
         "//server/messaging/helpers",

@@ -1,14 +1,16 @@
 import {
     deleteAccountAppleDeviceTokenIfExists,
-    internalUpdateOurAccountName,
     registerOurAccountAppleDeviceToken,
+    updateOurAccountName,
 } from "~/server/accounts/accounts_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     acceptSpaceAccountInvite,
+    addSpaceAccount,
     addSpaceAccountBeforeExecuteTestCheckpoint,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
@@ -23,7 +25,6 @@ import {
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     getSpaceIfPossible,
-    internalAddSpaceAccount,
     isAccountMemberOfSpaceWithoutAuthorization,
     moveSpaceAccountOwnerRole,
     moveSpaceAccountOwnerRoleBeforeExecuteTestCheckpoint,
@@ -39,7 +40,6 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {addSpaceAccount} from "~/server/spaces/with_search/add_space_account.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -54,7 +54,6 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -67,7 +66,10 @@ import {
     intoAccountModelWithoutSpaceAndAvatar,
 } from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    spacesInjection,
+    tasksInjection: {internalGetUpdateOurAccountNameTaskTransactionEntries: () => []},
+});
 
 const isMember = async (space: TestSpace, session: TestSession) => {
     const result1 = await isAccountMemberOfSpaceWithoutAuthorization(
@@ -1554,10 +1556,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    await internalUpdateOurAccountName(session2.action(), "Shawn Tyson", {
-        getOurAccountSpaceIds,
-        getTaskTransactionEntries: () => [],
-    });
+    await updateOurAccountName(session2.action(), "Shawn Tyson");
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         createTestAccountModel({
@@ -1637,10 +1636,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    await internalUpdateOurAccountName(session2.action(), "Shawn Meredith", {
-        getOurAccountSpaceIds,
-        getTaskTransactionEntries: () => [],
-    });
+    await updateOurAccountName(session2.action(), "Shawn Meredith");
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         createTestAccountModel({
@@ -2585,25 +2581,22 @@ test("don’t allow creating multiple owners in a single space", async () => {
     const adminAccount = await TestAccount.create(context);
     const ownerAccount = await TestAccount.create(context);
 
-    await internalAddSpaceAccount(ownerSession.action(), {
+    await addSpaceAccount(ownerSession.action(), {
         spaceId: space.id,
         accountId: memberAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Member",
     });
 
-    await internalAddSpaceAccount(ownerSession.action(), {
+    await addSpaceAccount(ownerSession.action(), {
         spaceId: space.id,
         accountId: adminAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Admin",
     });
 
     await expect(
-        internalAddSpaceAccount(ownerSession.action(), {
+        addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: ownerAccount.id,
-            favoriteSearchEntity: asyncNoop,
             role: "Owner",
         }),
     ).rejects.toThrow("Space already has an owner");
@@ -2616,25 +2609,22 @@ test("don’t allow creating multiple owners in a single space (with system acto
     const adminAccount = await TestAccount.create(context);
     const ownerAccount = await TestAccount.create(context);
 
-    await internalAddSpaceAccount(space.systemAction(), {
+    await addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: memberAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Member",
     });
 
-    await internalAddSpaceAccount(space.systemAction(), {
+    await addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: adminAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Admin",
     });
 
     await expect(
-        internalAddSpaceAccount(space.systemAction(), {
+        addSpaceAccount(space.systemAction(), {
             spaceId: space.id,
             accountId: ownerAccount.id,
-            favoriteSearchEntity: asyncNoop,
             role: "Owner",
         }),
     ).rejects.toThrow("Space already has an owner");
@@ -2647,25 +2637,22 @@ test("don’t allow creating multiple owners in a single space (with impersonate
     const adminAccount = await TestAccount.create(context);
     const ownerAccount = await TestAccount.create(context);
 
-    await internalAddSpaceAccount(space.impersonatedAction(ownerSession), {
+    await addSpaceAccount(space.impersonatedAction(ownerSession), {
         spaceId: space.id,
         accountId: memberAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Member",
     });
 
-    await internalAddSpaceAccount(space.impersonatedAction(ownerSession), {
+    await addSpaceAccount(space.impersonatedAction(ownerSession), {
         spaceId: space.id,
         accountId: adminAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Admin",
     });
 
     await expect(
-        internalAddSpaceAccount(space.impersonatedAction(ownerSession), {
+        addSpaceAccount(space.impersonatedAction(ownerSession), {
             spaceId: space.id,
             accountId: ownerAccount.id,
-            favoriteSearchEntity: asyncNoop,
             role: "Owner",
         }),
     ).rejects.toThrow("Space already has an owner");
@@ -2693,10 +2680,9 @@ test("`internalAddSpaceAccount()` should throw if anonymous account tries to add
 
     // anonymous account
     await expect(
-        internalAddSpaceAccount(context.anonymousAction(), {
+        addSpaceAccount(context.anonymousAction(), {
             spaceId: space.id,
             accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(UnauthenticatedError);
 });
@@ -2707,10 +2693,9 @@ test("`internalAddSpaceAccount()` should throw if system actor for another space
     const otherAccount = await TestAccount.create(context);
 
     await expect(
-        internalAddSpaceAccount(otherSpace.systemAction(), {
+        addSpaceAccount(otherSpace.systemAction(), {
             spaceId: space.id,
             accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 });
@@ -2721,10 +2706,9 @@ test("`internalAddSpaceAccount()` should work if system actor for space tries to
     const otherAccount = await TestAccount.create(context);
 
     // system actor is trying top add `otherAccount.id` to `space.id`
-    await internalAddSpaceAccount(space.systemAction(), {
+    await addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount.id,
-        favoriteSearchEntity: asyncNoop,
     });
 
     const account = await getAccountIfExists(ownerSession.action(), space.id, otherAccount.id);
@@ -2737,17 +2721,15 @@ test("`internalAddSpaceAccount()` can’t add the same account to the space twic
     const ownerSession = await space.createSession({role: "Owner"});
     const otherAccount = await TestAccount.create(context);
 
-    await internalAddSpaceAccount(ownerSession.action(), {
+    await addSpaceAccount(ownerSession.action(), {
         spaceId: space.id,
         accountId: otherAccount.id,
-        favoriteSearchEntity: asyncNoop,
     });
 
     await expect(
-        internalAddSpaceAccount(ownerSession.action(), {
+        addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow("Account is already a member of space");
 
@@ -2762,10 +2744,9 @@ test("`internalAddSpaceAccount()` can’t add an account that is already a membe
     const alreadyMember = await space.createSession();
 
     await expect(
-        internalAddSpaceAccount(ownerSession.action(), {
+        addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: alreadyMember.account.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 });
@@ -2777,10 +2758,9 @@ test("`internalAddSpaceAccount()` can’t add an account that is already invited
     const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
 
     await expect(
-        internalAddSpaceAccount(ownerSession.action(), {
+        addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: invitedAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 });
@@ -2790,10 +2770,9 @@ test("`internalAddSpaceAccount()` can’t add an account that doesn’t exist", 
     const ownerSession = await space.createSession({role: "Owner"});
 
     await expect(
-        internalAddSpaceAccount(ownerSession.action(), {
+        addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: generateId(),
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow("Account not found");
 });
@@ -2807,12 +2786,11 @@ test("`internalAddSpaceAccount()` should throw if impersonated account member in
 
     // impersonated account from other space tries to add account to `space.id`
     await expect(
-        internalAddSpaceAccount(
+        addSpaceAccount(
             context.impersonatedAccountAction(otherSpace.id, memberSession.account.id),
             {
                 spaceId: space.id,
                 accountId: otherAccount.id,
-                favoriteSearchEntity: asyncNoop,
             },
         ),
     ).rejects.toThrow(PermissionDeniedError);
@@ -2826,14 +2804,10 @@ test("`internalAddSpaceAccount()` should throw if impersonated account (`Admin`)
     const otherAccount = await TestAccount.create(context);
 
     await expect(
-        internalAddSpaceAccount(
-            context.impersonatedAccountAction(otherSpace.id, adminSession.account.id),
-            {
-                spaceId: space.id,
-                accountId: otherAccount.id,
-                favoriteSearchEntity: asyncNoop,
-            },
-        ),
+        addSpaceAccount(context.impersonatedAccountAction(otherSpace.id, adminSession.account.id), {
+            spaceId: space.id,
+            accountId: otherAccount.id,
+        }),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -2843,14 +2817,10 @@ test("`internalAddSpaceAccount()` should throw if impersonated account (`Member`
     const otherAccount = await TestAccount.create(context);
 
     await expect(
-        internalAddSpaceAccount(
-            context.impersonatedAccountAction(space.id, memberSession.account.id),
-            {
-                spaceId: space.id,
-                accountId: otherAccount.id,
-                favoriteSearchEntity: asyncNoop,
-            },
-        ),
+        addSpaceAccount(context.impersonatedAccountAction(space.id, memberSession.account.id), {
+            spaceId: space.id,
+            accountId: otherAccount.id,
+        }),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -2860,14 +2830,10 @@ test("`internalAddSpaceAccount()`should work if impersonated account (`Admin`) f
     const adminSession = await space.createSession({role: "Admin"});
     const otherAccount = await TestAccount.create(context);
 
-    await internalAddSpaceAccount(
-        context.impersonatedAccountAction(space.id, adminSession.account.id),
-        {
-            spaceId: space.id,
-            accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
-        },
-    );
+    await addSpaceAccount(context.impersonatedAccountAction(space.id, adminSession.account.id), {
+        spaceId: space.id,
+        accountId: otherAccount.id,
+    });
 
     const account = await getAccountIfExists(ownerSession.action(), space.id, otherAccount.id);
     expect(account).toBeDefined();
@@ -2881,10 +2847,9 @@ test("`internalAddSpaceAccount()` should throw if account (`Member`) in another 
     const otherAccount = await TestAccount.create(context);
 
     await expect(
-        internalAddSpaceAccount(memberSession.action(), {
+        addSpaceAccount(memberSession.action(), {
             spaceId: space.id,
             accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 });
@@ -2896,10 +2861,9 @@ test("`internalAddSpaceAccount()` should throw if account (`Admin`) in another s
     const otherAccount = await TestAccount.create(context);
 
     await expect(
-        internalAddSpaceAccount(adminSession.action(), {
+        addSpaceAccount(adminSession.action(), {
             spaceId: space.id,
             accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 });
@@ -2910,10 +2874,9 @@ test("`internalAddSpaceAccount()` should throw if account member for space tries
     const otherAccount = await TestAccount.create(context);
 
     await expect(
-        internalAddSpaceAccount(memberSession.action(), {
+        addSpaceAccount(memberSession.action(), {
             spaceId: space.id,
             accountId: otherAccount.id,
-            favoriteSearchEntity: asyncNoop,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 });
@@ -2924,10 +2887,9 @@ test("`internalAddSpaceAccount()` should work if account admin for space tries t
     const adminSession = await space.createSession({role: "Admin"});
     const otherAccount = await TestAccount.create(context);
 
-    await internalAddSpaceAccount(adminSession.action(), {
+    await addSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: otherAccount.id,
-        favoriteSearchEntity: asyncNoop,
     });
 
     const account = await getAccountIfExists(ownerSession.action(), space.id, otherAccount.id);
@@ -5246,17 +5208,15 @@ test("`internalAddSpaceAccount()` shouldn’t add two owners in race condition",
         `${space.id}:${account2.id}`,
     );
 
-    const promise1 = internalAddSpaceAccount(adminSession.action(), {
+    const promise1 = addSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: account1.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
-    const promise2 = internalAddSpaceAccount(adminSession.action(), {
+    const promise2 = addSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: account2.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
@@ -5382,10 +5342,9 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
         `${space.id}:${session.account.id}`,
     );
 
-    const promise1 = internalAddSpaceAccount(space.systemAction(), {
+    const promise1 = addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
@@ -5435,10 +5394,9 @@ test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t 
         newOwnerAccountId: session.account.id,
     });
 
-    const promise2 = internalAddSpaceAccount(space.systemAction(), {
+    const promise2 = addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
@@ -5486,19 +5444,17 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
         `${space.id}:${session.account.id}`,
     );
 
-    const promise1 = internalAddSpaceAccount(space.systemAction(), {
+    const promise1 = addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount1.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
     const {unpause: unpause1} = await pause1Promise;
 
-    await internalAddSpaceAccount(space.systemAction(), {
+    await addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount2.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
@@ -5546,19 +5502,17 @@ test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t 
         `${space.id}:${session.account.id}`,
     );
 
-    const promise1 = internalAddSpaceAccount(space.systemAction(), {
+    const promise1 = addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount1.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 
     const {unpause: unpause1} = await pause1Promise;
 
-    await internalAddSpaceAccount(space.systemAction(), {
+    await addSpaceAccount(space.systemAction(), {
         spaceId: space.id,
         accountId: otherAccount2.id,
-        favoriteSearchEntity: asyncNoop,
         role: "Owner",
     });
 

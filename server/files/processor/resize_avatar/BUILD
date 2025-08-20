@@ -7,11 +7,11 @@ ts_project(
     visibility = [
         "//admin/aws:__subpackages__",
         "//admin/dev:__subpackages__",
-        "//admin/lambda/local/file_processor_service:__subpackages__"
+        "//admin/lambda/local/file_processor_service:__subpackages__",
     ],
     deps = [
         "//:node_modules/sharp",
-        "//server/files/processor/context",
+        "//server/files/data",
         "//server/files/processor/sharp",
         "//server/helpers",
         "//server/helpers/node",
@@ -40,5 +40,3 @@ production_transition(
     target = ":resize_avatar_lambda",
     visibility = ["//admin/aws:__pkg__"],
 )
-
-

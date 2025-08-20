@@ -3,17 +3,12 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerActionContext,
-    ServerSessionActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+} from "~/server/context/dynamo_actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
-    createServerProcessContext,
-    serverProcessContextOptions,
-} from "~/server/node/create_server_process_context.js";
+    createServerBasicProcessContextModules,
+    serverBasicProcessContextOptions,
+} from "~/server/node/create_server_basic_process_context_modules.js";
 import {
     createServiceTokenAgent,
     serviceTokenAgentOptions,
@@ -33,9 +28,12 @@ import {
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
-    TaskSystemActionContext,
-    TaskSystemActionContextModules,
-} from "~/server/tasks/data/task_action_context.js";
+    TaskRealtimeActionContext,
+    TaskRealtimeProcessContextModules,
+    TaskRealtimeSessionActionContextModules,
+    TaskRealtimeSystemActionContext,
+    TaskRealtimeSystemActionContextModules,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -77,10 +75,6 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
 
-type TaskRealtimeSessionActionContextModules = ServerSessionActionContextModules & {
-    fork: ForkActionContextModule;
-};
-
 type TaskRealtimeServiceRoute =
     | {readonly type: "HealthCheck"}
     | {readonly type: "NotFound"}
@@ -103,7 +97,7 @@ type Options = ServiceOptions<typeof options>;
 export const options = {
     portBase: {type: "string"},
     ...serviceTokenAgentOptions,
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
 } as const;
 
@@ -133,17 +127,14 @@ export async function run({
 
     const awsSigner = new AwsRequestSigner();
 
-    const baseProcessContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        awsSigner,
-        options,
-    });
-
-    const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
-
-    const processContext = baseProcessContext.clone({
-        opensearch: opensearchContextModule,
+    const processContext = Context.new({
+        ...createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
+        opensearch: createServiceOpensearchContextModule(awsSigner, options),
     });
 
     const [server, {start}] = TaskRealtimeServer.new(processContext);
@@ -181,12 +172,12 @@ export async function run({
             batch: BatchContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: TaskSystemActionContext) => Promise<Value>,
+        action: (context: TaskRealtimeSystemActionContext) => Promise<Value>,
     ): Promise<Value> => {
         return processContext.with<
             Omit<
-                TaskSystemActionContextModules,
-                Exclude<keyof ServerProcessContextModules, "tracer"> | "opensearch"
+                TaskRealtimeSystemActionContextModules,
+                Exclude<keyof TaskRealtimeProcessContextModules, "tracer"> | "opensearch"
             >,
             Value
         >(
@@ -206,8 +197,8 @@ export async function run({
     const webSocketServerBySpaceId = new DefaultMap(
         (spaceId: SpaceId) =>
             new WebSocketServer<
-                ServerProcessContextModules,
-                TaskRealtimeSessionActionContextModules,
+                TaskRealtimeProcessContextModules,
+                TaskRealtimeSessionActionContextModules & {fork: ForkActionContextModule},
                 typeof TaskRealtimeProtocol,
                 // We don't need a custom stub type since `TaskRealtimeConnection` is already
                 // designed to call `sendEvent()` on a per-connection basis with correct
@@ -328,7 +319,7 @@ export async function run({
 
                 return baseActionContext.with(
                     {actor: actorContextModule},
-                    async (context: TaskSystemActionContext) => {
+                    async (context: TaskRealtimeSystemActionContext) => {
                         const actionTransaction =
                             TaskRealtimeApplyActionTransactionInputSchema.deserialize(
                                 await request.json(),
@@ -359,7 +350,7 @@ export async function run({
 
                 return baseActionContext.with(
                     {actor: actorContextModule},
-                    async (context: ServerActionContext) => {
+                    async (context: TaskRealtimeActionContext) => {
                         const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
                             await request.json(),
                         );

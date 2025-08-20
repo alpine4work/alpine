@@ -1,12 +1,8 @@
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
-import {
-    createChannelNotFoundError,
-    getChannelAndMetadataIfPossible,
-    isSubscribedToChannel,
-} from "~/server/forum/data/forum_table.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {FileChannelEntityModel} from "~/shared/forum/file_channel_entity_model_schema.js";
+import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -17,17 +13,17 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 
 export async function getFileChannelEntityModelIfPossible(
-    context: ServerContentActionContext,
+    context: ServerActionContext,
     channelId: ChannelId,
 ): Promise<Result<FileChannelEntityModel, ErrorBase>> {
     const [channelQueryResult, isSubscribedResult] = await runAllPromises([
-        getChannelAndMetadataIfPossible(context, {
+        context.forumInjection.getChannelAndMetadataIfPossible({
             channelId,
             postFilesLimit: 0,
         }),
         context.actor.type === "Session"
             ? captureResultPromise(
-                  isSubscribedToChannel(context.actor.authorizeSession(), channelId),
+                  context.actor.authorizeSession().forumInjection.isSubscribedToChannel(channelId),
               )
             : null,
     ]);

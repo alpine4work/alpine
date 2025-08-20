@@ -1,9 +1,11 @@
-import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeActionContext,
+    TaskRealtimeProcessContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {
     authorizeTaskAccess,
     authorizeTaskAccessIfPossible,
@@ -85,7 +87,7 @@ export class TaskRealtimeServer {
         readonly evictTimeout: Timeout;
     } | null = null;
 
-    private readonly _processContext: ServerProcessContext;
+    private readonly _processContext: TaskRealtimeProcessContext;
     private readonly _actionHistory: TaskRealtimeActionHistory;
     private readonly _startActionHistory: () => void;
     private readonly _stopActionHistory: () => void;
@@ -109,7 +111,7 @@ export class TaskRealtimeServer {
         return store;
     });
 
-    private constructor(context: ServerProcessContext) {
+    private constructor(context: TaskRealtimeProcessContext) {
         const [actionHistory, {start: startActionHistory, stop: stopActionHistory}] =
             TaskRealtimeActionHistory.new();
 
@@ -120,7 +122,7 @@ export class TaskRealtimeServer {
     }
 
     public static new(
-        context: ServerProcessContext,
+        context: TaskRealtimeProcessContext,
     ): [TaskRealtimeServer, {start: (discoveredPromise: Promise<void>) => void; stop: () => void}] {
         const server = new TaskRealtimeServer(context);
         return [
@@ -267,7 +269,10 @@ export class TaskRealtimeServer {
      * server was recently discovered that means we haven't been receiving
      * `sendActionTransaction()` calls and we need to catch up.
      */
-    private async _ensureFullActionHistory(context: TaskSystemActionContext, spaceId: SpaceId) {
+    private async _ensureFullActionHistory(
+        context: TaskRealtimeSystemActionContext,
+        spaceId: SpaceId,
+    ) {
         assert(this._state !== null);
         const {discoveredTime} = await this._state.discoveredPromise;
         const visibleStartTime = this._actionHistory.getVisibleStartTime();
@@ -333,7 +338,7 @@ export class TaskRealtimeServer {
     }
 
     public async loadQuery(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         options: {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
@@ -356,7 +361,7 @@ export class TaskRealtimeServer {
     }
 
     public async subscribeToQuery(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         options: {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
@@ -376,7 +381,7 @@ export class TaskRealtimeServer {
     }
 
     public async subscribeToTask(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         options: {
             spaceId: SpaceId;
@@ -395,7 +400,7 @@ export class TaskRealtimeServer {
     }
 
     public async subscribeToCollection(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         options: {
             spaceId: SpaceId;
@@ -414,7 +419,7 @@ export class TaskRealtimeServer {
     }
 
     public async applyActionTransaction(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         actionTransaction: {
             spaceId: SpaceId;
             committedTime: Date;
@@ -471,7 +476,7 @@ export class TaskRealtimeServer {
      * a timeout is reached.
      */
     public async getTask(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<TaskIndexDoc> {
@@ -496,7 +501,7 @@ export class TaskRealtimeServer {
      * we retry until a timeout is reached.
      */
     public async getCollection(
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionIndexDoc> {
@@ -518,7 +523,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeQueryAccess(
-        context: ServerActionContext,
+        context: TaskRealtimeActionContext,
         {
             spaceId,
             filters,
@@ -553,7 +558,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeTaskAccess(
-        context: ServerActionContext,
+        context: TaskRealtimeActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
@@ -574,7 +579,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public authorizeTaskAccessIfPossible(
-        context: ServerActionContext,
+        context: TaskRealtimeActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
@@ -595,7 +600,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeCollectionAccess(
-        context: ServerActionContext,
+        context: TaskRealtimeActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
@@ -614,7 +619,7 @@ export class TaskRealtimeServer {
      * from DynamoDB.
      */
     public async authorizeCollectionAccessIfPossible(
-        context: ServerActionContext,
+        context: TaskRealtimeActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,

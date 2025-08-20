@@ -1,18 +1,22 @@
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     addFeedAccountCandidateEntry,
     addFeedCandidateEntry,
+    getAndUpdateFeedEntries,
     getFeedAccountCandidateEntriesForTest,
     getFeedCandidateEntriesForTest,
+    getFeedEntries,
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
-} from "~/server/feed/data/feed_table.js";
-import {getAndUpdateFeedEntries, getFeedEntries} from "~/server/feed/read/feed_read.js";
+} from "~/server/feed/feed_table.js";
+import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/tasks/data/get_file_task_collection_entity_model_if_possible.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -32,6 +36,9 @@ import.meta.jest.useFakeTimers();
 enableMockFileTaskCollectionEntityModelForTest();
 
 const context = createTestContext({
+    documentsInjection,
+    forumInjection,
+    tasksInjection,
     processJob: async (context, job) => {
         if (job.type === "AddFeedCandidateEntry") {
             await processAddFeedCandidateEntryJob(context, job);
@@ -1040,7 +1047,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 1],
@@ -1064,7 +1071,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1078,7 +1085,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1095,7 +1102,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 1],
@@ -1119,7 +1126,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1143,7 +1150,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1176,7 +1183,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1190,7 +1197,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1204,7 +1211,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1221,7 +1228,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1244,7 +1251,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1258,7 +1265,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1275,7 +1282,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1298,7 +1305,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1312,7 +1319,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1329,7 +1336,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1352,7 +1359,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1375,7 +1382,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1407,7 +1414,7 @@ test("creating a private task collection adds entry to own feed then when shared
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1421,7 +1428,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1435,7 +1442,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1452,7 +1459,7 @@ test("creating a private task collection adds entry to own feed then when shared
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1475,7 +1482,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1489,7 +1496,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1506,7 +1513,7 @@ test("creating a private task collection adds entry to own feed then when shared
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1529,7 +1536,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1543,7 +1550,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -1560,7 +1567,7 @@ test("creating a private task collection adds entry to own feed then when shared
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1583,7 +1590,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -1606,7 +1613,7 @@ test("creating a private task collection adds entry to own feed then when shared
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -2429,7 +2436,7 @@ test("get and update feed gets new entries every call", async () => {
     }
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [12, 0],
         endCursor: [0, 6],
@@ -2460,7 +2467,7 @@ test("get and update feed gets new entries every call", async () => {
     // Currently, we put entries initiated by a session in their own feed. Should
     // we change this to only show other people's stuff?
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [12, 0],
         endCursor: [0, 6],
@@ -2496,7 +2503,7 @@ test("get and update feed gets new entries every call", async () => {
     }
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [25, 0],
         endCursor: [0, 6],
@@ -2530,7 +2537,7 @@ test("get and update feed gets new entries every call", async () => {
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [25, 0],
         endCursor: [0, 6],
@@ -2573,7 +2580,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 1],
@@ -2597,7 +2604,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -2611,7 +2618,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -2630,7 +2637,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 1],
@@ -2655,7 +2662,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [0, 0],
         endCursor: [0, 0],
@@ -2669,7 +2676,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -2689,7 +2696,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     import.meta.jest.advanceTimersByTime(1000 * 60 * 5);
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 1],
@@ -2715,7 +2722,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -2740,7 +2747,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 0],
@@ -2771,7 +2778,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 1],
@@ -2785,7 +2792,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -2810,7 +2817,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 0],
@@ -2838,7 +2845,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     import.meta.jest.advanceTimersByTime(1000 * 60 * 5);
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 1],
@@ -2852,7 +2859,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 0],
@@ -2877,7 +2884,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 0],
@@ -2908,7 +2915,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     import.meta.jest.advanceTimersByTime(1000 * 60 * 5);
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 1],
@@ -2922,7 +2929,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 0],
@@ -2948,7 +2955,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [3, 0],
         endCursor: [0, 0],
@@ -2978,7 +2985,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 1],
@@ -3004,7 +3011,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 0],
@@ -3030,7 +3037,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [3, 0],
         endCursor: [0, 0],
@@ -3059,7 +3066,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     import.meta.jest.advanceTimersByTime(1000 * 60 * 5);
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session1), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 1],
@@ -3085,7 +3092,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [2, 0],
         endCursor: [0, 0],
@@ -3111,7 +3118,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session3), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [3, 0],
         endCursor: [0, 0],
@@ -3154,7 +3161,7 @@ test("get and update limits the number of returned entries", async () => {
 
     // First run: Limiting newly created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 20}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 20}),
     ).toEqual({
         startCursor: [12, 0],
         endCursor: [11, 9],
@@ -3169,7 +3176,7 @@ test("get and update limits the number of returned entries", async () => {
 
     // Second run: Limiting previously created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 20}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 20}),
     ).toEqual({
         startCursor: [12, 0],
         endCursor: [11, 9],
@@ -3182,19 +3189,17 @@ test("get and update limits the number of returned entries", async () => {
         ),
     });
 
-    expect(await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 20})).toEqual(
-        {
-            startCursor: [12, 0],
-            endCursor: [11, 9],
-            hasMoreEntries: true,
-            entries: await runAllPromises(
-                Array.from(posts1)
-                    .reverse()
-                    .slice(0, 20)
-                    .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
-            ),
-        },
-    );
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 20})).toEqual({
+        startCursor: [12, 0],
+        endCursor: [11, 9],
+        hasMoreEntries: true,
+        entries: await runAllPromises(
+            Array.from(posts1)
+                .reverse()
+                .slice(0, 20)
+                .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
+        ),
+    });
 });
 
 test("get and update limits the number of returned entries up until the second to last entry", async () => {
@@ -3213,7 +3218,7 @@ test("get and update limits the number of returned entries up until the second t
 
     // First run: Limiting newly created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 10}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [1, 9],
@@ -3227,7 +3232,7 @@ test("get and update limits the number of returned entries up until the second t
 
     // Second run: Limiting previously created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 10}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [1, 9],
@@ -3239,18 +3244,16 @@ test("get and update limits the number of returned entries up until the second t
         ),
     });
 
-    expect(await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 10})).toEqual(
-        {
-            startCursor: [1, 0],
-            endCursor: [1, 9],
-            hasMoreEntries: true,
-            entries: await runAllPromises(
-                Array.from(posts1)
-                    .reverse()
-                    .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
-            ),
-        },
-    );
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 10})).toEqual({
+        startCursor: [1, 0],
+        endCursor: [1, 9],
+        hasMoreEntries: true,
+        entries: await runAllPromises(
+            Array.from(posts1)
+                .reverse()
+                .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
+        ),
+    });
 });
 
 test("get and update limits the number of returned entries up until the last entry", async () => {
@@ -3269,7 +3272,7 @@ test("get and update limits the number of returned entries up until the last ent
 
     // First run: Limiting newly created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 12}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 1],
@@ -3299,7 +3302,7 @@ test("get and update limits the number of returned entries up until the last ent
 
     // Second run: Limiting previously created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 12}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
         startCursor: [1, 0],
         endCursor: [0, 1],
@@ -3327,36 +3330,32 @@ test("get and update limits the number of returned entries up until the last ent
         ],
     });
 
-    expect(await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 12})).toEqual(
-        {
-            startCursor: [1, 0],
-            endCursor: [0, 1],
-            hasMoreEntries: false,
-            entries: [
-                ...(await runAllPromises(
-                    Array.from(posts1)
-                        .reverse()
-                        .map(
-                            async post => new FeedPostEntryModel({post: await post.getRealtime()}),
-                        ),
-                )),
-                {
-                    type: "Channel",
-                    channel: expect.objectContaining({
-                        id: channel.id,
-                        name: channel.initialName,
-                    }),
-                    sharer: await session1.get(),
-                    sharedTime: expect.any(Date),
-                    event: "Created",
-                },
-                {
-                    type: "Welcome",
-                    addedTime: expect.any(Date),
-                },
-            ],
-        },
-    );
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 12})).toEqual({
+        startCursor: [1, 0],
+        endCursor: [0, 1],
+        hasMoreEntries: false,
+        entries: [
+            ...(await runAllPromises(
+                Array.from(posts1)
+                    .reverse()
+                    .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
+            )),
+            {
+                type: "Channel",
+                channel: expect.objectContaining({
+                    id: channel.id,
+                    name: channel.initialName,
+                }),
+                sharer: await session1.get(),
+                sharedTime: expect.any(Date),
+                event: "Created",
+            },
+            {
+                type: "Welcome",
+                addedTime: expect.any(Date),
+            },
+        ],
+    });
 });
 
 test("get and update limits the number of returned entries up until the second to last entry (when each block only has a single entry)", async () => {
@@ -3370,7 +3369,7 @@ test("get and update limits the number of returned entries up until the second t
 
     for (let i = 0; i < 10; i++) {
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500});
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500});
         posts1.push(await channel.createPost(session1));
         await ProcessContextModule.waitForTestTasks();
     }
@@ -3379,7 +3378,7 @@ test("get and update limits the number of returned entries up until the second t
 
     // First run: Limiting newly created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 10}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
         startCursor: [10, 0],
         endCursor: [1, 0],
@@ -3393,7 +3392,7 @@ test("get and update limits the number of returned entries up until the second t
 
     // Second run: Limiting previously created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 10}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
         startCursor: [10, 0],
         endCursor: [1, 0],
@@ -3405,18 +3404,16 @@ test("get and update limits the number of returned entries up until the second t
         ),
     });
 
-    expect(await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 10})).toEqual(
-        {
-            startCursor: [10, 0],
-            endCursor: [1, 0],
-            hasMoreEntries: true,
-            entries: await runAllPromises(
-                Array.from(posts1)
-                    .reverse()
-                    .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
-            ),
-        },
-    );
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 10})).toEqual({
+        startCursor: [10, 0],
+        endCursor: [1, 0],
+        hasMoreEntries: true,
+        entries: await runAllPromises(
+            Array.from(posts1)
+                .reverse()
+                .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
+        ),
+    });
 });
 
 test("get and update limits the number of returned entries up until the last entry (when each block only has a single entry)", async () => {
@@ -3430,7 +3427,7 @@ test("get and update limits the number of returned entries up until the last ent
 
     for (let i = 0; i < 10; i++) {
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500});
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500});
         posts1.push(await channel.createPost(session1));
         await ProcessContextModule.waitForTestTasks();
     }
@@ -3439,7 +3436,7 @@ test("get and update limits the number of returned entries up until the last ent
 
     // First run: Limiting newly created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 12}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
         startCursor: [10, 0],
         endCursor: [0, 1],
@@ -3469,7 +3466,7 @@ test("get and update limits the number of returned entries up until the last ent
 
     // Second run: Limiting previously created entries.
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 12}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
         startCursor: [10, 0],
         endCursor: [0, 1],
@@ -3497,36 +3494,32 @@ test("get and update limits the number of returned entries up until the last ent
         ],
     });
 
-    expect(await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 12})).toEqual(
-        {
-            startCursor: [10, 0],
-            endCursor: [0, 1],
-            hasMoreEntries: false,
-            entries: [
-                ...(await runAllPromises(
-                    Array.from(posts1)
-                        .reverse()
-                        .map(
-                            async post => new FeedPostEntryModel({post: await post.getRealtime()}),
-                        ),
-                )),
-                {
-                    type: "Channel",
-                    channel: expect.objectContaining({
-                        id: channel.id,
-                        name: channel.initialName,
-                    }),
-                    sharer: await session1.get(),
-                    sharedTime: expect.any(Date),
-                    event: "Created",
-                },
-                {
-                    type: "Welcome",
-                    addedTime: expect.any(Date),
-                },
-            ],
-        },
-    );
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 12})).toEqual({
+        startCursor: [10, 0],
+        endCursor: [0, 1],
+        hasMoreEntries: false,
+        entries: [
+            ...(await runAllPromises(
+                Array.from(posts1)
+                    .reverse()
+                    .map(async post => new FeedPostEntryModel({post: await post.getRealtime()})),
+            )),
+            {
+                type: "Channel",
+                channel: expect.objectContaining({
+                    id: channel.id,
+                    name: channel.initialName,
+                }),
+                sharer: await session1.get(),
+                sharedTime: expect.any(Date),
+                event: "Created",
+            },
+            {
+                type: "Welcome",
+                addedTime: expect.any(Date),
+            },
+        ],
+    });
 });
 
 test("can paginate through feed entries", async () => {
@@ -3543,9 +3536,7 @@ test("can paginate through feed entries", async () => {
         await ProcessContextModule.waitForTestTasks();
     }
 
-    expect(
-        await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
-    ).toEqual({
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 500})).toEqual({
         startCursor: null,
         endCursor: null,
         hasMoreEntries: false,
@@ -3553,7 +3544,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
         startCursor: [12, 0],
         endCursor: [0, 6],
@@ -3581,9 +3572,7 @@ test("can paginate through feed entries", async () => {
         ],
     });
 
-    expect(
-        await getFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500}),
-    ).toEqual({
+    expect(await getFeedEntries(session2.action(), {spaceId: space.id, limit: 500})).toEqual({
         startCursor: [12, 0],
         endCursor: [0, 6],
         hasMoreEntries: false,
@@ -3611,7 +3600,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             beforeCursor: [12, 0],
@@ -3624,7 +3613,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             afterCursor: [0, 6],
@@ -3637,7 +3626,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             beforeCursor: [5, 5],
@@ -3655,7 +3644,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             beforeCursor: [12, 5],
@@ -3673,7 +3662,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 10,
             beforeCursor: [5, 5],
@@ -3691,7 +3680,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 40,
             beforeCursor: [5, 5],
@@ -3709,7 +3698,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             afterCursor: [5, 5],
@@ -3743,7 +3732,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 10,
             afterCursor: [8, 5],
@@ -3761,7 +3750,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 40,
             afterCursor: [8, 5],
@@ -3779,7 +3768,7 @@ test("can paginate through feed entries", async () => {
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             afterCursor: [8, 5],
@@ -3811,11 +3800,11 @@ test("can paginate through feed entries when each block only has a single entry"
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
         posts.push(await channel.createPost(session1));
         await ProcessContextModule.waitForTestTasks();
-        await getAndUpdateFeedEntries(TestTask.action(session2), {spaceId: space.id, limit: 500});
+        await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500});
     }
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
         }),
@@ -3847,7 +3836,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 500,
             beforeCursor: [4, 0],
@@ -3866,7 +3855,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 6,
             beforeCursor: [4, 0],
@@ -3885,7 +3874,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 5,
             beforeCursor: [4, 0],
@@ -3904,7 +3893,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 4,
             beforeCursor: [4, 0],
@@ -3923,7 +3912,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 3,
             beforeCursor: [4, 0],
@@ -3942,7 +3931,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 5,
             afterCursor: [10, 0],
@@ -3960,7 +3949,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 4,
             afterCursor: [10, 0],
@@ -3978,7 +3967,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 3,
             afterCursor: [10, 0],
@@ -3996,7 +3985,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 5,
             beforeCursor: [4, 0],
@@ -4014,7 +4003,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 4,
             beforeCursor: [4, 0],
@@ -4032,7 +4021,7 @@ test("can paginate through feed entries when each block only has a single entry"
     });
 
     expect(
-        await getFeedEntries(TestTask.action(session2), {
+        await getFeedEntries(session2.action(), {
             spaceId: space.id,
             limit: 3,
             beforeCursor: [4, 0],

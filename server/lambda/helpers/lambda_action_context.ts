@@ -5,18 +5,21 @@ import {
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
-    createServerProcessContextBase,
-    serverProcessContextOptions,
-} from "~/server/node/create_server_process_context.js";
+    createServerBasicProcessContextModulesWithoutShutdownManager,
+    serverBasicProcessContextOptions,
+} from "~/server/node/create_server_basic_process_context_modules.js";
 import {serviceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -29,18 +32,21 @@ type LambdaActionContextOptions = ServiceOptions<typeof lambdaActionContextOptio
 export const lambdaActionContextOptions = {
     temporaryDirectoryPath: {type: "string"},
     ...serviceTokenAgentOptions,
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...omitObject(serviceCloudflareR2Options, ["fileProcessorServiceUrl"]),
 } as const;
 
-export type LambdaProcessContext = Context<
-    ServerProcessContextModules & {
-        r2: CloudflareR2ContextModule;
-        files: FilesContextModule;
-        cache: CacheContextModule;
-        batch: BatchContextModule;
-    }
->;
+export type LambdaActionContext = Context<{
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    jobs: JobsContextModule;
+    constants: ServerConstantsContextModule;
+    r2: CloudflareR2ContextModule;
+    files: FilesContextModule;
+    cache: CacheContextModule;
+    batch: BatchContextModule;
+}>;
 
 export function createLambdaActionContext({
     awsSigner,
@@ -58,28 +64,27 @@ export function createLambdaActionContext({
     tokenAgent: TokenAgent;
     tracer: TracerRoot;
     fileProcessorServiceUrl?: string;
-}): LambdaProcessContext {
-    // NOTE(ifitzsimmons, 07-22-2025): I'm not sure that we need all of this context here
-    // in AWS Lambda for instance, jobQueueUrl is useless for Lambdas that are
-    // triggered via SQS -- there's no need to poll the queue
-    // With that said, it's easy to just always create the context here and
-    // make sure that the Lambdas have all of the secrets available in their
-    // environment variables. If we start reaching env var limits, we can revisit
-    // the decision to create the context the same way.
-    const processContext = createServerProcessContextBase({
-        tracer,
-        waitUntil: (promise: Promise<unknown>) => {
-            promiseWaiter.waitUntil(
-                promise.catch(error => {
-                    tracer.logException("Uncaught exception from `waitUntil()`", error);
-                }),
-            );
-        },
-        awsSigner,
-        options,
-    });
-
-    return processContext.clone({
+}): LambdaActionContext {
+    return Context.new({
+        // NOTE(ifitzsimmons, 07-22-2025): I'm not sure that we need all of this context here
+        // in AWS Lambda for instance, jobQueueUrl is useless for Lambdas that are
+        // triggered via SQS -- there's no need to poll the queue
+        // With that said, it's easy to just always create the context here and
+        // make sure that the Lambdas have all of the secrets available in their
+        // environment variables. If we start reaching env var limits, we can revisit
+        // the decision to create the context the same way.
+        ...createServerBasicProcessContextModulesWithoutShutdownManager({
+            tracer,
+            waitUntil: (promise: Promise<unknown>) => {
+                promiseWaiter.waitUntil(
+                    promise.catch(error => {
+                        tracer.logException("Uncaught exception from `waitUntil()`", error);
+                    }),
+                );
+            },
+            awsSigner,
+            options,
+        }),
         cache: CacheContextModule.new(),
         batch: BatchContextModule.new(),
         tracer: new TracerContextModule(span ?? tracer),

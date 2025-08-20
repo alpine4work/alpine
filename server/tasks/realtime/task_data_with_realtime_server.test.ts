@@ -2,6 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
 import {duplicateTaskAndAllChildren, getTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -9,7 +10,10 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 import {testClock} from "~/shared/test_helpers/test_clock.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    tasksInjection,
+});
 
 test("can duplicate a task", async () => {
     const space = await TestSpace.create(context);

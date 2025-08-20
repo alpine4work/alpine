@@ -1,17 +1,18 @@
-import {ServerContentActionContextModules} from "~/server/context/server_content_action_context.js";
-import {getFileDocumentEntityModelIfPossible} from "~/server/documents/data/get_file_document_entity_model_if_possible.js";
-import {createPostNotFoundError, getPostIfPossible} from "~/server/forum/data/forum_table.js";
-import {getFileChannelEntityModelIfPossible} from "~/server/forum/data/get_file_channel_entity_model_if_possible.js";
-import {getFileTaskCollectionEntityModelIfPossible} from "~/server/tasks/data/get_file_task_collection_entity_model_if_possible.js";
-import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
+import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
+import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
+import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {FilePostEntityModelSchema} from "~/shared/forum/file_post_entity_model_schema.js";
+import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
@@ -19,11 +20,41 @@ import {Result} from "~/shared/helpers/control/result.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_collection_entity_model.js";
 
+// NOTE(calebmer, 2025-08-19): It could be useful to have a generic
+// `StateContextModule` that lets you stash arbitrary state in context instead
+// of creating one-off context modules like this. However, following our style
+// guide recommendation that "No abstraction is better than the wrong
+// abstraction". Let's wait until we have more examples of state in context.
+class FileEntityDepthContextModule extends ContextModuleBase {
+    public readonly depth: number;
+
+    constructor(depth: number) {
+        super();
+        this.depth = depth;
+    }
+}
+
 export async function getFileEntityIfPossible(
-    context: Context<ServerContentActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: Context<ServerActionContextModules & {fileEntityDepth?: FileEntityDepthContextModule}>,
     spaceId: SpaceId,
     entityId: FileEntityId,
-): Promise<Result<FileEntityModel, ErrorBase>> {
+): Promise<Result<FileEntityModel, ErrorBase> | null> {
+    const depth = context.fileEntityDepth?.depth ?? 0;
+
+    // Cut off file entity loading when we're three entities deep. File entities
+    // may recursively load each other (e.g. a document which has a file entity to
+    // itself in its preview) so we need some protection to protect against
+    // infinite recursion.
+    //
+    // Also, practically after three levels of depth previews shrink to such a size
+    // you can't see what's being rendered.
+    if (depth >= fileEntityMaxRecursionDepth) return null;
+
+    // Increment file entity depth.
+    context = context.clone({
+        fileEntityDepth: new FileEntityDepthContextModule(depth + 1),
+    });
+
     const entityIdObject = parseFileEntityId(entityId);
 
     switch (entityIdObject.type) {
@@ -61,7 +92,7 @@ export async function getFileEntityIfPossible(
         case "Post": {
             const {postId} = entityIdObject;
 
-            const postResult = await getPostIfPossible(context, postId);
+            const postResult = await context.forumInjection.getPostIfPossible(postId);
 
             if (!postResult) return {ok: false, error: createPostNotFoundError(postId)};
 

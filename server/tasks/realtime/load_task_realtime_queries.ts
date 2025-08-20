@@ -1,5 +1,4 @@
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
     authorizeSpaceAccessIfPossible,
     dangerouslyGetAccountStubIfExistsWithoutAuthorization,
@@ -7,9 +6,12 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskRealtimeActionContext,
+    TaskRealtimeSystemActionContext,
+} from "~/server/tasks/data/task_realtime_context.js";
 import {
     authorizeTaskCollectionIndexDocAccessIfPossibleForActor,
     authorizeTaskIndexDocAccessIfPossibleForActor,
@@ -65,7 +67,7 @@ import {
  * We should return one `loadedState` for every `query`.
  */
 export async function loadTaskRealtimeQueries(
-    context: ServerActionContext,
+    context: TaskRealtimeActionContext,
     {
         server,
         dangerouslyEscalateToSystemContext,
@@ -83,7 +85,7 @@ export async function loadTaskRealtimeQueries(
                 batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<Value>,
+            action: (context: TaskRealtimeSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         spaceId: SpaceId;
         queries: ReadonlyArray<{
@@ -123,7 +125,10 @@ export async function loadTaskRealtimeQueries(
     const loadTaskPromiseById = new Map<TaskId, Promise<void>>();
     const loadCollectionPromiseById = new Map<TaskCollectionId, Promise<void>>();
 
-    const trackTaskDependencies = (context: TaskSystemActionContext, task: TaskIndexDoc) => {
+    const trackTaskDependencies = (
+        context: TaskRealtimeSystemActionContext,
+        task: TaskIndexDoc,
+    ) => {
         const parentTaskId = task.parent.taskId.value;
         if (parentTaskId && !loadTaskPromiseById.has(parentTaskId)) {
             const promise = (async () => {
@@ -201,7 +206,7 @@ export async function loadTaskRealtimeQueries(
     > = [];
 
     const loadQuery = async (
-        context: TaskSystemActionContext,
+        context: TaskRealtimeSystemActionContext,
         {
             filters,
             sorts,

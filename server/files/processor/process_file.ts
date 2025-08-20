@@ -1,7 +1,7 @@
 import {isCloudflareR2ConditionConflictError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {getFileUploaderAsUploader} from "~/server/files/data/files_table.js";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
 import {getFileProcessorErrors} from "~/server/files/processor/error/file_processor_error.js";
 import {createFileCodeProcessor} from "~/server/files/processor/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/processor/processors/file_ico_image_processor.js";
@@ -44,7 +44,7 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export async function processFile(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     span: TracerSpan,
     {
         spaceId,

@@ -17,6 +17,7 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
@@ -687,7 +688,7 @@ export async function finishUploadingAndStartProcessingFile(
  * Only an uploader may get an instance of the `FileUploader` class.
  */
 export async function getFileUploaderAsUploader(
-    context: ServerActionContext,
+    context: FileProcessorActionContext,
     spaceId: SpaceId,
     fileId: FileId,
 ): Promise<FileUploader> {
@@ -738,7 +739,7 @@ export class FileUploader {
         return this._item.getWithoutLock().contentLength;
     }
 
-    private _authorize(context: ServerActionContext) {
+    private _authorize(context: FileProcessorActionContext) {
         switch (context.actor.type) {
             case "Session": {
                 if (this.uploaderId !== context.actor.getAccountId()) {
@@ -777,7 +778,7 @@ export class FileUploader {
      * method will throw an error.
      */
     public async finishProcessingAlternative(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         alternative: {contentType: FileContentType; contentLength: number} | null,
     ) {
         this._authorize(context);
@@ -836,7 +837,7 @@ export class FileUploader {
      * is provided as an option.
      */
     public async finishProcessingImagePreviewSize(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         size: FileImagePreviewSize,
         {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
@@ -941,7 +942,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewPlaceholder(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         placeholder: FileImagePreviewPlaceholder,
     ) {
         this._authorize(context);
@@ -1005,7 +1006,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewContent(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         {
             contentType,
             contentLength,
@@ -1109,7 +1110,7 @@ export class FileUploader {
      * write the video duration with the preview size.
      */
     public async finishProcessingImagePreviewVideoDurationIfNeeded(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         videoDuration: number,
     ): Promise<void> {
         this._authorize(context);
@@ -1185,7 +1186,7 @@ export class FileUploader {
      * preview this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         duration: number,
     ): Promise<void> {
         this._authorize(context);
@@ -1241,7 +1242,7 @@ export class FileUploader {
      * preview this function is called.
      */
     public async finishProcessingAudioPreviewMetadata(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         metadata: FileAudioPreviewMetadata,
     ): Promise<void> {
         this._authorize(context);
@@ -1299,7 +1300,7 @@ export class FileUploader {
      * this function is called.
      */
     public async finishProcessingCodePreviewContent(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         content: FileCodePreviewContent,
     ): Promise<void> {
         this._authorize(context);
@@ -1342,7 +1343,7 @@ export class FileUploader {
     }
 
     public async finishProcessingAlternativeWithError(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         error: FileProcessorError,
     ) {
         this._authorize(context);
@@ -1380,7 +1381,7 @@ export class FileUploader {
     }
 
     public async finishProcessingPreviewWithError(
-        context: ServerActionContext,
+        context: FileProcessorActionContext,
         error: FileProcessorError,
     ) {
         this._authorize(context);
@@ -1490,7 +1491,7 @@ const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, File
 });
 
 function getFileItemIfExistsWithCache(
-    context: ServerActionContext,
+    context: FileProcessorActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
@@ -1510,7 +1511,7 @@ function getFileItemIfExistsWithCache(
 }
 
 async function getFileItemIfExistsAsUploader(
-    context: ServerActionContext,
+    context: FileProcessorActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
@@ -1556,7 +1557,7 @@ async function getFileItemIfExistsAsUploader(
  * all accounts with access to the file.
  */
 export async function getFileIfExistsAsUploader(
-    context: ServerActionContext,
+    context: FileProcessorActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},
@@ -1575,7 +1576,7 @@ export async function getFileIfExistsAsUploader(
  * accounts with access to the file.
  */
 export async function getFileAsUploader(
-    context: ServerActionContext,
+    context: FileProcessorActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoCacheReadConsistency},

@@ -5,8 +5,10 @@ import {
     getContentReferencesForServerPrintSingleLineTextSnippet,
     printContentSingleLineTextSnippetForServer,
 } from "~/server/content/print_content_single_line_text_snippet_for_server.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {ServerContentSessionActionContextModules} from "~/server/context/server_content_action_context.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+} from "~/server/context/server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
 import {
     getChannelIfPossible,
@@ -87,7 +89,6 @@ import {
     getSpaceAccountNameSearchIndex,
     getSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
-import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,
@@ -2044,7 +2045,7 @@ export async function searchBySemantics(
 }
 
 async function prepareSearchEntityMediaForResult(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
     media: SearchEntityMedia,
@@ -2063,7 +2064,20 @@ async function prepareSearchEntityMediaForResult(
             const accountIds = stableShuffleArray(
                 stableRandom,
                 entityId,
-                media.accountIds.filter(accountId => accountId !== context.actor.getAccountId()),
+                media.accountIds.filter(accountId => {
+                    switch (context.actor.type) {
+                        case "System":
+                        case "Anonymous": {
+                            return true;
+                        }
+                        case "Session":
+                        case "ImpersonatedAccount": {
+                            return accountId !== context.actor.getAccountId();
+                        }
+                        default:
+                            throw exhaustive(context.actor);
+                    }
+                }),
             );
 
             const previewAccounts = await runAllPromises([
@@ -2162,7 +2176,7 @@ export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
  * DynamoDB for most things but we load tasks from `TaskRealtimeService`.
  */
 async function fallbackGetSearchEntityBaseIfPossible(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen: ReadonlySet<SearchEntityId>,
@@ -2285,7 +2299,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
 }
 
 async function fallbackGetSearchContentReferences(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
     originEntityId: SearchEntityId,
     content: Node,
@@ -2352,7 +2366,7 @@ async function fallbackGetSearchContentReferences(
  * ready.
  */
 async function getSearchEntityBaseIfPossible(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
     seen: ReadonlySet<SearchEntityId> = emptySet,
@@ -2436,7 +2450,7 @@ async function getSearchEntityBaseIfPossible(
  * `SearchEntityRegistry`.
  */
 export async function getSearchEntityIfPossible(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
 ): Promise<
@@ -2475,7 +2489,7 @@ export async function getSearchEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchAffinityEntityIfPossible(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
     entityId: SearchAffinityEntityId & SearchDynamicEntityId,
 ): Promise<
@@ -2514,7 +2528,7 @@ export async function getSearchAffinityEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchMentionEntityIfPossible(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen?: ReadonlySet<SearchEntityId>,
@@ -2550,7 +2564,7 @@ export async function getSearchMentionEntityIfPossible(
  * exist in `results` and vice versa.
  */
 export async function searchByAffinity(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
 ): Promise<{
     hasMoreFavoriteResults: boolean;
@@ -2869,9 +2883,7 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
  * On the client we boost channels an account has an affinity for.
  */
 export async function searchChannelsByKeywords(
-    context: Context<
-        ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
-    >,
+    context: ServerSessionActionContext,
     {
         spaceId,
         queryText,
@@ -2999,9 +3011,7 @@ export async function searchChannelsByKeywords(
  * recommendations should be used to boost keyword search results.
  */
 export async function searchChannelsByAffinity(
-    context: Context<
-        ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
-    >,
+    context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
     Array<{
@@ -3072,9 +3082,7 @@ export async function searchChannelsByAffinity(
  * On the client we boost collections an account has an affinity for.
  */
 export async function searchTaskCollectionsByKeywords(
-    context: Context<
-        ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
-    >,
+    context: ServerSessionActionContext,
     {
         spaceId,
         queryText,
@@ -3257,7 +3265,7 @@ export async function searchTaskCollectionsByAffinity(
  * `OrderKey`.
  */
 export async function getAllSearchFavoriteEntities(
-    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: SearchSessionActionContext,
     spaceId: SpaceId,
 ): Promise<ReadonlyArray<SearchFavoriteEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);

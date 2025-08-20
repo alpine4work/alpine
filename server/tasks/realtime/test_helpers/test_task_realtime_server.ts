@@ -1,18 +1,15 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
+    ServerActionContextModules,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
+import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
-import {
-    TaskContextModuleBase,
-    TestTaskContextModule,
-    waitForProcessTaskActionTransactionsForTest,
-} from "~/server/tasks/data/task_context_module.js";
+import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
@@ -241,7 +238,7 @@ export class TestTaskRealtimeServer {
     }
 
     /**
-     * Similar to `TestTask.action(session)` except the `tasks` context module
+     * Similar to `session.action()` except the `tasks` context module
      * supports methods that must call into `TaskRealtimeService` like
      * `context.tasks.loadQueries()`.
      */
@@ -249,7 +246,6 @@ export class TestTaskRealtimeServer {
         return session.action().clone({
             tasks: new TestTaskContextModuleWithRealtimeServer({
                 server: this,
-                shouldSkipIndexing: !session.context.isOpensearchEnabled,
                 dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
             }),
         });
@@ -262,26 +258,26 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
     constructor({
         server,
         dangerouslyEscalateToSystemContext,
-        shouldSkipIndexing,
     }: {
         server: TestTaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
+                actor?: DynamoActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<Value>,
+            action: (context: ServerSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
-        shouldSkipIndexing: boolean;
     }) {
-        super({dangerouslyEscalateToSystemContext, shouldSkipIndexing});
+        super({dangerouslyEscalateToSystemContext});
         this._server = server;
     }
 
     public override async loadQueries(
+        this: TestTaskContextModuleWithRealtimeServer &
+            ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         input: TaskRealtimeLoadQueriesInput,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
@@ -297,45 +293,25 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
         return {ok: true, queries, extraQueries, updateEvent};
     }
 
-    public override getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-    ): Promise<never> {
+    public override getTaskWithoutDependenciesIfPossible(): Promise<never> {
         throw new UnimplementedError(
             "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependenciesIfPossible()` should be implementable but we haven’t implemented it yet",
         );
     }
 
-    public override getTaskWithoutDependencies(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-    ): Promise<never> {
+    public override getTaskWithoutDependencies(): Promise<never> {
         throw new UnimplementedError(
             "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependencies()` should be implementable but we haven’t implemented it yet",
         );
     }
 
-    public override getCollectionIfPossible(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-    ): Promise<never> {
+    public override getCollectionIfPossible(): Promise<never> {
         throw new UnimplementedError(
             "`TestTaskContextModuleWithRealtimeServer.getCollectionIfPossible()` should be implementable but we haven’t implemented it yet",
         );
     }
 
-    public override getCollection(
-        this: TaskContextModuleBase &
-            ContextModuleBase<{
-                actor: DynamoSessionActorContextModule;
-            }>,
-    ): Promise<never> {
+    public override getCollection(): Promise<never> {
         throw new UnimplementedError(
             "`TestTaskContextModuleWithRealtimeServer.getCollection()` should be implementable but we haven’t implemented it yet",
         );

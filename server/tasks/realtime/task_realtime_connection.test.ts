@@ -8,10 +8,15 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {queryTaskIndexTestCounter} from "~/server/tasks/data/task_index.js";
 import {
+    TaskRealtimeProcessContextModules,
+    TaskRealtimeSessionActionContextModules,
+} from "~/server/tasks/data/task_realtime_context.js";
+import {
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
     updateTaskGridViewExpansionState,
 } from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {
     TaskRealtimeConnection,
     taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint,
@@ -86,7 +91,10 @@ import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js
 import {testClock} from "~/shared/test_helpers/test_clock.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    tasksInjection,
+});
 
 function createWebSocketServer(space: TestSpace) {
     // Important that this is run before `TestTaskRealtimeServer`. We want to close
@@ -96,8 +104,8 @@ function createWebSocketServer(space: TestSpace) {
     const server = new TestTaskRealtimeServer(context);
 
     const webSocketServer = new WebSocketServer<
-        ServerProcessContextModules,
-        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        TaskRealtimeProcessContextModules,
+        TaskRealtimeSessionActionContextModules & {fork: ForkActionContextModule},
         typeof TaskRealtimeProtocol,
         TaskRealtimeEvent,
         TaskRealtimeConnection
@@ -2517,7 +2525,7 @@ test("can update a referenced task in one query and remove the same referenced t
     expect(testTakeEvents(connection1)).toEqual([]);
     expect(testTakeEvents(connection2)).toEqual([]);
 
-    await commitTaskActionTransaction(TestTask.action(creatorSession), space.id, [
+    await commitTaskActionTransaction(creatorSession.action(), space.id, [
         {
             type: "UpdateTask",
             time: testClock.nowLogical(),
@@ -14806,7 +14814,7 @@ test("deleting task and all children when subscribed to task and its children", 
         referencedAccounts: [await session.get()],
     });
 
-    await deleteTaskAndAllChildren(TestTask.action(session), task1.id, testClock.nowLogical());
+    await deleteTaskAndAllChildren(session.action(), task1.id, testClock.nowLogical());
 
     await server.wait();
 });

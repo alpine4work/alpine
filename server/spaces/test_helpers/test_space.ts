@@ -1,5 +1,6 @@
-import {ServerSessionActionWithEmailContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithEmail} from "~/server/context/server_action_context.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccountForTest,
@@ -12,7 +13,6 @@ import {
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {inviteEmailAddressesToSpace} from "~/server/spaces/with_search/invite_email_addresses_to_space.js";
 import {SystemTokenPayload} from "~/server/tokens/token_payload.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -208,7 +208,7 @@ export class TestSpace {
      * inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddress(
-        context: ServerSessionActionWithEmailContext,
+        context: ServerSessionActionContextWithEmail,
         emailAddress: string,
     ) {
         const result = await inviteEmailAddressesToSpace(context, {
@@ -242,7 +242,7 @@ export class TestSpace {
      * inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddressAndCreateSession(
-        context: ServerSessionActionWithEmailContext,
+        context: ServerSessionActionContextWithEmail,
         emailAddress: string,
     ) {
         const account = await this.inviteEmailAddress(context, emailAddress);

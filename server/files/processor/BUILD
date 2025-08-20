@@ -38,9 +38,9 @@ ts_project(
         },
     },
     visibility = [
-        "//server/files/processor/test_helpers:__pkg__",
-        "//server/files/processor/resize_file:__pkg__",
         "//admin/lambda/local/file_processor_service:__pkg__",
+        "//server/files/processor/resize_file:__pkg__",
+        "//server/files/processor/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/@lezer/common",
@@ -51,7 +51,6 @@ ts_project(
         "//server/cloudflare/r2",
         "//server/context",
         "//server/files/data",
-        "//server/files/processor/context",
         "//server/files/processor/error",
         "//server/files/processor/sharp",
         "//server/helpers",

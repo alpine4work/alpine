@@ -1,6 +1,8 @@
 import {AccessLevel} from "~/shared/access/access_policy.js";
+import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
 
 export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
@@ -16,3 +18,10 @@ export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: R
 // confirmed but not persisted steps and try backfilling again.
 export const documentBackfillFutureVersionErrorMessage =
     "Tried to backfill a future document version";
+
+export function createDocumentNotFoundError(documentId: DocumentId) {
+    return new NotFoundError("Document not found", {
+        aggregateDedupeKey: documentId,
+        displayMessage: errorDisplayMessage`This document doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}

@@ -1,7 +1,7 @@
 import {
     DynamoActorContextModule,
     DynamoUnknownActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
+} from "~/server/context/dynamo_actor_context_module.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";

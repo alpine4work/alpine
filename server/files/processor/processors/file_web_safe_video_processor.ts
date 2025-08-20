@@ -3,7 +3,7 @@ import {addMinutes} from "date-fns";
 import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
@@ -77,7 +77,7 @@ export function createFileWebSafeVideoProcessor(
 }
 
 export async function processFileWebSafeVideo(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     inputUrl: string,
     {
         signal,

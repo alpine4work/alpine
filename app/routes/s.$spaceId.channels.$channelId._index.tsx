@@ -12,7 +12,7 @@ import {
     postContentViewMinHeightPx,
 } from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
-import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {
@@ -77,7 +77,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     let created:
         | {
               getDynamoGeneralRealtimeItem: (
-                  context: ServerContentActionContext,
+                  context: ServerActionContext,
               ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
           }
         | undefined;

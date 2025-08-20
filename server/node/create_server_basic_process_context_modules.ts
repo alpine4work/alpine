@@ -1,21 +1,16 @@
 import {join as joinPath} from "path";
-import {
-    ServerProcessContext,
-    ServerProcessContextModules,
-} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
-import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-export const serverProcessContextOptions = {
+export const serverBasicProcessContextOptions = {
     ensureLocalCachePath: {type: "string"},
     dynamoLocalPort: {type: "string"},
     jobQueueUrl: {type: "string"},
@@ -23,7 +18,7 @@ export const serverProcessContextOptions = {
     edgeServiceUrl: {type: "string"},
 } as const;
 
-export type ServerProcessContextOptions = {
+export type ServerBasicProcessContextOptions = {
     readonly edgeServiceUrl?: string;
     readonly ensureLocalCachePath?: string;
     readonly dynamoLocalPort?: string;
@@ -39,7 +34,7 @@ export type ServerProcessContextOptions = {
  * `serverProcessContextOptions` is an object defining the args you can
  * pass into `parseArgs()`.
  */
-export function createServerProcessContext({
+export function createServerBasicProcessContextModules({
     tracer,
     shutdownManager,
     awsSigner,
@@ -48,9 +43,9 @@ export function createServerProcessContext({
     tracer: TracerRoot;
     shutdownManager: ShutdownManagerBase;
     awsSigner: AwsRequestSigner;
-    options: ServerProcessContextOptions;
-}): ServerProcessContext {
-    return createServerProcessContextBase({
+    options: ServerBasicProcessContextOptions;
+}) {
+    return createServerBasicProcessContextModulesWithoutShutdownManager({
         tracer,
         awsSigner,
         options,
@@ -64,7 +59,7 @@ export function createServerProcessContext({
     });
 }
 
-export function createServerProcessContextBase({
+export function createServerBasicProcessContextModulesWithoutShutdownManager({
     tracer,
     waitUntil,
     awsSigner,
@@ -73,9 +68,15 @@ export function createServerProcessContextBase({
     tracer: TracerRoot;
     waitUntil: (promise: Promise<unknown>) => void;
     awsSigner: AwsRequestSigner;
-    options: ServerProcessContextOptions;
-}): ServerProcessContext {
-    return Context.new<ServerProcessContextModules>({
+    options: ServerBasicProcessContextOptions;
+}): {
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    jobs: JobsContextModule;
+    constants: ServerConstantsContextModule;
+} {
+    return {
         process: new ProcessContextModule({
             waitUntil,
         }),
@@ -119,5 +120,5 @@ export function createServerProcessContextBase({
                 "`edgeServiceUrl` option is required",
             ),
         }),
-    });
+    };
 }

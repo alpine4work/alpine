@@ -1,11 +1,9 @@
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
-import {TestContentContextModuleOptions} from "~/server/context/content_context_module_base.js";
+import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
-import {getFileDocumentEntityModelIfPossible} from "~/server/documents/data/get_file_document_entity_model_if_possible.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {TestContextModules} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     CreateMessageFunction,
     DeleteMessageFunction,
@@ -22,12 +20,10 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
-import {parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
     MessageContentWithReferences,
@@ -45,58 +41,35 @@ import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
-export const testMessagingRealtimeImplementationContextOptions: TestContentContextModuleOptions<TestContextModules> =
-    {
-        getFileEntityIfPossible: async (context, spaceId, entityId) => {
-            assert(isServerActionContext(context));
-
-            const entityIdObject = parseFileEntityId(entityId);
-
-            switch (entityIdObject.type) {
-                case "Document": {
-                    const result = await getFileDocumentEntityModelIfPossible(
-                        context,
-                        entityIdObject.documentId,
-                    );
-                    return mapResult(
-                        result,
-                        model => new FileEntityModel(FileDocumentEntityModelSchema, model),
-                    );
-                }
-                default:
-                    throw new UnimplementedError(
-                        quote`\`getFileEntityIfPossible()\` is unimplemented for ${entityIdObject.type}`,
-                    );
-            }
-        },
-        getSearchEntityIfPossible: async (context, spaceId, entityId) => {
-            const entityIdObject = parseSearchDynamicEntityId(entityId);
-            if (entityIdObject.type !== "Document") {
-                throw new UnimplementedError(
-                    quote`\`getSearchEntityIfPossible()\` is unimplemented for ${entityIdObject.type}`,
-                );
-            }
-
-            assert(isServerActionContext(context));
-
-            const documentResult = await getDocumentPreviewIfPossible(
-                context,
-                entityIdObject.documentId,
+export const testMessagingRealtimeImplementationSearchInjection: Partial<SearchInjection> = {
+    getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+        const entityIdObject = parseSearchDynamicEntityId(entityId);
+        if (entityIdObject.type !== "Document") {
+            throw new UnimplementedError(
+                quote`\`getSearchEntityIfPossible()\` is unimplemented for ${entityIdObject.type}`,
             );
-            if (!documentResult) return null;
-            if (!documentResult.ok) return {isPrivate: true};
+        }
 
-            return {
-                isPrivate: false,
-                entity: new SearchEntityModel({
-                    id: entityId,
-                    title: documentResult.value.getTitle(),
-                    titleVersion: {type: "Integer", version: documentResult.value.version},
-                    media: null,
-                }),
-            };
-        },
-    };
+        assert(isServerActionContext(context));
+
+        const documentResult = await getDocumentPreviewIfPossible(
+            context,
+            entityIdObject.documentId,
+        );
+        if (!documentResult) return null;
+        if (!documentResult.ok) return {isPrivate: true};
+
+        return {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                id: entityId,
+                title: documentResult.value.getTitle(),
+                titleVersion: {type: "Integer", version: documentResult.value.version},
+                media: null,
+            }),
+        };
+    },
+};
 
 export function testMessagingRealtimeImplementation<RoomKey extends string>(
     context: TestWorkerContext,

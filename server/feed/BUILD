@@ -1,10 +1,9 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "data",
+    name = "feed",
     test_deps = [
         "//server/documents/test_helpers",
-        "//server/feed/read",
         "//server/forum/test_helpers",
         "//server/tasks/test_helpers",
     ],
@@ -21,6 +20,7 @@ ts_project(
     deps = [
         "//server/context",
         "//server/dynamo/core",
+        "//server/files/data",
         "//server/helpers",
         "//server/spaces",
         "//shared/context",

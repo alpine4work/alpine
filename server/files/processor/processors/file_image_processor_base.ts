@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethrow_classified_sharp_error.js";
 import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
@@ -29,7 +29,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
  */
 export async function processFileImagePreviewPlaceholder(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     input: string | Buffer | ArrayBuffer | Uint8Array,
     {
         contentType,
@@ -123,7 +123,7 @@ export async function processFileImagePreviewPlaceholder(
 }
 
 export function processImageFile(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     inputPath: string,
     {
         signal,

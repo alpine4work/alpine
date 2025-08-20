@@ -4,7 +4,7 @@ import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
-import {FileProcessorServiceActionContext} from "~/server/files/processor/context/file_processor_service_context.js";
+import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
@@ -67,7 +67,7 @@ export function createFileWebUnsafeAudioProcessor(
 }
 
 export function processFileWebUnsafeAudio(
-    context: FileProcessorServiceActionContext,
+    context: FileProcessorActionContext,
     inputUrl: string,
     {
         signal,

@@ -1,9 +1,13 @@
 import {
+    DynamoActorContextModule,
+    DynamoSystemActorContextModule,
+} from "~/server/context/dynamo_actor_context_module.js";
+import {
     ServerActionContext,
     ServerSessionActionContext,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
@@ -14,7 +18,11 @@ import {
     expensiveScanEverySpaceAccountForMigration,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
@@ -1208,7 +1216,14 @@ export function markSearchAffinityEntityInteraction(
  * affinity points for another account.
  */
 export function markSearchAffinityEntityInteractionForAccount(
-    context: ServerSystemActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoSystemActorContextModule;
+    }>,
     {
         spaceId,
         accountId,
@@ -1256,7 +1271,14 @@ export function markSearchAffinityCreateDocumentEntityInteraction(
 }
 
 async function addSearchAffinityEntityPoints(
-    context: ServerActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
     {
         spaceId,
         accountId,
@@ -1437,7 +1459,14 @@ async function addSearchAffinityEntityPoints(
  * affinity points on behalf of another user.
  */
 export async function addSearchAffinityEntityActiveTaskAssigneePoints(
-    context: ServerSystemActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoSystemActorContextModule;
+    }>,
     {
         spaceId,
         assigneeId,
@@ -1551,7 +1580,14 @@ export async function addSearchAffinityEntityActiveTaskAssigneePoints(
  * affinity points on behalf of another user.
  */
 export async function removeSearchAffinityEntityActiveTaskAssigneePoints(
-    context: ServerSystemActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoSystemActorContextModule;
+    }>,
     {
         spaceId,
         assigneeId,

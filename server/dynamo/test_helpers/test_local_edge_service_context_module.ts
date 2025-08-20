@@ -1,5 +1,5 @@
+import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {assert} from "~/shared/helpers/control/assert.js";

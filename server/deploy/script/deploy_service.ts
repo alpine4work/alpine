@@ -7,12 +7,13 @@ import {GithubContextModule} from "~/server/deploy/data/github_context_module.js
 import {deploy} from "~/server/deploy/script/internal/deploy.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
-    createServerProcessContext,
-    serverProcessContextOptions,
-} from "~/server/node/create_server_process_context.js";
+    createServerBasicProcessContextModules,
+    serverBasicProcessContextOptions,
+} from "~/server/node/create_server_basic_process_context_modules.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -25,7 +26,7 @@ export const options = {
     workflowRunNumber: {type: "string"},
     workflowRunAttempt: {type: "string"},
     cloudflareWorkersToken: {type: "string"},
-    ...serverProcessContextOptions,
+    ...serverBasicProcessContextOptions,
     ...serviceCloudflareR2Options,
 } as const;
 
@@ -71,12 +72,13 @@ export async function run({
 
     const awsSigner = new AwsRequestSigner();
 
-    const processContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        awsSigner,
-        options,
-    }).clone({
+    const processContext = Context.new({
+        ...createServerBasicProcessContextModules({
+            tracer,
+            shutdownManager,
+            awsSigner,
+            options,
+        }),
         github: new GithubContextModule(
             // Authenticate with the GitHub API through GitHub action environment
             // variables.
