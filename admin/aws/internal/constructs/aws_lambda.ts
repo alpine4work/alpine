@@ -144,7 +144,9 @@ export class AwsLambda extends Construct {
 
         return new DockerImageFunction(this, "Function", {
             ...this._getLambdaFunctionProps(options),
-            code: DockerImageCode.fromEcr(imageAsset.repository),
+            code: DockerImageCode.fromEcr(imageAsset.repository, {
+                tagOrDigest: imageAsset.imageTag,
+            }),
             environment: {
                 ...options.environment,
                 ...this._getCommonEnvironmentVariables(options),

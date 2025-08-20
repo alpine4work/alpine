@@ -37,6 +37,19 @@ async function main() {
                     ),
                     "$1latest",
                 )
+                .replaceAll(
+                    // i.e. separated on multiple lines.
+                    // - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                    // - :<hash>
+                    new RegExp(
+                        `(${escapeRegExp(
+                            // eslint-disable-next-line no-template-curly-in-string
+                            "Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1",
+                        )}\\n\\s+${escapeRegExp("- :")})[0-9a-fA-F]+`,
+                        "g",
+                    ),
+                    "$1latest",
+                )
                 .replace(
                     /^ {12}Analytics: v2:deflate64:.*/m,
                     "            # Removed `Analytics` property",
