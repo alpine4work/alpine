@@ -6,6 +6,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 class TestContextModule extends ContextModuleBase {
@@ -688,4 +689,50 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
 
     expect(() => rootContext.process).not.toThrow("Context was destroyed");
     expect(() => parentContext.process).toThrow("Context was destroyed");
+});
+
+describe("bound context modules", () => {
+    const testContextModule = new TestContextModule();
+    const context1 = Context.new({test: testContextModule});
+    const context2 = context1.clone({});
+    const context3 = context2.clone({});
+
+    test("when creating a context the bound context module has an own `_context` property", () => {
+        expect(hasOwnProperty(testContextModule, "_context")).toEqual(false);
+        expect(hasOwnProperty(context1.test, "_context")).toEqual(true);
+        expect((context1.test as any)._context).toBe(context1);
+    });
+
+    test("when cloning a context once the bound context module has an own `_context` property", () => {
+        expect(hasOwnProperty(testContextModule, "_context")).toEqual(false);
+        expect(hasOwnProperty(context2.test, "_context")).toEqual(true);
+        expect((context2.test as any)._context).toBe(context2);
+        expect((context2.test as any)._context).not.toBe(context1);
+    });
+
+    test("when cloning a context twice the bound context module has an own `_context` property", () => {
+        expect(hasOwnProperty(testContextModule, "_context")).toEqual(false);
+        expect(hasOwnProperty(context3.test, "_context")).toEqual(true);
+        expect((context3.test as any)._context).toBe(context3);
+        expect((context3.test as any)._context).not.toBe(context2);
+        expect((context3.test as any)._context).not.toBe(context1);
+    });
+
+    test("when creating a context the bound context module has a prototype that’s exactly the original context module", () => {
+        expect(context1.test).not.toBe(testContextModule);
+        expect(Object.getPrototypeOf(context1.test)).toBe(testContextModule);
+    });
+
+    test("when cloning a context once the bound context module has a prototype that’s exactly the original context module", () => {
+        expect(context2.test).not.toBe(testContextModule);
+        expect(context2.test).not.toBe(context1.test);
+        expect(Object.getPrototypeOf(context2.test)).toBe(testContextModule);
+    });
+
+    test("when cloning a context twice the bound context module has a prototype that’s exactly the original context module", () => {
+        expect(context3.test).not.toBe(testContextModule);
+        expect(context3.test).not.toBe(context1.test);
+        expect(context3.test).not.toBe(context2.test);
+        expect(Object.getPrototypeOf(context3.test)).toBe(testContextModule);
+    });
 });
