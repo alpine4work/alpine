@@ -1,6 +1,6 @@
 import {IVpc} from "aws-cdk-lib/aws-ec2";
 import {TarballImageAsset} from "aws-cdk-lib/aws-ecr-assets";
-import {IRole, ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import {Grant, IGrantable, IRole, ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {
     Architecture,
     Code,
@@ -100,6 +100,10 @@ export class AwsLambda extends Construct {
 
     public get lambdaFunction(): LambdaFunctionBase {
         return this._lambdaFunction;
+    }
+
+    public grantInvoke(grantee: IGrantable): Grant {
+        return this._lambdaFunction.grantInvoke(grantee);
     }
 
     private _createBasicLambdaFunction(options: AwsLambdaOptions) {

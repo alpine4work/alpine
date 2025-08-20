@@ -5162,6 +5162,185 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/Certificate/Resource
+    ScheduleDeployExecutionRoleE801ABF6:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/ExecutionRole/Resource
+    ScheduleDeployExecutionRoleDefaultPolicyEF1406C9:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ScheduleDeployFunctionDeadLetterQueue1741E020
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
+                Version: 2012-10-17
+            PolicyName: ScheduleDeployExecutionRoleDefaultPolicyEF1406C9
+            Roles:
+                - Ref: ScheduleDeployExecutionRoleE801ABF6
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/ExecutionRole/DefaultPolicy/Resource
+    ScheduleDeployFunctionDeadLetterQueue1741E020:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/DeadLetterQueue/Resource
+    ScheduleDeployFunctionSecurityGroupBD9D51F9:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Automatic security group for Lambda Function
+                CyberworldsStackScheduleDeployFunction34554264
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/SecurityGroup/Resource
+    ScheduleDeployFunction531AE56A:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - ScheduleDeployFunctionDeadLetterQueue1741E020
+                        - Arn
+            Environment:
+                Variables:
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    RUNFILES: /var/task/admin/lambda/schedule_deploy/schedule_deploy_lambda_binary.runfiles
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - ScheduleDeployExecutionRoleE801ABF6
+                    - Arn
+            Timeout: 30
+            VpcConfig:
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - ScheduleDeployFunctionSecurityGroupBD9D51F9
+                          - GroupId
+                SubnetIds:
+                    - Ref: VpcIsolatedSubnet1SubnetE48C5737
+                    - Ref: VpcIsolatedSubnet2Subnet16364B91
+        DependsOn:
+            - ScheduleDeployExecutionRoleDefaultPolicyEF1406C9
+            - ScheduleDeployExecutionRoleE801ABF6
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/Resource
+    ScheduleDeployFunctionLogRetentionE3E0118D:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: ScheduleDeployFunction531AE56A
+            RetentionInDays: 7
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/LogRetention/Resource
+    ScheduleDeployFunctionInvokeDfn5y7uAy0X90UolATpynU7GAAico4oYmJklJgI2xc8ED1954C:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName:
+                Fn::GetAtt:
+                    - ScheduleDeployFunction531AE56A
+                    - Arn
+            Principal: arn:aws:iam::989696362649:user/ci-schedule-deploy
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/InvokeDfn5y7uAy0X90UolATpynU7GAAico4oYmJkl+JgI2xc=
+    CIScheduleDeployRolePolicyF54732AB:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: lambda:InvokeFunction
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - ScheduleDeployFunction531AE56A
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ScheduleDeployFunction531AE56A
+                                        - Arn
+                                  - :*
+                Version: 2012-10-17
+            PolicyName: CIScheduleDeployRolePolicyF54732AB
+            Users:
+                - ci-schedule-deploy
+        Metadata:
+            aws:cdk:path: CyberworldsStack/CIScheduleDeployRole/Policy/Resource
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:

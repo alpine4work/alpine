@@ -35,6 +35,7 @@ filegroup(
         ":aws",
         "//:cdk_files",
         "//admin/opensearch/deploy_script:deploy_script_production",
+        "//admin/lambda/schedule_deploy:schedule_deploy_lambda_production",
         "//app:app_image_tarball_production",
         "//server/files/processor:processor_image_tarball_production",
         "//server/files/processor/resize_file:resize_file_lambda_production",

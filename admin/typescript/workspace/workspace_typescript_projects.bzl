@@ -15,6 +15,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/dynamo/local:local",
     "//admin/eslint:eslint",
     "//admin/helpers:helpers",
+    "//admin/lambda/schedule_deploy:schedule_deploy",
     "//admin/opensearch/deploy_script:deploy_script_lib",
     "//admin/opensearch/local:local",
     "//admin/sqs/local:local",

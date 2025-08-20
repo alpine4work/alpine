@@ -8,6 +8,7 @@ ts_project(
         "//app:__pkg__",
         "//server:__subpackages__",
         "//admin/aws:__pkg__",
+        "//admin/lambda/schedule_deploy:__pkg__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-sqs",

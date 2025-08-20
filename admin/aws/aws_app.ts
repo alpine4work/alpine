@@ -1,5 +1,6 @@
-import {App, Stack} from "aws-cdk-lib";
+import {App, Duration, Stack, aws_iam} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {ciScheduleDeployIamArn} from "~/admin/aws/aws_known_ids.js";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -13,6 +14,7 @@ import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
+import {AwsLambda} from "~/admin/aws/internal/constructs/aws_lambda.js";
 
 export async function createAwsApp() {
     // Hardcoded. We only have one production environment for now.
@@ -101,6 +103,28 @@ async function addAwsResources(
         dynamo,
         sqs,
     });
+
+    // Create our schedule deploy lambda and allow our CI credentials to invoke it
+    const scheduleDeployLambda = new AwsLambda(stack, "ScheduleDeploy", {
+        bazelConfiguration: {
+            bazelTarget: "//admin/lambda/schedule_deploy:schedule_deploy_lambda",
+            handlerFilePath: "lambda/schedule_deploy_lambda",
+        },
+        sqs,
+        cloudflareAccountId,
+        vpc,
+        timeout: Duration.seconds(30),
+    });
+
+    sqs.grantSendJobQueueMessages(scheduleDeployLambda.executionRole);
+
+    const ciScheduleDeployIam = aws_iam.User.fromUserArn(
+        stack,
+        "CIScheduleDeployRole",
+        ciScheduleDeployIamArn,
+    );
+
+    scheduleDeployLambda.grantInvoke(ciScheduleDeployIam);
 
     // Manually export resources through CloudFormation instead of using the CDK's
     // auto export capabilities. We were finding ourselves running into issues when
