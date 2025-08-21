@@ -200,6 +200,10 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 // If you don't have space access, you're not allowed to see the space's name.
                 // Use an empty string as a placeholder.
                 name: "",
+                avatars: {
+                    darkTheme: null,
+                    lightTheme: null,
+                },
             });
 
             const propagateEventData: TracerEventData = {
@@ -303,6 +307,10 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                     // If you don't have space access, you're not allowed to see the space's name.
                     // Use an empty string as a placeholder.
                     name: space?.name || "",
+                    avatars: {
+                        darkTheme: null,
+                        lightTheme: null,
+                    },
                 });
 
                 const propagateEventData: TracerEventData = {

@@ -45,15 +45,10 @@ export class SpaceModel extends Model(
          * implementations.
          */
         alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
-        // TODO(#add-space-avatar-support)
-        // This object should be neither nullable nor optional.
         avatars: Schema.object({
             darkTheme: AvatarSchema.nullable().optional().default(null),
             lightTheme: AvatarSchema.nullable().optional().default(null),
-        })
-            .nullable()
-            .optional()
-            .default(null),
+        }),
     }),
 ) {}
 

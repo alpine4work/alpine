@@ -65,6 +65,8 @@ import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
@@ -275,18 +277,79 @@ const SpacesTable = DynamoTableSchema.new({
     ],
 });
 
-function createSpaceModelFromItem(
-    spaceItem: DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">,
-): SpaceModel {
+type SpaceAttributesItem = DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">;
+type SpaceAvatarDarkThemeItem = DynamoTableItemType<typeof SpacesTable, "Space", "AvatarDarkTheme">;
+type SpaceAvatarLightThemeItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "AvatarLightTheme"
+>;
+type SpaceItem = SpaceAttributesItem & {
+    readonly avatars: {
+        readonly darkTheme: SpaceAvatarDarkThemeItem | null;
+        readonly lightTheme: SpaceAvatarLightThemeItem | null;
+    };
+};
+
+async function getSpaceItem(
+    context: DynamoContext,
+    spaceId: SpaceId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<SpaceItem> {
+    const item = await getSpaceItemIfExists(context, spaceId, {consistency});
+    if (!item) throw new NotFoundError("Space not found");
+    return item;
+}
+
+async function getSpaceItemIfExists(
+    context: DynamoContext,
+    spaceId: SpaceId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<SpaceItem | null> {
+    const items = await arrayFromAsyncIterable(
+        SpacesTable.query(context, {
+            limit: 2,
+            partitionKey: {
+                partitionType: "Space",
+                spaceId,
+            },
+            startSortKey: {sortRangeType: "Attributes"},
+            endSortKey: {sortRangeType: "AvatarDarkTheme"},
+            consistency,
+        }),
+    );
+
+    const attributesItem = findMapIterable(items, item =>
+        item.sortRangeType === "Attributes" ? item : undefined,
+    );
+    if (!attributesItem) return null;
+
+    const darkTheme = findMapIterable(items, item =>
+        item.sortRangeType === "AvatarDarkTheme" ? item : undefined,
+    );
+    const lightTheme = findMapIterable(items, item =>
+        item.sortRangeType === "AvatarLightTheme" ? item : undefined,
+    );
+
+    return {
+        avatars: {
+            darkTheme: darkTheme ?? null,
+            lightTheme: lightTheme ?? null,
+        },
+        ...attributesItem,
+    };
+}
+
+function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
     return new SpaceModel({
         id: spaceItem.spaceId,
         version: spaceItem.updateLockVersion ?? 0,
         name: spaceItem.name,
         alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
+        avatars: spaceItem.avatars,
     });
 }
 
-type SpaceItem = DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">;
 type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 type AccountSpacesItem = DynamoTableItemType<typeof SpacesTable, "Account", "Spaces">;
 
@@ -573,7 +636,7 @@ async function getAddSpaceAccountTransactionEntries({
     accountSpacesItem,
     newSpaceAccountState,
 }: {
-    spaceItem: SpaceItem;
+    spaceItem: SpaceAttributesItem;
     role: SpaceRole;
     spaceAccountItem: SpaceAccountItem | null;
     accountSpacesItem: AccountSpacesItem | null;
@@ -2200,27 +2263,25 @@ export async function updateSpaceName(
         errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
     });
 
-    const updatedSpaceItem = await SpacesTable.updateItem(
-        context,
-        {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-        },
-        item => {
-            if (!item) {
-                throw new NotFoundError("Space not found");
-            }
+    return context.dynamo.retryTransaction(async context => {
+        const spaceItem = await getSpaceItem(context, spaceId);
+        if (!spaceItem) throw new NotFoundError("Space not found");
 
-            return {
-                ...item,
-                name,
-            };
-        },
-    );
-    assert(updatedSpaceItem);
+        const newSpaceAttributesItem = {
+            ...spaceItem,
+            name,
+        };
 
-    return createSpaceModelFromItem(updatedSpaceItem);
+        const updatedSpaceItem = await SpacesTable.directlyUpdateItem(
+            context,
+            newSpaceAttributesItem,
+        );
+
+        return createSpaceModelFromItem({
+            ...updatedSpaceItem,
+            avatars: spaceItem.avatars,
+        });
+    });
 }
 
 /**
@@ -2234,11 +2295,7 @@ export async function getSpaceIfPossible(
 ): Promise<Result<SpaceModel, ErrorBase> | null> {
     const [authorizationResult, spaceItem] = await runAllPromises([
         authorizeSpaceAccessIfPossible(context, spaceId),
-        SpacesTable.getItemIfExists(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-        }),
+        getSpaceItemIfExists(context, spaceId),
     ]);
 
     if (!spaceItem) return null;
@@ -2542,11 +2599,7 @@ export async function getSpace(
 
     const [, spaceItem] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId, "Member", allowedSpaceAccountStateTypes),
-        SpacesTable.getItem(context, {
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-        }),
+        getSpaceItem(context, spaceId),
     ]);
 
     return createSpaceModelFromItem(spaceItem);
