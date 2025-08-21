@@ -1,8 +1,15 @@
-import {backgroundColorVar, sprinkles} from "~/client/styles/styles.js";
+import {
+    backgroundColorVar,
+    borderRadius as borderRadiusValues,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
 import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 
@@ -60,7 +67,66 @@ export function renderAccountAvatar({
 }): HtmlElementGenerator {
     // IMPORTANT: If you update the HTML here you should also update
     // `<AccountAvatar>` for code that render avatars in React.
+    if (accountData.avatar?.content) {
+        return renderAccountAvatarWithImage({
+            content: accountData.avatar.content,
+            size,
+        });
+    } else {
+        return renderAccountAvatarWithInitials({
+            accountData,
+            size,
+            backgroundBorderWidth,
+        });
+    }
+}
 
+const imageUrlCache = new WeakMap<Uint8Array, string>();
+
+function renderAccountAvatarWithImage({content, size}: {content: Uint8Array; size: Spacing}) {
+    const imageUrl = getOrSetDefaultMapValue(
+        imageUrlCache,
+        content,
+        () => `data:${avatarContentType};base64,${encodeBase64(content)}`,
+    );
+
+    const outerHtml = new HtmlElementGenerator("span");
+    outerHtml.setAttribute("class", accountAvatarClassName);
+
+    const outerStyleString = [
+        `width: ${spacing[size]}`,
+        `height: ${spacing[size]}`,
+        "position: relative",
+        "display: flex",
+        "align-items: center",
+        "justify-content: center",
+        "overflow: hidden",
+    ].join(";");
+    outerHtml.setAttribute("style", outerStyleString);
+
+    const innerHtml = outerHtml.appendChild(new HtmlElementGenerator("img"));
+    innerHtml.setAttribute("src", imageUrl);
+    const innerHtmlStyleString = [
+        "width: 100%",
+        "height: 100%",
+        "object-fit: cover",
+        `border-radius: ${borderRadiusValues["full"]}`,
+    ].join(";");
+    innerHtml.setAttribute("style", innerHtmlStyleString);
+    innerHtml.setAttribute("aria-hidden", "true");
+
+    return outerHtml;
+}
+
+function renderAccountAvatarWithInitials({
+    accountData,
+    size,
+    backgroundBorderWidth,
+}: {
+    accountData: AccountModelData;
+    size: Spacing;
+    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
+}) {
     const {firstInitial, lastInitial} = getAccountAvatarInitials(accountData);
 
     // Get themed background color for this account
@@ -68,7 +134,6 @@ export function renderAccountAvatar({
         getAvatarThemeColors(accountData.id);
 
     const outerHtml = new HtmlElementGenerator("span");
-
     outerHtml.setAttribute("class", accountAvatarClassName);
 
     let outerStyleString = `width: ${spacing[size]}; height: ${spacing[size]}; background-color: ${avatarBackgroundColor}`;
