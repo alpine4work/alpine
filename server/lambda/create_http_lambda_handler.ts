@@ -83,7 +83,7 @@ export function createHttpLambdaHandler({
             method: event.httpMethod,
             headers: new Headers(event.headers as Record<string, string>),
             signal: abortController.signal,
-            body: event.body,
+            ...(event.body ? {body: event.body} : {}),
         });
         const spanName = createTraceServerResponseHandleSpanName(tracer, request, route);
         const {span, finishSpan} = startTracerSpanFromPropagationContextHeader(
