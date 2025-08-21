@@ -508,9 +508,7 @@ function getResizeAvatarLambda(
     });
 
     // Needs access in order to fetch the session
-    dynamo.grantReadDataForTable(resizeAvatarLambda.executionRole, "Accounts", {
-        disallowQuery: true,
-    });
+    dynamo.grantReadDataForTable(resizeAvatarLambda.executionRole, "Accounts");
 
     const resizeAvatarTargetGroup = new ApplicationTargetGroup(
         scope,

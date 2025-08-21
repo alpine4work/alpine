@@ -4495,6 +4495,7 @@ Resources:
                           - dynamodb:BatchGetItem
                           - dynamodb:ConditionCheckItem
                           - dynamodb:GetItem
+                          - dynamodb:Query
                           - dynamodb:TransactGetItems
                       Effect: Allow
                       Resource:
