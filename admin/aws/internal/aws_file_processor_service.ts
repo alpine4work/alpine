@@ -452,7 +452,8 @@ function getResizeFileLambda(
         },
         sqs,
         cloudflareAccountId,
-        vpc,
+        // NOTE(#deploy-lambdas-without-vpc)
+        vpc: null,
         memorySize: 4096, // 4GB RAM (~2 vCPUs)
         // Intentionally short timeout to ensure that the lambda is killed
         // if it's not able to complete the resize operation.
@@ -496,7 +497,8 @@ function getResizeAvatarLambda(
         },
         sqs,
         cloudflareAccountId,
-        vpc,
+        // NOTE(#deploy-lambdas-without-vpc)
+        vpc: null,
         memorySize: 4096, // 4GB RAM (~2 vCPUs)
         // Intentionally short timeout to ensure that the lambda is killed
         // if it's not able to complete the resize operation.

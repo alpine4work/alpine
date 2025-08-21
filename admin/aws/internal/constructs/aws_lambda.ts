@@ -21,9 +21,31 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 export interface AwsLambdaOptions
-    extends Omit<FunctionProps, "code" | "handler" | "runtime" | "architecture"> {
-    /** A VPC is required for all of our Lambdas */
-    readonly vpc: IVpc;
+    extends Omit<FunctionProps, "code" | "handler" | "runtime" | "architecture" | "vpc"> {
+    /**
+     * Lambda + VPC guidance
+     *
+     * Default: **Do NOT attach a Lambda to a VPC** unless it must reach private resources
+     * (e.g., RDS, ElastiCache in private subnets, internal ALBs). VPC attachment adds
+     * NAT/proxy requirements and cost for public internet egress.
+     *
+     * When to attach to a VPC
+     * - The function must access resources that are only reachable inside our VPC
+     *   (e.g., RDS, internal services on private subnets).
+     */
+    // NOTE(ifitzsimmons, 08/20/2025, ##deploy-lambdas-without-vpc): Lambda functions never
+    // receive public IPs. If placed in a VPC and they need internet access, provision NAT
+    // (Gateway or instance) or an egress proxy. The upside is stronger egress control (no
+    // internet by default), the downside is cost and system complexity.
+    //
+    // Our HTTP Lambdas behind ALB: when an ALB target group is of type "lambda", the ALB
+    // invokes the function via the Lambda service. This works whether or not the function
+    // is attached to a VPC; the ALB's own VPC networking does not determine Lambda reachability.
+    //
+    // From a security standpoint, Lambdas (VPC or not) have no inbound network exposure (invocation-only).
+    // By contrast, ECS tasks with public IPs are internet-reachable unless locked down with
+    // security groups/NACLs/WAF.
+    readonly vpc: IVpc | null;
 
     /**
      * Configuration for the Bazel build rule that builds the Lambda function
@@ -183,6 +205,7 @@ export class AwsLambda extends Construct {
                 "cloudflareAccountId",
             ]),
             role: this._executionRole,
+            vpc: options.vpc ?? undefined,
         };
     }
 

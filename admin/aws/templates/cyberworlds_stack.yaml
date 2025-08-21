@@ -4356,29 +4356,10 @@ Resources:
         Type: AWS::SQS::Queue
         Properties:
             MessageRetentionPeriod: 1209600
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/DeadLetterQueue/Resource
-    FileProcessorServiceResizeFileFunctionSecurityGroup5E5BEAA3:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatic security group for Lambda Function
-                CyberworldsStackFileProcessorServiceResizeFileFunction110655F3
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            VpcId:
-                Ref: Vpc8378EB38
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/SecurityGroup/Resource
     FileProcessorServiceResizeFileFunction15E4BF66:
         Type: AWS::Lambda::Function
         Properties:
@@ -4422,19 +4403,9 @@ Resources:
                     - FileProcessorServiceResizeFileExecutionRole24431F60
                     - Arn
             Timeout: 30
-            VpcConfig:
-                SecurityGroupIds:
-                    - Fn::GetAtt:
-                          - FileProcessorServiceResizeFileFunctionSecurityGroup5E5BEAA3
-                          - GroupId
-                SubnetIds:
-                    - Ref: VpcIsolatedSubnet1SubnetE48C5737
-                    - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
             - FileProcessorServiceResizeFileExecutionRoleDefaultPolicy5A1E4384
             - FileProcessorServiceResizeFileExecutionRole24431F60
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Resource
     FileProcessorServiceResizeFileFunctionLogRetentionE7FB8260:
@@ -4450,9 +4421,6 @@ Resources:
                     - - /aws/lambda/
                       - Ref: FileProcessorServiceResizeFileFunction15E4BF66
             RetentionInDays: 7
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/LogRetention/Resource
     FileProcessorServiceResizeFileFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYCAC43467:
@@ -4464,9 +4432,6 @@ Resources:
                     - FileProcessorServiceResizeFileFunction15E4BF66
                     - Arn
             Principal: elasticloadbalancing.amazonaws.com
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
     FileProcessorServiceResizeFileLambdaTargetGroup732CA815:
@@ -4552,29 +4517,10 @@ Resources:
         Type: AWS::SQS::Queue
         Properties:
             MessageRetentionPeriod: 1209600
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/DeadLetterQueue/Resource
-    FileProcessorServiceResizeAvatarLambdaFunctionSecurityGroup8D40483D:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatic security group for Lambda Function
-                CyberworldsStackFileProcessorServiceResizeAvatarLambdaFunction34AE26C0
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            VpcId:
-                Ref: Vpc8378EB38
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/SecurityGroup/Resource
     FileProcessorServiceResizeAvatarLambdaFunction772746F5:
         Type: AWS::Lambda::Function
         Properties:
@@ -4618,19 +4564,9 @@ Resources:
                     - FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961
                     - Arn
             Timeout: 30
-            VpcConfig:
-                SecurityGroupIds:
-                    - Fn::GetAtt:
-                          - FileProcessorServiceResizeAvatarLambdaFunctionSecurityGroup8D40483D
-                          - GroupId
-                SubnetIds:
-                    - Ref: VpcIsolatedSubnet1SubnetE48C5737
-                    - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
             - FileProcessorServiceResizeAvatarLambdaExecutionRoleDefaultPolicy7F599076
             - FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Resource
     FileProcessorServiceResizeAvatarLambdaFunctionLogRetention9E0EA996:
@@ -4646,9 +4582,6 @@ Resources:
                     - - /aws/lambda/
                       - Ref: FileProcessorServiceResizeAvatarLambdaFunction772746F5
             RetentionInDays: 7
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/LogRetention/Resource
     FileProcessorServiceResizeAvatarLambdaFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY9FA4B8FA:
@@ -4660,9 +4593,6 @@ Resources:
                     - FileProcessorServiceResizeAvatarLambdaFunction772746F5
                     - Arn
             Principal: elasticloadbalancing.amazonaws.com
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
     FileProcessorServiceResizeAvatarLambdaTargetGroupA92E0C14:
