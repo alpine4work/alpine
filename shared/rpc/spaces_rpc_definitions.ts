@@ -1,6 +1,7 @@
+import {AvatarThemeSchema} from "~/shared/avatar/avatar_schema.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -131,5 +132,18 @@ export const acceptSpaceAccountInvite = defineRpc({
     },
     output: {
         account: AccountModel.schema,
+    },
+});
+
+export const finishUploadingSpaceAvatar = defineRpc({
+    name: "finishUploadingSpaceAvatar",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        avatarContent: Schema.bytes,
+        avatarId: Schema.id<AvatarId>(),
+        avatarTheme: AvatarThemeSchema,
+    },
+    output: {
+        space: SpaceModel.schema(),
     },
 });

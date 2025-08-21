@@ -6,6 +6,7 @@ import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresse
 import {
     acceptSpaceAccountInvite,
     expensivelyGetAllSpaceAccounts,
+    finishUploadingSpaceAvatar,
     getOurAccountSpaceIds,
     getSpaceIfPossible,
     moveSpaceAccountOwnerRole,
@@ -210,6 +211,14 @@ export default implementRpcs(definitions, {
                 input.spaceId,
             );
             return {account};
+        },
+    },
+
+    finishUploadingSpaceAvatar: {
+        visibility: ["EdgeService"],
+        execute: async (context, input) => {
+            const space = await finishUploadingSpaceAvatar(context.actor.authorizeSession(), input);
+            return {space};
         },
     },
 });

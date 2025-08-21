@@ -41,7 +41,7 @@ import {
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {AvatarModel, AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {AvatarModel, AvatarSchema, AvatarTheme} from "~/shared/avatar/avatar_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -72,7 +72,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -3108,5 +3108,127 @@ export async function rejectSpaceAccountInviteAsSpam(
     return updateSpaceAccountWithInviteDecision(context, {
         spaceId,
         newAccountStateType: "Removed",
+    });
+}
+
+export async function finishUploadingSpaceAvatar(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        avatarContent,
+        avatarId,
+        avatarTheme,
+    }: {
+        spaceId: SpaceId;
+        avatarContent: Uint8Array;
+        avatarId: AvatarId;
+        avatarTheme: AvatarTheme;
+    },
+): Promise<SpaceModel> {
+    context.actor.authorizeSession();
+    await authorizeSpaceAccess(context, spaceId, "Admin");
+
+    return context.dynamo.retryTransaction(async context => {
+        const oldSpaceItem = await getSpaceItem(context, spaceId);
+        const commonUpdateOptions = {
+            spaceId,
+            avatarContent,
+            avatarId,
+            oldSpaceItem,
+        };
+
+        switch (avatarTheme) {
+            case "dark":
+                return dangerouslyFinishUploadingSpaceAvatarDarkTheme(context, commonUpdateOptions);
+            case "light":
+                return dangerouslyFinishUploadingSpaceAvatarLightTheme(
+                    context,
+                    commonUpdateOptions,
+                );
+            default:
+                throw exhaustive(avatarTheme);
+        }
+    });
+}
+
+/**
+ * Updates the space's Dark Theme Avatar WITHOUT ENSURING THE ACTOR IS AN ADMIN..
+ *
+ * Use `finishUploadingSpaceAvatar()` instead.
+ */
+async function dangerouslyFinishUploadingSpaceAvatarDarkTheme(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        avatarContent,
+        avatarId,
+        oldSpaceItem,
+    }: {
+        spaceId: SpaceId;
+        avatarContent: Uint8Array;
+        avatarId: AvatarId;
+        oldSpaceItem: SpaceItem;
+    },
+): Promise<SpaceModel> {
+    const oldAvatarItem = oldSpaceItem.avatars.darkTheme;
+
+    const newAvatarItem: SpaceAvatarDarkThemeItem = {
+        ...oldAvatarItem,
+        partitionType: "Space",
+        sortRangeType: "AvatarDarkTheme",
+        spaceId,
+        avatarId,
+        content: avatarContent,
+    };
+
+    const updatedAvatarItem = await SpacesTable.directlyUpdateItem(context, newAvatarItem);
+
+    return createSpaceModelFromItem({
+        ...oldSpaceItem,
+        avatars: {
+            ...oldSpaceItem.avatars,
+            darkTheme: updatedAvatarItem,
+        },
+    });
+}
+
+/**
+ * Updates the space's Light Theme Avatar WITHOUT ENSURING THE ACTOR IS AN ADMIN.
+ *
+ * Use `finishUploadingSpaceAvatar()` instead.
+ */
+async function dangerouslyFinishUploadingSpaceAvatarLightTheme(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        avatarContent,
+        avatarId,
+        oldSpaceItem,
+    }: {
+        spaceId: SpaceId;
+        avatarContent: Uint8Array;
+        avatarId: AvatarId;
+        oldSpaceItem: SpaceItem;
+    },
+): Promise<SpaceModel> {
+    const oldAvatarItem = oldSpaceItem.avatars.lightTheme;
+
+    const newAvatarItem: SpaceAvatarLightThemeItem = {
+        ...oldAvatarItem,
+        partitionType: "Space",
+        sortRangeType: "AvatarLightTheme",
+        spaceId,
+        avatarId,
+        content: avatarContent,
+    };
+
+    const updatedAvatarItem = await SpacesTable.directlyUpdateItem(context, newAvatarItem);
+
+    return createSpaceModelFromItem({
+        ...oldSpaceItem,
+        avatars: {
+            ...oldSpaceItem.avatars,
+            lightTheme: updatedAvatarItem,
+        },
     });
 }

@@ -41,3 +41,6 @@ export const AvatarModelSchema = AvatarSchema.merge(
     }),
 );
 export type AvatarModel = SchemaType<typeof AvatarModelSchema>;
+
+export const AvatarThemeSchema = Schema.enum(["dark", "light"]);
+export type AvatarTheme = SchemaType<typeof AvatarThemeSchema>;
