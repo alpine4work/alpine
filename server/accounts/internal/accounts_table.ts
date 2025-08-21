@@ -43,6 +43,15 @@ export const AccountsTable = DynamoTableSchema.new({
                         hasInternalAccess: Schema.boolean.optional(),
                     }),
                 },
+                /**
+                 * NOTE(ifitzsimmons, #avatar-items): Avatar content (the image) can be up to
+                 * 3kb in size. By pulling it out into its own item, we can ensure that the item
+                 * is always below DynamoDB's 4kb item limit.
+                 *
+                 * This means that in order to get the complete Account data, we need to query the
+                 * the sort range and get the Attributes and Avatar items. Unless the attributes
+                 * item exceeds 1kb, this query will only consume 1 RCU.
+                 */
                 {
                     name: "Avatar",
                     sortKeyAttributes: {},

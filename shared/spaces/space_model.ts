@@ -1,3 +1,4 @@
+import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -44,6 +45,15 @@ export class SpaceModel extends Model(
          * implementations.
          */
         alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
+        // TODO(#add-space-avatar-support)
+        // This object should be neither nullable nor optional.
+        avatars: Schema.object({
+            darkTheme: AvatarSchema.nullable().optional().default(null),
+            lightTheme: AvatarSchema.nullable().optional().default(null),
+        })
+            .nullable()
+            .optional()
+            .default(null),
     }),
 ) {}
 

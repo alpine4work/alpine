@@ -78,7 +78,8 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Id"
-                                            }
+                                            },
+                                            "referenceId": "57a6329c"
                                         },
                                         "optional": true
                                     },
@@ -87,7 +88,8 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Bytes"
-                                            }
+                                            },
+                                            "referenceId": "011b24e2"
                                         },
                                         "optional": true
                                     },
@@ -9047,6 +9049,66 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
+                        "AvatarLightTheme": {
+                            "id": 3,
+                            "orderKey": "a0G",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "avatarId": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "57a6329c"
+                                        },
+                                        "optional": true
+                                    },
+                                    "content": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "011b24e2"
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "AvatarDarkTheme": {
+                            "id": 4,
+                            "orderKey": "a0V",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "avatarId": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "57a6329c"
+                                        },
+                                        "optional": true
+                                    },
+                                    "content": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "011b24e2"
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
                         "Account": {
                             "id": 1,
                             "orderKey": "a1",
@@ -9183,6 +9245,40 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "defaultTypeValue": "Removed"
                                             }
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "AccountAvatarOverride": {
+                            "id": 5,
+                            "orderKey": "a1V",
+                            "sortKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "avatarId": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "57a6329c"
+                                        },
+                                        "optional": true
+                                    },
+                                    "content": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "011b24e2"
                                         },
                                         "optional": true
                                     },

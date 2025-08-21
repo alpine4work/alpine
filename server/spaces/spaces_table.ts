@@ -41,7 +41,7 @@ import {
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
+import {AvatarModel, AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -138,6 +138,19 @@ const SpacesTable = DynamoTableSchema.new({
                     }),
                 },
 
+                // See #avatar-items for reasoning behind separate avatar items.
+                {
+                    name: "AvatarLightTheme",
+                    sortKeyAttributes: {},
+                    attributes: AvatarSchema,
+                },
+
+                {
+                    name: "AvatarDarkTheme",
+                    sortKeyAttributes: {},
+                    attributes: AvatarSchema,
+                },
+
                 /**
                  * Represents an account that is a member of this space.
                  */
@@ -187,6 +200,19 @@ const SpacesTable = DynamoTableSchema.new({
                             .default(spaceAccountStateDefault)
                             .originalPropertyKey("removal"),
                     }),
+                },
+
+                /**
+                 * When an account is removed from a space, we snapshot and store their avatar
+                 * at the time of removal. This ensures that their last known avatar continues
+                 * to appear on all historical content (posts, messages, tasks, mentions, etc.).
+                 */
+                {
+                    name: "AccountAvatarOverride",
+                    sortKeyAttributes: {
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+                    },
+                    attributes: AvatarSchema,
                 },
 
                 /**
