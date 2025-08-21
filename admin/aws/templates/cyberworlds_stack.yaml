@@ -4401,7 +4401,7 @@ Resources:
                         - Arn
             Environment:
                 Variables:
-                    SECRETS_ARN:
+                    SECRET_ARN:
                         Fn::Join:
                             - ""
                             - - "arn:aws:secretsmanager:us-east-1:"
@@ -4482,7 +4482,7 @@ Resources:
             - FileProcessorServiceResizeFileFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYCAC43467
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaTargetGroup/Resource
-    FileProcessorServiceResizeAvatarExecutionRole3F0458A6:
+    FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -4504,8 +4504,8 @@ Resources:
                         - Ref: AWS::Partition
                         - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/ExecutionRole/Resource
-    FileProcessorServiceResizeAvatarExecutionRoleDefaultPolicy57F5EC42:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/ExecutionRole/Resource
+    FileProcessorServiceResizeAvatarLambdaExecutionRoleDefaultPolicy7F599076:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -4514,7 +4514,7 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::GetAtt:
-                              - FileProcessorServiceResizeAvatarFunctionDeadLetterQueue1F574DEB
+                              - FileProcessorServiceResizeAvatarLambdaFunctionDeadLetterQueueEC8636B9
                               - Arn
                     - Action:
                           - secretsmanager:DescribeSecret
@@ -4526,13 +4526,29 @@ Resources:
                               - - "arn:aws:secretsmanager:us-east-1:"
                                 - Ref: AWS::AccountId
                                 - :secret:FileProcessorServiceSecrets-??????
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:GetItem
+                          - dynamodb:TransactGetItems
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AccountsTable81C15AE5
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AccountsTable81C15AE5
+                                        - Arn
+                                  - /index/*
                 Version: 2012-10-17
-            PolicyName: FileProcessorServiceResizeAvatarExecutionRoleDefaultPolicy57F5EC42
+            PolicyName: FileProcessorServiceResizeAvatarLambdaExecutionRoleDefaultPolicy7F599076
             Roles:
-                - Ref: FileProcessorServiceResizeAvatarExecutionRole3F0458A6
+                - Ref: FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/ExecutionRole/DefaultPolicy/Resource
-    FileProcessorServiceResizeAvatarFunctionDeadLetterQueue1F574DEB:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/ExecutionRole/DefaultPolicy/Resource
+    FileProcessorServiceResizeAvatarLambdaFunctionDeadLetterQueueEC8636B9:
         Type: AWS::SQS::Queue
         Properties:
             MessageRetentionPeriod: 1209600
@@ -4542,12 +4558,12 @@ Resources:
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/Function/DeadLetterQueue/Resource
-    FileProcessorServiceResizeAvatarFunctionSecurityGroup6CEB1249:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/DeadLetterQueue/Resource
+    FileProcessorServiceResizeAvatarLambdaFunctionSecurityGroup8D40483D:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupDescription: Automatic security group for Lambda Function
-                CyberworldsStackFileProcessorServiceResizeAvatarFunction91ABA4A3
+                CyberworldsStackFileProcessorServiceResizeAvatarLambdaFunction34AE26C0
             SecurityGroupEgress:
                 - CidrIp: 0.0.0.0/0
                   Description: Allow all outbound traffic by default
@@ -4558,8 +4574,8 @@ Resources:
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/Function/SecurityGroup/Resource
-    FileProcessorServiceResizeAvatarFunction10C3A6E3:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/SecurityGroup/Resource
+    FileProcessorServiceResizeAvatarLambdaFunction772746F5:
         Type: AWS::Lambda::Function
         Properties:
             Architectures:
@@ -4577,11 +4593,11 @@ Resources:
             DeadLetterConfig:
                 TargetArn:
                     Fn::GetAtt:
-                        - FileProcessorServiceResizeAvatarFunctionDeadLetterQueue1F574DEB
+                        - FileProcessorServiceResizeAvatarLambdaFunctionDeadLetterQueueEC8636B9
                         - Arn
             Environment:
                 Variables:
-                    SECRETS_ARN:
+                    SECRET_ARN:
                         Fn::Join:
                             - ""
                             - - "arn:aws:secretsmanager:us-east-1:"
@@ -4599,25 +4615,25 @@ Resources:
             PackageType: Image
             Role:
                 Fn::GetAtt:
-                    - FileProcessorServiceResizeAvatarExecutionRole3F0458A6
+                    - FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961
                     - Arn
             Timeout: 30
             VpcConfig:
                 SecurityGroupIds:
                     - Fn::GetAtt:
-                          - FileProcessorServiceResizeAvatarFunctionSecurityGroup6CEB1249
+                          - FileProcessorServiceResizeAvatarLambdaFunctionSecurityGroup8D40483D
                           - GroupId
                 SubnetIds:
                     - Ref: VpcIsolatedSubnet1SubnetE48C5737
                     - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
-            - FileProcessorServiceResizeAvatarExecutionRoleDefaultPolicy57F5EC42
-            - FileProcessorServiceResizeAvatarExecutionRole3F0458A6
+            - FileProcessorServiceResizeAvatarLambdaExecutionRoleDefaultPolicy7F599076
+            - FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/Function/Resource
-    FileProcessorServiceResizeAvatarFunctionLogRetention285EE746:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Resource
+    FileProcessorServiceResizeAvatarLambdaFunctionLogRetention9E0EA996:
         Type: Custom::LogRetention
         Properties:
             ServiceToken:
@@ -4628,27 +4644,27 @@ Resources:
                 Fn::Join:
                     - ""
                     - - /aws/lambda/
-                      - Ref: FileProcessorServiceResizeAvatarFunction10C3A6E3
+                      - Ref: FileProcessorServiceResizeAvatarLambdaFunction772746F5
             RetentionInDays: 7
         DependsOn:
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/Function/LogRetention/Resource
-    FileProcessorServiceResizeAvatarFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYC5E94C49:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/LogRetention/Resource
+    FileProcessorServiceResizeAvatarLambdaFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY9FA4B8FA:
         Type: AWS::Lambda::Permission
         Properties:
             Action: lambda:InvokeFunction
             FunctionName:
                 Fn::GetAtt:
-                    - FileProcessorServiceResizeAvatarFunction10C3A6E3
+                    - FileProcessorServiceResizeAvatarLambdaFunction772746F5
                     - Arn
             Principal: elasticloadbalancing.amazonaws.com
         DependsOn:
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatar/Function/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
     FileProcessorServiceResizeAvatarLambdaTargetGroupA92E0C14:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
@@ -4656,10 +4672,10 @@ Resources:
             Targets:
                 - Id:
                       Fn::GetAtt:
-                          - FileProcessorServiceResizeAvatarFunction10C3A6E3
+                          - FileProcessorServiceResizeAvatarLambdaFunction772746F5
                           - Arn
         DependsOn:
-            - FileProcessorServiceResizeAvatarFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYC5E94C49
+            - FileProcessorServiceResizeAvatarLambdaFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY9FA4B8FA
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambdaTargetGroup/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:

@@ -101,7 +101,7 @@ export function createHttpLambdaHandler({
         });
 
         try {
-            return withLambdaTimeout(lambdaContext, abortController, async () => {
+            return await withLambdaTimeout(lambdaContext, abortController, async () => {
                 // stream response here, wait for process event after
                 const response = await handleRequest(actionContext, {
                     request,

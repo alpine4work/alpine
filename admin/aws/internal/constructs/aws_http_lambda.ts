@@ -43,7 +43,7 @@ export class AwsHttpLambda extends AwsLambda {
             deploymentType: "container",
             environment: {
                 ...options.environment,
-                SECRETS_ARN: options.secret.secretArn,
+                SECRET_ARN: options.secret.secretArn,
             },
             currentVersionOptions: {
                 provisionedConcurrentExecutions: options.provisionedConcurrentExecutions,

@@ -133,6 +133,7 @@ export class AwsFileProcessorService extends Construct {
 
         const {resizeAvatarLambda, resizeAvatarTargetGroup} = getResizeAvatarLambda(this, {
             vpc,
+            dynamo,
             secret,
             sqs,
             cloudflareAccountId,
@@ -477,16 +478,18 @@ function getResizeAvatarLambda(
     {
         vpc,
         secret,
+        dynamo,
         sqs,
         cloudflareAccountId,
     }: {
         vpc: Vpc;
         secret: ISecret;
+        dynamo: AwsDynamo;
         sqs: AwsSqs;
         cloudflareAccountId: string;
     },
 ) {
-    const resizeAvatarLambda = new AwsHttpLambda(scope, "ResizeAvatar", {
+    const resizeAvatarLambda = new AwsHttpLambda(scope, "ResizeAvatarLambda", {
         bazelConfiguration: {
             bazelTarget: "//server/files/processor/resize_avatar:resize_avatar_lambda",
             handlerFilePath: "lambda/resize_avatar_lambda",
@@ -500,6 +503,11 @@ function getResizeAvatarLambda(
         timeout: Duration.seconds(30),
         secret,
         provisionedConcurrentExecutions: 2,
+    });
+
+    // Needs access in order to fetch the session
+    dynamo.grantReadDataForTable(resizeAvatarLambda.executionRole, "Accounts", {
+        disallowQuery: true,
     });
 
     const resizeAvatarTargetGroup = new ApplicationTargetGroup(

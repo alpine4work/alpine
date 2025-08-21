@@ -2,9 +2,12 @@ import {resizeAvatar} from "~/server/files/processor/resize_avatar/resize_avatar
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {createDynamoActorSessionContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {
+    defaultAvatarSize,
+    maxResizedAvatarContentLength,
+} from "~/shared/avatar/avatar_constants.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export async function handleResizeAvatarRequest(
@@ -22,13 +25,15 @@ export async function handleResizeAvatarRequest(
 ): Promise<Response> {
     if (request.method !== "POST") throw new InvalidArgumentError("Invalid HTTP request method");
 
-    const {avatarEntityPath, avatarId, size, maxContentLength} =
-        ResizeAvatarForUploadRequestSchema.deserialize(await request.json());
+    const {
+        avatarEntityPath,
+        avatarId,
+        size: requestedSize,
+        maxContentLength: requestedMaxContentLength,
+    } = ResizeAvatarForUploadRequestSchema.deserialize(await request.json());
 
-    // We provide default values in the schema, so these should always exist when the
-    // the payload is deserialized.
-    assert(size);
-    assert(maxContentLength);
+    const size = requestedSize ?? defaultAvatarSize;
+    const maxContentLength = requestedMaxContentLength ?? maxResizedAvatarContentLength;
 
     const context = contextWithoutActor.clone({
         actor: await createDynamoActorSessionContextModule(
