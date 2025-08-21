@@ -11,21 +11,24 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {avatarContentType, maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
 import {AvatarEntityPath, parseAvatarEntityPath} from "~/shared/avatar/avatar_entity_path.js";
+import {AvatarTheme, isAvatarTheme} from "~/shared/avatar/avatar_schema.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {ResizeAvatarForUploadResponseSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_response_schema.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {FileImageContentType, isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
 import {finishUploadingAccountAvatar} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {finishUploadingSpaceAvatar} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -48,17 +51,15 @@ export async function uploadAvatar(
     try {
         if (request.method !== "POST") throw new InvalidArgumentError("Must use `POST` method");
 
-        const {type} = parseAvatarEntityPath(avatarEntityPath);
-        if (type === "space") {
-            throw new UnimplementedError("Spaces are not supported yet");
-        }
-
         const fileProcessorServiceUrl = env.FILE_PROCESSOR_SERVICE_URL;
         if (!fileProcessorServiceUrl) {
             throw new InternalError("Missing `FILE_PROCESSOR_SERVICE_URL` env variable");
         }
 
         const {contentType, contentLength} = getContentLengthAndCanonicalContentType(request);
+
+        const providedColorScheme = url.searchParams.get("themeColor");
+        const themeColor = getAvatarThemeColor(providedColorScheme);
 
         const sessionCookieToken = await authorizeRequestAndGetSessionToken(tokenAgent, request);
         const context = createContext(sessionCookieToken);
@@ -101,14 +102,12 @@ export async function uploadAvatar(
             contentType,
         });
 
-        // TODO(ifitzsimmons, 2025-08-11): store the original in a websafe format as well
-        // so that it can one day be displayed in a larger format for something like a
-        // "Profile" page.
-
         const [response] = await runAllPromises([
-            finishUploadingAccountAvatar(context, {
-                avatarContent: processedAvatarBytes,
+            finishUploadingAvatar(context, {
                 avatarId,
+                avatarEntityPath,
+                avatarContent: processedAvatarBytes,
+                themeColor,
             }),
             putR2ObjectWithSpan(span, {
                 key: `${avatarEntityPath}/${avatarId}`,
@@ -120,18 +119,10 @@ export async function uploadAvatar(
             }),
         ]);
 
-        return new Response(
-            JSON.stringify(
-                UploadAvatarResponseSchema.serialize({
-                    ok: true,
-                    account: response.account,
-                }),
-            ),
-            {
-                status: 200,
-                headers: {"content-type": "application/json"},
-            },
-        );
+        return new Response(JSON.stringify(response), {
+            status: 200,
+            headers: {"content-type": "application/json"},
+        });
     } catch (error) {
         span.addException(error);
 
@@ -147,6 +138,50 @@ export async function uploadAvatar(
                 headers: {"content-type": "application/json"},
             },
         );
+    }
+}
+
+async function finishUploadingAvatar(
+    context: Context<{rpc: RpcContextModuleBase}>,
+    {
+        avatarId,
+        avatarEntityPath,
+        avatarContent,
+        themeColor,
+    }: {
+        avatarId: AvatarId;
+        avatarEntityPath: AvatarEntityPath;
+        avatarContent: Uint8Array;
+        themeColor: AvatarTheme | null;
+    },
+) {
+    const avatarEntityPathObject = parseAvatarEntityPath(avatarEntityPath);
+    switch (avatarEntityPathObject.type) {
+        case "account":
+            const {account} = await finishUploadingAccountAvatar(context, {
+                avatarContent,
+                avatarId,
+            });
+            return UploadAvatarResponseSchema.serialize({
+                ok: true,
+                type: "UploadAccountAvatar",
+                account,
+            });
+        case "space":
+            const {space} = await finishUploadingSpaceAvatar(context, {
+                avatarContent,
+                avatarId,
+                spaceId: avatarEntityPathObject.spaceId,
+                avatarTheme: themeColor ?? "light",
+            });
+
+            return UploadAvatarResponseSchema.serialize({
+                ok: true,
+                type: "UploadSpaceAvatar",
+                space,
+            });
+        default:
+            throw exhaustive(avatarEntityPathObject);
     }
 }
 
@@ -210,4 +245,16 @@ async function callFileProcessorResizeAvatar(
     );
 
     return response.content;
+}
+
+function getAvatarThemeColor(providedColorScheme: string | null): AvatarTheme | null {
+    if (providedColorScheme === null) return null;
+
+    if (!isAvatarTheme(providedColorScheme)) {
+        throw new InvalidArgumentError(
+            quote`Unsupported \`themeColor\` value ${providedColorScheme}`,
+        );
+    }
+
+    return providedColorScheme;
 }

@@ -17,8 +17,9 @@ import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateOurAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -101,6 +102,10 @@ export default function SpaceProfileSettingsRoute() {
                 const responseData = await response.json();
                 const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
                 if (!responseBody.ok) throw responseBody.error;
+
+                if (responseBody.type !== "UploadAccountAvatar") {
+                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
+                }
                 return responseBody;
             },
         );

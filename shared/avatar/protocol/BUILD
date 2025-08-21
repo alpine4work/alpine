@@ -14,5 +14,6 @@ ts_project(
         "//shared/files",
         "//shared/id",
         "//shared/schema",
+        "//shared/spaces",
     ],
 )
