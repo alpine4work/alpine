@@ -2,10 +2,9 @@ import {SpinnerGap} from "phosphor-react";
 import {useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
-import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {ModalWithButtons} from "~/client/design/modal_with_buttons.js";
+import {useReporter} from "~/client/design/reporter.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {BorderRadius, buttonStyles, spinAnimationClassName} from "~/client/styles/styles.js";
 import {maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
@@ -23,7 +22,9 @@ export function AvatarUploader({
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [error, setError] = useState<ErrorBase | null>(null);
+
+    const reporter = useReporter();
+    const shouldShowLoadingIndicator = useDelayLoadingIndicator(isUploading);
 
     const triggerFileInput = () => {
         fileInputRef.current?.click();
@@ -33,17 +34,12 @@ export function AvatarUploader({
         onPress: () => triggerFileInput(),
     });
 
+    const displayError = (error: ErrorBase) => {
+        reporter.displayError("Unable to upload avatar", error);
+    };
+
     return (
         <>
-            {error && (
-                <AvatarUploadErrorModal
-                    isOpen={!!error}
-                    error={error}
-                    onClose={() => {
-                        setError(null);
-                    }}
-                />
-            )}
             <FocusRing>
                 <Box tabIndex={0} borderRadius={borderRadius}>
                     <input
@@ -51,15 +47,17 @@ export function AvatarUploader({
                         accept="image/*"
                         ref={fileInputRef}
                         style={{display: "none"}}
-                        disabled={false}
+                        disabled={isUploading}
                         aria-hidden="true"
                         aria-label="Upload avatar"
                         autoComplete="off"
                         onChange={event => {
+                            if (isUploading) return;
+
                             const file = event.target.files?.[0];
                             if (file && onUploadAvatar) {
                                 if (file.size > maxAvatarUploadContentLength) {
-                                    setError(
+                                    displayError(
                                         new InvalidArgumentError(
                                             "File size must be less than 4MB",
                                             {
@@ -73,7 +71,7 @@ export function AvatarUploader({
                                 setIsUploading(true);
                                 onUploadAvatar(file)
                                     .catch(error => {
-                                        setError(error);
+                                        displayError(error);
                                     })
                                     .finally(() => setIsUploading(false));
                             }
@@ -102,7 +100,7 @@ export function AvatarUploader({
                             />
                         )}
 
-                        {isUploading && (
+                        {shouldShowLoadingIndicator && (
                             <Box
                                 position="absolute"
                                 top="0"
@@ -124,34 +122,4 @@ export function AvatarUploader({
             </FocusRing>
         </>
     );
-}
-
-function AvatarUploadErrorModal({
-    isOpen,
-    error,
-    onClose,
-}: {
-    isOpen: boolean;
-    error: unknown;
-    onClose: () => void;
-}) {
-    const modalId = "error-modal";
-
-    return isOpen ? (
-        <ModalWithButtons
-            aria-labelledby={`${modalId}-title`}
-            primaryButtonLabel="OK"
-            onPrimaryButtonPress={onClose}
-            shouldHideCancelButton={true}
-            onClose={onClose}
-        >
-            <Box padding="5">
-                <ErrorBodyRenderer
-                    icon={<ErrorIcon />}
-                    title="Unable to upload avatar"
-                    error={error}
-                />
-            </Box>
-        </ModalWithButtons>
-    ) : null;
 }

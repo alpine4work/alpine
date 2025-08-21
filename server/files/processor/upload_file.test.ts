@@ -344,7 +344,7 @@ test("must provide a valid Content-Type header to upload route", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError("Unsupported `Content-Type` `application/example`"),
+        error: new InvalidArgumentError("Unsupported `Content-Type` header `application/example`"),
     });
 });
 

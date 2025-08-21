@@ -1,10 +1,10 @@
 import prettyBytes from "pretty-bytes";
 import {authorizeRequestAndGetSessionToken} from "~/server/edge/internal/authorize_request_and_get_session_token.js";
+import {getContentLengthAndCanonicalContentType} from "~/server/edge/internal/get_content_length_and_content_type.js";
 import {
     PutR2ObjectBucketInterface,
     putR2ObjectWithSpan,
 } from "~/server/edge/internal/put_r2_object_with_span.js";
-import {validateContentMetadataAndGetCanonicalContentType} from "~/server/edge/internal/validate_content_metadata_and_get_canonical_content_type.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
@@ -38,27 +38,9 @@ export async function uploadFile(
     try {
         if (request.method !== "POST") throw new InvalidArgumentError("Must use `POST` method");
 
-        const originalContentType = request.headers.get("content-type");
-        if (originalContentType === null)
-            throw new InvalidArgumentError("`Content-Type` header is required");
-
-        const contentLengthString = request.headers.get("content-length");
-        if (contentLengthString === null) {
-            throw new InvalidArgumentError("`Content-Length` header is required");
-        }
-
-        const contentLength = parseInt(contentLengthString, 10);
-        if (isNaN(contentLength) || !/^\d+$/.test(contentLengthString)) {
-            throw new InvalidArgumentError("`Content-Length` header must be an integer");
-        }
-
-        const contentType = validateContentMetadataAndGetCanonicalContentType({
-            originalContentType,
-            contentLength,
-        });
+        const {contentType, contentLength} = getContentLengthAndCanonicalContentType(request);
 
         const sessionCookieToken = await authorizeRequestAndGetSessionToken(tokenAgent, request);
-
         const context = createContext(sessionCookieToken);
 
         // If the client sends more bytes than what they declared in `Content-Length`

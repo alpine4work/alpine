@@ -16,10 +16,8 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {UploadAvatarRequestSchema} from "~/shared/avatar/protocol/upload_avatar_request_schema.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {UnimplementedError} from "~/shared/error/error.js";
-import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateOurAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -93,13 +91,11 @@ export default function SpaceProfileSettingsRoute() {
                 serviceName: "EdgeService",
                 route: "/api/avatar/account/:accountId",
                 method: "POST",
-                body: JSON.stringify(
-                    UploadAvatarRequestSchema.serialize({
-                        type: "UploadAccountAvatar",
-                        contentType: file.type,
-                        content: await waitForReadableStreamUint8Array(file.stream()),
-                    }),
-                ),
+                headers: {
+                    "content-type": file.type,
+                    "content-length": file.size.toString(),
+                },
+                body: file,
             },
             async response => {
                 const responseData = await response.json();
