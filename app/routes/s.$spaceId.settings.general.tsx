@@ -16,12 +16,15 @@ import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_sty
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 const LoaderSchema = Schema.object({});
 
@@ -79,6 +82,46 @@ export default function SpaceGeneralSettingsRoute() {
         inputElement.selectionStart = 0;
         inputElement.selectionEnd = inputElement.value.length;
     }, [name]);
+
+    const handleUploadAvatar = async (file: File) => {
+        const url = new URL(`/api/avatar/space/${originalSpace.id}`, window.location.href);
+        // TODO(ifitzsimmons, #add-space-avatar-support)
+        // Using color scheme to optionally set / render content is difficult because it is always
+        // null on server side render. Defaulting to light theme for now until. There are also
+        // open design questions (do we give the option for light vs. dark or just use the user's
+        // current setting?). Given that we still need to design the settings pages, I'll defer
+        // this decision for now and revisit when designs are finalized. For now, the backend is
+        // set up to support both light and dark themes. Once we land on a design, implementation
+        // should be simple and fast.
+        url.searchParams.set("themeColor", "light");
+
+        const response = await fetchWithTracer(
+            context.tracer.getTracer(),
+            url,
+            {
+                serviceName: "EdgeService",
+                route: "/api/avatar/space/:spaceId",
+                method: "POST",
+                headers: {
+                    "content-type": file.type,
+                    "content-length": file.size.toString(),
+                },
+                body: file,
+            },
+            async response => {
+                const responseData = await response.json();
+                const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
+                if (!responseBody.ok) throw responseBody.error;
+
+                if (responseBody.type !== "UploadSpaceAvatar") {
+                    throw new InternalError(quote`Unexpected response type “${responseBody.type}”`);
+                }
+                return responseBody;
+            },
+        );
+
+        updateSpace(response.space);
+    };
 
     return (
         <>
@@ -149,7 +192,10 @@ export default function SpaceGeneralSettingsRoute() {
                             Recommended size is 256x256px
                         </Box>
                     </Box>
-                    <AvatarUploader borderRadius={spaceAvatarBorderRadius}>
+                    <AvatarUploader
+                        borderRadius={spaceAvatarBorderRadius}
+                        onUploadAvatar={handleUploadAvatar}
+                    >
                         <SpaceAvatar space={originalSpace} size="12" />
                     </AvatarUploader>
                 </Box>

@@ -28,8 +28,10 @@ export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
             avatarTextClassName={sprinkles({
                 fontSize: "50",
             })}
-            // TODO(ifitzsimmons, #add-space-avatar-support)
-            content={null}
+            // TODO(#add-space-avatar-support)
+            // Need a way to pick the appropriate avatar based on color scheme that
+            // works with SSR.
+            content={space.avatars?.lightTheme?.content ?? null}
         />
     );
 }

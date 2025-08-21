@@ -17,8 +17,7 @@ export function AvatarUploader({
 }: {
     borderRadius?: BorderRadius;
     children: React.ReactNode;
-    // TODO(#add-space-avatar-support)
-    onUploadAvatar?: (file: File) => Promise<void>;
+    onUploadAvatar: (file: File) => Promise<void>;
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
