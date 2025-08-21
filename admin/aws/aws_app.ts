@@ -112,7 +112,7 @@ async function addAwsResources(
         },
         sqs,
         cloudflareAccountId,
-        vpc,
+        vpc: null,
         timeout: Duration.seconds(30),
     });
 

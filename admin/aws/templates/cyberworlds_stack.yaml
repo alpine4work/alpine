@@ -5159,29 +5159,10 @@ Resources:
         Type: AWS::SQS::Queue
         Properties:
             MessageRetentionPeriod: 1209600
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/DeadLetterQueue/Resource
-    ScheduleDeployFunctionSecurityGroupBD9D51F9:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatic security group for Lambda Function
-                CyberworldsStackScheduleDeployFunction34554264
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            VpcId:
-                Ref: Vpc8378EB38
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
-        Metadata:
-            aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/SecurityGroup/Resource
     ScheduleDeployFunction531AE56A:
         Type: AWS::Lambda::Function
         Properties:
@@ -5218,19 +5199,9 @@ Resources:
                     - ScheduleDeployExecutionRoleE801ABF6
                     - Arn
             Timeout: 30
-            VpcConfig:
-                SecurityGroupIds:
-                    - Fn::GetAtt:
-                          - ScheduleDeployFunctionSecurityGroupBD9D51F9
-                          - GroupId
-                SubnetIds:
-                    - Ref: VpcIsolatedSubnet1SubnetE48C5737
-                    - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
             - ScheduleDeployExecutionRoleDefaultPolicyEF1406C9
             - ScheduleDeployExecutionRoleE801ABF6
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/Resource
     ScheduleDeployFunctionLogRetentionE3E0118D:
@@ -5246,9 +5217,6 @@ Resources:
                     - - /aws/lambda/
                       - Ref: ScheduleDeployFunction531AE56A
             RetentionInDays: 7
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/LogRetention/Resource
     ScheduleDeployFunctionInvokeDfn5y7uAy0X90UolATpynU7GAAico4oYmJklJgI2xc8ED1954C:
@@ -5260,9 +5228,6 @@ Resources:
                     - ScheduleDeployFunction531AE56A
                     - Arn
             Principal: arn:aws:iam::989696362649:user/ci-schedule-deploy
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/ScheduleDeploy/Function/InvokeDfn5y7uAy0X90UolATpynU7GAAico4oYmJkl+JgI2xc=
     CIScheduleDeployRolePolicyF54732AB:
