@@ -25,6 +25,11 @@ jobs:
               with:
                   ref: ${{ inputs.commitSha }}
 
+            # NOTE(imjoshin): There are differences in caching, fetching dependencies, and saving
+            # (in fact, we don't save to the cache at all here) in production vs development.
+            # We are explicitly NOT using init-bazel-cache to avoid any behavior from the shared
+            # job impacting our production deploy.
+
             # We cache Bazel external repositories with [GitHub's cache action][1]. We
             # cache individual build rule results with [Bazel remote caching][2].
             #
