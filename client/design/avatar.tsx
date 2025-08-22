@@ -87,6 +87,7 @@ export function Avatar({
             content={content}
             borderRadius={borderRadius}
             avatarClassName={avatarClassName}
+            backgroundBorderWidth={backgroundBorderWidth}
             size={size}
         />
     ) : (
@@ -108,11 +109,13 @@ function AccountAvatarWithImage({
     borderRadius,
     avatarClassName,
     size,
+    backgroundBorderWidth,
 }: {
     content: Uint8Array;
     borderRadius: BorderRadius;
     avatarClassName?: string;
     size: Spacing;
+    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
 }) {
     const imageUrl = useMemo(
         () => `data:${avatarContentType};base64,${encodeBase64(content)}`,
@@ -130,6 +133,11 @@ function AccountAvatarWithImage({
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden",
+                borderRadius: borderRadiusValues[borderRadius],
+                boxShadow:
+                    backgroundBorderWidth !== undefined
+                        ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
+                        : undefined,
             }}
         >
             <img
@@ -138,7 +146,6 @@ function AccountAvatarWithImage({
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
-                    borderRadius: borderRadiusValues[borderRadius],
                 }}
                 aria-hidden="true"
                 // Do not render an alt tag as avatars are not important for screen readers
