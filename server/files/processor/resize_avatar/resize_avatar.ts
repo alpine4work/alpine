@@ -9,7 +9,6 @@ import {AvatarEntityPath} from "~/shared/avatar/avatar_entity_path.js";
 import {ResizeAvatarForUploadResponseSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_response_schema.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
@@ -93,7 +92,7 @@ export async function resizeAvatar(
             JSON.stringify(
                 ResizeAvatarForUploadResponseSchema.serialize({
                     ok: false,
-                    error: ErrorSchema.serialize(error),
+                    error,
                 }),
             ),
             {
