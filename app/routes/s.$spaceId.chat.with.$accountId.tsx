@@ -1,5 +1,5 @@
 import {loader as actualLoader} from "~/app/routes/s.$spaceId.chat.$chatId.js";
-import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
+import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";

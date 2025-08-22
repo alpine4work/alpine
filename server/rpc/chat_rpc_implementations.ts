@@ -7,7 +7,7 @@ import {
     getChatMessagesFromStart,
     sendChatMessage,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_table.js";
+} from "~/server/chat/data/chat_actions.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/chat_rpc_definitions.js";

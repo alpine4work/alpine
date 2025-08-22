@@ -3,7 +3,7 @@ import {
     getOrCreateChatForAccounts,
     sendChatMessage,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_table.js";
+} from "~/server/chat/data/chat_actions.js";
 import {
     TestContext,
     TestSessionActionContext,

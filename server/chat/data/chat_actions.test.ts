@@ -19,7 +19,7 @@ import {
     sendChatMessage,
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
-} from "~/server/chat/data/chat_table.js";
+} from "~/server/chat/data/chat_actions.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";

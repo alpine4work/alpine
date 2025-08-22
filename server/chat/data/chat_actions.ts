@@ -1,5 +1,10 @@
 import {createHash} from "crypto";
 import murmurhash from "murmurhash";
+import {
+    AccountChatsIndex,
+    ChatTable,
+    InternalFileChatAuthorizer,
+} from "~/server/chat/data/internal/chat_table.js";
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
@@ -18,7 +23,7 @@ import {
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
+import {getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -63,189 +68,21 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
-import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {
-    MessageContentPayloadClerical,
-    MessagePayload,
-    MessagePayloadSchema,
-} from "~/shared/messaging/message_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadClerical, MessagePayload} from "~/shared/messaging/message_model.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 
-const ChatTable = DynamoTableSchema.new({
-    name: "Chat",
-    partitions: [
-        /**
-         * A chat is a long series of messages over time. It conforms to our
-         * messaging implementation so we can render consistent messaging UI across
-         * the product.
-         */
-        {
-            name: "Chat",
-            partitionKeyAttributes: {
-                chatId: DynamoKeyAttributeSchema.id<ChatId>(),
-            },
-            sortRanges: [
-                /**
-                 * Information about the chat itself.
-                 */
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        /** The space a chat lives in. */
-                        spaceId: Schema.id<SpaceId>(),
+// Authorizers must be declared next to their respective Tables, so we must
+// re-export from this accessible module.
+export const FileChatAuthorizer = InternalFileChatAuthorizer;
 
-                        /** The time at which the chat was created. */
-                        createdTime: Schema.date,
-
-                        /**
-                         * If this is a 1:1 chat between two accounts, we include the two accounts in
-                         * the attributes item as an optimization.
-                         *
-                         * You can't depend on `accountIdsForOneOnOne` existing for a chat with two
-                         * accounts! 1:1 chats created before 2023-12-20 will have this set to null.
-                         */
-                        accountIdsForOneOnOne: Schema.array(Schema.id<AccountId>())
-                            .minLength(2)
-                            .maxLength(2)
-                            .nullable()
-                            .default(null),
-
-                        /**
-                         * Information regarding the chat's messages. Nested in an object so we can
-                         * update it at once.
-                         */
-                        messagesSummary: Schema.object({
-                            /**
-                             * The index of the next message.
-                             */
-                            nextMessageIndex: Schema.integer.min(0),
-
-                            /**
-                             * The last time a message was changed. This should equal the `changeTime` of
-                             * the highest item in `MessageChangeLog`.
-                             */
-                            lastChangeTime: Schema.date.nullable().default(null),
-
-                            /**
-                             * The total number of messages in the chat.
-                             */
-                            messageCount: Schema.integer.min(0),
-                        }),
-                    }),
-                },
-
-                /**
-                 * Accounts that are members of the chat. We have a reverse index of accounts
-                 * to chats the account is a member of.
-                 */
-                {
-                    name: "Account",
-                    sortKeyAttributes: {
-                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-                    },
-                    attributes: Schema.object({
-                        /**
-                         * This is a copy of the `spaceId` in a chat's attributes so we can include it
-                         * in the account to chats index.
-                         */
-                        spaceId: Schema.id<SpaceId>(),
-
-                        /** The time at which the account joined the chat. */
-                        joinedTime: Schema.date,
-
-                        /**
-                         * The number of accounts total in the chat.
-                         *
-                         * While you could get this by querying account items in the chat partition,
-                         * it's really convenient to duplicate that number here so it's present in
-                         * `AccountChatsIndex`. This does mean we have to take care to update this
-                         * property whenever the number of accounts in a chat changes!
-                         */
-                        chatAccountCount: Schema.integer,
-                    }),
-                },
-
-                /**
-                 * All the messages in our chat.
-                 */
-                {
-                    name: "Messages",
-                    sortKeyAttributes: {
-                        messageIndex: DynamoKeyAttributeSchema.integer,
-                    },
-                    attributes: Schema.object({
-                        authorId: Schema.id<AccountId>(),
-                        createdTime: Schema.date,
-                        payload: MessagePayloadSchema,
-                    }),
-                },
-
-                /**
-                 * We keep a log of changes to messages so that when backfilling for realtime
-                 * we can send any missed updates between the last time data was loaded and
-                 * the backfill.
-                 *
-                 * `changeTime` should be monotonically increasing which is managed by
-                 * `lastChangeTime` in `messagesSummary`.
-                 *
-                 * This log does not include when messages are created, only updated or
-                 * deleted. Because message indexes are dense we can take the last seen message
-                 * index and load messages after that to backfill.
-                 *
-                 * Log items will expire after a certain amount of time. If a client hasn't
-                 * backfilled in a long time it will need to fully reload since we won't know
-                 * what changed.
-                 */
-                {
-                    name: "MessageChangeLog",
-                    sortKeyAttributes: {
-                        changeTime: DynamoKeyAttributeSchema.date,
-                    },
-                    withExpirationTime: "Required",
-                    attributes: Schema.object({
-                        messageIndex: Schema.integer,
-                        change: Schema.union({
-                            UpdateContent: Schema.object({
-                                type: Schema.value("UpdateContent"),
-                                content: MessageContentSchema,
-                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                            Delete: Schema.object({
-                                type: Schema.value("Delete"),
-                                // `deletedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                        }),
-                    }),
-                },
-            ],
-        },
-    ],
-});
-
-const AccountChatsIndex = ChatTable.addIndex({
-    name: "AccountChats",
-    itemTypes: [{partitionType: "Chat", sortRangeType: "Account"}],
-    partitionKeyAttributes: {
-        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
-        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-    },
-    sortKeyAttributes: {
-        chatAccountCount: DynamoKeyAttributeSchema.integer,
-        chatId: DynamoKeyAttributeSchema.id<ChatId>(),
-    },
-});
+/**
+ * NOTE: this file is currently being split up. We do not anticipate adding more methods here.
+ */
 
 type ChatAttributesItem = DynamoTableItemType<typeof ChatTable, "Chat", "Attributes">;
 type ChatAccountItem = DynamoTableItemType<typeof ChatTable, "Chat", "Account">;
 type ChatMessageItem = DynamoTableItemType<typeof ChatTable, "Chat", "Messages">;
-
-export const FileChatAuthorizer = FileAuthorizer.new(ChatTable, "Chat", (context, target) =>
-    authorizeChatAccess(context, target.chatId),
-);
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a

@@ -1,4 +1,4 @@
-import {expensiveScanEveryChatAndChatMessageForMigration} from "~/server/chat/data/chat_table.js";
+import {expensiveScanEveryChatAndChatMessageForMigration} from "~/server/chat/data/chat_actions.js";
 import {expensiveScanEveryDocumentAndDocumentCommentForMigration} from "~/server/documents/data/documents_table.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {

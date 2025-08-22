@@ -1,4 +1,4 @@
-import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
+import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
