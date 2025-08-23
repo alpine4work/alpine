@@ -2,10 +2,6 @@ import {resizeAvatar} from "~/server/files/processor/resize_avatar/resize_avatar
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {createDynamoActorSessionContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {
-    defaultAvatarSize,
-    maxResizedAvatarContentLength,
-} from "~/shared/avatar/avatar_constants.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -25,15 +21,8 @@ export async function handleResizeAvatarRequest(
 ): Promise<Response> {
     if (request.method !== "POST") throw new InvalidArgumentError("Invalid HTTP request method");
 
-    const {
-        avatarEntityPath,
-        avatarId,
-        size: requestedSize,
-        maxContentLength: requestedMaxContentLength,
-    } = ResizeAvatarForUploadRequestSchema.deserialize(await request.json());
-
-    const size = requestedSize ?? defaultAvatarSize;
-    const maxContentLength = requestedMaxContentLength ?? maxResizedAvatarContentLength;
+    const {avatarEntityPath, avatarId, size, maxContentLength} =
+        ResizeAvatarForUploadRequestSchema.deserialize(await request.json());
 
     const context = contextWithoutActor.clone({
         actor: await createDynamoActorSessionContextModule(

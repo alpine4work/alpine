@@ -772,7 +772,7 @@ async function getAddSpaceAccountTransactionEntries({
  * of spaces. You must authorize the actor is allowed to add accounts when
  * calling this function from an exported function.
  */
-async function addSpaceAccountWithoutAuthorization(
+export async function addSpaceAccountWithoutAuthorization(
     context: Context<
         DynamoContextModules & {
             jobs: JobsContextModule;

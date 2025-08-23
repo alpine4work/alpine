@@ -14,6 +14,7 @@ import {
     defaultAvatarSize,
     defaultProfileImageSize,
     maxAvatarUploadContentLength,
+    maxResizedAvatarContentLength,
 } from "~/shared/avatar/avatar_constants.js";
 import {
     AvatarEntityPath,
@@ -110,6 +111,7 @@ export async function uploadAvatar(
                 span,
                 contentType,
                 size: defaultAvatarSize,
+                maxContentLength: maxResizedAvatarContentLength,
             }),
             callFileProcessorResizeAvatar(context, {
                 fileProcessorServiceUrl,
@@ -119,6 +121,7 @@ export async function uploadAvatar(
                 span,
                 contentType,
                 size: defaultProfileImageSize,
+                maxContentLength: maxAvatarUploadContentLength,
             }),
         ]);
 
@@ -227,6 +230,7 @@ async function callFileProcessorResizeAvatar(
         tokenAgent,
         contentType,
         size,
+        maxContentLength,
     }: {
         avatarId: AvatarId;
         contentType: FileImageContentType;
@@ -235,6 +239,7 @@ async function callFileProcessorResizeAvatar(
         span: TracerSpan;
         tokenAgent: TokenAgent;
         size: number;
+        maxContentLength: number;
     },
 ): Promise<Uint8Array> {
     const headers = new Headers();
@@ -268,6 +273,7 @@ async function callFileProcessorResizeAvatar(
                     avatarId,
                     contentType,
                     size,
+                    maxContentLength,
                 }),
             ),
         },
