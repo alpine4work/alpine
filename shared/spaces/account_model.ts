@@ -3,7 +3,7 @@ import {
     AccountModelWithoutSpaceData,
     AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
-import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
+import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
@@ -116,21 +116,21 @@ export class AccountModel implements AccountModelWithoutSpace {
         if (
             data1.version >= data2.version &&
             data1.space.version >= data2.space.version &&
-            avatar1 === this.getLatestAvatarVersion(avatar1, avatar2)
+            avatar1 === getLatestAvatarVersion(avatar1, avatar2)
         ) {
             return data1;
         }
         if (
             data2.version >= data1.version &&
             data2.space.version >= data1.space.version &&
-            avatar2 === this.getLatestAvatarVersion(avatar2, avatar1)
+            avatar2 === getLatestAvatarVersion(avatar2, avatar1)
         ) {
             return data2;
         }
 
         const latestAccountData = data1.version >= data2.version ? data1 : data2;
         const latestSpace = data1.space.version >= data2.space.version ? data1.space : data2.space;
-        const latestAvatar = this.getLatestAvatarVersion(avatar1, avatar2);
+        const latestAvatar = getLatestAvatarVersion(avatar1, avatar2);
 
         return {
             ...latestAccountData,
@@ -146,7 +146,7 @@ export class AccountModel implements AccountModelWithoutSpace {
         data1: AccountModelData,
         data2: AccountModelWithoutSpaceData,
     ): AccountModelData {
-        const latestAvatar = this.getLatestAvatarVersion(data1.avatar, data2.avatar);
+        const latestAvatar = getLatestAvatarVersion(data1.avatar, data2.avatar);
         if (data1.version >= data2.version && data1.avatar === latestAvatar) {
             return data1;
         }
@@ -192,26 +192,5 @@ export class AccountModel implements AccountModelWithoutSpace {
             },
         });
         return this._unknown;
-    }
-
-    /**
-     * Given two AvatarModel objects, returns the latest avatar version. Tiebreaker (both
-     * versions are the same or both avatars are null) always goes to avatar1.
-     */
-    private static getLatestAvatarVersion(
-        avatar1: AvatarModel | null,
-        avatar2: AvatarModel | null,
-    ): AvatarModel | null {
-        if (avatar1 === null) {
-            if (avatar2 === null) return avatar1;
-            return avatar2;
-        }
-
-        if (avatar2 === null) {
-            return avatar1;
-        }
-
-        if (avatar1.version >= avatar2.version) return avatar1;
-        return avatar2;
     }
 }

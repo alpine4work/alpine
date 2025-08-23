@@ -28,7 +28,7 @@ export function SpaceContextProvider({
     // update the space. This is to prevent us from racing condition when a space
     // is being updated by multiple clients.
     const updateSpace = useCallback((newSpace: SpaceModel) => {
-        setSpace(oldSpace => (oldSpace.version >= newSpace.version ? oldSpace : newSpace));
+        setSpace(oldSpace => oldSpace.merge(newSpace));
     }, []);
 
     // If `currentAccount` exists then `currentAccountWithoutSpace` must also exist

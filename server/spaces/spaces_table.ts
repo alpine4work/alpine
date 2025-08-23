@@ -340,13 +340,28 @@ async function getSpaceItemIfExists(
     };
 }
 
+function createAvatarModelFromItem(
+    avatarItem: SpaceAvatarDarkThemeItem | SpaceAvatarLightThemeItem | null,
+): AvatarModel | null {
+    if (!avatarItem) return null;
+
+    return {
+        avatarId: avatarItem.avatarId,
+        version: avatarItem.updateLockVersion ?? 0,
+        content: avatarItem.content,
+    };
+}
+
 function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
     return new SpaceModel({
         id: spaceItem.spaceId,
         version: spaceItem.updateLockVersion ?? 0,
         name: spaceItem.name,
         alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
-        avatars: spaceItem.avatars,
+        avatars: {
+            darkTheme: createAvatarModelFromItem(spaceItem.avatars.darkTheme),
+            lightTheme: createAvatarModelFromItem(spaceItem.avatars.lightTheme),
+        },
     });
 }
 

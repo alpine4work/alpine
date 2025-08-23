@@ -1,4 +1,5 @@
-import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
+import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -46,11 +47,56 @@ export class SpaceModel extends Model(
          */
         alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
         avatars: Schema.object({
-            darkTheme: AvatarSchema.nullable().optional().default(null),
-            lightTheme: AvatarSchema.nullable().optional().default(null),
+            darkTheme: AvatarModelSchema.nullable().default(null),
+            lightTheme: AvatarModelSchema.nullable().default(null),
         }),
     }),
-) {}
+) {
+    // TODO(ifitzsimmons, #add-avatar-tests): Add tests for this function.
+    public static merge(space1: SpaceModel, space2: SpaceModel): SpaceModel {
+        if (
+            space1.version >= space2.version &&
+            space1.avatars.darkTheme ===
+                getLatestAvatarVersion(space1.avatars.darkTheme, space2.avatars.darkTheme) &&
+            space1.avatars.lightTheme ===
+                getLatestAvatarVersion(space1.avatars.lightTheme, space2.avatars.lightTheme)
+        ) {
+            return space1;
+        }
+
+        if (
+            space2.version >= space1.version &&
+            space2.avatars.darkTheme ===
+                getLatestAvatarVersion(space2.avatars.darkTheme, space1.avatars.darkTheme) &&
+            space2.avatars.lightTheme ===
+                getLatestAvatarVersion(space2.avatars.lightTheme, space1.avatars.lightTheme)
+        ) {
+            return space2;
+        }
+
+        const latestSpaceData = space1.version >= space2.version ? space1 : space2;
+        const latestDarkThemeAvatar = getLatestAvatarVersion(
+            space1.avatars.darkTheme,
+            space2.avatars.darkTheme,
+        );
+        const latestLightThemeAvatar = getLatestAvatarVersion(
+            space1.avatars.lightTheme,
+            space2.avatars.lightTheme,
+        );
+
+        return new SpaceModel({
+            ...latestSpaceData,
+            avatars: {
+                darkTheme: latestDarkThemeAvatar,
+                lightTheme: latestLightThemeAvatar,
+            },
+        });
+    }
+
+    public merge(otherSpace: SpaceModel): SpaceModel {
+        return SpaceModel.merge(this, otherSpace);
+    }
+}
 
 /**
  * It's a helper function that checks if a user with an actualRole has sufficient
