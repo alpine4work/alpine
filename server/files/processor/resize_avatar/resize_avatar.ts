@@ -5,7 +5,10 @@ import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethro
 import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
 import {waitForNodeReadableStreamUint8Array} from "~/server/helpers/node/wait_for_node_readable_stream_uint8_array.js";
-import {AvatarEntityPath} from "~/shared/avatar/avatar_entity_path.js";
+import {
+    AvatarEntityPath,
+    printAvatarEntityPathIntoCloudflareR2Key,
+} from "~/shared/avatar/avatar_entity_path.js";
 import {ResizeAvatarForUploadResponseSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_response_schema.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -42,7 +45,7 @@ export async function resizeAvatar(
 
         const object = await context.r2.GetObject({
             Bucket: avatarsBucketName,
-            Key: `${avatarEntityPath}/original/${avatarId}`,
+            Key: printAvatarEntityPathIntoCloudflareR2Key(avatarEntityPath, avatarId, "original"),
         });
         assert(object.Body instanceof ReadableStream);
         const inputBytes = await waitForNodeReadableStreamUint8Array(object.Body);

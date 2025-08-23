@@ -6,7 +6,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type AvatarEntityPath = `account/${AccountId}` | `space/${SpaceId}`;
@@ -98,4 +98,21 @@ export function printAvatarEntityObjectIntoTracerRoute(
         default:
             throw exhaustive(pathObject);
     }
+}
+
+const avatarVariants = ["original", "small", "profile"] as const;
+
+/**
+ * Original - The original photo uploaded by the user (up to 4MB)
+ * Small - the 72x72 avif image used for Avatars
+ * Profile - the 512x512 avif image used for Profile images
+ */
+type AvatarVariant = (typeof avatarVariants)[number];
+
+export function printAvatarEntityPathIntoCloudflareR2Key(
+    path: AvatarEntityPath,
+    avatarId: AvatarId,
+    variant: AvatarVariant,
+) {
+    return `${path}/${avatarId}-${variant}`;
 }

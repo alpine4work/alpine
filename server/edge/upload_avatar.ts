@@ -9,8 +9,17 @@ import {
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
-import {avatarContentType, maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
-import {AvatarEntityPath, parseAvatarEntityPath} from "~/shared/avatar/avatar_entity_path.js";
+import {
+    avatarContentType,
+    defaultAvatarSize,
+    defaultProfileImageSize,
+    maxAvatarUploadContentLength,
+} from "~/shared/avatar/avatar_constants.js";
+import {
+    AvatarEntityPath,
+    parseAvatarEntityPath,
+    printAvatarEntityPathIntoCloudflareR2Key,
+} from "~/shared/avatar/avatar_entity_path.js";
 import {AvatarTheme, isAvatarTheme} from "~/shared/avatar/avatar_schema.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {ResizeAvatarForUploadResponseSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_response_schema.js";
@@ -83,9 +92,8 @@ export async function uploadAvatar(
         const avatarId = generateChronologicalId<AvatarId>();
 
         // 1. Upload original avatar to R2
-        const originalKey = `${avatarEntityPath}/original/${avatarId}`;
         await putR2ObjectWithSpan(span, {
-            key: originalKey,
+            key: printAvatarEntityPathIntoCloudflareR2Key(avatarEntityPath, avatarId, "original"),
             body: request.body,
             contentType,
             contentLength,
@@ -93,28 +101,52 @@ export async function uploadAvatar(
             bucket: env.AvatarsBucket,
         });
 
-        const processedAvatarBytes = await callFileProcessorResizeAvatar(context, {
-            fileProcessorServiceUrl,
-            tokenAgent,
-            avatarEntityPath,
-            avatarId,
-            span,
-            contentType,
-        });
+        const [avatarImageContent, profileImageContent] = await Promise.all([
+            callFileProcessorResizeAvatar(context, {
+                fileProcessorServiceUrl,
+                tokenAgent,
+                avatarEntityPath,
+                avatarId,
+                span,
+                contentType,
+                size: defaultAvatarSize,
+            }),
+            callFileProcessorResizeAvatar(context, {
+                fileProcessorServiceUrl,
+                tokenAgent,
+                avatarEntityPath,
+                avatarId,
+                span,
+                contentType,
+                size: defaultProfileImageSize,
+            }),
+        ]);
 
         const [response] = await runAllPromises([
             finishUploadingAvatar(context, {
                 avatarId,
                 avatarEntityPath,
-                avatarContent: processedAvatarBytes,
+                avatarContent: avatarImageContent,
                 themeColor,
             }),
             putR2ObjectWithSpan(span, {
-                key: `${avatarEntityPath}/${avatarId}`,
-                body: processedAvatarBytes,
+                key: printAvatarEntityPathIntoCloudflareR2Key(avatarEntityPath, avatarId, "small"),
+                body: avatarImageContent,
                 contentType: avatarContentType,
                 bucketName: avatarsBucketName,
-                contentLength: processedAvatarBytes.length,
+                contentLength: avatarImageContent.length,
+                bucket: env.AvatarsBucket,
+            }),
+            putR2ObjectWithSpan(span, {
+                key: printAvatarEntityPathIntoCloudflareR2Key(
+                    avatarEntityPath,
+                    avatarId,
+                    "profile",
+                ),
+                body: profileImageContent,
+                contentType: avatarContentType,
+                bucketName: avatarsBucketName,
+                contentLength: profileImageContent.length,
                 bucket: env.AvatarsBucket,
             }),
         ]);
@@ -194,6 +226,7 @@ async function callFileProcessorResizeAvatar(
         span,
         tokenAgent,
         contentType,
+        size,
     }: {
         avatarId: AvatarId;
         contentType: FileImageContentType;
@@ -201,6 +234,7 @@ async function callFileProcessorResizeAvatar(
         avatarEntityPath: AvatarEntityPath;
         span: TracerSpan;
         tokenAgent: TokenAgent;
+        size: number;
     },
 ): Promise<Uint8Array> {
     const headers = new Headers();
@@ -233,6 +267,7 @@ async function callFileProcessorResizeAvatar(
                     avatarEntityPath,
                     avatarId,
                     contentType,
+                    size,
                 }),
             ),
         },
