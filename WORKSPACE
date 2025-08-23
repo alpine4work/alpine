@@ -290,13 +290,6 @@ oci_pull(
     platforms = ["linux/arm64/v8"],
 )
 
-oci_pull(
-    name = "lambda_node22_base",
-    image = "public.ecr.aws/lambda/nodejs:22",
-    digest = "sha256:7f5aacf13add8d94b0f9ab6604d3f7bdd3bcb5fc7bc7674c533ba40b14d0f087",
-    platforms = ["linux/arm64/v8"],
-)
-
 # The `Dockerfile` that builds this image lives at
 # `admin/aws/images/libreoffice/Dockerfile`.
 #
@@ -308,6 +301,20 @@ oci_pull(
     image = "docker.io/calebmer/cyberworlds-libreoffice",
     platforms = ["linux/arm64/v8"],
 )
+
+oci_pull(
+    name = "lambda_node22_base",
+    digest = "sha256:407a32c84ce9572a2efaadd531aa1bfa740174fa7416171da3d100fa670ce2ed",
+    image = "docker.io/ifitzsimmons/cyberworlds-lambda-nodejs22",
+    platforms = ["linux/arm64/v8"],
+)
+oci_pull(
+    name = "lambda_node22_libreoffice",
+    digest = "sha256:f22cbf9a4a5d6cc9634daf72261c87d065e098c52987f529d798654a73cf325d",
+    image = "docker.io/ifitzsimmons/cyberworlds-lambda-nodejs22-libreoffice",
+    platforms = ["linux/arm64/v8"],
+)
+
 
 # =========================================================================== #
 #                                OpenSearch                                   #
