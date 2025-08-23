@@ -308,7 +308,7 @@ async function getSpaceItemIfExists(
 ): Promise<SpaceItem | null> {
     const items = await arrayFromAsyncIterable(
         SpacesTable.query(context, {
-            limit: 2,
+            limit: 3,
             partitionKey: {
                 partitionType: "Space",
                 spaceId,

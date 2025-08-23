@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {TextInputWithoutLabel} from "~/client/design/text_input.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {useColorScheme} from "~/client/helpers/color_scheme.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     InlineEditorToolbar,
@@ -41,6 +42,9 @@ export async function loader({params}: LoaderArgs) {
 export default function SpaceGeneralSettingsRoute() {
     const context = useAppContext();
     const {space: originalSpace, updateSpace} = useSpaceContextAndRequireSpaceAccess();
+
+    const colorScheme = useColorScheme();
+    const colorSchemeOrDefault = colorScheme ?? "light";
 
     const inputRef = useRef<HTMLInputElement>(null);
     const nameInlineEditorToolbarRef = useRef<InlineEditorToolbarRef>(null);
@@ -86,14 +90,9 @@ export default function SpaceGeneralSettingsRoute() {
     const handleUploadAvatar = async (file: File) => {
         const url = new URL(`/api/avatar/space/${originalSpace.id}`, window.location.href);
         // TODO(ifitzsimmons, #add-space-avatar-support)
-        // Using color scheme to optionally set / render content is difficult because it is always
-        // null on server side render. Defaulting to light theme for now until. There are also
-        // open design questions (do we give the option for light vs. dark or just use the user's
-        // current setting?). Given that we still need to design the settings pages, I'll defer
-        // this decision for now and revisit when designs are finalized. For now, the backend is
-        // set up to support both light and dark themes. Once we land on a design, implementation
-        // should be simple and fast.
-        url.searchParams.set("themeColor", "light");
+        // This infers the type of space avatar from the user's current color scheme. Eventually
+        // we should add a menu that lets them set this explicitly.
+        url.searchParams.set("themeColor", colorSchemeOrDefault);
 
         const response = await fetchWithTracer(
             context.tracer.getTracer(),

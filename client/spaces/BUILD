@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//:node_modules/react-router",
+        "//client/avatar",
         "//client/design",
         "//client/dev",
         "//client/helpers",
