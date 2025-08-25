@@ -3,7 +3,7 @@ import {
     finishUploadingAndStartProcessingFile,
     getFileAsUploader,
     startUploadingFile,
-} from "~/server/files/data/files_table.js";
+} from "~/server/files/data/files_actions.js";
 import {InternalError} from "~/shared/error/error.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import * as fileRpcDefinitions from "~/shared/rpc/files_rpc_definitions.js";

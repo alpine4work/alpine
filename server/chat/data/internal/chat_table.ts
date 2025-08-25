@@ -1,7 +1,7 @@
 import {authorizeChatAccess} from "~/server/chat/data/chat_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
@@ -175,6 +175,8 @@ export const AccountChatsIndex = ChatTable.addIndex({
 });
 
 // Authorizers must be declared next to their respective Tables
-export const InternalFileChatAuthorizer = FileAuthorizer.new(ChatTable, "Chat", (context, target) =>
+const FileChatAuthorizer = FileAuthorizer.new(ChatTable, "Chat", (context, target) =>
     authorizeChatAccess(context, target.chatId),
 );
+
+export {FileChatAuthorizer as InternalFileChatAuthorizer};

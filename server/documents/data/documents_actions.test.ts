@@ -51,11 +51,11 @@ import {
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
     updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint,
     updateDocumentSnapshotForTest,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {attachFileAsUploader} from "~/server/files/data/files_table.js";
+import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

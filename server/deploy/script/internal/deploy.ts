@@ -5,7 +5,7 @@ import {
     githubOwner,
     githubRepo,
     prepareDeploy,
-} from "~/server/deploy/data/deploy_table.js";
+} from "~/server/deploy/data/deploy_actions.js";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {
     cleanupAppStaticFilesAfterDeploy,

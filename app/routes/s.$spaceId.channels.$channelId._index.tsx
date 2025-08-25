@@ -25,7 +25,7 @@ import {
     getChannelPostsIndexName,
     getChannelPostsPartitionKey,
     isSubscribedToChannel,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";

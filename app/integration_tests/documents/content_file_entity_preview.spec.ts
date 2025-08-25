@@ -3,7 +3,7 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
-import {getDocumentContent} from "~/server/documents/data/documents_table.js";
+import {getDocumentContent} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

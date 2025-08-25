@@ -5,7 +5,7 @@ import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
-import {getFileIfExistsAsUploader} from "~/server/files/data/files_table.js";
+import {getFileIfExistsAsUploader} from "~/server/files/data/files_actions.js";
 import {
     ffmpegExecutablePath,
     ffmpegThreadCount,

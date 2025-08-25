@@ -26,8 +26,9 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {addFeedCandidateEntry} from "~/server/feed/feed_table.js";
-import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
+import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
+import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {
     ActorContextModule,
     SystemActorContextModule,
@@ -927,6 +928,7 @@ type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 
 type TaskCommentItem = DynamoTableItemType<typeof TaskTable, "Task", "Comments">;
 
+// Authorizers must be declared next to their respective Tables
 export const FileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",

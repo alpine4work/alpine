@@ -2,7 +2,7 @@ import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_t
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
+import {createChannel, createPost} from "~/server/forum/data/forum_actions.js";
 import {PostRealtimeDurableObject} from "~/server/forum/realtime/post_realtime_durable_object.js";
 import {
     testMessagingRealtimeImplementation,

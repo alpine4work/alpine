@@ -14,7 +14,7 @@ import {
     getPostCommentsFromStart,
     updateChannelAccessPolicy,
     updatePostCommentContent,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";

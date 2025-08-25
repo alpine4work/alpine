@@ -9,12 +9,12 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {
     getChannelIfPossible,
     getChannelPreviewIfPossible,
     getPostContentAndChannelPreviewIfPossible,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";

@@ -13,7 +13,7 @@ import {
     getPost,
     updatePostCommentContent,
     updatePostContent,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

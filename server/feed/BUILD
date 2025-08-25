@@ -8,8 +8,8 @@ ts_project(
         "//server/tasks/test_helpers",
     ],
     tests = {
-        "feed_table_test": {"size": "medium"},
-        "feed_table_slow_test": {"size": "medium"},
+        "feed_actions_test": {"size": "medium"},
+        "feed_actions_slow_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

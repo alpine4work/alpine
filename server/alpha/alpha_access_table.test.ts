@@ -3,7 +3,7 @@ import {createAlphaSpaceAsAdmin, requestAlphaAccess} from "~/server/alpha/alpha_
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
-import {createChannel, getChannel} from "~/server/forum/data/forum_table.js";
+import {createChannel, getChannel} from "~/server/forum/data/forum_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {

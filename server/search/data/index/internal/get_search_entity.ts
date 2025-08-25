@@ -6,8 +6,8 @@ import {
     getDocumentCommentPayload,
     getDocumentContent,
     getDocumentTitleIfExists,
-} from "~/server/documents/data/documents_table.js";
-import {getFileIfExistsAsSystem} from "~/server/files/data/files_table.js";
+} from "~/server/documents/data/documents_actions.js";
+import {getFileIfExistsAsSystem} from "~/server/files/data/files_actions.js";
 import {
     getChannelNameAndDescriptionContentAndContributors,
     getChannelPreviewIfExists,
@@ -15,7 +15,7 @@ import {
     getPostContentAndChannelPreview,
     getPostContentAndChannelPreviewIfExists,
     maxChannelContributionCount,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {
     SearchEntityDependencyId,

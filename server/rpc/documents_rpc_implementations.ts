@@ -18,7 +18,7 @@ import {
     getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
     updateDocumentContent,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";

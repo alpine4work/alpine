@@ -17,7 +17,7 @@ import {postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js
 import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {getChannel} from "~/server/forum/data/forum_table.js";
+import {getChannel} from "~/server/forum/data/forum_actions.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

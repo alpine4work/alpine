@@ -6,7 +6,7 @@ import {
     createDocument,
     getDocumentContentStepsTestCounter,
     updateDocumentContent,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";

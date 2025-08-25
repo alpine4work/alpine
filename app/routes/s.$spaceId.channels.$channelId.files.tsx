@@ -5,7 +5,7 @@ import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeho
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
-import {getChannelAndMetadata} from "~/server/forum/data/forum_table.js";
+import {getChannelAndMetadata} from "~/server/forum/data/forum_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";

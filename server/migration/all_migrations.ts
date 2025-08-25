@@ -1,5 +1,5 @@
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_table.js";
+import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_actions.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexEverySearchEntityMigration,

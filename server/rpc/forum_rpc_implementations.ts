@@ -29,7 +29,7 @@ import {
     updateChannelNameAndDescription,
     updatePostCommentContent,
     updatePostContent,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/forum_rpc_definitions.js";

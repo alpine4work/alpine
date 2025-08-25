@@ -4,7 +4,7 @@ import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_
 import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
-import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_table.js";
+import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     FilePostAuthorizer,
@@ -53,7 +53,7 @@ import {
     updateChannelNameAndDescription,
     updatePostCommentContent,
     updatePostContent,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     acceptSpaceAccountInvite,

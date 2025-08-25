@@ -6,7 +6,7 @@ import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_cont
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {feedEntryHeight, postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
-import {getAndUpdateFeedEntries} from "~/server/feed/feed_table.js";
+import {getAndUpdateFeedEntries} from "~/server/feed/feed_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";

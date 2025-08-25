@@ -10,7 +10,7 @@ import {
     getFeedEntries,
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
-} from "~/server/feed/feed_table.js";
+} from "~/server/feed/feed_actions.js";
 import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";

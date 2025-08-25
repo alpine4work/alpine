@@ -1,8 +1,8 @@
 import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
-    FileAuthorizer,
     FileUploader,
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -13,8 +13,8 @@ import {
     getFileUploaderAsUploader,
     getPostDraftFileAttachments,
     startUploadingFile,
-} from "~/server/files/data/files_table.js";
-import {FilePostAuthorizer, createOrReplacePostDraft} from "~/server/forum/data/forum_table.js";
+} from "~/server/files/data/files_actions.js";
+import {FilePostAuthorizer, createOrReplacePostDraft} from "~/server/forum/data/forum_actions.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

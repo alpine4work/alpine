@@ -2,11 +2,11 @@ import {addMinutes, subMinutes} from "date-fns";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
-import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
-import {subscribeToChannel} from "~/server/forum/data/forum_table.js";
+import {subscribeToChannel} from "~/server/forum/data/forum_actions.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {

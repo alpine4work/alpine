@@ -17,7 +17,7 @@ import {
     documentCommentThreadCountAgainstLimit,
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
-import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_table.js";
+import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_actions.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

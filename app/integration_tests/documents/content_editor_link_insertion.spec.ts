@@ -1,13 +1,13 @@
 import {Locator, Page, ViewportSize, expect, test as playwrightTest} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
-import {createDocument} from "~/server/documents/data/documents_table.js";
+import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     createChannel,
     createOrReplacePostDraft,
     createPost,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";

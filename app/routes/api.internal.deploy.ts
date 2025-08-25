@@ -1,4 +1,4 @@
-import {getDeploy} from "~/server/deploy/data/deploy_table.js";
+import {getDeploy} from "~/server/deploy/data/deploy_actions.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";

@@ -2,7 +2,7 @@ import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_act
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
-import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
+import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     CreateMessageFunction,

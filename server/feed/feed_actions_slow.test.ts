@@ -3,7 +3,7 @@ import {
     getAndUpdateFeedEntries,
     processAddFeedAccountCandidateEntryJob,
     processAddFeedCandidateEntryJob,
-} from "~/server/feed/feed_table.js";
+} from "~/server/feed/feed_actions.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";

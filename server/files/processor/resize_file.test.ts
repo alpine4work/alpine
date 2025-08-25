@@ -11,7 +11,7 @@ import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
-import {getFileAsUploader} from "~/server/files/data/files_table.js";
+import {getFileAsUploader} from "~/server/files/data/files_actions.js";
 import {createFileProcessorServiceServer} from "~/server/files/processor/file_processor_service_server.js";
 import {processFile} from "~/server/files/processor/process_file.js";
 import {ffprobeExecutablePath} from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";

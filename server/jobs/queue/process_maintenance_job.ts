@@ -1,4 +1,4 @@
-import {scheduleDeploy} from "~/server/deploy/data/deploy_table.js";
+import {scheduleDeploy} from "~/server/deploy/data/deploy_actions.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {MaintenanceJobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {retryUnprocessedTaskActionTransactions} from "~/server/tasks/data/task_table.js";

@@ -11,7 +11,8 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {FileAuthorizer, attachFileAsUploader} from "~/server/files/data/files_table.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
+import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";

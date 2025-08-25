@@ -8,10 +8,10 @@ import {
     getDocumentPreview,
     getDocumentWithOptionalComments,
     updateDocumentContent,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {TestDocumentCommentThread} from "~/server/documents/test_helpers/test_document_comment_thread.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {attachFileAsUploader} from "~/server/files/data/files_table.js";
+import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";

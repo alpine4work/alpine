@@ -15,7 +15,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";

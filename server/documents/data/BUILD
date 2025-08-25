@@ -12,8 +12,8 @@ ts_project(
         "//shared/spaces/test_helpers",
     ],
     tests = {
-        "documents_table_test": {"size": "medium"},
-        "documents_table_slow_test": {"size": "medium"},
+        "documents_actions_test": {"size": "medium"},
+        "documents_actions_slow_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

@@ -30,7 +30,7 @@ import {
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentPreview,
     getDocumentPreviewIfPossible,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
@@ -41,7 +41,7 @@ import {
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     FilePostAuthorizer,
     authorizePostAccessIfPossible,
@@ -54,7 +54,7 @@ import {
     getPostAuthorAndChannelPreview,
     getPostAuthorAndChannelPreviewIfPossible,
     getPostNotificationSubscribers,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {
     NotificationCreateChatMessageEvent,
     NotificationCreateDocumentCommentEvent,

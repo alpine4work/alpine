@@ -14,15 +14,15 @@ import {
     documentCollaborationContentManagerBeforeUpdateTestCheckpoint,
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
-import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {
     FileDocumentAuthorizer,
     createDocumentComment,
     getDocumentComment,
     updateDocumentContent,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {attachFileAsUploader} from "~/server/files/data/files_table.js";
+import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     testMessagingRealtimeImplementation,

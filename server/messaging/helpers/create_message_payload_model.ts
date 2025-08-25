@@ -3,7 +3,7 @@ import {
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";

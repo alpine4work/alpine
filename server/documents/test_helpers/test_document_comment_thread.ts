@@ -5,7 +5,7 @@ import {
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     TestContext,

@@ -1,16 +1,16 @@
 import {FileChatAuthorizer} from "~/server/chat/data/chat_actions.js";
-import {FileDocumentAuthorizer} from "~/server/documents/data/documents_table.js";
+import {FileDocumentAuthorizer} from "~/server/documents/data/documents_actions.js";
+import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
-    FileAuthorizer,
     attachFileAsUploader,
     attachFileFromAttachment,
     finishUploadingAndStartProcessingFile,
     getFileAsUploader,
     getFileFromAttachment,
     startUploadingFile,
-} from "~/server/files/data/files_table.js";
+} from "~/server/files/data/files_actions.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
-import {FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
+import {FilePostAuthorizer} from "~/server/forum/data/forum_actions.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

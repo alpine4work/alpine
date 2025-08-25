@@ -7,7 +7,7 @@ import {
     TestSessionActionContext,
     createTestContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
-import {updateChannelName} from "~/server/forum/data/forum_table.js";
+import {updateChannelName} from "~/server/forum/data/forum_actions.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     AllMiniLmL6V2LanguageModel,

@@ -4,7 +4,7 @@ import {
     getChannelAndMetadataIfPossible,
     getPostIfPossible,
     isSubscribedToChannel,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 
 export const forumInjection: ForumInjection = {
     authorizeChannelAccessIfPossible,

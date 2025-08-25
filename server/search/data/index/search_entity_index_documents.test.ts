@@ -4,7 +4,7 @@ import {
     DocumentContentCacheForUpdate,
     getDocumentContentPreviewIfExists,
     getGlobalDocumentContentCacheForUpdateForTest,
-} from "~/server/documents/data/documents_table.js";
+} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {

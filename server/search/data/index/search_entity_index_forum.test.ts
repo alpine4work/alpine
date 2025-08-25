@@ -3,7 +3,11 @@ import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createPost, updateChannelName, updatePostContent} from "~/server/forum/data/forum_table.js";
+import {
+    createPost,
+    updateChannelName,
+    updatePostContent,
+} from "~/server/forum/data/forum_actions.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     fallbackGetSearchEntityBaseIfPossibleTestCounter,

@@ -8,7 +8,7 @@ import {
     FilePostAuthorizer,
     getChannelPreview,
     getPostDraftIfExists,
-} from "~/server/forum/data/forum_table.js";
+} from "~/server/forum/data/forum_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
