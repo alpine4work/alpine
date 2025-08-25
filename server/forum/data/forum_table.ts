@@ -429,57 +429,89 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             },
             Contributors: {
                 build: async (context, item) => {
-                    const accountIdsByContributionCount = new DefaultMap<number, Array<AccountId>>(
-                        () => [],
-                    );
-
-                    for (const [
-                        accountId,
-                        contributionCount,
-                    ] of item.contributionCountByAccountId) {
-                        accountIdsByContributionCount
-                            .getOrSetDefault(contributionCount)
-                            .push(accountId);
-                    }
-
                     // Top contributor accounts are sorted by:
                     //
                     // 1. Who has the highest contribution count up to
                     //    `maxChannelTopContributorCount`
                     // 2. Earliest contribution time
-                    const topContributorIds = new Set<AccountId>();
+                    function* iterateTopContributorAccountIds() {
+                        const accountIdsByContributionCount = new DefaultMap<
+                            number,
+                            Array<AccountId>
+                        >(() => []);
 
-                    outer: for (
-                        let contributionCount = maxChannelContributionCount;
-                        contributionCount >= 1;
-                        contributionCount--
-                    ) {
-                        const accountIds =
-                            accountIdsByContributionCount.get(contributionCount) ?? emptyArray;
+                        for (const [
+                            accountId,
+                            contributionCount,
+                        ] of item.contributionCountByAccountId) {
+                            accountIdsByContributionCount
+                                .getOrSetDefault(contributionCount)
+                                .push(accountId);
+                        }
 
-                        for (const accountId of accountIds) {
-                            topContributorIds.add(accountId);
+                        for (
+                            let contributionCount = maxChannelContributionCount;
+                            contributionCount >= 1;
+                            contributionCount--
+                        ) {
+                            const accountIds = accountIdsByContributionCount.get(contributionCount);
+                            if (accountIds !== undefined) yield* accountIds;
+                        }
 
-                            if (topContributorIds.size >= maxChannelTopContributorCount) {
+                        // Fill the top contributors array with accounts that have been explicitly
+                        // granted access even if those accounts haven't posted in the channel yet.
+                        // This is especially useful for private channels. Since you can see who's been
+                        // added to the private channel.
+                        for (const accountId of item.accountIdsWithGrant) {
+                            if (item.contributionCountByAccountId.has(accountId)) continue;
+                            yield accountId;
+                        }
+                    }
+
+                    function* iterateBatchedTopContributorAccountIds() {
+                        let nextBatch: Array<AccountId> = [];
+
+                        for (const accountId of iterateTopContributorAccountIds()) {
+                            nextBatch.push(accountId);
+
+                            // If our max is 8, and we find 7 active, we ask for 2 more to give us some
+                            // wiggle room in case some of them are inactive, and we don't need to
+                            // do as many rounds of searching. This will also help if two in the first
+                            // 10 are inactive, we can still find the 8 we need.
+                            if (nextBatch.length >= maxChannelTopContributorCount + 2) {
+                                yield nextBatch;
+                                nextBatch = [];
+                            }
+                        }
+
+                        if (nextBatch.length > 0) {
+                            yield nextBatch;
+                        }
+                    }
+
+                    const topContributors: Array<AccountModel> = [];
+
+                    // Will load accounts in batches. If we have enough accounts to fill
+                    // `topContributors`, great! Otherwise we'll load another batch. Batches sizes
+                    // are `maxChannelTopContributorCount + 2` in case we have any removed accounts.
+                    outer: for (const batchedAccountIds of iterateBatchedTopContributorAccountIds()) {
+                        const newTopContributors = await runAllPromises(
+                            mapIterable(batchedAccountIds, accountId =>
+                                getAccount(context, item.spaceId, accountId),
+                            ),
+                        );
+
+                        for (const topContributor of newTopContributors) {
+                            // Ignore accounts removed from the space.
+                            if (topContributor.initialData.space.state.type !== "Active") continue;
+
+                            topContributors.push(topContributor);
+
+                            if (topContributors.length >= maxChannelTopContributorCount) {
                                 break outer;
                             }
                         }
                     }
-
-                    // Fill the top contributors array with accounts that have been explicitly
-                    // granted access even if those accounts haven't posted in the channel yet.
-                    // This is especially useful for private channels. Since you can see who's been
-                    // added to the private channel.
-                    for (const accountId of item.accountIdsWithGrant) {
-                        if (topContributorIds.size >= maxChannelTopContributorCount) break;
-                        topContributorIds.add(accountId);
-                    }
-
-                    const topContributors = await runAllPromises(
-                        mapIterable(topContributorIds, accountId =>
-                            getAccount(context, item.spaceId, accountId),
-                        ),
-                    );
 
                     return new ChannelContributorsModel({
                         contributorCount: item.contributionCountByAccountId.size,

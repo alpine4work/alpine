@@ -59,10 +59,12 @@ import {
     acceptSpaceAccountInvite,
     addSpaceAccount,
     getOurAccountSpaceIds,
+    removeSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -89,6 +91,7 @@ import {
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -8784,4 +8787,99 @@ test("can’t get channel realtime event for post when actor is in the wrong spa
             },
         ]),
     ).rejects.toThrow("Account doesn’t have access to space");
+});
+
+describe("getChannelAndMetadata", () => {
+    describe("topContributors", () => {
+        const getTopContributors = async (session: TestSession, channel: TestChannel) => {
+            const result = await getChannelAndMetadata(session.action(), {
+                channelId: channel.id,
+                postFilesLimit: 100,
+            });
+
+            const channelContributorsModel = result.items.find(
+                item => item.model instanceof ChannelContributorsModel,
+            )?.model as ChannelContributorsModel;
+
+            return channelContributorsModel.topContributors;
+        };
+
+        const expectTopContributorsToEqual = async ({
+            sessionForFetch,
+            channel,
+            expected,
+        }: {
+            sessionForFetch: TestSession;
+            channel: TestChannel;
+            expected: Array<TestSession>;
+        }) => {
+            const accounts = await runAllPromises(expected.map(async s => s.get()));
+            const topContributors = await getTopContributors(sessionForFetch, channel);
+            expect(topContributors).toEqual(accounts);
+        };
+
+        test("top contributors with 1 user", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const channel = await TestChannel.create(session);
+
+            await channel.createPost(session, "Test Post");
+
+            await expectTopContributorsToEqual({
+                sessionForFetch: session,
+                channel,
+                expected: [session],
+            });
+        });
+
+        const combinationTestCases = [
+            {active: 1, removed: 1, expectedActive: 1},
+            {active: 3, removed: 5, expectedActive: 3},
+            {active: 10, removed: 20, expectedActive: 10},
+            {active: 2, removed: 20, expectedActive: 2},
+            {active: 20, removed: 2, expectedActive: 15},
+            {active: 20, removed: 20, expectedActive: 15},
+        ];
+
+        for (const {active, removed, expectedActive} of combinationTestCases) {
+            test(`top contributors with ${active} active and ${removed} removed users`, async () => {
+                const space = await TestSpace.create(context);
+                const ownerSession = await space.createSession({role: "Owner"});
+                const activeSessions = await space.createSessions(active);
+                const removedSessions = await space.createSessions(removed);
+
+                const primarySession = assertExists(activeSessions[0]);
+                const channel = await TestChannel.create(primarySession);
+
+                // Alternate our active/removed sessions so we don't have a block of
+                // active then a block of removed.
+                const alternatedSessions: Array<TestSpaceSession> = [];
+                for (let i = 0; i < activeSessions.length + removedSessions.length; i++) {
+                    if (i < activeSessions.length) {
+                        alternatedSessions.push(assertExists(activeSessions[i]));
+                    }
+                    if (i < removedSessions.length) {
+                        alternatedSessions.push(assertExists(removedSessions[i]));
+                    }
+                }
+
+                for (const session of alternatedSessions) {
+                    await channel.createPost(session, "Test Post");
+                }
+
+                for (const session of removedSessions) {
+                    await removeSpaceAccount(ownerSession.action(), {
+                        spaceId: space.id,
+                        accountId: session.account.id,
+                    });
+                }
+
+                await expectTopContributorsToEqual({
+                    sessionForFetch: primarySession,
+                    channel,
+                    expected: activeSessions.slice(0, expectedActive),
+                });
+            });
+        }
+    });
 });
