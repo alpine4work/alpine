@@ -10,7 +10,7 @@ jobs:
               uses: actions/checkout@v3
 
             - name: Initialize Bazel cache
-              uses: ./.github/actions/init-bazel-cache
+              uses: ./.github/actions/initialize-bazel-cache
 
             # Run TypeScript, ESLint, and Prettier first. These tests are fast and easily
             # cacheable. If TypeScript fails it's also very likely unit tests or
@@ -57,17 +57,24 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
-            # If tests pass and we're on the main branch then schedule a deploy by sending
-            # a message to our job queue. This will make sure our commit is eventually
-            # deployed.
-            #
-            # We delay the message 10 seconds so when `JobQueueService` runs the job, when
-            # it looks for a passing GitHub test workflow run it's more likely this
-            # workflow has completed.
-            - if: github.ref == 'refs/heads/main'
-              name: Schedule deploy
+    schedule-deploy:
+        name: Schedule deploy
+        runs-on: ubuntu-latest
+        env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.SCHEDULE_DEPLOY_AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.SCHEDULE_DEPLOY_AWS_SECRET_ACCESS_KEY }}
+        # If tests pass and we're on the main branch then schedule a deploy by sending
+        # a message to our job queue via lambda. This will make sure our commit is eventually
+        # deployed.
+        if: github.ref == 'refs/heads/main'
+        needs: [test]
+        steps:
+            - name: Schedule deploy
               run: |
-                  aws sqs send-message \
-                    "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
-                    "--message-body=$(node -e "process.stdout.write(JSON.stringify({type: 'Maintenance', sendTime: new Date().toISOString(), delaySeconds: 10, job: {type: 'ScheduleDeploy', commitSha: process.env.GITHUB_SHA}, tracerContext: null}))")" \
-                    --delay-seconds=10
+                aws lambda invoke \
+                  --function-name ${{ secrets.SCHEDULE_DEPLOY_AWS_LAMBDA_FUNCTION_NAME }} \
+                  --payload "{ \"commitSha\": \"${{ github.sha }}\" }" \
+                  --cli-binary-format raw-in-base64-out \
+                  --region us-east-1 \
+                  response.json
+
