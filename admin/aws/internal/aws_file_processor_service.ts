@@ -554,7 +554,7 @@ function createListenerWithRouting(
     // Create a parameter for easy weight adjustment
     const resizeFileLambdaWeight = new CfnParameter(scope, "ResizeFileServiceLambdaWeight", {
         type: "Number",
-        default: 0,
+        default: 50,
         minValue: 0,
         maxValue: 100,
         description: "Percentage of traffic to send to ResizeFileService Lambda (0-100)",
@@ -565,7 +565,7 @@ function createListenerWithRouting(
         "LegacyFileProcessorServiceWeight",
         {
             type: "Number",
-            default: 100,
+            default: 50,
             minValue: 0,
             maxValue: 100,
             description: "Percentage of traffic to send to Legacy FileProcessorService (0-100)",
