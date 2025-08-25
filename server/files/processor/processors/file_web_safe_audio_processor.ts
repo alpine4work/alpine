@@ -5,13 +5,13 @@ import {FileProcessor} from "~/server/files/processor/processors/file_processor.
 import {
     ffmpegExecutablePath,
     ffmpegThreadCount,
-    ffprobeExecutablePath,
+    getFfprobeMetadata,
     getFileAudioPreviewMetadataFromFfprobeMetadata,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
 } from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {getProcessEnvToPropagate, runProcess} from "~/server/helpers/node/run_process.js";
+import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
@@ -24,7 +24,6 @@ import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * To process a safe audio file we only need the file's duration. We'll serve
@@ -64,39 +63,11 @@ export function processFileWebSafeAudio(
     const audioPreviewMetadataPromiseResolver = createPromiseResolver<FileAudioPreviewMetadata>();
 
     const audioPreviewDurationPromise = (async (): Promise<number> => {
-        // Even though technically we're using the FFprobe executable we still name the
-        // span "FFmpeg ..." which'll make it easier for us to search for spans that
-        // call one of the FFmpeg tools.
-        const metadataString = await context.tracer.withSpan(
-            `FFmpeg get ${getFileContentTypeName(contentType)} metadata`,
-            async (context, span) => {
-                span.addData({
-                    file: {contentType, contentLength},
-                });
-
-                return runProcess(
-                    ffprobeExecutablePath,
-                    [["-print_format", "json"], "-show_streams", "-show_format", inputUrl],
-                    {cwd: runfilesPath, signal},
-                );
-            },
-        );
-
-        let metadata: unknown;
-        try {
-            metadata = JSON.parse(metadataString);
-        } catch (error) {
-            if (!(error instanceof Error)) throw error;
-
-            // We're observing some flaky errors in unit tests where `metadataString` fails
-            // to parse as JSON. So if we're running a unit test log the string to help us
-            // debug.
-            throw new InternalError(
-                !import.meta.jest
-                    ? error.message
-                    : `${error.message}\n\nString: ${quote(metadataString)}`,
-            );
-        }
+        const metadata = await getFfprobeMetadata(context, inputUrl, {
+            signal,
+            contentType,
+            contentLength,
+        });
 
         audioPreviewMetadataPromiseResolver.resolve(
             getFileAudioPreviewMetadataFromFfprobeMetadata(metadata),
