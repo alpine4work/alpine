@@ -75,7 +75,7 @@ export default function MobileSpaceSettingsRoute() {
                 marginX="center"
                 display="flex"
                 flexDirection="column"
-                gap="4"
+                gap="8"
             >
                 {userNavigation ? (
                     <Box>

@@ -199,7 +199,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
     "routes/s.$spaceId.create.more": {
-        component: () => <MobileSettingsRowsShimmer titleWidth="12" />,
+        component: () => <MobileSettingsRowsShimmer titleWidth="12" sectionCounts={[3]} />,
     },
     // This route is only used in tests, so we don't bother with a shimmer.
     "routes/s.$spaceId.dev.empty": false,
@@ -212,7 +212,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
     "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
     "routes/s.$spaceId.more.settings": {
-        component: () => <MobileSettingsRowsShimmer titleWidth="28" />,
+        component: () => <MobileSettingsRowsShimmer titleWidth="28" sectionCounts={[2, 2]} />,
     },
     "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},
     "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": {

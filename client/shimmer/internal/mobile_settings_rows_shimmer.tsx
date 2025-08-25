@@ -18,9 +18,40 @@ import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 // Pages include:
 // - `/s/$spaceId/more/settings`
 // - `/s/$spaceId/create/more`
-export function MobileSettingsRowsShimmer({titleWidth}: {titleWidth: Spacing}) {
+export function MobileSettingsRowsShimmer({
+    titleWidth,
+    sectionCounts,
+}: {
+    titleWidth: Spacing;
+    sectionCounts: Array<number>;
+}) {
     const platform = usePlatform();
     const maxWidth = platform !== "mobile" ? "96" : undefined;
+
+    const hasHeaders = sectionCounts.length > 1;
+    const sections = sectionCounts.map((rowCounts, i) => {
+        const rows = [];
+        for (let j = 0; j < rowCounts; j++) {
+            rows.push(
+                <MobileSettingsRowShimmer
+                    key={j}
+                    ragRight={j % 3 === 0 ? "12" : j % 3 === 1 ? "4" : "10"}
+                    withBorderTop={j === 0}
+                />,
+            );
+        }
+
+        return (
+            <Box key={i} paddingX={screenPaddingX}>
+                {hasHeaders ? (
+                    <Box paddingX="2.5" paddingY="2.5">
+                        <TextShimmer fontSize="50" width="16" />
+                    </Box>
+                ) : null}
+                {rows}
+            </Box>
+        );
+    });
 
     return (
         <Box width="full" height="full">
@@ -37,10 +68,8 @@ export function MobileSettingsRowsShimmer({titleWidth}: {titleWidth: Spacing}) {
                     <TextShimmer fontSize="100" width={titleWidth} />
                     <MobileBackButtonSpacer />
                 </Box>
-                <Box paddingX={screenPaddingX}>
-                    <MobileSettingsRowShimmer withBorderTop ragRight="12" />
-                    <MobileSettingsRowShimmer ragRight="4" />
-                    <MobileSettingsRowShimmer ragRight="10" />
+                <Box display="flex" flexDirection="column" gap="8">
+                    {sections}
                 </Box>
             </Box>
         </Box>
