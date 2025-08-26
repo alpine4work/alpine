@@ -5,6 +5,7 @@ import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethro
 import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
 import {waitForNodeReadableStreamUint8Array} from "~/server/helpers/node/wait_for_node_readable_stream_uint8_array.js";
+import {defaultAvatarSize} from "~/shared/avatar/avatar_constants.js";
 import {
     AvatarEntityPath,
     printAvatarEntityPathIntoCloudflareR2Key,
@@ -55,6 +56,13 @@ export async function resizeAvatar(
             size,
             targetBytes: maxContentLength,
             span,
+            // NOTE(ifitzsimmons, 2025-08-25): Effort 6 is a lot faster but less efficient at
+            // compressing the image. Compression is really important for the avatar photo since
+            // it needs to fit within 3kb (see #avatar-items). For larger photos, effort 9 takes
+            // a lot longer. For instance a 512x512 photo has ~50x the pixels to decode and takes,
+            // on average, about 25x longer than the 72x72 image. Compression efficiency is not
+            // so important for the larger image version that we'll use on an eventual profile page.
+            effort: size > defaultAvatarSize ? 6 : 9,
         });
 
         if (!result) {
@@ -122,14 +130,14 @@ async function resizeAvatarAttempt({
     // 1 - 100 where 100 is highest quality. Default is normally 50 for avif
     qualityRange = [20, 80],
     // 0 - 9 effort range where 0 is fastest and 9 is slowest and most efficient
-    effort = 9,
+    effort,
     span,
 }: {
     inputBytes: Uint8Array;
     size: number;
     targetBytes: number;
     qualityRange?: [number, number];
-    effort?: number; // 0..9
+    effort: number; // 0..9
     span: TracerSpan;
 }): Promise<{data: Buffer; quality: number} | null> {
     const inputContentLength = inputBytes.byteLength;
