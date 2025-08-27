@@ -4,8 +4,8 @@ import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
 /**
  * The type of an immutable model object class.
  */
-export interface ModelClass<Value> {
-    new (value: Value): Model<Value>;
+export interface ModelClass<Data> {
+    new (data: Data): Model<Data>;
     /**
      * Gets a schema that will serialize this class and deserialize back into
      * this class.
@@ -13,21 +13,26 @@ export interface ModelClass<Value> {
     // The schema needs to be a getter so that we can get access to the subclass
     // extending our base model class. That's why we write this type with a generic
     // `This`.
-    schema<This extends ModelClass<Value>>(this: This): Schema<InstanceType<This>>;
+    schema<This extends ModelClass<Data>>(this: This): Schema<InstanceType<This>>;
 }
 
 /**
  * The type of an immutable model object.
  */
-export type Model<Value> = Readonly<Value> & ModelInterface<Value>;
+export type Model<Data> = Readonly<Data> & ModelInterface<Data>;
 
-interface ModelInterface<Value> {
+interface ModelInterface<Data> {
     /**
-     * Clone the model object, replacing any values with those provided in the
-     * partial value.
+     * Clone the model object, replacing any data with those provided in the
+     * partial data.
      */
-    clone(partialValue: Partial<Value>): this;
+    clone(partialData: Partial<Data>): this;
 }
+
+/**
+ * Get the `Partial` type of the model's data.
+ */
+export type ModelPartialDataType<T extends Model<any>> = Parameters<T["clone"]>[0];
 
 /**
  * Creates a model object class.
