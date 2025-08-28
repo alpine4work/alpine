@@ -7689,49 +7689,6 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
-                        "Attributes": {
-                            "id": 0,
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "generation": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": false
-                                    },
-                                    "loudNotificationCount": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": false
-                                    },
-                                    "entryCount": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    },
-                                    "lastZeroEntryCountTime": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Date"
-                                            }
-                                        },
-                                        "optional": true
-                                    },
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            }
-                        },
                         "ChatEntry": {
                             "id": 1,
                             "orderKey": "a1",

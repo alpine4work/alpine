@@ -31,11 +31,9 @@ import {
     getDocumentPreview,
     getDocumentPreviewIfPossible,
 } from "~/server/documents/data/documents_actions.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
@@ -325,22 +323,6 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
             sortRanges: [
-                // TODO(calebmer, 2024-06-13): We've moved the inbox attributes item from this
-                // partition into an `Account` partition so we can query all inboxes for an
-                // account at once. This item definition still exists to maintain backwards
-                // compatibility but shouldn't be used. Once we fully migrate all inbox items
-                // we can remove this.
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        generation: Schema.integer.min(initialInboxGeneration),
-                        loudNotificationCount: Schema.integer.min(0),
-                        entryCount: Schema.integer.min(0).default(0),
-                        lastZeroEntryCountTime: Schema.date.nullable().default(null),
-                    }),
-                },
-
                 {
                     name: "ChatEntry",
                     sortKeyAttributes: {
@@ -709,17 +691,6 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
         Inbox: {
-            Attributes: {
-                async build(context, item) {
-                    return new InboxModel({
-                        spaceId: item.spaceId,
-                        accountId: item.accountId,
-                        loudNotificationCount: item.loudNotificationCount,
-                        entryCount: item.entryCount,
-                        lastZeroEntryCountTime: item.lastZeroEntryCountTime,
-                    });
-                },
-            },
             ChatEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
@@ -1264,61 +1235,6 @@ type InboxEntryItem = MergeObjectIntersection<
 type InboxEntryItemKey = MergeObjectIntersection<
     InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
 >;
-
-/**
- * Move inbox attribute items from their old destination to their new destination.
- */
-export async function runMoveInboxAttributesItemMigration(
-    context: DynamoContext,
-    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
-) {
-    for await (const initialLegacyItem of InboxTable.expensiveScan(context, {
-        segmentIndex,
-        totalSegmentCount,
-        filter: [{partitionType: "Inbox", sortRangeType: "Attributes"}],
-    })) {
-        if (
-            initialLegacyItem.partitionType !== "Inbox" ||
-            initialLegacyItem.sortRangeType !== "Attributes"
-        ) {
-            break;
-        }
-
-        let hasAlreadyAttempted = false;
-
-        await context.dynamo.retryTransaction(async context => {
-            const isInitialAttempt = !hasAlreadyAttempted;
-            hasAlreadyAttempted = true;
-
-            const legacyItem = isInitialAttempt
-                ? initialLegacyItem
-                : await InboxTable.getItemIfExists(
-                      context,
-                      {
-                          partitionType: "Inbox",
-                          sortRangeType: "Attributes",
-                          spaceId: initialLegacyItem.spaceId,
-                          accountId: initialLegacyItem.accountId,
-                      },
-                      {consistency: "Strong"},
-                  );
-            if (!legacyItem) return;
-
-            await DynamoTableSchema.executeTransaction(context, [
-                InboxTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
-                    {
-                        ...legacyItem,
-                        partitionType: "Account",
-                        sortRangeType: "InboxAttributes",
-                    },
-                ),
-                InboxTable.transactionDangerouslyDeleteItemWithoutGravestoneAndWithoutEvent(
-                    legacyItem,
-                ),
-            ]);
-        });
-    }
-}
 
 /**
  * First, see the documentation on the `Inbox` partition of `NotificationsTable`

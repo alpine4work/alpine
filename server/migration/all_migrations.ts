@@ -6,7 +6,6 @@ import {
     runIndexPostAndChannelSearchEntitiesMigration,
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
 } from "~/server/migration/migrations/index_every_search_entity_migration.js";
-import {runMoveInboxAttributesItemMigration} from "~/server/notifications/data/notifications_table.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {runFavoriteTaskPersonalSearchEntityMigration} from "~/server/search/data/table/search_entity_table.js";
 import {
@@ -36,7 +35,6 @@ export const allMigrations: {
     IndexPostAndChannelSearchEntities: runIndexPostAndChannelSearchEntitiesMigration,
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
     MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
-    MoveInboxAttributesItem: runMoveInboxAttributesItemMigration,
     IndexTaskInitialAssigneePosition: runIndexTaskInitialAssigneePositionMigration,
     FavoriteTaskPersonalSearchEntity: runFavoriteTaskPersonalSearchEntityMigration,
     IndexEveryTaskActionStep1Of2: runIndexEveryTaskActionStep1Of2,
