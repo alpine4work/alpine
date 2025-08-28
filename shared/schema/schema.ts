@@ -1380,7 +1380,10 @@ export class ObjectSchema<Value> extends Schema<Value> {
     ): ObjectSchema<ObjectSchemaConfigType<Config>> {
         const propertySchemaByKey = new Map<string, ObjectPropertySchema<unknown, unknown>>(
             Object.entries(config).map(([key, schema]) => {
-                assert(isIdentifier(key));
+                assert(
+                    isIdentifier(key),
+                    `ObjectSchema key \`${key}\` is not a valid ASCII identifier`,
+                );
                 return [key, schema instanceof Schema ? ObjectPropertySchema.wrap(schema) : schema];
             }),
         );
