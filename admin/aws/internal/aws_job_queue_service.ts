@@ -19,6 +19,7 @@ import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
+import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -33,6 +34,7 @@ export class AwsJobQueueService extends Construct {
             dynamo,
             opensearch,
             sqs,
+            ses,
             taskRealtimeService,
         }: {
             vpc: Vpc;
@@ -41,6 +43,7 @@ export class AwsJobQueueService extends Construct {
             dynamo: AwsDynamo;
             opensearch: AwsOpensearch;
             sqs: AwsSqs;
+            ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
         },
     ) {
@@ -287,6 +290,7 @@ export class AwsJobQueueService extends Construct {
         dynamo.grantReadWriteData(taskDefinition.taskRole);
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendAndReceiveJobQueueMessages(taskDefinition.taskRole);
+        ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
 
         // `JobQueueService` needs to check what tasks ECS is running to appropriately
         // route task requests to the right `TaskRealtimeService`.

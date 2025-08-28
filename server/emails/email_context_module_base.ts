@@ -1,6 +1,14 @@
 import {EmailAddress} from "~/server/emails/email_address.js";
-import {FromEmailAddressAlias} from "~/server/emails/from_email_address.js";
-import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates.js";
+import {
+    FromEmailAddressAlias,
+    getFormattedFromEmailAddress,
+} from "~/server/emails/from_email_address.js";
+import {
+    EmailTemplates,
+    RenderedEmail,
+    renderReactEmailTemplate,
+} from "~/server/emails/internal/email_templates.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -8,29 +16,30 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 /**
  * Context module for sending an email.
  *
- * In production we use [AWS SES][1]. In tests, frequently this is a noop. In
- * development we'd like to have some way to debug email sending.
+ * Our email system implements the following AWS SES [best practices][1]:
  *
- * [1]: https://aws.amazon.com/ses/
+ * - From email address is carefully curated by the `FromEmailAddress` type to
+ *   avoid damaging overall domain reputation.
+ * - Forces the caller to have checked that MX DNS records exist with the
+ *   `EmailAddress` type.
+ *
+ * [1]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
  */
 export abstract class EmailContextModuleBase<
-        Modules extends {tracer: TracerContextModule} = {tracer: TracerContextModule},
+        Modules extends {tracer: TracerContextModule; jobs: JobsContextModule} = {
+            tracer: TracerContextModule;
+            jobs: JobsContextModule;
+        },
     >
     extends ContextModuleBase<Modules>
     implements ForkableContextModuleBase
 {
     /**
-     * Sends an email. In production uses the AWS SES [`SendEmail`][1] command.
-     *
-     * Implements the following AWS SES [best practices][2]:
-     *
-     * - From email address is carefully curated by the `FromEmailAddress` type to
-     *   avoid damaging overall domain reputation.
-     * - Forces the caller to have checked that MX DNS records exist with the
-     *   `EmailAddress` type.
-     *
-     * [1]: https://docs.aws.amazon.com/ses/latest/APIReference/API_SendEmail.html
-     * [2]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
+     * Sends an email via the job queue.
+     * If it's critical that your email is sent immediately,
+     * use `sendImmediately` instead, which will skip the job queue.
+     * Note that the job queue only guarantees at least once delivery,
+     * so, rarely, an email may be sent multiple times
      */
     public async send<Template extends keyof EmailTemplates>({
         fromEmailAddressAlias,
@@ -43,27 +52,62 @@ export abstract class EmailContextModuleBase<
         templateName: Template;
         templateProps: Parameters<EmailTemplates[Template]>[0];
     }) {
-        const renderedEmail = await this._context.tracer.withSpan(
-            "React email render",
-            async () => {
-                const {emailTemplates} = await import(
-                    "~/server/emails/internal/email_templates.js"
-                );
-
-                // TS is already validating templateProps assumes the props from
-                // templateName on emailTemplates. Given we don't know which templateName
-                // is going to be passed in here, TS has a hard time finding which props
-                // it expects here. The usage of this function should validate templateProps'
-                // just fine.
-                return emailTemplates[templateName](templateProps as any);
-            },
+        const renderedEmail = await renderReactEmailTemplate(this._context.tracer, {
+            templateName,
+            templateProps,
+        });
+        const fromEmailAddress = getFormattedFromEmailAddress(
+            FromEmailAddressAlias[fromEmailAddressAlias],
+            "name-addr",
         );
-
-        await this._send(fromEmailAddressAlias, toEmailAddress, renderedEmail);
+        await this._context.jobs.dangerouslySendMaintenance({
+            type: "SendEmail",
+            fromEmailAddress,
+            toEmailAddress,
+            renderedEmail,
+        });
+    }
+    /**
+     * Sends an email immediately without the job queue.
+     * Use this if it's important your email is sent right away or you wish to handle errors and
+     * retries yourself.
+     */
+    public async sendImmediately<Template extends keyof EmailTemplates>({
+        fromEmailAddressAlias,
+        toEmailAddress,
+        templateName,
+        templateProps,
+    }: {
+        fromEmailAddressAlias: FromEmailAddressAlias;
+        toEmailAddress: EmailAddress;
+        templateName: Template;
+        templateProps: Parameters<EmailTemplates[Template]>[0];
+    }) {
+        const renderedEmail = await renderReactEmailTemplate(this._context.tracer, {
+            templateName,
+            templateProps,
+        });
+        const fromEmailAddress = getFormattedFromEmailAddress(
+            FromEmailAddressAlias[fromEmailAddressAlias],
+            "name-addr",
+        );
+        await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
+    }
+    /**
+     * Accepts an already rendered email body and from email address and sends it without the job queue.
+     * Intended only for processing send email jobs from within queue consumers.
+     * You should use `send` or `sendImmediately` instead which render a template for you.
+     */
+    public async sendPrerenderedEmailImmediately(
+        fromEmailAddress: string,
+        toEmailAddress: EmailAddress,
+        renderedEmail: RenderedEmail,
+    ): Promise<void> {
+        await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
     }
 
     protected abstract _send(
-        fromEmailAddressAlias: FromEmailAddressAlias,
+        fromEmailAddress: string,
         toEmailAddress: EmailAddress,
         email: RenderedEmail,
     ): Promise<void>;

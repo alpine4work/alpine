@@ -3432,6 +3432,21 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action: ses:SendEmail
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :configuration-set/
+                                  - Ref: SesConfigurationSet74E7EAAF
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:ses:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :identity/
+                                  - Ref: SesEmailIdentity8E702B39
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances

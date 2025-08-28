@@ -472,7 +472,7 @@ export async function regenerateOneTimePasswordSignIn(
         console.log(quote`The one time password for ${emailAddress} is ${password}`);
     }
 
-    await context.email.send({
+    await context.email.sendImmediately({
         fromEmailAddressAlias: "SignIn",
         toEmailAddress: emailAddress,
         templateName: "SignIn",

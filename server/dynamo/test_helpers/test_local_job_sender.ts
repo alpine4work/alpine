@@ -1,4 +1,5 @@
 import {ApnsContextModuleBase, TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {
     TestSystemActionContext,
@@ -40,11 +41,13 @@ export class TestLocalJobSender implements JobSenderBase {
     ) => Promise<void>;
 
     private readonly _createSystemContext: (spaceId: SpaceId) => TestSystemActionContext;
+    private readonly _getProcessContext: () => ServerProcessContext;
 
     constructor({
         processJob,
         processMaintenanceJob = asyncNoop,
         createSystemContext,
+        getProcessContext,
     }: {
         processJob: (
             context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
@@ -59,12 +62,14 @@ export class TestLocalJobSender implements JobSenderBase {
             span: TracerSpan,
         ) => Promise<void>;
         createSystemContext: (spaceId: SpaceId) => TestSystemActionContext;
+        getProcessContext: () => ServerProcessContext;
     }) {
         assert(process.env.NODE_ENV === "test");
 
         this._processJob = processJob;
         this._processMaintenanceJob = processMaintenanceJob;
         this._createSystemContext = createSystemContext;
+        this._getProcessContext = getProcessContext;
     }
 
     public send(
@@ -156,7 +161,7 @@ export class TestLocalJobSender implements JobSenderBase {
         {delaySeconds = 0}: {delaySeconds?: number} = {},
     ) {
         const tracer = context.tracer.getTracer();
-        const processContextModule = context.process.fork();
+        const sendContext = Context.new({process: context.process.fork()});
 
         const jobStartTime = new Date(Date.now() + delaySeconds * 1000);
 
@@ -166,9 +171,14 @@ export class TestLocalJobSender implements JobSenderBase {
             assert(!hasRun);
             hasRun = true;
 
-            processContextModule.waitUntil(
+            sendContext.process.waitUntil(
                 tracer.withSpan(`Process maintenance job ${job.type} (locally)`, async span => {
-                    await this._processMaintenanceJob(context, job, jobStartTime, span);
+                    await this._processMaintenanceJob(
+                        this._getProcessContext().clone({tracer: new TracerContextModule(span)}),
+                        job,
+                        jobStartTime,
+                        span,
+                    );
                 }),
             );
         };

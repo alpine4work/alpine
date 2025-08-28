@@ -2,8 +2,9 @@ import {paramCase} from "change-case";
 import {
     EmailTemplates,
     RenderedEmail,
-    emailTemplates,
+    renderReactEmailTemplate,
 } from "~/server/emails/internal/email_templates.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 type NonEmptyArray<Value> = [Value, ...Array<Value>];
 
@@ -61,8 +62,11 @@ export const emailTemplatePreviewBySlug = new Map(
             paramCase(preview.title),
             {
                 title: preview.title,
-                render: (): RenderedEmail =>
-                    emailTemplates[name as keyof EmailTemplates](preview.props as any),
+                render: async (tracer: TracerContextModule): Promise<RenderedEmail> =>
+                    renderReactEmailTemplate(tracer, {
+                        templateName: name as keyof EmailTemplates,
+                        templateProps: preview.props as any,
+                    }),
             },
         ]),
     ),

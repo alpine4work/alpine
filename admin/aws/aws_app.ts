@@ -85,6 +85,7 @@ async function addAwsResources(
         dynamo,
         opensearch,
         sqs,
+        ses,
         taskRealtimeService,
     });
 

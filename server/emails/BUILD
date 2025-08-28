@@ -2,6 +2,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "emails",
+    test_deps = [
+        "//server/dynamo/test_helpers",
+    ],
     visibility = [
         "//app:__subpackages__",
         "//server:__subpackages__",
@@ -19,6 +22,7 @@ ts_project(
         "//:node_modules/react",
         "//server/helpers",
         "//server/helpers/node",
+        "//server/jobs/core",
         "//shared/context",
         "//shared/design",
         "//shared/error",

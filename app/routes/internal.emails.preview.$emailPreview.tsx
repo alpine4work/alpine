@@ -12,13 +12,13 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug.js";
+import {emailTemplatePreviewBySlug} from "~/server/emails/email_template_previews.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {captureResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export function meta() {
@@ -62,21 +62,21 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export async function loader({params}: LoaderArgs) {
-    const emailTemplatePreviews = await getEmailTemplatePreviewBySlug();
+export async function loader({params, context}: LoaderArgs) {
+    const emailTemplatePreviews = emailTemplatePreviewBySlug;
 
     const slug = params.emailPreview ?? "";
 
     const emailTemplatePreview = emailTemplatePreviews.get(slug);
     if (!emailTemplatePreview) throw notFoundResponse();
 
-    const emailPreviewResult = captureResult(() => {
-        const renderedEmail = emailTemplatePreview.render();
+    const emailPreviewResult = await captureResultPromise(async () => {
+        const renderedEmail = await emailTemplatePreview.render(context.tracer);
 
         return {
             title: emailTemplatePreview.title,
             html: renderedEmail.html,
-            htmlTitle: renderedEmail.getHtmlTitle(),
+            htmlTitle: renderedEmail.title,
         };
     });
 

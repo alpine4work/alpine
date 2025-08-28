@@ -39,7 +39,10 @@ import {
     ServerSystemActionContextModules,
     ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {
+    ServerProcessContext,
+    ServerProcessContextModules,
+} from "~/server/context/server_process_context.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
@@ -466,6 +469,10 @@ export function createTestContext(
         });
     };
 
+    const getProcessContext = (): ServerProcessContext => {
+        return processContext;
+    };
+
     const createAnonymousContext = ({
         // Dangerously allow pretending to be from any context in tests.
         serviceName = "Test",
@@ -650,6 +657,7 @@ export function createTestContext(
                         await processJob?.(context, job, jobStartTime, span);
                     },
                     createSystemContext,
+                    getProcessContext,
                 }),
             );
         } else {

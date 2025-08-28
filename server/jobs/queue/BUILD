@@ -21,6 +21,7 @@ ts_project(
         "//server/node",
         "//server/notifications/data",
         "//server/search/data/index",
+        "//server/emails",
         "//server/tasks/data",
         "//shared/error",
         "//shared/helpers",

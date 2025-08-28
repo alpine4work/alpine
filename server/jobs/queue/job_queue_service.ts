@@ -32,6 +32,8 @@ import {
     UnimplementedSchedulerContextModule,
 } from "~/server/deploy/data/scheduler_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
@@ -327,6 +329,10 @@ export async function run({
         searchInjection: new SearchInjectionContextModule(searchInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
+        email:
+            process.env.NODE_ENV === "production"
+                ? new SesEmailContextModule()
+                : new NoopEmailContextModule(),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

@@ -42,4 +42,18 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
     RetryUnprocessedTaskActionTransactions: Schema.object({
         type: Schema.value("RetryUnprocessedTaskActionTransactions"),
     }),
+
+    /**
+     * Sends a pre-rendered email as a job using the email context module.
+     */
+    SendEmail: Schema.object({
+        type: Schema.value("SendEmail"),
+        fromEmailAddress: Schema.string,
+        toEmailAddress: Schema.string,
+        renderedEmail: Schema.object({
+            templateName: Schema.string,
+            html: Schema.string,
+            title: Schema.string,
+        }),
+    }),
 });

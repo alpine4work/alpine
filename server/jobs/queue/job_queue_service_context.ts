@@ -3,6 +3,7 @@ import {ServerSystemActionContextModules} from "~/server/context/server_action_c
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {SchedulerContextModuleBase} from "~/server/deploy/data/scheduler_context_module.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {Context} from "~/shared/context/context.js";
 
@@ -11,6 +12,7 @@ type JobQueueServiceExtraContextModules = {
     apns: ApnsContextModuleBase;
     github: GithubContextModuleBase;
     scheduler: SchedulerContextModuleBase;
+    email: EmailContextModuleBase;
 };
 
 export type JobQueueServiceProcessContextModules = ServerProcessContextModules &

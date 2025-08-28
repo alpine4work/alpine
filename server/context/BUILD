@@ -11,7 +11,6 @@ ts_project(
     deps = [
         "//server/cloudflare/r2",
         "//server/dynamo/core",
-        "//server/emails",
         "//server/helpers",
         "//server/jobs/core",
         "//server/opensearch",
