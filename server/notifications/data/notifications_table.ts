@@ -2259,26 +2259,36 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                         );
                         if (!result) return;
 
-                        await sendPushNotificationToAccountDevices(context, {
-                            accountId,
-                            eventId: event.id,
-                            newInboxEntryItem: result.newInboxEntryItem,
-                            loudNotificationCountDifference: result.loudNotificationCountDifference,
-                            getAlertContent: () =>
-                                getAlertContent(context, event, {
-                                    info,
-                                    accountId,
-                                    // TODO(calebmer): All notifications are currently in US English. When we
-                                    // localize the product this should change.
-                                    locale: defaultLocale,
-                                    entryItem: result.newInboxEntryItem,
-                                }),
-                        });
+                        if (shouldSendPushNotification()) {
+                            await sendPushNotificationToAccountDevices(context, {
+                                accountId,
+                                eventId: event.id,
+                                newInboxEntryItem: result.newInboxEntryItem,
+                                loudNotificationCountDifference:
+                                    result.loudNotificationCountDifference,
+                                getAlertContent: () =>
+                                    getAlertContent(context, event, {
+                                        info,
+                                        accountId,
+                                        // TODO(calebmer): All notifications are currently in US English. When we
+                                        // localize the product this should change.
+                                        locale: defaultLocale,
+                                        entryItem: result.newInboxEntryItem,
+                                    }),
+                            });
+                        }
                     },
                 );
             }),
         );
     };
+}
+
+function shouldSendPushNotification() {
+    // NOTE(rmtobin, 2025-08-21): All push notifications are disabled for now
+    // as we don't have anything to push to and our APNs certificate is expired.
+    // This will get updated when web push notifications are implemented.
+    return false;
 }
 
 /**
