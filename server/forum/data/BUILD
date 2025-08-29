@@ -20,6 +20,9 @@ ts_project(
         "//server/spaces/test_helpers",
         "//shared/content",
     ],
+    tests = {
+        "forum_actions_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/crawl:__pkg__",
         "//app:__pkg__",

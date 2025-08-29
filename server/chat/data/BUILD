@@ -18,7 +18,7 @@ ts_project(
         "//server/spaces/test_helpers",
     ],
     tests = {
-        "chat_table_test": {"size": "medium"},
+        "chat_actions_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",
