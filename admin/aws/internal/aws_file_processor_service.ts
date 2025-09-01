@@ -29,7 +29,7 @@ import {
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {LambdaTarget} from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
-import {Function as LambdaFunction} from "aws-cdk-lib/aws-lambda";
+import {Alias as LambdaAlias} from "aws-cdk-lib/aws-lambda";
 import {ISecret, Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -78,8 +78,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // [3]: https://www.ffmpeg.org
 // [4]: https://www.libreoffice.org
 export class AwsFileProcessorService extends Construct {
-    private readonly resizeLambda: LambdaFunction;
-    private readonly resizeAvatarLambda: LambdaFunction;
+    private readonly resizeLambda: LambdaAlias;
+    private readonly resizeAvatarLambda: LambdaAlias;
     private readonly fileProcessorServiceLoadBalancer: ApplicationLoadBalancer;
     private readonly legacyFileProcessorServiceTargetGroup: ApplicationTargetGroup;
     private readonly resizeFileTargetGroup: ApplicationTargetGroup;
@@ -467,11 +467,11 @@ function getResizeFileLambda(
 
     const resizeFileTargetGroup = new ApplicationTargetGroup(scope, "ResizeFileLambdaTargetGroup", {
         targetType: TargetType.LAMBDA,
-        targets: [new LambdaTarget(resizeFileLambda.lambdaFunction)],
+        targets: [new LambdaTarget(resizeFileLambda.lambdaFunctionAlias)],
         vpc,
     });
 
-    return {resizeFileLambda: resizeFileLambda.lambdaFunction, resizeFileTargetGroup};
+    return {resizeFileLambda: resizeFileLambda.lambdaFunctionAlias, resizeFileTargetGroup};
 }
 
 function getResizeAvatarLambda(
@@ -515,13 +515,13 @@ function getResizeAvatarLambda(
         "ResizeAvatarLambdaTargetGroup",
         {
             targetType: TargetType.LAMBDA,
-            targets: [new LambdaTarget(resizeAvatarLambda.lambdaFunction)],
+            targets: [new LambdaTarget(resizeAvatarLambda.lambdaFunctionAlias)],
             vpc,
         },
     );
 
     return {
-        resizeAvatarLambda: resizeAvatarLambda.lambdaFunction,
+        resizeAvatarLambda: resizeAvatarLambda.lambdaFunctionAlias,
         resizeAvatarTargetGroup,
     };
 }

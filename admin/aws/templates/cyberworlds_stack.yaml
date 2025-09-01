@@ -4397,20 +4397,20 @@ Resources:
                         - Arn
             Environment:
                 Variables:
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    NODE_ENV: production
+                    RUNFILES: /var/task/server/files/processor/resize_file/resize_file_lambda_binary.runfiles
                     SECRET_ARN:
                         Fn::Join:
                             - ""
                             - - "arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:FileProcessorServiceSecrets
-                    NODE_ENV: production
-                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
-                    JOB_QUEUE_URL:
-                        Ref: SqsJobQueue62388F96
-                    FILE_PROCESSOR_JOB_QUEUE_URL:
-                        Ref: SqsFileProcessorJobQueue551DBCF8
-                    EDGE_SERVICE_URL: https://alpine.inc
-                    RUNFILES: /var/task/server/files/processor/resize_file/resize_file_lambda_binary.runfiles
             MemorySize: 4096
             PackageType: Image
             Role:
@@ -4438,28 +4438,45 @@ Resources:
             RetentionInDays: 7
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/LogRetention/Resource
-    FileProcessorServiceResizeFileFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYCAC43467:
+    FileProcessorServiceResizeFileFunctionCurrentVersionLatest:
+        Type: AWS::Lambda::Version
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceResizeFileFunction15E4BF66
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/CurrentVersion/Resource
+    FileProcessorServiceResizeFileFunctionAliaslatestFFC456FE:
+        Type: AWS::Lambda::Alias
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceResizeFileFunction15E4BF66
+            FunctionVersion:
+                Fn::GetAtt:
+                    - FileProcessorServiceResizeFileFunctionCurrentVersionLatest
+                    - Version
+            Name: latest
+            ProvisionedConcurrencyConfig:
+                ProvisionedConcurrentExecutions: 5
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Aliaslatest/Resource
+    FileProcessorServiceResizeFileFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY074D5890:
         Type: AWS::Lambda::Permission
         Properties:
             Action: lambda:InvokeFunction
             FunctionName:
-                Fn::GetAtt:
-                    - FileProcessorServiceResizeFileFunction15E4BF66
-                    - Arn
+                Ref: FileProcessorServiceResizeFileFunctionAliaslatestFFC456FE
             Principal: elasticloadbalancing.amazonaws.com
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Aliaslatest/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
     FileProcessorServiceResizeFileLambdaTargetGroup732CA815:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             TargetType: lambda
             Targets:
                 - Id:
-                      Fn::GetAtt:
-                          - FileProcessorServiceResizeFileFunction15E4BF66
-                          - Arn
+                      Ref: FileProcessorServiceResizeFileFunctionAliaslatestFFC456FE
         DependsOn:
-            - FileProcessorServiceResizeFileFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYCAC43467
+            - FileProcessorServiceResizeFileFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY074D5890
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaTargetGroup/Resource
     FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961:
@@ -4559,20 +4576,20 @@ Resources:
                         - Arn
             Environment:
                 Variables:
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    NODE_ENV: production
+                    RUNFILES: /var/task/server/files/processor/resize_avatar/resize_avatar_lambda_binary.runfiles
                     SECRET_ARN:
                         Fn::Join:
                             - ""
                             - - "arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:FileProcessorServiceSecrets
-                    NODE_ENV: production
-                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
-                    JOB_QUEUE_URL:
-                        Ref: SqsJobQueue62388F96
-                    FILE_PROCESSOR_JOB_QUEUE_URL:
-                        Ref: SqsFileProcessorJobQueue551DBCF8
-                    EDGE_SERVICE_URL: https://alpine.inc
-                    RUNFILES: /var/task/server/files/processor/resize_avatar/resize_avatar_lambda_binary.runfiles
             MemorySize: 4096
             PackageType: Image
             Role:
@@ -4600,28 +4617,45 @@ Resources:
             RetentionInDays: 7
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/LogRetention/Resource
-    FileProcessorServiceResizeAvatarLambdaFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY9FA4B8FA:
+    FileProcessorServiceResizeAvatarLambdaFunctionCurrentVersionLatest:
+        Type: AWS::Lambda::Version
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceResizeAvatarLambdaFunction772746F5
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/CurrentVersion/Resource
+    FileProcessorServiceResizeAvatarLambdaFunctionAliaslatest5C0048C1:
+        Type: AWS::Lambda::Alias
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceResizeAvatarLambdaFunction772746F5
+            FunctionVersion:
+                Fn::GetAtt:
+                    - FileProcessorServiceResizeAvatarLambdaFunctionCurrentVersionLatest
+                    - Version
+            Name: latest
+            ProvisionedConcurrencyConfig:
+                ProvisionedConcurrentExecutions: 2
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Aliaslatest/Resource
+    FileProcessorServiceResizeAvatarLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY610C724B:
         Type: AWS::Lambda::Permission
         Properties:
             Action: lambda:InvokeFunction
             FunctionName:
-                Fn::GetAtt:
-                    - FileProcessorServiceResizeAvatarLambdaFunction772746F5
-                    - Arn
+                Ref: FileProcessorServiceResizeAvatarLambdaFunctionAliaslatest5C0048C1
             Principal: elasticloadbalancing.amazonaws.com
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Aliaslatest/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
     FileProcessorServiceResizeAvatarLambdaTargetGroupA92E0C14:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             TargetType: lambda
             Targets:
                 - Id:
-                      Fn::GetAtt:
-                          - FileProcessorServiceResizeAvatarLambdaFunction772746F5
-                          - Arn
+                      Ref: FileProcessorServiceResizeAvatarLambdaFunctionAliaslatest5C0048C1
         DependsOn:
-            - FileProcessorServiceResizeAvatarLambdaFunctionInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY9FA4B8FA
+            - FileProcessorServiceResizeAvatarLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY610C724B
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambdaTargetGroup/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:

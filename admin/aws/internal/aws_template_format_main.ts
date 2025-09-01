@@ -50,6 +50,7 @@ async function main() {
                     ),
                     "$1latest",
                 )
+                .replaceAll(/([A-Za-z]+FunctionCurrentVersion)[0-9a-fA-F]+/g, "$1Latest")
                 .replace(
                     /^ {12}Analytics: v2:deflate64:.*/m,
                     "            # Removed `Analytics` property",

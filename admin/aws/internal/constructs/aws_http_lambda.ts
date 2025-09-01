@@ -1,8 +1,12 @@
+import {Alias} from "aws-cdk-lib/aws-lambda";
 import {ISecret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
-import {AwsLambda, AwsLambdaOptions} from "~/admin/aws/internal/constructs/aws_lambda.js";
+import {
+    AwsLambdaBase,
+    AwsLambdaBaseOptions,
+} from "~/admin/aws/internal/constructs/internal/aws_lambda_base.js";
 
-export interface AwsHttpLambdaOptions extends Omit<AwsLambdaOptions, "deploymentType"> {
+export interface AwsHttpLambdaOptions extends Omit<AwsLambdaBaseOptions, "deploymentType"> {
     /**
      * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
      * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.
@@ -36,7 +40,9 @@ export interface AwsHttpLambdaOptions extends Omit<AwsLambdaOptions, "deployment
  * - Secrets are cached within the Lambda execution environment
  * - Cache reduces API calls to Secrets Manager (cost optimization)
  */
-export class AwsHttpLambda extends AwsLambda {
+export class AwsHttpLambda extends AwsLambdaBase {
+    private readonly _lambdaFunctionAlias: Alias;
+
     constructor(scope: Construct, id: string, options: AwsHttpLambdaOptions) {
         super(scope, id, {
             ...options,
@@ -45,12 +51,19 @@ export class AwsHttpLambda extends AwsLambda {
                 ...options.environment,
                 SECRET_ARN: options.secret.secretArn,
             },
-            currentVersionOptions: {
-                provisionedConcurrentExecutions: options.provisionedConcurrentExecutions,
-            },
         });
 
         // Grant the Lambda function permission to read the secret
         options.secret.grantRead(this.executionRole);
+
+        this._lambdaFunctionAlias = this._lambdaFunction.addAlias("latest", {
+            provisionedConcurrentExecutions: options.provisionedConcurrentExecutions,
+        });
+    }
+
+    // Use the Lambda alias instead of the function directly to take advantage of provisioned
+    // concurrency. This also enables us to use canary and A/B deployments in the future.
+    public get lambdaFunctionAlias(): Alias {
+        return this._lambdaFunctionAlias;
     }
 }
