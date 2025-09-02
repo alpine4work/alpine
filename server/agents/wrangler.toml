@@ -1,0 +1,14 @@
+name = "agent-service"
+main = "agent_service_bundle.js"
+no_bundle = true
+compatibility_date = "2022-07-12"
+compatibility_flags = ["streams_enable_constructors"]
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "ChatGptAgentDurableObjectNamespace"
+class_name = "ChatGptAgentDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatGptAgentDurableObject"]

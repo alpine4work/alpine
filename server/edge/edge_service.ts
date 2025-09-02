@@ -15,6 +15,7 @@ import {
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {uploadAvatar} from "~/server/edge/upload_avatar.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
+import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -36,7 +37,6 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
@@ -381,30 +381,7 @@ async function handleFetch(
             return response;
         } catch (error) {
             span.addException(error);
-
-            let status;
-            let statusMessage;
-            if (isSystemError(error)) {
-                status = 500;
-                statusMessage = "Internal Server Error";
-            } else {
-                status = 400;
-                statusMessage = "Bad Request";
-            }
-
-            return new Response(
-                `${status} ${statusMessage}${
-                    process.env.NODE_ENV !== "production"
-                        ? `\n\n${
-                              error instanceof Error ? error.stack ?? error.message : String(error)
-                          }`
-                        : ""
-                }`,
-                {
-                    status,
-                    headers: {"content-type": "text/plain"},
-                },
-            );
+            return createSimpleErrorResponse(error);
         }
     });
 }

@@ -5,6 +5,7 @@ ts_project(
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@cloudflare/workers-types",
+        "//server/cloudflare/types",
         "//server/helpers",
         "//server/tokens",
         "//server/tracer",

@@ -4,6 +4,7 @@ import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from
 import {Socket} from "net";
 import {Readable as ReadableStream} from "stream";
 import {WebSocketServer} from "ws";
+import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
@@ -58,26 +59,7 @@ function wrapWithTraceServerResponse<Route>(
                 return response;
             } catch (error) {
                 span.addException(error);
-
-                let statusCode;
-                let statusMessage;
-                if (isSystemError(error)) {
-                    statusCode = 500;
-                    statusMessage = "Internal Server Error";
-                } else {
-                    statusCode = 400;
-                    statusMessage = "Bad Request";
-                }
-
-                return new Response(
-                    process.env.NODE_ENV === "production" || !(error instanceof Error)
-                        ? `${statusCode} ${statusMessage}`
-                        : `${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`,
-                    {
-                        status: statusCode,
-                        headers: {"content-type": "text/plain"},
-                    },
-                );
+                return createSimpleErrorResponse(error);
             }
         });
     };

@@ -62,12 +62,30 @@ paths:
                                 properties:
                                     title: {type: string}
 
-components:
-    schemas:
-        DocumentId:
-            type: string
-            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+webhooks:
+    bot:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, accountId, event]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                accountId:
+                                    $ref: "#/components/schemas/AccountId"
+                                event:
+                                    $ref: "#/components/schemas/BotWebhookEvent"
+            responses:
+                "200":
+                    description:
+                        Return a 200 status to indicate that the data was received successfully
 
+components:
     responses:
         Error:
             content:
@@ -87,3 +105,63 @@ components:
                                         description:
                                             A human-readable message providing more details about
                                             the error.
+
+    schemas:
+        AccountId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        DocumentId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        SpaceId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        ChatPath:
+            type: string
+            pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        DocumentThreadPath:
+            type: string
+            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        PostPath:
+            type: string
+            pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        TaskPath:
+            type: string
+            pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        MessageRoomPath:
+            oneOf:
+                - $ref: "#/components/schemas/ChatPath"
+                - $ref: "#/components/schemas/DocumentThreadPath"
+                - $ref: "#/components/schemas/PostPath"
+                - $ref: "#/components/schemas/TaskPath"
+
+        BotWebhookEvent:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
+
+        BotWebhookNewMessageEvent:
+            type: object
+            required: [type, roomPath, index]
+            additionalProperties: false
+            properties:
+                type:
+                    type: string
+                    enum: ["NewMessage"]
+                roomPath:
+                    $ref: "#/components/schemas/MessageRoomPath"
+                index:
+                    type: integer
+                    minimum: 0
+                wasMentioned:
+                    type: boolean

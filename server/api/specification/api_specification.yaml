@@ -74,12 +74,30 @@ paths:
                                 properties:
                                     title: {type: string}
 
-components:
-    schemas:
-        DocumentId:
-            type: string
-            pattern: ^{{idRegExp}}$
+webhooks:
+    bot:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId, accountId, event]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                accountId:
+                                    $ref: "#/components/schemas/AccountId"
+                                event:
+                                    $ref: "#/components/schemas/BotWebhookEvent"
+            responses:
+                "200":
+                    description:
+                        Return a 200 status to indicate that the data was received successfully
 
+components:
     responses:
         Error:
             content:
@@ -99,3 +117,63 @@ components:
                                         description:
                                             A human-readable message providing more details about
                                             the error.
+
+    schemas:
+        AccountId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        DocumentId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        SpaceId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        ChatPath:
+            type: string
+            pattern: ^/chats/{{idRegExp}}$
+
+        DocumentThreadPath:
+            type: string
+            pattern: ^/documents/{{idRegExp}}/threads/{{idRegExp}}$
+
+        PostPath:
+            type: string
+            pattern: ^/posts/{{idRegExp}}$
+
+        TaskPath:
+            type: string
+            pattern: ^/tasks/{{idRegExp}}$
+
+        MessageRoomPath:
+            oneOf:
+                - $ref: "#/components/schemas/ChatPath"
+                - $ref: "#/components/schemas/DocumentThreadPath"
+                - $ref: "#/components/schemas/PostPath"
+                - $ref: "#/components/schemas/TaskPath"
+
+        BotWebhookEvent:
+            oneOf:
+                - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
+
+        BotWebhookNewMessageEvent:
+            type: object
+            required: [type, roomPath, index]
+            additionalProperties: false
+            properties:
+                type:
+                    type: string
+                    enum: ["NewMessage"]
+                roomPath:
+                    $ref: "#/components/schemas/MessageRoomPath"
+                index:
+                    type: integer
+                    minimum: 0
+                wasMentioned:
+                    type: boolean

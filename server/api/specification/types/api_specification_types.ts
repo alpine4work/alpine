@@ -125,10 +125,74 @@ export namespace ApiSpecification {
             readonly trace?: never;
         };
     }
-    export type webhooks = Record<string, never>;
+    export interface webhooks {
+        readonly bot: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly spaceId: components["schemas"]["SpaceId"];
+                            readonly accountId: components["schemas"]["AccountId"];
+                            readonly event: components["schemas"]["BotWebhookEvent"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    /** @description Return a 200 status to indicate that the data was received successfully */
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content?: never;
+                    };
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
+    }
     export interface components {
         schemas: {
+            readonly AccountId: IdTypes.AccountId;
             readonly DocumentId: IdTypes.DocumentId;
+            readonly SpaceId: IdTypes.SpaceId;
+            readonly ChatPath: `/chats/${IdTypes.ChatId}`;
+            readonly DocumentThreadPath: `/documents/${IdTypes.DocumentId}/threads/${IdTypes.DocumentCommentThreadId}`;
+            readonly PostPath: `/posts/${IdTypes.PostId}`;
+            readonly TaskPath: `/tasks/${IdTypes.TaskId}`;
+            readonly MessageRoomPath:
+                | components["schemas"]["ChatPath"]
+                | components["schemas"]["DocumentThreadPath"]
+                | components["schemas"]["PostPath"]
+                | components["schemas"]["TaskPath"];
+            readonly BotWebhookEvent: components["schemas"]["BotWebhookNewMessageEvent"];
+            readonly BotWebhookNewMessageEvent: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "NewMessage";
+                readonly roomPath: components["schemas"]["MessageRoomPath"];
+                readonly index: number;
+                readonly wasMentioned?: boolean;
+            };
         };
         responses: {
             readonly Error: {

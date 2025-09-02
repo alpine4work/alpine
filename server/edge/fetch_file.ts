@@ -1,9 +1,9 @@
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
+import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {
     getFilePreviewImageResizeWidth,
     isFilePreviewImageResizeWidth,
@@ -412,28 +412,6 @@ export async function fetchFile(
         });
     } catch (error) {
         span.addException(error);
-
-        let statusCode;
-        let statusMessage;
-
-        if (!isSystemError(error)) {
-            statusCode = 400;
-            statusMessage = "Bad Request";
-        } else {
-            statusCode = 500;
-            statusMessage = "Internal Server Error";
-        }
-
-        return new Response(
-            `${statusCode} ${statusMessage}${
-                process.env.NODE_ENV === "development"
-                    ? `\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}`
-                    : ""
-            }`,
-            {
-                status: statusCode,
-                headers: {"content-type": "text/plain"},
-            },
-        );
+        return createSimpleErrorResponse(error);
     }
 }

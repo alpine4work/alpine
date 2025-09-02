@@ -107,6 +107,10 @@ const apiDevPort = parsePort(env.API_DEV_PORT);
 const apiDevInspectorPort = parsePort(env.API_DEV_INSPECTOR_PORT);
 const apiDevPrivatePorts = parsePorts(env.API_DEV_PRIVATE_PORTS);
 
+const agentsDevPort = parsePort(env.AGENTS_DEV_PORT);
+const agentsDevInspectorPort = parsePort(env.AGENTS_DEV_INSPECTOR_PORT);
+const agentsDevPrivatePorts = parsePorts(env.AGENTS_DEV_PRIVATE_PORTS);
+
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
 const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
@@ -491,6 +495,22 @@ function createArtifacts() {
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+        {
+            bazelTarget: "//server/agents",
+            executablePath: "server/agents/agents.sh",
+            stdioPrefix: "agn",
+            ports: {
+                publicPort: agentsDevPort,
+                privatePorts: agentsDevPrivatePorts,
+                privatePortIndex: 0,
+            },
+            args: [
+                `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "agents")}`,
+                `--inspectorPort=${agentsDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

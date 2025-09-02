@@ -56,6 +56,9 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     # `swift_library()` and `ios_application()` which we can't do on our Linux CI
     # server since Swift isn't installed.
     "//native/mobile/ios/Resources/Assets.xcassets",
+    "//server/agents",
+    "//server/api",
+    "//server/api/specification:specification_generate_lib",
     "//server/deploy/script",
     "//server/edge",
     "//server/files/processor/test_helpers",

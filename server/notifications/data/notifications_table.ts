@@ -66,10 +66,10 @@ import {
     authorizeSpaceAccess,
     getAccount,
     getRegisteredAccountDevices,
+    getSpaceAccountBotIdIfExists,
     impersonateAccountAsSystemContext,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
-    isBotSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {
     FileTaskAuthorizer,
@@ -2197,7 +2197,9 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         // have inboxes. This shouldn't make a separate database request since
         // `isBotSpaceAccount()` reads from the caches populated by
         // `isAccountMemberOfSpace()`.
-        if (await isBotSpaceAccount(context, event.spaceId, accountId)) {
+        const botId = await getSpaceAccountBotIdIfExists(context, event.spaceId, accountId);
+
+        if (botId !== null) {
             await processForBot(context, event, info);
             return;
         }

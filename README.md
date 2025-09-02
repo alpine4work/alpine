@@ -31,9 +31,9 @@ We recommend the following setup steps as well:
 
 -   If you use Chrome as your web browser, go to `chrome://inspect` and under the “Devices” section
     click “Configure” next to “Discover network targets”. Add `localhost:3001`, `localhost:3011`,
-    `localhost:3021`, `localhost:3031`, `localhost:3039`, and `localhost:3041`. These are the ports
-    our development mode services will expose for launching a JavaScript inspector. See
-    `.env.development` for configuring these ports.
+    `localhost:3021`, `localhost:3031`, `localhost:3039`, `localhost:3041`, `localhost:3051`, and
+    `localhost:3061`. These are the ports our development mode services will expose for launching a
+    JavaScript inspector. See `.env.development` for configuring these ports.
 
 ## Optional setup
 

@@ -13,6 +13,7 @@ import {
     WorkerRpcContextBatcher,
     WorkerRpcContextModule,
 } from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
@@ -35,7 +36,6 @@ import {
     InvalidArgumentError,
     UnimplementedError,
 } from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
@@ -338,9 +338,7 @@ export function createDurableObject<
                     // e.g. If there was an authorization error during durable object
                     // initialization.
                     if (request.headers.get("upgrade") !== "websocket") {
-                        const status = isSystemError(error) ? 500 : 400;
-                        const response = new Response(null, {status});
-                        return response;
+                        return createSimpleErrorResponse(error);
                     } else {
                         const socketPair = new WebSocketPair();
                         const clientSocket = socketPair[0];
