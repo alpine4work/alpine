@@ -39,50 +39,50 @@ export type ServiceCloudflareR2Options = {
  * pass into `parseArgs()`.
  */
 export function createServiceCloudflareR2ContextModule(options: ServiceCloudflareR2Options) {
-    return new CloudflareR2ContextModule(
-        process.env.NODE_ENV !== "production"
-            ? (() => {
-                  const buckets = [
-                      {bucketName: filesBucketName, bindingName: filesBindingName},
-                      {bucketName: avatarsBucketName, bindingName: avatarsBindingName},
-                  ];
+    if (process.env.NODE_ENV === "production") {
+        const client = new CloudflareR2Client({
+            accountId: assertExists(
+                options.cloudflareAccountId,
+                "`cloudflareAccountId` option is required in production",
+            ),
+            accessKeyId: assertExists(
+                options.cloudflareR2AccessKeyId,
+                "`cloudflareR2AccessKeyId` option is required in production",
+            ),
+            secretAccessKey: assertExists(
+                options.cloudflareR2SecretAccessKey,
+                "`cloudflareR2SecretAccessKey` option is required in production",
+            ),
+        });
 
-                  const cloudflareR2LocalDataPath = assertExists(
-                      options.cloudflareR2LocalDataPath,
-                      "`cloudflareR2LocalDataPath` option is required in development",
-                  );
+        return new CloudflareR2ContextModule(client);
+    } else {
+        const buckets = [
+            {bucketName: filesBucketName, bindingName: filesBindingName},
+            {bucketName: avatarsBucketName, bindingName: avatarsBindingName},
+        ];
 
-                  const bucketByName = new Map(
-                      buckets.map(({bucketName, bindingName}) => {
-                          const r2Storage = new FileStorage(
-                              joinPath(cloudflareR2LocalDataPath, bindingName),
-                          );
-                          const r2Bucket = new R2Bucket(r2Storage);
-                          return [bucketName, r2Bucket];
-                      }),
-                  );
+        const cloudflareR2LocalDataPath = assertExists(
+            options.cloudflareR2LocalDataPath,
+            "`cloudflareR2LocalDataPath` option is required in development",
+        );
 
-                  return new MiniflareR2Client({
-                      fileProcessorServiceUrl: assertExists(
-                          options.fileProcessorServiceUrl,
-                          "`fileProcessorServiceUrl` option is required in development",
-                      ),
-                      bucketByName,
-                  });
-              })()
-            : new CloudflareR2Client({
-                  accountId: assertExists(
-                      options.cloudflareAccountId,
-                      "`cloudflareAccountId` option is required in production",
-                  ),
-                  accessKeyId: assertExists(
-                      options.cloudflareR2AccessKeyId,
-                      "`cloudflareR2AccessKeyId` option is required in production",
-                  ),
-                  secretAccessKey: assertExists(
-                      options.cloudflareR2SecretAccessKey,
-                      "`cloudflareR2SecretAccessKey` option is required in production",
-                  ),
-              }),
-    );
+        const bucketByName = new Map(
+            buckets.map(({bucketName, bindingName}) => {
+                const r2Storage = new FileStorage(joinPath(cloudflareR2LocalDataPath, bindingName));
+                const r2Bucket = new R2Bucket(r2Storage);
+                return [bucketName, r2Bucket];
+            }),
+        );
+
+        const client = new MiniflareR2Client({
+            fileProcessorServiceUrl: assertExists(
+                options.fileProcessorServiceUrl,
+                "`fileProcessorServiceUrl` option is required in development",
+            ),
+            bucketByName,
+        });
+
+        return new CloudflareR2ContextModule(client);
+    }
 }

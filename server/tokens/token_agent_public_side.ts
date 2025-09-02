@@ -39,6 +39,8 @@ export class TokenAgentPublicSide {
     private readonly _jobQueueServicePublicKeyForRsaOaep: KeyLike;
     private readonly _fileProcessorServicePublicKeyForRs256: KeyLike;
     private readonly _fileProcessorServicePublicKeyForRsaOaep: KeyLike;
+    private readonly _apiServicePublicKeyForRs256: KeyLike;
+    private readonly _apiServicePublicKeyForRsaOaep: KeyLike;
     private readonly _secretForHs256: Uint8Array;
 
     private constructor({
@@ -53,6 +55,8 @@ export class TokenAgentPublicSide {
         jobQueueServicePublicKeyForRsaOaep,
         fileProcessorServicePublicKeyForRs256,
         fileProcessorServicePublicKeyForRsaOaep,
+        apiServicePublicKeyForRs256,
+        apiServicePublicKeyForRsaOaep,
         secretForHs256,
     }: {
         serviceName: TokenServiceName;
@@ -66,6 +70,8 @@ export class TokenAgentPublicSide {
         jobQueueServicePublicKeyForRsaOaep: KeyLike;
         fileProcessorServicePublicKeyForRs256: KeyLike;
         fileProcessorServicePublicKeyForRsaOaep: KeyLike;
+        apiServicePublicKeyForRs256: KeyLike;
+        apiServicePublicKeyForRsaOaep: KeyLike;
         secretForHs256: Uint8Array;
     }) {
         this._serviceName = serviceName;
@@ -79,6 +85,8 @@ export class TokenAgentPublicSide {
         this._jobQueueServicePublicKeyForRsaOaep = jobQueueServicePublicKeyForRsaOaep;
         this._fileProcessorServicePublicKeyForRs256 = fileProcessorServicePublicKeyForRs256;
         this._fileProcessorServicePublicKeyForRsaOaep = fileProcessorServicePublicKeyForRsaOaep;
+        this._apiServicePublicKeyForRs256 = apiServicePublicKeyForRs256;
+        this._apiServicePublicKeyForRsaOaep = apiServicePublicKeyForRsaOaep;
         this._secretForHs256 = secretForHs256;
     }
 
@@ -89,6 +97,7 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
         jobQueueServicePublicKey: jobQueueServicePublicKeyString,
         fileProcessorServicePublicKey: fileProcessorServicePublicKeyString,
+        apiServicePublicKey: apiServicePublicKeyString,
         secret: secretString,
     }: {
         serviceName: TokenServiceName;
@@ -97,6 +106,7 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKey: string;
         jobQueueServicePublicKey: string;
         fileProcessorServicePublicKey: string;
+        apiServicePublicKey: string;
         secret: string;
     }) {
         const [
@@ -110,6 +120,8 @@ export class TokenAgentPublicSide {
             jobQueueServicePublicKeyForRsaOaep,
             fileProcessorServicePublicKeyForRs256,
             fileProcessorServicePublicKeyForRsaOaep,
+            apiServicePublicKeyForRs256,
+            apiServicePublicKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
             importSPKI(appServicePublicKeyString, "RSA-OAEP"),
@@ -121,6 +133,8 @@ export class TokenAgentPublicSide {
             importSPKI(jobQueueServicePublicKeyString, "RSA-OAEP"),
             importSPKI(fileProcessorServicePublicKeyString, "RS256"),
             importSPKI(fileProcessorServicePublicKeyString, "RSA-OAEP"),
+            importSPKI(apiServicePublicKeyString, "RS256"),
+            importSPKI(apiServicePublicKeyString, "RSA-OAEP"),
         ]);
 
         const secretForHs256 = decodeBase64(secretString.trim());
@@ -138,6 +152,8 @@ export class TokenAgentPublicSide {
             jobQueueServicePublicKeyForRsaOaep,
             fileProcessorServicePublicKeyForRs256,
             fileProcessorServicePublicKeyForRsaOaep,
+            apiServicePublicKeyForRs256,
+            apiServicePublicKeyForRsaOaep,
             secretForHs256,
         });
     }
@@ -160,6 +176,8 @@ export class TokenAgentPublicSide {
                 return this._jobQueueServicePublicKeyForRs256;
             case "FileProcessorService":
                 return this._fileProcessorServicePublicKeyForRs256;
+            case "ApiService":
+                return this._apiServicePublicKeyForRs256;
             default:
                 throw exhaustive(serviceName);
         }
@@ -183,6 +201,8 @@ export class TokenAgentPublicSide {
                 return this._jobQueueServicePublicKeyForRsaOaep;
             case "FileProcessorService":
                 return this._fileProcessorServicePublicKeyForRsaOaep;
+            case "ApiService":
+                return this._apiServicePublicKeyForRsaOaep;
             default:
                 throw exhaustive(serviceName);
         }

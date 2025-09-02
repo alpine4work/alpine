@@ -1,0 +1,70 @@
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+GENERATE_SRCS = [
+    "generate_api_specification_main.ts",
+]
+
+ts_project(
+    name = "specification",
+    srcs = glob(
+        ["**/*.ts"],
+        exclude = GENERATE_SRCS + ["**/*.test.ts"],
+    ),
+    data = ["api_specification_final.yaml"],
+    test_deps = [
+        "//:node_modules/@types/node",
+        "//:node_modules/openapi-types",
+        "//:node_modules/yaml",
+        "//server/helpers/node",
+    ],
+    visibility = ["//server:__subpackages__"],
+    deps = ["//shared/id"],
+)
+
+ts_project(
+    name = "specification_generate_lib",
+    srcs = GENERATE_SRCS,
+    data = [
+        "api_specification.yaml",
+        "//:prettier_config_files",
+    ],
+    # We test, lint, and format everything with the above `ts_project()`.
+    lint_and_format_srcs = [],
+    test_srcs = [],
+    deps = [
+        "//:node_modules/@types/mustache",
+        "//:node_modules/@types/prettier",
+        "//:node_modules/mustache",
+        "//:node_modules/openapi-typescript",
+        "//:node_modules/prettier",
+        "//:node_modules/typescript",
+        "//server/helpers/node",
+        "//shared/helpers",
+        "//shared/id",
+    ],
+)
+
+js_binary(
+    name = "specification_generate",
+    data = [":specification_generate_lib"],
+    entry_point = "generate_api_specification_main.js",
+)
+
+js_run_binary(
+    name = "specification_run_generate",
+    outs = [
+        "api_specification_final_generated.yaml",
+        "types/api_specification_types_generated.ts",
+    ],
+    tool = ":specification_generate",
+)
+
+write_source_files(
+    name = "write_specification",
+    files = {
+        "api_specification_final.yaml": "api_specification_final_generated.yaml",
+        "types/api_specification_types.ts": "types/api_specification_types_generated.ts",
+    },
+)

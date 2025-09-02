@@ -28,10 +28,7 @@ export interface EdgeServiceContextModuleBase extends ContextModuleBase, Forkabl
 }
 
 export class EdgeServiceContextModule
-    extends ContextModuleBase<{
-        tracer: TracerContextModule;
-        actor: ContextModuleBase & {getTokenPayload(): TokenPayload};
-    }>
+    extends ContextModuleBase<{tracer: TracerContextModule}>
     implements EdgeServiceContextModuleBase
 {
     private readonly _edgeServiceUrl: string;
@@ -51,6 +48,8 @@ export class EdgeServiceContextModule
      * We'll include a token signed by our service's private key.
      */
     public async broadcastToDurableObject(
+        this: EdgeServiceContextModule &
+            ContextModuleBase<{actor: ContextModuleBase & {getTokenPayload(): TokenPayload}}>,
         url: `/api/durable-objects/${string}`,
         {
             serviceName,

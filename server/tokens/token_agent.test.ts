@@ -26,9 +26,10 @@ beforeAll(async () => {
         taskRealtimeServiceKeyPair,
         jobQueueServiceKeyPair,
         fileProcessorServiceKeyPair,
+        apiServiceKeyPair,
     ] = await runAllPromises(
         createArrayWithLength(
-            5,
+            6,
             () =>
                 new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
                     generateKeyPair(
@@ -52,6 +53,7 @@ beforeAll(async () => {
     assert(taskRealtimeServiceKeyPair);
     assert(jobQueueServiceKeyPair);
     assert(fileProcessorServiceKeyPair);
+    assert(apiServiceKeyPair);
 
     const secretBytes = new Uint8Array(32);
     crypto.getRandomValues(secretBytes);
@@ -67,6 +69,7 @@ beforeAll(async () => {
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
                     fileProcessorServicePublicKey: fileProcessorServiceKeyPair.publicKey,
+                    apiServicePublicKey: apiServiceKeyPair.publicKey,
                     secret,
                 }),
                 TokenAgentAppServicePrivateSide.new({
@@ -83,6 +86,7 @@ beforeAll(async () => {
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
                     fileProcessorServicePublicKey: fileProcessorServiceKeyPair.publicKey,
+                    apiServicePublicKey: apiServiceKeyPair.publicKey,
                     secret,
                 }),
                 TokenAgentPrivateSide.new({
@@ -99,6 +103,7 @@ beforeAll(async () => {
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
                     fileProcessorServicePublicKey: fileProcessorServiceKeyPair.publicKey,
+                    apiServicePublicKey: apiServiceKeyPair.publicKey,
                     secret,
                 }),
                 TokenAgentPrivateSide.new({

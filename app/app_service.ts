@@ -54,9 +54,8 @@ import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {getSpaceAccountsCacheForTest} from "~/server/spaces/spaces_table.js";
+import {createServiceTaskRealtimeServiceRouter} from "~/server/tasks/data/create_service_task_realtime_service_router.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -148,37 +147,6 @@ async function createAppService({
         }),
     );
 
-    const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
-
-    // Create the router object here so we cache `TaskRealtimeService` routes
-    // across the entire process.
-    const taskRealtimeServiceRouter =
-        process.env.NODE_ENV === "production"
-            ? new TaskRealtimeServiceEcsRouter({
-                  region: "us-east-1",
-                  ecsCluster: assertExists(
-                      options.ecsCluster,
-                      "`ecsCluster` option is required in production",
-                  ),
-                  ecsTaskDefinitionFamily: assertExists(
-                      options.taskRealtimeServiceEcsTaskDefinitionFamily,
-                      "`taskRealtimeServiceEcsTaskDefinitionFamily` option is required in production",
-                  ),
-                  securityGroupId: assertExists(
-                      options.taskRealtimeServiceSecurityGroupId,
-                      "`taskRealtimeServiceSecurityGroupId` option is required in production",
-                  ),
-              })
-            : new TaskRealtimeServiceLocalRouter({
-                  port: parseInt(
-                      assertExists(
-                          options.taskRealtimeServiceLocalPort,
-                          "Task realtime service local port must be provided when running locally",
-                      ),
-                      10,
-                  ),
-              });
-
     // In tests, don't send push notifications. Otherwise in development and
     // production set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
@@ -243,25 +211,18 @@ async function createAppService({
         );
     };
 
+    const edgeServiceUrl = assertExists(
+        options.edgeServiceUrl,
+        "`edgeServiceUrl` option is required",
+    );
+
     const processContext: AppServiceProcessContext = basicProcessContext.clone({
-        opensearch: opensearchContextModule,
+        opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
-        files: new FilesContextModule({
-            tokenAgent,
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
-            ),
-        }),
-        edge: new EdgeServiceContextModule({
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
-            ),
-            tokenAgent,
-        }),
+        files: new FilesContextModule({tokenAgent, edgeServiceUrl}),
+        edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
-            router: taskRealtimeServiceRouter,
+            router: createServiceTaskRealtimeServiceRouter(options),
             tokenAgent,
             dangerouslyEscalateToSystemContext,
         }),

@@ -66,9 +66,11 @@ import {
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {
+    createServiceTaskRealtimeServiceRouter,
+    serviceTaskRealtimeServiceRouterOptions,
+} from "~/server/tasks/data/create_service_task_realtime_service_router.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -84,10 +86,6 @@ type Options = ServiceOptions<typeof options>;
 export const options = {
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
-    taskRealtimeServiceLocalPort: {type: "string"},
-    ecsCluster: {type: "string"},
-    taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
-    taskRealtimeServiceSecurityGroupId: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
     jobQueueArn: {type: "string"},
@@ -101,6 +99,7 @@ export const options = {
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
     ...serviceCloudflareR2Options,
+    ...serviceTaskRealtimeServiceRouterOptions,
 } as const;
 
 export async function run({
@@ -154,8 +153,6 @@ export async function run({
         }),
     );
 
-    const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
-
     const languageModel =
         process.env.NODE_ENV === "production"
             ? new CohereEmbedEnglishV3LanguageModel({
@@ -170,33 +167,6 @@ export async function run({
                       "`allMiniLmL6V2LanguageModel` option is required in development",
                   ),
               );
-
-    const taskRealtimeServiceRouter =
-        process.env.NODE_ENV === "production"
-            ? new TaskRealtimeServiceEcsRouter({
-                  region: "us-east-1",
-                  ecsCluster: assertExists(
-                      options.ecsCluster,
-                      "`ecsCluster` option is required in production",
-                  ),
-                  ecsTaskDefinitionFamily: assertExists(
-                      options.taskRealtimeServiceEcsTaskDefinitionFamily,
-                      "`taskRealtimeServiceEcsTaskDefinitionFamily` option is required in production",
-                  ),
-                  securityGroupId: assertExists(
-                      options.taskRealtimeServiceSecurityGroupId,
-                      "`taskRealtimeServiceSecurityGroupId` option is required in production",
-                  ),
-              })
-            : new TaskRealtimeServiceLocalRouter({
-                  port: parseInt(
-                      assertExists(
-                          options.taskRealtimeServiceLocalPort,
-                          "Task realtime service local port must be provided when running locally",
-                      ),
-                      10,
-                  ),
-              });
 
     // In tests, don't send push notifications. Otherwise in development and
     // production set up a connection pool to APNs so we can send notifications.
@@ -298,28 +268,21 @@ export async function run({
         );
     };
 
+    const edgeServiceUrl = assertExists(
+        options.edgeServiceUrl,
+        "`edgeServiceUrl` option is required",
+    );
+
     const processContext: JobQueueServiceProcessContext = basicProcessContext.clone({
+        opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
-        files: new FilesContextModule({
-            tokenAgent,
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
-            ),
-        }),
-        edge: new EdgeServiceContextModule({
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
-            ),
-            tokenAgent,
-        }),
+        files: new FilesContextModule({tokenAgent, edgeServiceUrl}),
+        edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
             tokenAgent,
-            router: taskRealtimeServiceRouter,
+            router: createServiceTaskRealtimeServiceRouter(options),
             dangerouslyEscalateToSystemContext,
         }),
-        opensearch: opensearchContextModule,
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,
         github: githubContextModule,

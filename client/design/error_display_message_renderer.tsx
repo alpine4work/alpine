@@ -3,15 +3,13 @@ import {createPath} from "@remix-run/router";
 import {Fragment, useEffect, useRef} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {
-    defaultErrorDisplayMessage,
-    withoutErrorDisplayMessageRendererReporting,
-} from "~/client/design/default_error_display_message.js";
 import {Link} from "~/client/design/link.js";
+import {withoutErrorDisplayMessageRendererReporting} from "~/client/design/without_error_display_message_renderer_reporting.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {Color} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
+import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";

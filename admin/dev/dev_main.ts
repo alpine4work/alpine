@@ -103,6 +103,10 @@ const fileProcessorDevInspectorPort = parsePort(env.FILE_PROCESSOR_DEV_INSPECTOR
 const fileProcessorDevPrivatePorts = parsePorts(env.FILE_PROCESSOR_DEV_PRIVATE_PORTS);
 const fileProcessorServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
 
+const apiDevPort = parsePort(env.API_DEV_PORT);
+const apiDevInspectorPort = parsePort(env.API_DEV_INSPECTOR_PORT);
+const apiDevPrivatePorts = parsePorts(env.API_DEV_PRIVATE_PORTS);
+
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
 const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
@@ -148,6 +152,9 @@ const fileProcessorServicePublicKeyPath = joinPath(
     keysDirectoryPath,
     "file_processor_service_rsa.pub",
 );
+
+const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
+const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
 
 const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 
@@ -303,6 +310,7 @@ function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
@@ -350,6 +358,7 @@ function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
@@ -378,6 +387,7 @@ function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -401,6 +411,7 @@ function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -436,6 +447,7 @@ function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -447,6 +459,39 @@ function createArtifacts() {
                 `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
                 `--sqsLocalPort=${sqsLocalPort}`,
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+        {
+            bazelTarget: "//server/api",
+            executablePath: "server/api/api.sh",
+            stdioPrefix: "api",
+            env: {BAZEL_BINDIR: "."},
+            ports: {
+                publicPort: apiDevPort,
+                privatePorts: apiDevPrivatePorts,
+                privatePortIndex: 0,
+            },
+            args: [
+                `--inspectorPort=${apiDevInspectorPort}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--servicePrivateKey=${apiServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
+                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
+                `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
+                `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
         },

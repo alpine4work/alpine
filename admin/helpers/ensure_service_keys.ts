@@ -16,6 +16,15 @@ export async function ensureServiceKeys(directoryPath: string) {
     await mutexByDirectoryPath.getOrSetDefault(directoryPath).withLock(async () => {
         await fs.ensureDir(directoryPath);
 
+        const serviceNames = [
+            "app_service",
+            "edge_service_family",
+            "task_realtime_service",
+            "job_queue_service",
+            "file_processor_service",
+            "api_service",
+        ];
+
         await runAllPromises([
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "token_agent_secret"))) return;
@@ -26,8 +35,11 @@ export async function ensureServiceKeys(directoryPath: string) {
 
                 await fs.writeFile(joinPath(directoryPath, "token_agent_secret"), secret + "\n");
             })(),
-            (async () => {
-                if (await fs.pathExists(joinPath(directoryPath, "app_service_rsa"))) return;
+            ...serviceNames.map(async serviceName => {
+                const privateKeyPath = joinPath(directoryPath, `${serviceName}_rsa`);
+                const publicKeyPath = joinPath(directoryPath, `${serviceName}_rsa.pub`);
+
+                if (await fs.pathExists(privateKeyPath)) return;
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
@@ -48,122 +60,10 @@ export async function ensureServiceKeys(directoryPath: string) {
                 );
 
                 await runAllPromises([
-                    fs.writeFile(joinPath(directoryPath, "app_service_rsa"), privateKey),
-                    fs.writeFile(joinPath(directoryPath, "app_service_rsa.pub"), publicKey),
+                    fs.writeFile(privateKeyPath, privateKey),
+                    fs.writeFile(publicKeyPath, publicKey),
                 ]);
-            })(),
-            (async () => {
-                if (await fs.pathExists(joinPath(directoryPath, "edge_service_family_rsa"))) return;
-
-                const {publicKey, privateKey} = await new Promise<{
-                    publicKey: string;
-                    privateKey: string;
-                }>((resolve, reject) =>
-                    generateKeyPair(
-                        "rsa",
-                        {
-                            modulusLength: 2048,
-                            publicKeyEncoding: {type: "spki", format: "pem"},
-                            privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                        },
-                        (error, publicKey, privateKey) => {
-                            if (error) reject(error);
-                            else resolve({publicKey, privateKey});
-                        },
-                    ),
-                );
-
-                await runAllPromises([
-                    fs.writeFile(joinPath(directoryPath, "edge_service_family_rsa"), privateKey),
-                    fs.writeFile(joinPath(directoryPath, "edge_service_family_rsa.pub"), publicKey),
-                ]);
-            })(),
-            (async () => {
-                if (await fs.pathExists(joinPath(directoryPath, "task_realtime_service_rsa")))
-                    return;
-
-                const {publicKey, privateKey} = await new Promise<{
-                    publicKey: string;
-                    privateKey: string;
-                }>((resolve, reject) =>
-                    generateKeyPair(
-                        "rsa",
-                        {
-                            modulusLength: 2048,
-                            publicKeyEncoding: {type: "spki", format: "pem"},
-                            privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                        },
-                        (error, publicKey, privateKey) => {
-                            if (error) reject(error);
-                            else resolve({publicKey, privateKey});
-                        },
-                    ),
-                );
-
-                await runAllPromises([
-                    fs.writeFile(joinPath(directoryPath, "task_realtime_service_rsa"), privateKey),
-                    fs.writeFile(
-                        joinPath(directoryPath, "task_realtime_service_rsa.pub"),
-                        publicKey,
-                    ),
-                ]);
-            })(),
-            (async () => {
-                if (await fs.pathExists(joinPath(directoryPath, "job_queue_service_rsa"))) return;
-
-                const {publicKey, privateKey} = await new Promise<{
-                    publicKey: string;
-                    privateKey: string;
-                }>((resolve, reject) =>
-                    generateKeyPair(
-                        "rsa",
-                        {
-                            modulusLength: 2048,
-                            publicKeyEncoding: {type: "spki", format: "pem"},
-                            privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                        },
-                        (error, publicKey, privateKey) => {
-                            if (error) reject(error);
-                            else resolve({publicKey, privateKey});
-                        },
-                    ),
-                );
-
-                await runAllPromises([
-                    fs.writeFile(joinPath(directoryPath, "job_queue_service_rsa"), privateKey),
-                    fs.writeFile(joinPath(directoryPath, "job_queue_service_rsa.pub"), publicKey),
-                ]);
-            })(),
-            (async () => {
-                if (await fs.pathExists(joinPath(directoryPath, "file_processor_service_rsa")))
-                    return;
-
-                const {publicKey, privateKey} = await new Promise<{
-                    publicKey: string;
-                    privateKey: string;
-                }>((resolve, reject) =>
-                    generateKeyPair(
-                        "rsa",
-                        {
-                            modulusLength: 2048,
-                            publicKeyEncoding: {type: "spki", format: "pem"},
-                            privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                        },
-                        (error, publicKey, privateKey) => {
-                            if (error) reject(error);
-                            else resolve({publicKey, privateKey});
-                        },
-                    ),
-                );
-
-                await runAllPromises([
-                    fs.writeFile(joinPath(directoryPath, "file_processor_service_rsa"), privateKey),
-                    fs.writeFile(
-                        joinPath(directoryPath, "file_processor_service_rsa.pub"),
-                        publicKey,
-                    ),
-                ]);
-            })(),
+            }),
         ]);
     });
 }

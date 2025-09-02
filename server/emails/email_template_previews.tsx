@@ -1,4 +1,4 @@
-import {paramCase} from "change-case";
+import {kebabCase} from "change-case";
 import {
     EmailTemplates,
     RenderedEmail,
@@ -59,7 +59,7 @@ const emailTemplatePreviews: {
 export const emailTemplatePreviewBySlug = new Map(
     Object.entries(emailTemplatePreviews).flatMap(([name, previews]) =>
         previews.map(preview => [
-            paramCase(preview.title),
+            kebabCase(preview.title),
             {
                 title: preview.title,
                 render: async (tracer: TracerContextModule): Promise<RenderedEmail> =>

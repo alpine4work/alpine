@@ -14,7 +14,6 @@ import {
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
-import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
@@ -24,6 +23,7 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {

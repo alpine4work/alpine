@@ -443,6 +443,10 @@ async function actuallyHandleFetch(
             if (!fileProcessorServicePublicKey)
                 throw new InternalError("Missing `FILE_PROCESSOR_SERVICE_PUBLIC_KEY` env variable");
 
+            const apiServicePublicKey = env.API_SERVICE_PUBLIC_KEY;
+            if (!apiServicePublicKey)
+                throw new InternalError("Missing `API_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
@@ -459,6 +463,7 @@ async function actuallyHandleFetch(
                     taskRealtimeServicePublicKey,
                     jobQueueServicePublicKey,
                     fileProcessorServicePublicKey,
+                    apiServicePublicKey,
                     secret: tokenAgentSecret,
                 }),
                 TokenAgentPrivateSide.new({

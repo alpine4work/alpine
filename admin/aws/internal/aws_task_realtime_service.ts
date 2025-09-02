@@ -259,6 +259,10 @@ export class AwsTaskRealtimeService extends Construct {
                     secrets,
                     "fileProcessorServicePublicKey",
                 ),
+                API_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "apiServicePublicKey",
+                ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
             },
@@ -287,6 +291,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
                     "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
+                    "--apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                 ].join(" ")}`,

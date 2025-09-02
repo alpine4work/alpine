@@ -31,7 +31,10 @@ export function createStandardizedRequestListener<Route>(
     ) => Promise<Response>,
 ) {
     const actuallyHandleRequest = wrapWithTraceServerResponse(tracer, parseRoute, handleRequest);
-    return actuallyCreateStandardizedRequestListener(tracer, actuallyHandleRequest);
+
+    return (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
+        standardizedRequestListener(tracer, req, res, actuallyHandleRequest);
+    };
 }
 
 function wrapWithTraceServerResponse<Route>(
@@ -80,68 +83,71 @@ function wrapWithTraceServerResponse<Route>(
     };
 }
 
-function actuallyCreateStandardizedRequestListener(
+export function standardizedRequestListener(
     tracer: TracerRoot,
+    req: IncomingMessage,
+    res: ServerResponse<IncomingMessage>,
     handleRequest: (request: Request) => Promise<Response>,
-) {
-    return (req: IncomingMessage, res: ServerResponse): void => {
-        const handleUnhandledError = (error: unknown) => {
-            // `error` should have already been logged by our request handler which is
-            // wrapped in a span. We don't need to log it again.
+): void {
+    try {
+        const abortController = new AbortController();
 
-            if (res.headersSent) {
-                res.end();
-            } else {
-                let statusCode;
-                let statusMessage;
-                if (isSystemError(error)) {
-                    statusCode = 500;
-                    statusMessage = "Internal Server Error";
-                } else {
-                    statusCode = 400;
-                    statusMessage = "Bad Request";
-                }
+        const request = createStandardizedRequest(req, abortController.signal);
+        const responsePromise = handleRequest(request);
 
-                res.writeHead(statusCode, {"content-type": "text/plain"});
-
-                if (process.env.NODE_ENV === "production" || !(error instanceof Error)) {
-                    res.end(`${statusCode} ${statusMessage}`);
-                } else {
-                    res.end(`${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`);
-                }
-            }
+        const handleClose = () => {
+            abortController.abort(new AbortedError("Request was closed by client"));
         };
 
-        try {
-            const abortController = new AbortController();
+        res.on("close", handleClose);
 
-            const request = createStandardizedRequest(req, abortController.signal);
-            const responsePromise = handleRequest(request);
+        responsePromise.then(
+            response => {
+                res.off("close", handleClose);
+                sendStandardizedResponse(res, response);
+            },
+            error => {
+                res.off("close", handleClose);
+                handleStandardizedRequestListenerError(res, error);
+            },
+        );
+    } catch (error) {
+        // The server should try its best to handle errors and provide a relevant error
+        // response. However, as a fallback treat any errors as uncaught exceptions.
+        tracer.logException("Unhandled error during request", error);
 
-            const handleClose = () => {
-                abortController.abort(new AbortedError("Request was closed by client"));
-            };
+        handleStandardizedRequestListenerError(res, error);
+    }
+}
 
-            res.on("close", handleClose);
+function handleStandardizedRequestListenerError(
+    res: ServerResponse<IncomingMessage>,
+    error: unknown,
+) {
+    // `error` should have already been logged by our request handler which is
+    // wrapped in a span. We don't need to log it again.
 
-            responsePromise.then(
-                response => {
-                    res.off("close", handleClose);
-                    sendStandardizedResponse(res, response);
-                },
-                error => {
-                    res.off("close", handleClose);
-                    handleUnhandledError(error);
-                },
-            );
-        } catch (error) {
-            // The server should try its best to handle errors and provide a relevant error
-            // response. However, as a fallback treat any errors as uncaught exceptions.
-            tracer.logException("Unhandled error during request", error);
-
-            handleUnhandledError(error);
+    if (res.headersSent) {
+        res.end();
+    } else {
+        let statusCode;
+        let statusMessage;
+        if (isSystemError(error)) {
+            statusCode = 500;
+            statusMessage = "Internal Server Error";
+        } else {
+            statusCode = 400;
+            statusMessage = "Bad Request";
         }
-    };
+
+        res.writeHead(statusCode, {"content-type": "text/plain"});
+
+        if (process.env.NODE_ENV === "production" || !(error instanceof Error)) {
+            res.end(`${statusCode} ${statusMessage}`);
+        } else {
+            res.end(`${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`);
+        }
+    }
 }
 
 /**
@@ -244,11 +250,16 @@ export function createStandardizedServer<Route>(
 ) {
     const actuallyHandleRequest = wrapWithTraceServerResponse(tracer, parseRoute, handleRequest);
 
-    const requestListener = actuallyCreateStandardizedRequestListener(
-        tracer,
-        actuallyHandleRequest,
-    );
+    return createStandardizedServerBase(tracer, shutdownManager, (req, res) => {
+        standardizedRequestListener(tracer, req, res, actuallyHandleRequest);
+    });
+}
 
+export function createStandardizedServerBase(
+    tracer: TracerRoot,
+    shutdownManager: ShutdownManager,
+    requestListener: (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void,
+) {
     const server = createServer(requestListener);
 
     server.on("error", error => {

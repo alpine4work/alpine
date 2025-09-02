@@ -1,4 +1,4 @@
-import {IncomingMessage, ServerResponse, createServer} from "http";
+import {IncomingMessage, ServerResponse} from "http";
 import {join as joinPath, resolve as resolvePath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
@@ -9,7 +9,7 @@ import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {serverBasicProcessContextOptions} from "~/server/node/create_server_basic_process_context_modules.js";
 import {serviceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
-import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
+import {createStandardizedServerBase} from "~/server/node/create_standardized_server.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {
     ShutdownManager,
@@ -182,7 +182,9 @@ export async function run({
         }
     };
 
-    const server = createServer(
+    const server = createStandardizedServerBase(
+        tracer,
+        shutdownManager,
         isViteDevEnabled
             ? (req, res) => {
                   viteDevServer!.middlewares(req, res, () => {
@@ -191,12 +193,6 @@ export async function run({
               }
             : actualRequestListener,
     );
-
-    server.on("error", error => {
-        tracer.logException("Uncaught exception from HTTP server", error);
-    });
-
-    registerGracefulServerShutdown(shutdownManager, server);
 
     async function createViteDevServer(vite: typeof import("vite")) {
         // Run Vite in Bazel's build directory. Our dev process manager is responsible

@@ -1,4 +1,4 @@
-import {withoutErrorDisplayMessageRendererReporting} from "~/client/design/default_error_display_message.js";
+import {withoutErrorDisplayMessageRendererReporting} from "~/client/design/without_error_display_message_renderer_reporting.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";

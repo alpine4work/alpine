@@ -33,6 +33,7 @@ async function main() {
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
             jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
             fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
+            apiServicePublicKey: apiServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
             fileProcessorServiceUrl,
@@ -50,6 +51,7 @@ async function main() {
             taskRealtimeServicePublicKey: {type: "string"},
             jobQueueServicePublicKey: {type: "string"},
             fileProcessorServicePublicKey: {type: "string"},
+            apiServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
             fileProcessorServiceUrl: {type: "string"},
@@ -74,6 +76,7 @@ async function main() {
     if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` arg");
     if (!fileProcessorServicePublicKeyPath)
         throw new Error("Missing `fileProcessorServicePublicKeyPath` arg");
+    if (!apiServicePublicKeyPath) throw new Error("Missing `apiServicePublicKeyPath` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
@@ -87,6 +90,7 @@ async function main() {
         taskRealtimeServicePublicKey,
         jobQueueServicePublicKey,
         fileProcessorServicePublicKey,
+        apiServicePublicKey,
         edgeServiceFamilyPrivateKey,
         tokenAgentSecret,
     ] = await Promise.all([
@@ -95,6 +99,7 @@ async function main() {
         fs.readFile(taskRealtimeServicePublicKeyPath, "utf8"),
         fs.readFile(jobQueueServicePublicKeyPath, "utf8"),
         fs.readFile(fileProcessorServicePublicKeyPath, "utf8"),
+        fs.readFile(apiServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
         fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
@@ -123,6 +128,7 @@ async function main() {
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
             JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
             FILE_PROCESSOR_SERVICE_PUBLIC_KEY: fileProcessorServicePublicKey,
+            API_SERVICE_PUBLIC_KEY: apiServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,

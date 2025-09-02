@@ -8,6 +8,7 @@ export const ServerSecretsSchema = Schema.object({
     taskRealtimeServicePublicKey: Schema.string,
     jobQueueServicePublicKey: Schema.string,
     fileProcessorServicePublicKey: Schema.string,
+    apiServicePublicKey: Schema.string,
     servicePrivateKey: Schema.string,
     tokenAgentSecret: Schema.string,
     honeycombApiKey: Schema.string,

@@ -202,6 +202,10 @@ export class AwsAppService extends Construct {
                     secrets,
                     "fileProcessorServicePublicKey",
                 ),
+                API_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "apiServicePublicKey",
+                ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
                 COHERE_API_KEY: EcsSecret.fromSecretsManager(secrets, "cohereApiKey"),
@@ -250,6 +254,7 @@ export class AwsAppService extends Construct {
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
                     "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
+                    "--apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",

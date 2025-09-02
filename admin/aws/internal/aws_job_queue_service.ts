@@ -197,6 +197,10 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "fileProcessorServicePublicKey",
                 ),
+                API_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "apiServicePublicKey",
+                ),
                 JOB_QUEUE_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
                     "jobQueueServicePrivateKey",
@@ -268,6 +272,7 @@ export class AwsJobQueueService extends Construct {
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
                     "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
+                    "--apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",

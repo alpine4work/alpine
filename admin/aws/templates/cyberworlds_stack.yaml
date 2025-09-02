@@ -1946,6 +1946,7 @@ Resources:
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
                   Cpu: 2008
@@ -2032,6 +2033,13 @@ Resources:
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:fileProcessorServicePublicK\
                                     ey::"
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:TaskRealtimeServiceSecrets:apiServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -2688,6 +2696,7 @@ Resources:
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
@@ -2765,6 +2774,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:fileProcessorServicePublicKey::"
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:apiServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -3507,6 +3523,7 @@ Resources:
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
@@ -3574,6 +3591,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:fileProcessorServicePublicKey::"
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:apiServicePublicKey::"
                       - Name: JOB_QUEUE_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:
@@ -4905,6 +4929,7 @@ Resources:
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
                   Cpu: 2048
@@ -4976,6 +5001,13 @@ Resources:
                                   - Ref: AWS::AccountId
                                   - ":secret:FileProcessorServiceSecrets:fileProcessorServicePublic\
                                     Key::"
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:apiServicePublicKey::"
                       - Name: FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:

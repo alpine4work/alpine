@@ -1,0 +1,101 @@
+# This is the source OpenAPI specification for the Alpine REST API. We run a
+# couple transformations before we get to the OpenAPI specification we'll share
+# with users.
+#
+# - All comments are stripped from the final specification.
+#
+# - There are some template variables you can use that'll be replaced (for
+#   example `idRegExp` in Mustache curly brackets).
+
+openapi: 3.0.0
+info:
+    title: Alpine API
+    description: The Alpine REST API.
+    version: 1.0.0
+
+servers:
+    - url: https://api.alpine.inc
+
+paths:
+    # TODO(calebmer, #api): Delete this.
+    /ping:
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [pong]
+                                additionalProperties: false
+                                properties:
+                                    pong:
+                                        type: boolean
+                                        enum: [true]
+
+    # TODO(calebmer, #api): Delete this.
+    /hello/{name}:
+        parameters:
+            - name: name
+              in: path
+              required: true
+              schema: {type: string}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [message]
+                                additionalProperties: false
+                                properties:
+                                    message: {type: string}
+
+    # TODO(calebmer, #api): Delete this or give it a proper implementation.
+    /documents/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [message]
+                                additionalProperties: false
+                                properties:
+                                    title: {type: string}
+
+components:
+    schemas:
+        DocumentId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+    responses:
+        Error:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [error]
+                        additionalProperties: false
+                        properties:
+                            error:
+                                type: object
+                                required: [message]
+                                additionalProperties: false
+                                properties:
+                                    message:
+                                        type: string
+                                        description:
+                                            A human-readable message providing more details about
+                                            the error.

@@ -202,6 +202,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "file_processor_service_rsa.pub",
         );
 
+        const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
+
         const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 
         const [
@@ -248,6 +250,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -297,6 +300,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
@@ -323,6 +327,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -352,6 +357,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -386,6 +392,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,

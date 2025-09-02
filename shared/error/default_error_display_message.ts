@@ -10,9 +10,3 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 // `WebNavigationController.swift`'s `showUnhealthyAlert()` function. If we
 // update the message here, we should update it there as well.
 export const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred, please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
-
-/**
- * If an error is passed into `<ErrorDisplayMessageRenderer>` with this prop
- * set to true then we won't report the error to our tracer.
- */
-export const withoutErrorDisplayMessageRendererReporting = Symbol("withoutReporting");

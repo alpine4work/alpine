@@ -1,7 +1,6 @@
 import {useEffect, useId, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
 import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
 import {ModalDialogProps} from "~/client/design/modal_dialog_props.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
@@ -10,6 +9,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
+import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
