@@ -83,13 +83,15 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, event]
+                            required: [spaceId, accountId, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
+                                eventId:
+                                    $ref: "#/components/schemas/BotWebhookEventId"
                                 event:
                                     $ref: "#/components/schemas/BotWebhookEvent"
             responses:
@@ -120,6 +122,10 @@ components:
 
     schemas:
         AccountId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        BotWebhookEventId:
             type: string
             pattern: ^{{idRegExp}}$
 

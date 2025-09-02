@@ -177,6 +177,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         handler: Schema.string,
         accountId: Schema.id(),
         spaceId: Schema.id(),
+        botId: Schema.id(),
         isAnonymous: Schema.boolean,
         withoutSpaceAccess: Schema.boolean,
         webSocketConnectionId: Schema.id(),

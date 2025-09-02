@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/@types/fs-extra",
         "//:node_modules/fs-extra",
         "//server/apns",
+        "//server/bots",
         "//server/content/context_module",
         "//server/deploy/data",
         "//server/feed",

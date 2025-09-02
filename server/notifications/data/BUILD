@@ -24,6 +24,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/date-fns",
+        "//server/api/specification",
         "//server/apns",
         "//server/chat/data",
         "//server/content",

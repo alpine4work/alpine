@@ -466,6 +466,146 @@ export const dynamoGeneratedSchemaDescription: {
             },
             "indexes": []
         },
+        "BotWebhookEvents": {
+            "name": "BotWebhookEvents",
+            "partitionByType": {
+                "BotSpace": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "botId": {
+                            "type": "Id"
+                        },
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Event": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "eventId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "event": {
+                                        "valueSchema": {
+                                            "type": "Unknown"
+                                        },
+                                        "optional": false
+                                    },
+                                    "attempt": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "number": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "startTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "status": {
+                                                    "valueSchema": {
+                                                        "type": "Union",
+                                                        "typeKey": "type",
+                                                        "variantSchemaByTypeValue": {
+                                                            "Pending": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "type": {
+                                                                        "valueSchema": {
+                                                                            "type": "Value",
+                                                                            "value": "Pending"
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "Rejected": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "type": {
+                                                                        "valueSchema": {
+                                                                            "type": "Value",
+                                                                            "value": "Rejected"
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "endTime": {
+                                                                        "valueSchema": {
+                                                                            "type": "Date"
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "reason": {
+                                                                        "valueSchema": {
+                                                                            "type": "Enum",
+                                                                            "values": [
+                                                                                "DeadlineExceeded",
+                                                                                "Unavailable",
+                                                                                "Internal",
+                                                                                "ServerErrorStatusCode"
+                                                                            ]
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "Resolved": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "type": {
+                                                                        "valueSchema": {
+                                                                            "type": "Value",
+                                                                            "value": "Resolved"
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "endTime": {
+                                                                        "valueSchema": {
+                                                                            "type": "Date"
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
         "Bots": {
             "name": "Bots",
             "partitionByType": {

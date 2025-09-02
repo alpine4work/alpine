@@ -4,13 +4,13 @@ import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation
 
 export const RpcHttpCallInputSchema = Schema.object({
     name: Schema.string,
-    input: Schema.unknown,
+    input: Schema.unknown(),
 });
 
 export const RpcHttpCallOutputSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
-        output: Schema.unknown,
+        output: Schema.unknown(),
     }),
     Schema.object({
         ok: Schema.value(false),

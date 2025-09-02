@@ -872,7 +872,7 @@ const TaskTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         // Store state as a string in DynamoDB to get around DynamoDB's object nesting
                         // limits since this is a recursive data type. (Ideally binary someday.)
-                        state: Schema.unknown.transform<TaskGridViewExpansionState>({
+                        state: Schema.unknown().transform<TaskGridViewExpansionState>({
                             serialize: state =>
                                 JSON.stringify(TaskGridViewExpansionStateSchema.serialize(state)),
                             deserialize: state =>

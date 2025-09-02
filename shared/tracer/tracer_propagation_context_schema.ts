@@ -5,5 +5,5 @@ import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_fl
 export const TracerPropagationContextSchema = Schema.object({
     traceId: Schema.id<TraceId>(),
     parentId: Schema.id<TraceSpanId>(),
-    data: Schema.unknown as Schema<any> as Schema<TracerEventFlatData>,
+    data: Schema.unknown<TracerEventFlatData>(),
 });

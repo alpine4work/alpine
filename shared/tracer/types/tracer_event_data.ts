@@ -2,6 +2,7 @@ import type {DateString} from "~/shared/helpers/date/date_string.js";
 import {
     AccountId,
     ApnsConnectionId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentId,
@@ -474,6 +475,12 @@ export type TracerEventData = {
 
         /** Information about the space the event was fired while looking at. */
         readonly spaceId?: SpaceId;
+
+        /**
+         * If this action is being performed by a bot, this is the bot performing the
+         * action.
+         */
+        readonly botId?: BotId;
 
         /**
          * True if this is an anonymous request. Instead of `context.accountId` this'll

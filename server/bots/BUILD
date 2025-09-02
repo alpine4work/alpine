@@ -3,8 +3,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "bots",
     test_deps = [
+        "//:node_modules/get-port",
         "//server/dynamo/test_helpers",
+        "//server/spaces",
         "//server/spaces/test_helpers",
+        "//shared/test_helpers",
     ],
     visibility = [
         "//admin/crawl:__pkg__",
@@ -12,6 +15,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/date-fns",
         "//server/accounts",
         "//server/context",
         "//server/dynamo/core",

@@ -16,7 +16,7 @@ import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/share
  * you to always provided the `Node` associated with the `Selection` when
  * trying to access the selection.
  */
-export const ContentSelectionSchema = Schema.unknown.transform<ContentSelectionWrapper>({
+export const ContentSelectionSchema = Schema.unknown().transform<ContentSelectionWrapper>({
     serialize: selection => selection.toJSON(),
     deserialize: selection => {
         try {

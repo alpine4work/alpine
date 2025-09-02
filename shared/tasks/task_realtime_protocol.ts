@@ -78,7 +78,7 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
 });
 
 const TaskQuerySortCursorSchema = Schema.array(
-    Schema.unknown,
+    Schema.unknown(),
 ) as any as Schema<TaskQuerySortCursor>;
 
 /**

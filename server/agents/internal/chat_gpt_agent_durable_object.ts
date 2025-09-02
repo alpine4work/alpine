@@ -3,7 +3,6 @@ import {
     AgentDurableObjectBase,
     AgentDurableObjectEnv,
 } from "~/server/agents/internal/agent_durable_object_base.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 type ChatGptAgentRoute = "Webhook" | "NotFound";
@@ -42,7 +41,10 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
                 }
 
                 // TODO(calebmer, #api): Implement!
-                throw new UnimplementedError("TODO");
+                // eslint-disable-next-line no-console
+                console.log(await request.json());
+
+                return new Response(null, {status: 200});
             }
             default:
                 throw exhaustive(route);

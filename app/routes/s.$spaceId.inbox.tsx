@@ -37,8 +37,8 @@ const LoaderSchema = Schema.object({
     peekData: Schema.object({
         spacePath: Schema.string,
         hydrationData: Schema.object({
-            loaderData: Schema.unknown,
-            errors: Schema.unknown,
+            loaderData: Schema.unknown(),
+            errors: Schema.unknown(),
         }) as Schema<HydrationState>,
         loadExtraRouteIds: Schema.array(Schema.string),
     }).nullable(),

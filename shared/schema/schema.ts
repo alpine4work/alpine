@@ -277,18 +277,22 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         return this._description;
     }
 
+    private static _unknown = new Schema<SchemaSerializedValue>({
+        getDescription: () => ({type: "Unknown"}),
+        serialize: value => value,
+        deserialize: value => value,
+        validate: null,
+    });
+
     /**
      * Accept any value.
      *
      * An escape hatch if your type is complicated and you'd like to manage it
      * yourself.
      */
-    public static unknown = new Schema<SchemaSerializedValue>({
-        getDescription: () => ({type: "Unknown"}),
-        serialize: value => value,
-        deserialize: value => value,
-        validate: null,
-    });
+    public static unknown<Value extends SchemaSerializedValue>(): Schema<Value> {
+        return this._unknown as any;
+    }
 
     /**
      * Accept a boolean value.

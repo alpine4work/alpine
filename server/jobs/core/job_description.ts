@@ -1,3 +1,4 @@
+import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {NotificationEventJobDescriptionSchema} from "~/server/notifications/core/notification_event.js";
 import {
     IndexSearchEntityDependentsJobDescriptionSchema,
@@ -9,7 +10,7 @@ import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, BotWebhookEventId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -105,6 +106,17 @@ const AddFeedAccountCandidateEntryJobDescriptionSchema = Schema.object({
     entry: FeedEntrySchema,
 });
 
+export type CallBotWebhookJobDescription = SchemaType<typeof CallBotWebhookJobDescriptionSchema>;
+
+const CallBotWebhookJobDescriptionSchema = Schema.object({
+    type: Schema.value("CallBotWebhook"),
+    spaceId: Schema.id<SpaceId>(),
+    botId: Schema.id<BotId>(),
+    botAccountId: Schema.id<AccountId>(),
+    eventId: Schema.id<BotWebhookEventId>(),
+    event: Schema.unknown<ApiBotWebhookEvent>(),
+});
+
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -115,4 +127,5 @@ export const JobDescriptionSchema = Schema.union({
     SendShareNotification: SendShareNotificationJobDescriptionSchema,
     AddFeedCandidateEntry: AddFeedCandidateEntryJobDescriptionSchema,
     AddFeedAccountCandidateEntry: AddFeedAccountCandidateEntryJobDescriptionSchema,
+    CallBotWebhook: CallBotWebhookJobDescriptionSchema,
 });

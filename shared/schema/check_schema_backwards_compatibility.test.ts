@@ -709,21 +709,21 @@ test("union schema variants can be renamed with original variant name", () => {
 test("any schema may convert into unknown", () => {
     testCase({
         isBackwardsCompatible: true,
-        lastSchema: Schema.unknown,
-        nextSchema: Schema.unknown,
+        lastSchema: Schema.unknown(),
+        nextSchema: Schema.unknown(),
         sampleValues: [42, "foo", {x: 1, y: 2}, false],
     });
 
     testCase({
         isBackwardsCompatible: true,
         lastSchema: Schema.integer,
-        nextSchema: Schema.unknown,
+        nextSchema: Schema.unknown(),
         sampleValues: [1, 2, 3],
     });
 
     testCase({
         isBackwardsCompatible: false,
-        lastSchema: Schema.unknown,
+        lastSchema: Schema.unknown(),
         nextSchema: Schema.integer,
         sampleValues: ["foo", {x: 1, y: 2}, false],
     });

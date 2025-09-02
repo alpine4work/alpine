@@ -1,3 +1,4 @@
+import {processCallBotWebhookJob} from "~/server/bots/bots_table.js";
 import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
 import {
     processAddFeedAccountCandidateEntryJob,
@@ -55,6 +56,10 @@ export async function processJob(
         }
         case "AddFeedAccountCandidateEntry": {
             await processAddFeedAccountCandidateEntryJob(context, job);
+            return;
+        }
+        case "CallBotWebhook": {
+            await processCallBotWebhookJob(context, job);
             return;
         }
         default:

@@ -1683,7 +1683,7 @@ const LocationSchema: Schema<Location> = Schema.object({
     pathname: Schema.string,
     search: Schema.string,
     hash: Schema.string,
-    state: Schema.unknown as Schema<unknown>,
+    state: Schema.unknown(),
     key: Schema.string,
 });
 

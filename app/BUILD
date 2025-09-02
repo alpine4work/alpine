@@ -95,6 +95,7 @@ ts_project(
         "//client/virtualized",
         "//server/accounts",
         "//server/alpha",
+        "//server/bots",
         "//server/chat/data",
         "//server/content",
         "//server/content/context_module",

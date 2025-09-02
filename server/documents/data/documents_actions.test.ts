@@ -107,8 +107,6 @@ import {
     intoAccountModelWithoutSpaceAndAvatar,
 } from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
-import.meta.jest.useFakeTimers();
-
 const context = createTestContext();
 
 function textSlice(text: string, marks: ReadonlyArray<Mark> = []) {

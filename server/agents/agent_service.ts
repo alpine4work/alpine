@@ -69,7 +69,12 @@ async function handleFetch(
 
                     const newUrl = new URL(request.url);
                     newUrl.pathname = "/webhook";
-                    const newRequest = new Request(newUrl.toString(), request);
+
+                    const newRequest = new Request(newUrl.toString(), {
+                        method: request.method,
+                        headers: request.headers,
+                        body: JSON.stringify(requestBody),
+                    });
                     addTracerPropagationContextHeader(newRequest.headers, span);
 
                     return durableObjectStub.fetch(newRequest);

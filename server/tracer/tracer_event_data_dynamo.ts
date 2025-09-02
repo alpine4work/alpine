@@ -16,6 +16,7 @@
 export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
     "Accounts",
     "AlphaAccess",
+    "BotWebhookEvents",
     "Bots",
     "Chat",
     "Deploy",
@@ -60,6 +61,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
     ["Accounts", ["Account", "AccountEmailAddress", "Session", "AppleDeviceToken"]],
     ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
+    ["BotWebhookEvents", ["BotSpace"]],
     ["Bots", ["Bot"]],
     ["Chat", ["Chat"]],
     ["Deploy", ["Deploy"]],

@@ -1,4 +1,3 @@
-import {createHash} from "crypto";
 import murmurhash from "murmurhash";
 import {
     AccountChatsIndex,
@@ -24,6 +23,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
+import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -259,10 +259,6 @@ export function getOptimisticChatId(
     // performance optimization. We use MD5 since it is fast and it outputs as
     // 128-bit value. Our `Id`s our 128-bit so this aligns quite well.
     return encodeId<ChatId>(new Uint8Array(hashMd5(optimisticChatIdHashKey)));
-}
-
-function hashMd5(data: ArrayBuffer): ArrayBuffer {
-    return createHash("md5").update(new Uint8Array(data)).digest().buffer;
 }
 
 /**

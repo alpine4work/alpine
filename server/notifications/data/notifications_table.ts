@@ -1,6 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_actions.js";
+import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
     FileChatAuthorizer,
@@ -53,6 +54,7 @@ import {
     getPostAuthorAndChannelPreviewIfPossible,
     getPostNotificationSubscribers,
 } from "~/server/forum/data/forum_actions.js";
+import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {
     NotificationCreateChatMessageEvent,
     NotificationCreateDocumentCommentEvent,
@@ -120,10 +122,16 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {isId} from "~/shared/id/id.js";
+import {
+    generateChronologicalId,
+    getDecodedChronologicalIdTime,
+    unsafelyConstructChronologicalId,
+} from "~/shared/id/chronological_id.js";
+import {decodeId, decodeIdInto, idByteLength, isId} from "~/shared/id/id.js";
 import {
     AccountId,
+    BotId,
+    BotWebhookEventId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
@@ -2040,6 +2048,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
     getSubscribers,
     authorizeAccess,
     updateInboxEntry,
+    getBotWebhookEvent,
     getAlertContent,
 }: {
     /**
@@ -2098,6 +2107,17 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             accountId: AccountId;
         },
     ) => Promise<UpdateInboxEntryResult | null>;
+
+    /**
+     * If we have a subscriber that's a bot then instead of updating the bot's
+     * inbox entry, we'll send the bot a webhook request. If you want to send a
+     * bot a webhook request in response to a notification event, then return
+     * an object from this function. Otherwise return null.
+     */
+    getBotWebhookEvent: (
+        event: Event,
+        options: {info: Info; accountId: AccountId},
+    ) => ApiBotWebhookEvent | null;
 
     /**
      * Get the content of a push notification for the action. The notification will
@@ -2176,18 +2196,48 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             event,
         );
 
+        let decodedEventIdResult: {
+            bytes: Uint8Array;
+            time: number;
+        } | null = null;
+
+        function decodeEventId() {
+            if (decodedEventIdResult === null) {
+                const bytes = decodeId(event.id);
+                const time = getDecodedChronologicalIdTime(bytes);
+
+                decodedEventIdResult = {
+                    bytes,
+                    time,
+                };
+            }
+
+            return decodedEventIdResult;
+        }
+
+        const options = {
+            event,
+            info,
+            decodeEventId,
+        };
+
         // Fan out to all subscribers.
         await runAllPromises(
-            mapIterable(accountIds, async accountId => process(context, event, info, accountId)),
+            mapIterable(accountIds, async accountId => process(context, accountId, options)),
         );
     };
 
     async function process(
         context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
-        event: Event,
-        info: Info,
         accountId: AccountId,
+        options: {
+            event: Event;
+            info: Info;
+            decodeEventId: () => {bytes: Uint8Array; time: number};
+        },
     ) {
+        const {event, info} = options;
+
         // Make sure the account is a current member of the space.
         if (!(await isAccountMemberOfSpace(context, event.spaceId, accountId))) {
             return;
@@ -2200,7 +2250,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         const botId = await getSpaceAccountBotIdIfExists(context, event.spaceId, accountId);
 
         if (botId !== null) {
-            await processForBot(context, event, info);
+            await processForBot(context, botId, accountId, options);
             return;
         }
 
@@ -2257,9 +2307,21 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
 
     async function processForBot(
         context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
-        event: Event,
-        info: Info,
+        botId: BotId,
+        botAccountId: AccountId,
+        {
+            event,
+            info,
+            decodeEventId,
+        }: {
+            event: Event;
+            info: Info;
+            decodeEventId: () => {bytes: Uint8Array; time: number};
+        },
     ) {
+        const webhookEvent = getBotWebhookEvent(event, {info, accountId: botAccountId});
+        if (webhookEvent === null) return;
+
         // You grant a bot access to some content by mentioning the bot. Let's confirm
         // that the AUTHOR of the message has access to the content and thus has the
         // authority to grant the bot access to the content.
@@ -2284,7 +2346,56 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         );
         if (!result.ok) return;
 
-        // TODO(calebmer, #api): Call bot webhook instead
+        await context.tracer.withSpan(
+            "Process notification event for bot account",
+            async (context, span) => {
+                span.addData({
+                    notifications: {
+                        eventType: event.type,
+                        eventId: event.id,
+                    },
+                });
+                span.addPropagatedData({context: {botId, accountId: botAccountId}});
+
+                const {bytes: originalBytes, time} = decodeEventId();
+
+                // Ignore the first 48 bytes which are the `ChronologicalId` timestamp so we
+                // just have the random bytes.
+                const randomBytes = originalBytes.slice(6);
+
+                // Combine the `BotId` bytes and random bytes together. We'll hash this to get
+                // our new random bytes.
+                const hashBytes = new Uint8Array(idByteLength + randomBytes.byteLength);
+                decodeIdInto(botId, hashBytes, 0);
+                hashBytes.set(randomBytes, idByteLength);
+
+                const newRandomBytes = new Uint8Array(hashMd5(hashBytes.buffer));
+
+                // The `BotWebhookEventId` is deterministically generated from the
+                // `NotificationEventId`. Since if the notification job re-runs multiple times,
+                // we need to make sure we're calling the bot webhook with the same
+                // `BotWebhookEventId`.
+                //
+                // We use the same time as the `NotificationEventId` and combine the
+                // `NotificationEventId`'s random bytes with the `BotId` to produce the new
+                // random bytes for `BotWebhookEventId`.
+                const botWebhookEventId = unsafelyConstructChronologicalId<BotWebhookEventId>(
+                    time,
+                    // `newRandomBytes` is a 128 bit hash. `unsafelyConstructChronologicalId()`
+                    // will truncate the hash to whatever fits in the `ChronologicalId` (80 bits).
+                    newRandomBytes,
+                );
+
+                await context.jobs.sendAndWait({
+                    type: "CallBotWebhook",
+                    spaceId: event.spaceId,
+                    botId,
+                    botAccountId,
+                    eventId: botWebhookEventId,
+                    event: webhookEvent,
+                });
+            },
+        );
     }
 }
 
@@ -2578,6 +2689,11 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     >,
     {initialInboxItemIfExists}: {initialInboxItemIfExists?: InboxAttributesItem | null} = {},
 ): Promise<UpdateInboxEntryResult | null> {
+    // Bots don't have an inbox. Don't allow updating inbox entries for a bot
+    // account. This should be free (no database reads) since we load and cache the
+    // account earlier while processing the event.
+    await authorizeNotBotSpaceAccount(context, event.spaceId, accountId);
+
     let hasAttempted = false;
 
     return context.dynamo.retryTransaction(run);
@@ -3042,6 +3158,12 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             },
         );
     },
+    getBotWebhookEvent: (event, {accountId}) => ({
+        type: "NewMessage",
+        roomPath: `/chats/${event.chatId}`,
+        index: event.messageIndex,
+        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+    }),
     getAlertContent: async (
         context,
         event,
@@ -3249,6 +3371,12 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             },
         );
     },
+    getBotWebhookEvent: (event, {accountId}) => ({
+        type: "NewMessage",
+        roomPath: `/posts/${event.postId}`,
+        index: event.commentIndex,
+        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+    }),
     getAlertContent: async (context, event, {accountId}) => {
         const [author, post, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
@@ -3395,6 +3523,10 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             },
             {initialInboxItemIfExists: inboxItem},
         );
+    },
+    getBotWebhookEvent: () => {
+        // TODO(calebmer, #api): Implement bot mentioned in post.
+        return null;
     },
     getAlertContent: async (context, event, {accountId}) => {
         const [author, channel, body] = await runAllPromises([
@@ -3623,6 +3755,12 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             },
         );
     },
+    getBotWebhookEvent: (event, {accountId}) => ({
+        type: "NewMessage",
+        roomPath: `/documents/${event.documentId}/threads/${event.commentThreadId}`,
+        index: event.commentIndex,
+        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+    }),
     getAlertContent: async (context, event, {accountId, entryItem}) => {
         assert(
             entryItem.sortRangeType === "DocumentNewCommentThreadsEntry" ||
@@ -3821,6 +3959,12 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
             },
         );
     },
+    getBotWebhookEvent: (event, {accountId}) => ({
+        type: "NewMessage",
+        roomPath: `/tasks/${event.taskId}`,
+        index: event.commentIndex,
+        wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
+    }),
     getAlertContent: async (context, event, {accountId}) => {
         const [author, taskOwnerResult, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),

@@ -35,7 +35,7 @@ async function main() {
      *                         Generate TypeScript types                          *
     \* ========================================================================== */
 
-    const supportedIdTypes = ["AccountId", "DocumentId", "SpaceId"];
+    const supportedIdTypes = ["AccountId", "BotWebhookEventId", "DocumentId", "SpaceId"];
 
     const supportedIdTypeByMetadataPath = new Map(
         supportedIdTypes.map(idType => [`#/components/schemas/${idType}`, idType]),
