@@ -421,7 +421,7 @@ export async function finishUploadingAndStartProcessingFile(
             // Now that the file has finished uploading we can start processing it. Wait
             // for the message to be added to our queue. If sending the process file
             // message fails we want to fail the entire upload.
-            await context.jobs.sendImmediately({
+            await context.jobs.sendAndWait({
                 type: "ProcessFile",
                 spaceId,
                 fileId,

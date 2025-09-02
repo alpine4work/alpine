@@ -2534,7 +2534,7 @@ test("can index post with cyclic mention", async () => {
         },
     });
 
-    await context.jobs.sendImmediately({
+    await context.jobs.sendAndWait({
         type: "IndexSearchEntity",
         spaceId: space.id,
         update: {

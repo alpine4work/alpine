@@ -109,8 +109,7 @@ test(
         context.jobs.send({type: "Test", spaceId, checkpointId: job1Id, shouldThrow: true});
         context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
 
-        // Also flushes any batched jobs instead of waiting 200ms.
-        await context.jobs.sendImmediately({
+        await context.jobs.sendAndWait({
             type: "Test",
             spaceId,
             checkpointId: job3Id,
@@ -190,8 +189,7 @@ test(
         context.jobs.send({type: "Test", spaceId, checkpointId: job1Id, shouldThrow: true});
         context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
 
-        // Also flushes any batched jobs instead of waiting 200ms.
-        await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: job3Id});
+        await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: job3Id});
 
         const {unpause: unpause1a, stopPausing: stopPausing1a} = await pause1aPromise;
         const {unpause: unpause2} = await pause2Promise;
@@ -318,8 +316,7 @@ test("starts processing new jobs immediately after receiving first batch", async
     context.jobs.send({type: "Test", spaceId, checkpointId: job13Id});
     context.jobs.send({type: "Test", spaceId, checkpointId: job14Id});
 
-    // Also flushes any batched jobs instead of waiting 200ms.
-    await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: job15Id});
+    await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: job15Id});
 
     // The consumer sees job 15 even before job 1 resolves.
     await pause1Promise;
@@ -377,7 +374,7 @@ test("will max out at 10 receive message calls at a time then scale back down to
         if (i < jobCount - 1) {
             context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
         } else {
-            await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: jobId});
         }
     }
 
@@ -442,7 +439,7 @@ test("will max out at 10 receive message calls at a time then scale back down to
 
     const jobId = generateId();
     const pausePromise = processTestJobDescriptionTestCheckpoint.pauseForTest(jobId);
-    await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+    await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: jobId});
 
     await pausePromise;
 
@@ -460,7 +457,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
         for (let i = 0; i < jobCount; i++) {
             const jobId = generateId();
             const pausePromise = processTestJobDescriptionTestCheckpoint.pauseForTest(jobId);
-            await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: jobId});
             pauses.push(await pausePromise);
         }
 
@@ -480,7 +477,7 @@ test("can schedule external fibers that stop jobs from being processed", async (
             if (i < jobCount - 1) {
                 context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
             } else {
-                await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+                await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: jobId});
             }
         }
 
@@ -606,7 +603,7 @@ test("can interrupt receive message call with external fibers", async () => {
         for (let i = 0; i < jobCount; i++) {
             const jobId = generateId();
             const pausePromise = processTestJobDescriptionTestCheckpoint.pauseForTest(jobId);
-            await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: jobId});
             pauses.push(await pausePromise);
         }
 
@@ -626,7 +623,7 @@ test("can interrupt receive message call with external fibers", async () => {
             if (i < jobCount - 1) {
                 context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
             } else {
-                await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+                await context.jobs.sendAndWait({type: "Test", spaceId, checkpointId: jobId});
             }
         }
 

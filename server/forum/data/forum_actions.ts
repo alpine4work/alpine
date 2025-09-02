@@ -1445,7 +1445,7 @@ export async function sendChannelShareNotification(
 ) {
     const {spaceId} = await authorizeChannelAccess(context, channelId, "View");
 
-    await context.jobs.sendImmediately({
+    await context.jobs.sendAndWait({
         type: "SendShareNotification",
         jobId: generateId(),
         spaceId,

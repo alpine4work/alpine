@@ -362,7 +362,7 @@ test("shouldn’t schedule job when previous job already processed the entity up
     // Simulate SQS retrying the failed job. The job hasn't actually failed in this
     // case, but we want to test the inverse of our error scenario tested below.
     // This may actually happen in certain SQS retry scenarios.
-    await context.jobs.sendImmediately(job1.description);
+    await context.jobs.sendAndWait(job1.description);
 
     const job2 = takeJob();
     const job2Action = await job2.actionPromise;
@@ -420,7 +420,7 @@ test("shouldn’t schedule job when previous job already processed the entity up
 
     // Simulate SQS retrying the failed job. We should actually execute the retried
     // job's action.
-    await context.jobs.sendImmediately(job1.description);
+    await context.jobs.sendAndWait(job1.description);
 
     const job2 = takeJob();
     const job2Action = await job2.actionPromise;
@@ -618,7 +618,7 @@ test("job is prevented from running twice", async () => {
     // Simulate SQS trying to execute the same job a second time. SQS provides
     // at-least-once delivery semantics so we need to test the same message being
     // delivered more than once.
-    await context.jobs.sendImmediately(job1.description);
+    await context.jobs.sendAndWait(job1.description);
 
     const job2 = takeJob();
     expect(takeJobIfExists()).toEqual(null);

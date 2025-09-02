@@ -153,7 +153,7 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
 
         // Force the entity to be indexed immediately. Documents wait ~10 seconds after
         // they're created before they're indexed. We can't wait that long in a test.
-        await context.jobs.sendImmediately({
+        await context.jobs.sendAndWait({
             type: "IndexSearchEntity",
             spaceId: space.id,
             update: {

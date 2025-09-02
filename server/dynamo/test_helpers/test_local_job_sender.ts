@@ -88,14 +88,6 @@ export class TestLocalJobSender implements JobSenderBase {
         this._send(context, job, options);
     }
 
-    public async sendImmediately(
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-        job: JobDescription,
-        options?: {delaySeconds?: number},
-    ): Promise<void> {
-        this._send(context, job, options);
-    }
-
     public async dangerouslySendMaintenance(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: MaintenanceJobDescription,

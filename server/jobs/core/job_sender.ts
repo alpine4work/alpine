@@ -10,7 +10,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {schedulePostPromiseJob} from "~/shared/helpers/async/schedule_post_promise_job.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -22,15 +22,6 @@ import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation
 // The maximum number of messages `SendMessageBatch` will accept is 10.
 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessageBatch.html
 const maxSendMessageBatchCount = 10;
-
-// 200ms is the default timeout for the AWS Java buffered SQS client (see
-// `maxBatchOpenMs`).
-//
-// We're shorter since for jobs like notification event processing we want to
-// feel like the notification is being delivered immediately.
-//
-// https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-client-side-buffering-request-batching.html
-const sendMessageBatchTimeoutMs = 100;
 
 export type JobQueueMessageBody = SchemaType<typeof JobQueueMessageBodySchema>;
 
@@ -67,27 +58,32 @@ export const FileProcessorJobQueueMessageBodySchema = Schema.object({
 });
 
 type JobSenderMessageBatch = {
-    timeout: Timeout;
     messages: Array<{
         job: JobDescription;
         delaySeconds: number;
         tracer: TracerBase;
         promiseResolver: PromiseResolver<void>;
     }>;
+    cancel: () => void;
 };
 
 export interface JobSenderBase {
     /**
      * Sends a job to our job queue for processing. Will be batched with other jobs
-     * sent from the same process in a short window of time.
-     *
-     * The first job in a batch will need to wait 200ms before it can be sent as we
-     * accumulate other jobs.
+     * sent synchronously.
      *
      * Doesn't guarantee the job was delivered. If the process unexpectedly ends
      * you may return a successful result to the user without the job being saved
      * in our queue. If you want to guarantee message delivery call
-     * `sendImmediately()` and await.
+     * `sendAndWait()`.
+     *
+     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent
+     * during this time window. However, adding this delay hurts jobs where latency
+     * matters (e.g. `NotificationEvent` where the job is responsible for sending
+     * push notifications and bot webhooks). Batching every 100ms was purely a cost
+     * optimization. Given SQS is cheap compared to other services we use (like
+     * DynamoDB) our new perspective is we're going to favor speed over cost until
+     * SQS costs become an issue.
      */
     send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -97,36 +93,21 @@ export interface JobSenderBase {
 
     /**
      * Sends a job to our job queue for processing. Will be batched with other jobs
-     * sent from the same process in a short window of time.
-     *
-     * The first job in a batch will need to wait 200ms before it can be sent as we
-     * accumulate other jobs.
+     * sent synchronously.
      *
      * Returns a promise that resolves only once the job has been sent to the
-     * queue. This means you may have to wait up to 200ms if this is the first job
-     * in a batch! Avoid this function if you need fast performance.
+     * queue. When this function resolves, you're guaranteed the message has been
+     * delivered.
+     *
+     * Before 2025-08-06 we used to wait 100ms and batch together any jobs sent
+     * during this time window. However, adding this delay hurts jobs where latency
+     * matters (e.g. `NotificationEvent` where the job is responsible for sending
+     * push notifications and bot webhooks). Batching every 100ms was purely a cost
+     * optimization. Given SQS is cheap compared to other services we use (like
+     * DynamoDB) our new perspective is we're going to favor speed over cost until
+     * SQS costs become an issue.
      */
     sendAndWait(
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-        job: JobDescription,
-        options?: {delaySeconds?: number},
-    ): Promise<void>;
-
-    /**
-     * Sends a job to our job queue for processing. Will not wait to batch with
-     * other jobs and will be send to our queue immediately. If there's a pending
-     * batch we'll send the batch along with this new job.
-     *
-     * Use this if you need to guarantee to the user that the job was delivered to
-     * the queue. Once delivered to the queue the job will execute (if it errs we
-     * retry) but the duration it will take to execute is not guaranteed.
-     *
-     * You can also use this to skip the maximum 200ms wait time for new jobs in
-     * the queue. However, if your work needs to happen immediately a queue may not
-     * even be a good idea given it can take a while for the job service to process
-     * your job.
-     */
-    sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -220,14 +201,20 @@ export class JobSender implements JobSenderBase {
             this._messageBatchByQueueName,
             queueName,
             () => {
-                const timeout = createTimeout(() => {
+                let isCancelled = false;
+
+                schedulePostPromiseJob(() => {
+                    if (isCancelled) return;
+
                     this._messageBatchByQueueName.delete(queueName);
                     void this._sendBatch(queueName, messageBatch.messages);
-                }, sendMessageBatchTimeoutMs);
+                });
 
                 const messageBatch: JobSenderMessageBatch = {
-                    timeout,
                     messages: [],
+                    cancel: () => {
+                        isCancelled = true;
+                    },
                 };
 
                 return messageBatch;
@@ -243,40 +230,10 @@ export class JobSender implements JobSenderBase {
 
         if (messageBatch.messages.length === maxSendMessageBatchCount) {
             this._messageBatchByQueueName.delete(queueName);
-            messageBatch.timeout.clear();
+            messageBatch.cancel();
 
             void this._sendBatch(queueName, messageBatch.messages);
         }
-
-        return promiseResolver.promise;
-    }
-
-    public async sendImmediately(
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-        job: JobDescription,
-        {delaySeconds = 0}: {delaySeconds?: number} = {},
-    ): Promise<void> {
-        const tracer = context.tracer.getTracer();
-        const promiseResolver = createPromiseResolver();
-
-        const queueName: JobQueueName = job.type === "ProcessFile" ? "FileProcessor" : "Default";
-
-        const messageBatch = this._messageBatchByQueueName.get(queueName);
-        if (messageBatch !== undefined) {
-            messageBatch.timeout.clear();
-            this._messageBatchByQueueName.delete(queueName);
-        }
-
-        const messages = messageBatch?.messages ?? [];
-
-        messages.push({
-            job,
-            delaySeconds,
-            tracer,
-            promiseResolver,
-        });
-
-        void this._sendBatch(queueName, messages);
 
         return promiseResolver.promise;
     }
