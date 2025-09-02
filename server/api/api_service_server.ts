@@ -2,9 +2,11 @@ import {Ajv} from "ajv";
 import FindMyWay from "find-my-way";
 import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
+import Negotiator from "negotiator";
 import {OpenAPIV3} from "openapi-types";
 import {join as joinPath} from "path";
 import Yaml from "yaml";
+import {renderApiBrowser} from "~/server/api/api_browser.js";
 import {ApiPathsBase, apiPaths} from "~/server/api/api_paths.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
@@ -115,9 +117,32 @@ export async function createApiServiceRequestListener(
                 // Ideally we wouldn't respect this header from public API calls (only from
                 // internal API calls) since it would allow public API users to mess with our
                 // traces (though maybe it's not an issue since what's the use case for that?).
-                return traceServerResponse(tracer, request, url, route, (span, request) =>
-                    action(span, request, url, pathParams),
-                );
+                return traceServerResponse(tracer, request, url, route, async (span, request) => {
+                    const response = await action(span, request, url, pathParams);
+
+                    if (
+                        request.headers.has("accept") &&
+                        response.headers.get("content-type") === "application/json"
+                    ) {
+                        const negotiator = new Negotiator(req);
+                        const negotiatedMediaType = negotiator.mediaType([
+                            "text/html",
+                            "application/json",
+                        ]);
+
+                        if (negotiatedMediaType === "text/html") {
+                            return renderApiBrowser({
+                                request,
+                                response,
+                                edgeServiceUrl,
+                                url,
+                                route,
+                            });
+                        }
+                    }
+
+                    return response;
+                });
             });
         };
     };

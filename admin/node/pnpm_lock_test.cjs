@@ -89,10 +89,11 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["tar-stream", ["2.2.0", "3.1.7"]],
 
     // NOTE(calebmer, 2025-08-21): Duplicate packages after adding `ajv`,
-    // `find-my-way`, `mustache`, `openapi-types`, `openapi-typescript`, and
-    // `supertest` for `ApiService`.
+    // `find-my-way`, `mustache`, `openapi-types`, `openapi-typescript`,
+    // `supertest`, and `negotiator` for `ApiService`.
     ["parse-json", ["5.2.0", "8.3.0"]],
     ["qs", ["6.11.0", "6.14.0"]],
+    ["negotiator", ["0.6.3", "1.0.0"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where

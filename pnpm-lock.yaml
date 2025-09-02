@@ -514,6 +514,9 @@ importers:
       '@types/mustache':
         specifier: ^4.2.6
         version: 4.2.6
+      '@types/negotiator':
+        specifier: ^0.6.4
+        version: 0.6.4
       '@types/node':
         specifier: 20.3.2
         version: 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
@@ -841,6 +844,9 @@ importers:
       mustache:
         specifier: ^4.2.0
         version: 4.2.0
+      negotiator:
+        specifier: ^1.0.0
+        version: 1.0.0
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
@@ -3689,6 +3695,9 @@ packages:
 
   '@types/mute-stream@0.0.4':
     resolution: {integrity: sha512-CPM9nzrCPPJHQNA9keH9CVkVI+WR5kMa+7XEs5jcGQ0VoAGnLv242w8lIVgwAEfmE4oufJRaTc9PNLQl0ioAow==}
+
+  '@types/negotiator@0.6.4':
+    resolution: {integrity: sha512-elf6BsTq+AkyNsb2h5cGNst2Mc7dPliVoAPm1fXglC/BM3f2pFA40BaSSv3E5lyHteEawVKLP+8TwiY1DMNb3A==}
 
   '@types/node-cron@3.0.11':
     resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
@@ -6936,6 +6945,10 @@ packages:
 
   negotiator@0.6.3:
     resolution: {integrity: sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg==}
+    engines: {node: '>= 0.6'}
+
+  negotiator@1.0.0:
+    resolution: {integrity: sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==}
     engines: {node: '>= 0.6'}
 
   neo-async@2.6.2:
@@ -13128,6 +13141,8 @@ snapshots:
     dependencies:
       '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
 
+  '@types/negotiator@0.6.4': {}
+
   '@types/node-cron@3.0.11': {}
 
   '@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)': {}
@@ -17535,6 +17550,8 @@ snapshots:
   natural-compare@1.4.0: {}
 
   negotiator@0.6.3: {}
+
+  negotiator@1.0.0: {}
 
   neo-async@2.6.2: {}
 

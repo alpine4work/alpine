@@ -136,3 +136,20 @@ test("path param that doesn’t match pattern", async () => {
 
     expect(response.body).toEqual({error: {message: "Invalid `id` path parameter."}});
 });
+
+test("responds with pretty HTML if asked", async () => {
+    const response = await request(server)
+        .get("/ping")
+        .set("accept", "text/html")
+        .expect("content-type", "text/html")
+        .expect(200);
+
+    /* eslint-disable string-quotes */
+
+    expect(response.text).toContain(`\
+<span class="tok-punctuation">{</span>
+  <span class="tok-propertyName">&quot;pong&quot;</span>: <span class="tok-bool">true</span>
+<span class="tok-punctuation">}</span>`);
+
+    /* eslint-enable string-quotes */
+});
