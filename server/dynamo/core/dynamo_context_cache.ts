@@ -61,15 +61,30 @@ export class DynamoContextCache<Key extends string | number, Value> {
             cache: CacheContextModule;
             dynamo: DynamoContextModule;
         }>,
-        consistency: DynamoCacheReadConsistency,
+        consistencyOrOptions:
+            | DynamoCacheReadConsistency
+            | {consistency: DynamoCacheReadConsistency; allowsEventualReadConsistency?: boolean},
         key: Key,
         getDefault: (consistency: DynamoReadConsistency) => Promise<Value>,
     ): Promise<Value> {
+        const consistency =
+            typeof consistencyOrOptions === "string"
+                ? consistencyOrOptions
+                : consistencyOrOptions.consistency;
+
+        const allowsEventualReadConsistency =
+            typeof consistencyOrOptions === "object"
+                ? consistencyOrOptions.allowsEventualReadConsistency ?? false
+                : false;
+
         switch (consistency) {
             case "Eventual": {
                 // Make sure to report an error if we expect to use strong consistency but
                 // instead get an eventually consistent read.
-                if (getDynamoExpectsStrongReadConsistency(context)) {
+                if (
+                    !allowsEventualReadConsistency &&
+                    getDynamoExpectsStrongReadConsistency(context)
+                ) {
                     const error = new InternalError(
                         `Expected DynamoDB strong consistency when reading${
                             // Don't key in error message in production! Since the key may contain

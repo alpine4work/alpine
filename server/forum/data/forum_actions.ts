@@ -51,6 +51,7 @@ import {
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
+    authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
@@ -138,6 +139,7 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -1286,7 +1288,15 @@ export async function subscribeToChannel(
     context: ServerSessionActionContext,
     channelId: ChannelId,
 ) {
-    await authorizeChannelAccess(context, channelId, "View");
+    const accountId = context.actor.getAccountId();
+    const {spaceId} = await authorizeChannelAccess(context, channelId, "View");
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots aren't allowed to subscribe to channels.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     await ForumTable.updateItem(
         context,
@@ -1294,7 +1304,7 @@ export async function subscribeToChannel(
             partitionType: "Channel",
             sortRangeType: "Subscription",
             channelId,
-            accountId: context.actor.getAccountId(),
+            accountId,
         },
         item => {
             if (item) return item;
@@ -1303,7 +1313,7 @@ export async function subscribeToChannel(
                 partitionType: "Channel",
                 sortRangeType: "Subscription",
                 channelId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 createdTime: new Date(),
             };
         },
@@ -1318,7 +1328,15 @@ export async function unsubscribeFromChannel(
     context: ServerSessionActionContext,
     channelId: ChannelId,
 ) {
-    await authorizeChannelAccess(context, channelId, "View");
+    const accountId = context.actor.getAccountId();
+    const {spaceId} = await authorizeChannelAccess(context, channelId, "View");
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots aren't allowed to subscribe to channels.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     await ForumTable.updateItem(
         context,
@@ -1326,7 +1344,7 @@ export async function unsubscribeFromChannel(
             partitionType: "Channel",
             sortRangeType: "Subscription",
             channelId,
-            accountId: context.actor.getAccountId(),
+            accountId,
         },
         item => {
             if (!item) return item;
@@ -2205,7 +2223,7 @@ export async function createPost(
         type: "NotificationEvent",
         event: {
             type: "CreatePost",
-            id: generateId(),
+            id: generateChronologicalId(),
             spaceId,
             channelId: postItem.channelId,
             postId: postItem.postId,
@@ -3074,7 +3092,7 @@ export async function createPostComment(
             type: "NotificationEvent",
             event: {
                 type: "CreatePostComment",
-                id: generateId(),
+                id: generateChronologicalId(),
                 spaceId: postItem.spaceId,
                 postId,
                 commentIndex,

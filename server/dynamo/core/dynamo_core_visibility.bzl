@@ -7,6 +7,7 @@ discover all DynamoDB table schemas when setting up our backend infrastructure
 DYNAMO_CORE_VISIBILITY = [
     "//server/accounts",
     "//server/alpha",
+    "//server/bots",
     "//server/chat/data",
     "//server/context",
     "//server/deploy/data",

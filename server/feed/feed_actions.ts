@@ -11,7 +11,12 @@ import {FeedTable, feedEntryBlockMaxEntryCount} from "~/server/feed/internal/fee
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeNotBotSpaceAccount,
+    authorizeSpaceAccess,
+    getAccount,
+    isBotSpaceAccount,
+} from "~/server/spaces/spaces_table.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
@@ -252,7 +257,14 @@ export async function addFeedAccountCandidateEntry(
     entry: FeedEntry,
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
-    await authorizeSpaceAccess(context, spaceId);
+    const [, isBot] = await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        isBotSpaceAccount(context, spaceId, accountId),
+    ]);
+
+    // Bots don't have feeds. Noop if we're trying to add an account candidate
+    // entry for a bot account.
+    if (isBot) return;
 
     if (entry.type === "Welcome") {
         throw new InvalidArgumentError(
@@ -322,6 +334,14 @@ export async function getAndUpdateFeedEntries(
     await authorizeSpaceAccess(context, spaceId);
 
     const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have a feed. So don't allow reading/updating a feed for the bot
+        // account.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     const {feedItem, newEntryBlocks} = await context.tracer.withSpan(
         "Update feed entries",

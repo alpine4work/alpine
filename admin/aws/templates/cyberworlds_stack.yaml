@@ -965,6 +965,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/AlphaAccessTable/Resource
+    BotsTable78B66B1C:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: Bots
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/BotsTable/Resource
     ChatTable7A2D1C24:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1719,6 +1744,9 @@ Resources:
                                 - AlphaAccessTable823F6A12
                                 - Arn
                           - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
@@ -1764,6 +1792,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2433,6 +2467,9 @@ Resources:
                                 - AlphaAccessTable823F6A12
                                 - Arn
                           - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
@@ -2478,6 +2515,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3247,6 +3290,9 @@ Resources:
                                 - AlphaAccessTable823F6A12
                                 - Arn
                           - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
@@ -3292,6 +3338,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3865,6 +3917,9 @@ Resources:
                                 - AlphaAccessTable823F6A12
                                 - Arn
                           - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
                                 - ChatTable7A2D1C24
                                 - Arn
                           - Fn::GetAtt:
@@ -3910,6 +3965,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
                                         - Arn
                                   - /index/*
                           - Fn::Join:

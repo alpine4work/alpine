@@ -131,6 +131,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -3219,7 +3220,7 @@ export async function updateDocumentContent(
                                 type: "NotificationEvent",
                                 event: {
                                     type: "CreateDocumentComment",
-                                    id: generateId(),
+                                    id: generateChronologicalId(),
                                     spaceId: internalDocument.spaceId,
                                     documentId: documentId,
                                     commentThreadId: createCommentThread.commentThreadId,
@@ -4546,7 +4547,7 @@ export async function createDocumentComment(
             type: "NotificationEvent",
             event: {
                 type: "CreateDocumentComment",
-                id: generateId(),
+                id: generateChronologicalId(),
                 spaceId,
                 documentId,
                 commentThreadId,

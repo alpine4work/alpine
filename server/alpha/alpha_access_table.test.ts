@@ -1,4 +1,4 @@
-import {createAccountTransactionEntries} from "~/server/accounts/accounts_actions.js";
+import {createAccountWithEmailAddressTransactionEntries} from "~/server/accounts/accounts_actions.js";
 import {createAlphaSpaceAsAdmin, requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -25,10 +25,11 @@ async function createTestAccount() {
 
     await DynamoTableSchema.executeTransaction(
         context,
-        createAccountTransactionEntries({
+        createAccountWithEmailAddressTransactionEntries({
             id: accountId,
             name: "Test",
             emailAddress,
+            currentTime: new Date(),
         }),
     );
 

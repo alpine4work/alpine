@@ -24,6 +24,7 @@ import {
 import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
+    DataLossError,
     FailedPreconditionError,
     InternalError,
     NotFoundError,
@@ -40,7 +41,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
@@ -293,24 +294,19 @@ export function checkAccountEmailAddressDoesNotExistTransactionEntry(
  *
  * This is meant to be used for creating accounts during closed alpha.
  */
-export function createAccountTransactionEntries({
+export function createAccountWithEmailAddressTransactionEntries({
     id,
+    currentTime,
     name,
     emailAddress,
 }: {
     id: AccountId;
+    currentTime: Date;
     name: string;
     emailAddress: EmailAddress;
 }): Array<DynamoTransactionEntry> {
     return [
-        AccountsTable.transactionCreateItem({
-            partitionType: "Account",
-            sortRangeType: "Attributes",
-            accountId: id,
-            name,
-            nameVersion: 0,
-            createdTime: new Date(),
-        }),
+        createAccountTransactionEntry({id, currentTime, name}),
         AccountsTable.transactionCreateItem({
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
@@ -319,6 +315,44 @@ export function createAccountTransactionEntries({
             isVerified: false,
         }),
     ];
+}
+
+/**
+ * Returns transaction entries for creating an account.
+ */
+export function createAccountTransactionEntry({
+    id,
+    currentTime,
+    name,
+    dangerouslyInstantiateBot,
+}: {
+    id: AccountId;
+    currentTime: Date;
+    name: string;
+
+    /**
+     * This is set when instantiating a bot to mark the account as a bot account.
+     * This is dangerous since when creating a bot account we need to make sure
+     * there's no other account for the bot in the space (and that the `BotId`
+     * exists). This function doesn't make those checks.
+     *
+     * Only the `instantiateBotSpaceAccount()` function in `spaces_table.ts` should
+     * use this.
+     */
+    dangerouslyInstantiateBot?: {
+        botId: BotId;
+        spaceId: SpaceId;
+    };
+}): DynamoTransactionEntry {
+    return AccountsTable.transactionCreateItem({
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: id,
+        name,
+        nameVersion: 0,
+        createdTime: currentTime,
+        bot: dangerouslyInstantiateBot,
+    });
 }
 
 /**
@@ -803,13 +837,23 @@ export class Session implements SessionInterface {
             }),
             sessionAccountId ? getAccountItemIfExists(context, sessionAccountId) : null,
         ]);
+
         if (!sessionItem) return null;
 
-        if (sessionAccountId && sessionItem.accountId !== sessionAccountId)
-            throw new PermissionDeniedError("Wrong account ID for session");
+        if (sessionAccountId) {
+            if (sessionItem.accountId !== sessionAccountId)
+                throw new PermissionDeniedError("Wrong `AccountId` for session");
 
-        if (sessionAccountId && !accountItem)
-            throw new InternalError("Expected account referenced by session to exist");
+            if (!accountItem)
+                throw new InternalError("Expected account referenced by session to exist");
+
+            // Sanity check: We shouldn't create sessions for bots. Only for accounts that
+            // can sign in via email or some other method. Therefore we shouldn't be
+            // reading a bot session account.
+            if (accountItem.bot) {
+                throw new DataLossError("Bot accounts can’t have sessions");
+            }
+        }
 
         return new Session(
             sessionId,
@@ -855,14 +899,24 @@ export class Session implements SessionInterface {
         if (this._preloadedAccount !== null) return Promise.resolve(this._preloadedAccount);
 
         if (this._accountPromise === null) {
-            this._accountPromise = (async () =>
-                assertExists(
+            this._accountPromise = (async () => {
+                const accountItem = assertExists(
                     await dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
                         context,
                         this.accountId,
                     ),
                     "Expected account referenced by session to exist",
-                ))();
+                );
+
+                // Sanity check: We shouldn't create sessions for bots. Only for accounts that
+                // can sign in via email or some other method. Therefore we shouldn't be
+                // reading a bot session account.
+                if (accountItem.account.botId) {
+                    throw new DataLossError("Bot accounts can’t have sessions");
+                }
+
+                return accountItem;
+            })();
         }
 
         return this._accountPromise;
@@ -887,6 +941,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
                   version: accountItem.avatar.updateLockVersion ?? 0,
               }
             : null,
+        botId: accountItem.bot?.botId,
     });
 }
 

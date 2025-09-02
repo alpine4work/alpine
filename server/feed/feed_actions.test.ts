@@ -1,3 +1,4 @@
+import {createBotForTest} from "~/server/bots/bots_table.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -15,6 +16,7 @@ import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/files/dat
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
+import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -2241,6 +2243,92 @@ test("can add feed account candidates", async () => {
     expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
 });
 
+test("can’t add feed account candidates for bot account", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    const {accountId: botAccountId} = await instantiateBotSpaceAccount(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    const id1 = generateId<DocumentId>();
+    const id2 = generateId<DocumentId>();
+
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: botAccountId,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+
+    await addFeedAccountCandidateEntry(adminSession.action(), space.id, botAccountId, {
+        type: "Document",
+        documentId: id1,
+        sharerId: adminSession.account.id,
+        sharedTime: new Date(),
+        creatorId: adminSession.account.id,
+        event: "Created",
+    });
+
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: botAccountId,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+
+    await addFeedAccountCandidateEntry(space.systemAction(), space.id, botAccountId, {
+        type: "Document",
+        documentId: id2,
+        sharerId: botAccountId,
+        sharedTime: new Date(),
+        creatorId: botAccountId,
+        event: "Created",
+    });
+
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: botAccountId,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+
+    await addFeedAccountCandidateEntry(
+        space.impersonatedAction(botAccountId),
+        space.id,
+        botAccountId,
+        {
+            type: "Document",
+            documentId: id2,
+            sharerId: botAccountId,
+            sharedTime: new Date(),
+            creatorId: botAccountId,
+            event: "Created",
+        },
+    );
+
+    expect(
+        await getFeedAccountCandidateEntriesForTest(space.systemAction(), {
+            accountId: botAccountId,
+            limit: 100,
+        }),
+    ).toEqual([]);
+
+    expect(await getFeedCandidateEntriesForTest(space.systemAction(), {limit: 100})).toEqual([]);
+});
+
 test("add feed account candidate entry job processor is idempotent", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -2569,6 +2657,39 @@ test("get and update feed gets new entries every call", async () => {
             },
         ],
     });
+});
+
+test("can’t get and update feed for bot account", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const {accountId: botAccountId} = await instantiateBotSpaceAccount(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    const channel = await TestChannel.create(session);
+    await ProcessContextModule.waitForTestTasks();
+
+    const posts: Array<TestPost> = [];
+
+    for (let i = 0; i < 10; i++) {
+        posts.push(await channel.createPost(session));
+        await ProcessContextModule.waitForTestTasks();
+    }
+
+    await expect(
+        getAndUpdateFeedEntries(
+            // @ts-expect-error
+            space.impersonatedAction(botAccountId),
+            {spaceId: space.id, limit: 500},
+        ),
+    ).rejects.toThrow("Bot account not allowed");
 });
 
 test("won’t add entries to feed account doesn’t have access to", async () => {

@@ -57,6 +57,26 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "bot": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "spaceId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "botId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -429,6 +449,56 @@ export const dynamoGeneratedSchemaDescription: {
                                                     }
                                                 }
                                             }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
+        "Bots": {
+            "name": "Bots",
+            "partitionByType": {
+                "Bot": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "botId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "name": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "webhookUrl": {
+                                        "valueSchema": {
+                                            "type": "String"
                                         },
                                         "optional": false
                                     },
@@ -9094,6 +9164,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "botId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": true
+                                    },
                                     "removal": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -9156,6 +9232,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "type": "Integer"
                                                                             },
                                                                             "optional": false
+                                                                        },
+                                                                        "botId": {
+                                                                            "valueSchema": {
+                                                                                "type": "Id"
+                                                                            },
+                                                                            "optional": true
                                                                         }
                                                                     },
                                                                     "referenceId": "b9ed3c15"
@@ -9302,6 +9384,42 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Bytes"
                                         },
                                         "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "Bot": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "botId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Space": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "accountId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {

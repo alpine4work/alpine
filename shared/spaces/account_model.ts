@@ -100,6 +100,14 @@ export class AccountModel implements AccountModelWithoutSpace {
     });
 
     /**
+     * `botId` is immutable so it's ok to access it directly with `account.botId`
+     * instead of indirectly with `account.initialData.botId`.
+     */
+    public get botId() {
+        return this.initialData.botId;
+    }
+
+    /**
      * Also implemented by `SearchEntityModel` so you can call
      * `getSearchEntityId()` on `SearchEntityModel | AccountModel` to get the
      * `SearchEntityId`.

@@ -65,6 +65,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
@@ -800,7 +801,7 @@ function sendChatMessageForAccount(
             type: "NotificationEvent",
             event: {
                 type: "CreateChatMessage",
-                id: generateId(),
+                id: generateChronologicalId(),
                 spaceId: chatItem.spaceId,
                 chatId,
                 messageIndex,

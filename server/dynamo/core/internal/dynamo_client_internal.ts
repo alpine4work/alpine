@@ -2,6 +2,7 @@
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
+import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client_get_item_test_counter.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
@@ -201,6 +202,10 @@ export class DynamoClientInternal {
                     },
                 });
 
+                if (import.meta.jest) {
+                    dynamoClientGetItemTestCounter.incrementForTest("GetItem", 1);
+                }
+
                 const output = await this._execute<types.GetItemInput, types.GetItemOutput>(
                     retry,
                     span,
@@ -296,6 +301,10 @@ export class DynamoClientInternal {
                         linkedTracers.add(otherTracer);
                         otherTracer.link(`Batch execution: ${span.getName()}`, span);
                     }
+                }
+
+                if (import.meta.jest) {
+                    dynamoClientGetItemTestCounter.incrementForTest("BatchGetItem", batchSize);
                 }
 
                 const output = await this._execute<
@@ -667,6 +676,10 @@ export class DynamoClientInternal {
                         transactGet: {size},
                     },
                 });
+
+                if (import.meta.jest) {
+                    dynamoClientGetItemTestCounter.incrementForTest("TransactGetItems", size);
+                }
 
                 const output = await this._execute<
                     types.TransactGetItemsInput,

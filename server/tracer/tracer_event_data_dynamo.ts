@@ -16,6 +16,7 @@
 export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
     "Accounts",
     "AlphaAccess",
+    "Bots",
     "Chat",
     "Deploy",
     "Documents",
@@ -59,6 +60,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
     ["Accounts", ["Account", "AccountEmailAddress", "Session", "AppleDeviceToken"]],
     ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
+    ["Bots", ["Bot"]],
     ["Chat", ["Chat"]],
     ["Deploy", ["Deploy"]],
     ["Documents", ["Document", "DocumentCommentThread"]],
@@ -68,7 +70,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["ForumRealtime", ["Channel", "Post", "Realtime", "Graveyard"]],
     ["Inbox", ["Account", "Inbox", "Realtime", "Graveyard"]],
     ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections", "IndexSearchEntityEmbeddingChunksJob"]],
-    ["Spaces", ["Space", "Account"]],
+    ["Spaces", ["Space", "Account", "Bot"]],
     ["TaskActions", ["TaskActions"]],
     ["Tasks", ["Account", "TaskCollection", "Task", "TaskGridViewExpansionState"]],
 ]);

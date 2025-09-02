@@ -13,10 +13,12 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
+    authorizeNotBotSpaceAccount,
     authorizeOwnAccountAccess,
     authorizeSpaceAccess,
     expensiveScanEverySpaceAccountForMigration,
     isAccountMemberOfSpaceWithoutAuthorization,
+    isBotSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -1236,6 +1238,9 @@ export function markSearchAffinityEntityInteractionForAccount(
         interaction: SearchAffinityEntityInteraction;
     },
 ) {
+    // Make sure we're using a system actor.
+    context.actor.authorizeSystem();
+
     return addSearchAffinityEntityPoints(context, {
         spaceId,
         accountId,
@@ -1299,8 +1304,14 @@ async function addSearchAffinityEntityPoints(
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
 
-    await authorizeSpaceAccess(context, spaceId);
-    await authorizeOwnAccountAccess(context, accountId);
+    const [, , isBot] = await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        authorizeOwnAccountAccess(context, accountId),
+        isBotSpaceAccount(context, spaceId, accountId),
+    ]);
+
+    // Bots don't accumulate affinity points
+    if (isBot) return;
 
     // Make sure increments are positive and finite.
     if (pointsIncrement < 0 || isNaN(pointsIncrement) || !Number.isFinite(pointsIncrement))
@@ -1489,6 +1500,9 @@ export async function addSearchAffinityEntityActiveTaskAssigneePoints(
     // sending a notification after an @ mention (which can be dismissed).
     context.actor.authorizeSystem();
 
+    // Bots don't accumulate affinity points
+    if (await isBotSpaceAccount(context, spaceId, assigneeId)) return;
+
     const currentTime = Date.now();
 
     await context.dynamo.retryTransaction(async context => {
@@ -1610,6 +1624,9 @@ export async function removeSearchAffinityEntityActiveTaskAssigneePoints(
     // sending a notification after an @ mention (which can be dismissed).
     context.actor.authorizeSystem();
 
+    // Bots don't accumulate affinity points
+    if (await isBotSpaceAccount(context, spaceId, assigneeId)) return;
+
     const currentTime = Date.now();
 
     await context.dynamo.retryTransaction(async context => {
@@ -1688,7 +1705,14 @@ export async function clearSearchEntityAffinity(
     context: ServerSessionActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ) {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't accumulate affinity points
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     await SearchEntityTable.updateItem(
         context,
@@ -1696,7 +1720,7 @@ export async function clearSearchEntityAffinity(
             partitionType: "Account",
             sortRangeType: "SearchEntityAffinity",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
             entityId,
         },
         item => {
@@ -1706,7 +1730,7 @@ export async function clearSearchEntityAffinity(
                 partitionType: "Account",
                 sortRangeType: "SearchEntityAffinity",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 entityId,
                 favoriteOrderKey: null,
                 ...item,
@@ -2058,6 +2082,8 @@ async function querySessionActorSearchAffinityEntities<IdType extends Id>(
     spaceId: SpaceId,
     entityType: GetSearchAffinityEntityIdType<SearchAffinityEntityId, IdType>,
 ): Promise<Array<IdType>> {
+    await authorizeSpaceAccess(context, spaceId);
+
     const currentTime = Date.now();
 
     const items = await arrayFromAsyncIterable(
@@ -2207,14 +2233,21 @@ export async function favoriteSearchEntity(
     context: ServerSessionActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ): Promise<{orderKey: OrderKey}> {
-    // Optimization: We don't authorize whether the actor has access to the entity.
-    // Since this is a personal favorite list it doesn't really matter if the user
-    // favorites an entity they don't have access to.
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        // Optimization: We don't authorize whether the actor has access to the entity.
+        // Since this is a personal favorite list it doesn't really matter if the user
+        // favorites an entity they don't have access to.
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots can't favorite entities
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
         spaceId,
-        accountId: context.actor.getAccountId(),
+        accountId,
         entityId,
     });
 }
@@ -2315,10 +2348,17 @@ export async function unfavoriteSearchEntity(
     context: ServerSessionActionContext,
     {spaceId, entityId}: {spaceId: SpaceId; entityId: SearchAffinityEntityId},
 ) {
-    // Optimization: We don't authorize whether the actor has access to the entity.
-    // Since this is a personal favorite list it doesn't really matter if the user
-    // favorites an entity they don't have access to.
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        // Optimization: We don't authorize whether the actor has access to the entity.
+        // Since this is a personal favorite list it doesn't really matter if the user
+        // favorites an entity they don't have access to.
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots can't favorite entities
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     await SearchEntityTable.updateItem(
         context,
@@ -2326,7 +2366,7 @@ export async function unfavoriteSearchEntity(
             partitionType: "Account",
             sortRangeType: "SearchEntityAffinity",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
             entityId,
         },
         item => {
@@ -2359,10 +2399,17 @@ export async function moveSearchFavoriteEntity(
         orderKey: OrderKey;
     },
 ) {
-    // Optimization: We don't authorize whether the actor has access to the entity.
-    // Since this is a personal favorite list it doesn't really matter if the user
-    // favorites an entity they don't have access to.
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        // Optimization: We don't authorize whether the actor has access to the entity.
+        // Since this is a personal favorite list it doesn't really matter if the user
+        // favorites an entity they don't have access to.
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots can't favorite entities
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     await SearchEntityTable.updateItem(
         context,
@@ -2370,7 +2417,7 @@ export async function moveSearchFavoriteEntity(
             partitionType: "Account",
             sortRangeType: "SearchEntityAffinity",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
             entityId,
         },
         item => {

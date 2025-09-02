@@ -1,7 +1,7 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -41,6 +41,23 @@ export const AccountsTable = DynamoTableSchema.new({
                          * Does this account have access to pages under `/internal`?
                          */
                         hasInternalAccess: Schema.boolean.optional(),
+
+                        /**
+                         * Is this a bot account? Undefined if this isn't a bot account and
+                         * defined if it is. Includes the `BotId` this account is an instantiation of.
+                         * There's only one account per bot per space.
+                         *
+                         * Bot accounts shouldn't have sessions. Bot accounts shouldn't have email
+                         * addresses. You shouldn't be able to sign into a bot account.
+                         *
+                         * This property is also immutable. When you create a bot account, it's always
+                         * a bot account. It can never be turned into a regular account and a regular
+                         * account can never be turned into a bot account.
+                         */
+                        bot: Schema.object({
+                            spaceId: Schema.id<SpaceId>(),
+                            botId: Schema.id<BotId>(),
+                        }).optional(),
                     }),
                 },
                 /**

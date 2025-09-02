@@ -132,6 +132,7 @@ import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {decodeIdInto, encodeId, generateId, getMinId, idByteLength, isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -5437,7 +5438,7 @@ export async function createTaskComment(
             type: "NotificationEvent",
             event: {
                 type: "CreateTaskComment",
-                id: generateId(),
+                id: generateChronologicalId(),
                 spaceId: spaceId,
                 taskId,
                 commentIndex,

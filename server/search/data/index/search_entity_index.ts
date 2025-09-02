@@ -83,6 +83,7 @@ import {
     withIndexSearchEntityEmbeddingChunksJobLock,
 } from "~/server/search/data/table/search_entity_table.js";
 import {
+    authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     getAccount,
     getAccountIfExists,
@@ -2571,7 +2572,13 @@ export async function searchByAffinity(
     favoriteResults: Array<SearchFavoriteEntityResultModel>;
     results: Array<SearchAffinityEntityResultModel>;
 }> {
-    await authorizeSpaceAccess(context, spaceId);
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't collect affinity points so searching by affinity doesn't make
+        // sense for a bot.
+        authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
+    ]);
 
     // The number of affinity results to load. We don't let the client configure
     // this number since we cache this in the client's RPC cache which is keyed on
@@ -3021,6 +3028,14 @@ export async function searchChannelsByAffinity(
         origin: "Account" | "Space";
     }>
 > {
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't collect affinity points so searching by affinity doesn't make
+        // sense for a bot.
+        authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
+    ]);
+
     const channelIdsFromAccountAffinities = await getPossiblyStaleChannelSearchAffinityEntityIds(
         context,
         spaceId,
@@ -3208,6 +3223,14 @@ export async function searchTaskCollectionsByAffinity(
         }
     >
 > {
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't collect affinity points so searching by affinity doesn't make
+        // sense for a bot.
+        authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
+    ]);
+
     const collectionIdsFromAccountAffinities =
         await getPossiblyStaleTaskCollectionSearchAffinityEntityIds(context, spaceId);
 

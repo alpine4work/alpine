@@ -2,7 +2,7 @@ import {compareAsc as compareDatesAsc} from "date-fns";
 import {
     authorizeInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
-    createAccountTransactionEntries,
+    createAccountWithEmailAddressTransactionEntries,
 } from "~/server/accounts/accounts_actions.js";
 import {
     ServerActionContext,
@@ -239,8 +239,9 @@ export async function approveAlphaAccessRequest(
                 accountId,
             },
         }),
-        ...createAccountTransactionEntries({
+        ...createAccountWithEmailAddressTransactionEntries({
             id: accountId,
+            currentTime: new Date(),
             name: requestItem.name,
             emailAddress: requestItem.emailAddress,
         }),

@@ -3,15 +3,18 @@ import {
     registerOurAccountAppleDeviceToken,
     updateOurAccountName,
 } from "~/server/accounts/accounts_actions.js";
+import {createBotForTest} from "~/server/bots/bots_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
+import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client_get_item_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccount,
     addSpaceAccountBeforeExecuteTestCheckpoint,
+    authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
     expensivelyGetAllSpaceAccounts,
@@ -25,7 +28,9 @@ import {
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     getSpaceIfPossible,
+    instantiateBotSpaceAccount,
     isAccountMemberOfSpaceWithoutAuthorization,
+    isBotSpaceAccount,
     moveSpaceAccountOwnerRole,
     moveSpaceAccountOwnerRoleBeforeExecuteTestCheckpoint,
     moveSpaceAccountOwnerRoleForTest,
@@ -814,55 +819,55 @@ describe(`authorizeSpaceAccess()`, () => {
         userRole: SpaceRole;
         expectedRole: SpaceRole;
         userSpaceAccountStateType: SpaceAccountStateType;
-        allowedSpaceAccountStateTypes: Array<SpaceAccountStateType>;
+        allowInvitePending: boolean;
     }> = [
         {
             userRole: "Member",
             expectedRole: "Member",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Admin",
             expectedRole: "Member",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Owner",
             expectedRole: "Member",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Admin",
             expectedRole: "Admin",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Owner",
             expectedRole: "Admin",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Owner",
             expectedRole: "Owner",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Member",
             expectedRole: "Member",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Member",
             expectedRole: "Member",
             userSpaceAccountStateType: "InvitePending",
-            allowedSpaceAccountStateTypes: ["Active", "InvitePending"],
+            allowInvitePending: true,
         },
     ];
 
@@ -870,11 +875,9 @@ describe(`authorizeSpaceAccess()`, () => {
         userRole,
         expectedRole,
         userSpaceAccountStateType,
-        allowedSpaceAccountStateTypes,
+        allowInvitePending,
     } of allowedTestCases) {
-        test(`allows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and states ${allowedSpaceAccountStateTypes.join(
-            ", ",
-        )}`, async () => {
+        test(`allows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and allow invite pending ${allowInvitePending}`, async () => {
             const space = await TestSpace.create(context);
 
             const userSession = await setupUserState({
@@ -883,12 +886,9 @@ describe(`authorizeSpaceAccess()`, () => {
                 spaceAccountStateType: userSpaceAccountStateType,
             });
 
-            await authorizeSpaceAccess(
-                userSession.action(),
-                space.id,
-                expectedRole,
-                allowedSpaceAccountStateTypes,
-            );
+            await authorizeSpaceAccess(userSession.action(), space.id, expectedRole, {
+                allowInvitePending,
+            });
         });
     }
 
@@ -896,49 +896,49 @@ describe(`authorizeSpaceAccess()`, () => {
         userRole: SpaceRole;
         expectedRole: SpaceRole;
         userSpaceAccountStateType: SpaceAccountStateType;
-        allowedSpaceAccountStateTypes: Array<SpaceAccountStateType>;
+        allowInvitePending: boolean;
     }> = [
         {
             userRole: "Member",
             expectedRole: "Admin",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Member",
             expectedRole: "Admin",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Member",
             expectedRole: "Owner",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Admin",
             expectedRole: "Owner",
             userSpaceAccountStateType: "Active",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Member",
             expectedRole: "Member",
             userSpaceAccountStateType: "Removed",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
         {
             userRole: "Member",
             expectedRole: "Member",
             userSpaceAccountStateType: "Removed",
-            allowedSpaceAccountStateTypes: ["Active", "InvitePending"],
+            allowInvitePending: true,
         },
         {
             userRole: "Member",
             expectedRole: "Member",
             userSpaceAccountStateType: "InvitePending",
-            allowedSpaceAccountStateTypes: ["Active"],
+            allowInvitePending: false,
         },
     ];
 
@@ -946,11 +946,9 @@ describe(`authorizeSpaceAccess()`, () => {
         userRole,
         expectedRole,
         userSpaceAccountStateType,
-        allowedSpaceAccountStateTypes,
+        allowInvitePending,
     } of disallowedTestCases) {
-        test(`disallows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and states ${allowedSpaceAccountStateTypes.join(
-            ", ",
-        )}`, async () => {
+        test(`disallows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and allow invite pending ${allowInvitePending}`, async () => {
             const space = await TestSpace.create(context);
 
             const userSession = await setupUserState({
@@ -960,12 +958,9 @@ describe(`authorizeSpaceAccess()`, () => {
             });
 
             await expect(
-                authorizeSpaceAccess(
-                    userSession.action(),
-                    space.id,
-                    expectedRole,
-                    allowedSpaceAccountStateTypes,
-                ),
+                authorizeSpaceAccess(userSession.action(), space.id, expectedRole, {
+                    allowInvitePending,
+                }),
             ).rejects.toThrow(PermissionDeniedError);
         });
     }
@@ -3630,6 +3625,7 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should fall through cache l
     expect(cachedAccountAfter?.initialData.space.role).toBe("Member"); // Cache still has old role
 
     dynamoClientExecuteActionTestCounter.resetForTest();
+    dynamoClientGetItemTestCounter.resetForTest();
 
     expect(getCount()).toEqual(0);
     // Now check if the function correctly identifies the account has Admin role
@@ -3679,6 +3675,7 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should return true early wh
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
     dynamoClientExecuteActionTestCounter.resetForTest();
+    dynamoClientGetItemTestCounter.resetForTest();
 
     expect(getCount()).toEqual(0);
     // This should return true from cache without hitting the database
@@ -3792,6 +3789,7 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should handle removed accou
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
     dynamoClientExecuteActionTestCounter.resetForTest();
+    dynamoClientGetItemTestCounter.resetForTest();
 
     expect(getCount()).toEqual(0);
 
@@ -5697,4 +5695,789 @@ test("`getSpaceIfPossible()` returns an error for an anonymous actor", async () 
         ok: false,
         error: expect.any(UnauthenticatedError),
     });
+});
+
+test("can instantiate a bot in a space as an admin", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const ownerSession = await space.createSession({role: "Owner"});
+    const adminSession = await space.createSession({role: "Admin"});
+    const memberSession = await space.createSession({role: "Member"});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+
+    await expect(
+        instantiateBotSpaceAccount(otherSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Account doesn’t have `Admin` access to space");
+
+    await expect(
+        instantiateBotSpaceAccount(memberSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Account doesn’t have `Admin` access to space");
+
+    const {accountId} = await instantiateBotSpaceAccount(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    expect((await getAccount(memberSession.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({state: {type: "Active"}}),
+        }),
+    );
+
+    await expect(
+        instantiateBotSpaceAccount(adminSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Can’t instantiate bot twice in the same space");
+
+    await expect(
+        instantiateBotSpaceAccount(ownerSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Can’t instantiate bot twice in the same space");
+
+    const {accountId: otherAccountId} = await instantiateBotSpaceAccount(otherSession.action(), {
+        spaceId: otherSpace.id,
+        botId: bot.id,
+    });
+
+    expect(
+        (await getAccount(otherSession.action(), otherSpace.id, otherAccountId)).initialData,
+    ).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({state: {type: "Active"}}),
+        }),
+    );
+});
+
+test("can instantiate a bot in a space as an owner", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const ownerSession = await space.createSession({role: "Owner"});
+    const adminSession = await space.createSession({role: "Admin"});
+    const memberSession = await space.createSession({role: "Member"});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+
+    await expect(
+        instantiateBotSpaceAccount(otherSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Account doesn’t have `Admin` access to space");
+
+    await expect(
+        instantiateBotSpaceAccount(memberSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Account doesn’t have `Admin` access to space");
+
+    const {accountId} = await instantiateBotSpaceAccount(ownerSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    expect((await getAccount(memberSession.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({state: {type: "Active"}}),
+        }),
+    );
+
+    await expect(
+        instantiateBotSpaceAccount(adminSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Can’t instantiate bot twice in the same space");
+
+    await expect(
+        instantiateBotSpaceAccount(ownerSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Can’t instantiate bot twice in the same space");
+});
+
+test("can’t add a bot instantiated in one space to another space", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+
+    const {accountId} = await instantiateBotSpaceAccount(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    await expect(
+        addSpaceAccount(otherSession.action(), {
+            spaceId: otherSpace.id,
+            accountId,
+        }),
+    ).rejects.toThrow(
+        "Can’t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
+    );
+});
+
+test("can remove bot from space it was instantiated in and can add it back", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+
+    const {accountId} = await instantiateBotSpaceAccount(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({state: {type: "Active"}}),
+        }),
+    );
+
+    await removeSpaceAccount(session.action(), {
+        spaceId: space.id,
+        accountId,
+    });
+
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({
+                state: expect.objectContaining({type: "Removed"}),
+            }),
+        }),
+    );
+
+    await expect(
+        addSpaceAccount(otherSession.action(), {
+            spaceId: otherSpace.id,
+            accountId,
+        }),
+    ).rejects.toThrow(
+        "Can’t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
+    );
+
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({
+                state: expect.objectContaining({type: "Removed"}),
+            }),
+        }),
+    );
+
+    await addSpaceAccount(session.action(), {
+        spaceId: space.id,
+        accountId,
+    });
+
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({state: {type: "Active"}}),
+        }),
+    );
+});
+
+test("can’t make a bot account a space admin", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+
+    const session1 = await space.createSession({role: "Admin"});
+    const [session2, session3] = await space.createSessions(2);
+
+    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({
+                role: "Member",
+                state: {type: "Active"},
+            }),
+        }),
+    );
+
+    await updateSpaceAccountRole(session1.action(), {
+        spaceId: space.id,
+        accountId: session2.account.id,
+        role: "Admin",
+    });
+
+    await expect(
+        updateSpaceAccountRole(session1.action(), {
+            spaceId: space.id,
+            accountId,
+            role: "Admin",
+        }),
+    ).rejects.toThrow("Can’t modify bot account’s role");
+
+    await updateSpaceAccountRole(session1.action(), {
+        spaceId: space.id,
+        accountId: session3.account.id,
+        role: "Admin",
+    });
+
+    expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({
+                role: "Member",
+                state: {type: "Active"},
+            }),
+        }),
+    );
+});
+
+test("can’t make a bot account a space owner", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+
+    const session1 = await space.createSession({role: "Owner"});
+    const session2 = await space.createSession();
+
+    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({
+                role: "Member",
+                state: {type: "Active"},
+            }),
+        }),
+    );
+
+    await expect(
+        moveSpaceAccountOwnerRole(session1.action(), {
+            spaceId: space.id,
+            newOwnerAccountId: accountId,
+        }),
+    ).rejects.toThrow("Can’t move space owner role to bot account");
+
+    await moveSpaceAccountOwnerRole(session1.action(), {
+        spaceId: space.id,
+        newOwnerAccountId: session2.account.id,
+    });
+
+    expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
+        expect.objectContaining({
+            name: "Test Bot",
+            botId: bot.id,
+            space: expect.objectContaining({
+                role: "Member",
+                state: {type: "Active"},
+            }),
+        }),
+    );
+});
+
+test("can check whether an account is a bot or not", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const session1 = await space.createSession({role: "Owner"});
+    const session2 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    await expect(
+        isBotSpaceAccount(context.anonymousAction(), space.id, session1.account.id),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(
+        isBotSpaceAccount(context.anonymousAction(), space.id, session2.account.id),
+    ).rejects.toThrow("Unauthenticated session");
+    await expect(isBotSpaceAccount(context.anonymousAction(), space.id, accountId)).rejects.toThrow(
+        "Unauthenticated session",
+    );
+
+    await expect(
+        isBotSpaceAccount(otherSpace.systemAction(), space.id, session1.account.id),
+    ).rejects.toThrow("System actor doesn’t have access to space");
+    await expect(
+        isBotSpaceAccount(otherSpace.systemAction(), space.id, session2.account.id),
+    ).rejects.toThrow("System actor doesn’t have access to space");
+    await expect(isBotSpaceAccount(otherSpace.systemAction(), space.id, accountId)).rejects.toThrow(
+        "System actor doesn’t have access to space",
+    );
+
+    await expect(
+        isBotSpaceAccount(otherSession.action(), space.id, session1.account.id),
+    ).rejects.toThrow("Account doesn’t have access to space");
+    await expect(
+        isBotSpaceAccount(otherSession.action(), space.id, session2.account.id),
+    ).rejects.toThrow("Account doesn’t have access to space");
+    await expect(isBotSpaceAccount(otherSession.action(), space.id, accountId)).rejects.toThrow(
+        "Account doesn’t have access to space",
+    );
+
+    expect(await isBotSpaceAccount(space.systemAction(), space.id, session1.account.id)).toEqual(
+        false,
+    );
+    expect(await isBotSpaceAccount(space.systemAction(), space.id, session2.account.id)).toEqual(
+        false,
+    );
+    expect(await isBotSpaceAccount(space.systemAction(), space.id, accountId)).toEqual(true);
+
+    expect(await isBotSpaceAccount(session1.action(), space.id, session1.account.id)).toEqual(
+        false,
+    );
+    expect(await isBotSpaceAccount(session1.action(), space.id, session2.account.id)).toEqual(
+        false,
+    );
+    expect(await isBotSpaceAccount(session1.action(), space.id, accountId)).toEqual(true);
+
+    expect(await isBotSpaceAccount(session2.action(), space.id, session1.account.id)).toEqual(
+        false,
+    );
+    expect(await isBotSpaceAccount(session2.action(), space.id, session2.account.id)).toEqual(
+        false,
+    );
+    expect(await isBotSpaceAccount(session2.action(), space.id, accountId)).toEqual(true);
+
+    expect(
+        await isBotSpaceAccount(space.impersonatedAction(accountId), space.id, session1.account.id),
+    ).toEqual(false);
+    expect(
+        await isBotSpaceAccount(space.impersonatedAction(accountId), space.id, session2.account.id),
+    ).toEqual(false);
+    expect(
+        await isBotSpaceAccount(space.impersonatedAction(accountId), space.id, accountId),
+    ).toEqual(true);
+
+    await expect(isBotSpaceAccount(space.systemAction(), space.id, generateId())).rejects.toThrow(
+        "Account doesn’t have access to space",
+    );
+    await expect(isBotSpaceAccount(session1.action(), space.id, generateId())).rejects.toThrow(
+        "Account doesn’t have access to space",
+    );
+});
+
+test("`isBotSpaceAccount()` after `authorizeSpaceAccess()` is cached", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+
+    const session1 = await space.createSession({role: "Owner"});
+
+    const {accountId} = await instantiateBotSpaceAccount(session1.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    const {getCount: getCount1} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    const {getCount: getCount2} = dynamoClientGetItemTestCounter.recordAllForTest();
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    dynamoClientGetItemTestCounter.resetForTest();
+
+    // Establish baseline:
+    {
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(isBotSpaceAccount(actionContext, space.id, accountId)).resolves.toEqual(
+                true,
+            );
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                authorizeNotBotSpaceAccount(actionContext, space.id, accountId),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                isBotSpaceAccount(actionContext, space.id, session1.account.id),
+            ).resolves.toEqual(false);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                authorizeNotBotSpaceAccount(actionContext, space.id, session1.account.id),
+            ).resolves.toBeUndefined();
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = space.impersonatedAction(accountId);
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(isBotSpaceAccount(actionContext, space.id, accountId)).resolves.toEqual(
+                true,
+            );
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = space.impersonatedAction(accountId);
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                authorizeNotBotSpaceAccount(actionContext, space.id, accountId),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    dynamoClientGetItemTestCounter.resetForTest();
+
+    // Run after `authorizeSpaceAccess()`:
+    {
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await authorizeSpaceAccess(actionContext, space.id);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+
+            await expect(isBotSpaceAccount(actionContext, space.id, accountId)).resolves.toEqual(
+                true,
+            );
+
+            expect(getCount1()).toEqual(2);
+            expect(getCount2()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await authorizeSpaceAccess(actionContext, space.id);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+
+            await expect(
+                authorizeNotBotSpaceAccount(actionContext, space.id, accountId),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            expect(getCount1()).toEqual(2);
+            expect(getCount2()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await authorizeSpaceAccess(actionContext, space.id);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+
+            await expect(
+                isBotSpaceAccount(actionContext, space.id, session1.account.id),
+            ).resolves.toEqual(false);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await authorizeSpaceAccess(actionContext, space.id);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+
+            await expect(
+                authorizeNotBotSpaceAccount(actionContext, space.id, session1.account.id),
+            ).resolves.toBeUndefined();
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = space.impersonatedAction(accountId);
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await authorizeSpaceAccess(actionContext, space.id);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+
+            await expect(isBotSpaceAccount(actionContext, space.id, accountId)).resolves.toEqual(
+                true,
+            );
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = space.impersonatedAction(accountId);
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await authorizeSpaceAccess(actionContext, space.id);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+
+            await expect(
+                authorizeNotBotSpaceAccount(actionContext, space.id, accountId),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    dynamoClientGetItemTestCounter.resetForTest();
+
+    // Run in parallel with `authorizeSpaceAccess()`:
+    {
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                runAllPromises([
+                    authorizeSpaceAccess(actionContext, space.id),
+                    isBotSpaceAccount(actionContext, space.id, accountId),
+                ]),
+            ).resolves.toEqual([undefined, true]);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                runAllPromises([
+                    authorizeSpaceAccess(actionContext, space.id),
+                    authorizeNotBotSpaceAccount(actionContext, space.id, accountId),
+                ]),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(2);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                runAllPromises([
+                    authorizeSpaceAccess(actionContext, space.id),
+                    isBotSpaceAccount(actionContext, space.id, session1.account.id),
+                ]),
+            ).resolves.toEqual([undefined, false]);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = session1.action();
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                runAllPromises([
+                    authorizeSpaceAccess(actionContext, space.id),
+                    authorizeNotBotSpaceAccount(actionContext, space.id, session1.account.id),
+                ]),
+            ).resolves.toEqual([undefined, undefined]);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = space.impersonatedAction(accountId);
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                runAllPromises([
+                    authorizeSpaceAccess(actionContext, space.id),
+                    isBotSpaceAccount(actionContext, space.id, accountId),
+                ]),
+            ).resolves.toEqual([undefined, true]);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+
+        dynamoClientExecuteActionTestCounter.resetForTest();
+        dynamoClientGetItemTestCounter.resetForTest();
+
+        {
+            const actionContext = space.impersonatedAction(accountId);
+
+            expect(getCount1()).toEqual(0);
+            expect(getCount2()).toEqual(0);
+
+            await expect(
+                runAllPromises([
+                    authorizeSpaceAccess(actionContext, space.id),
+                    authorizeNotBotSpaceAccount(actionContext, space.id, accountId),
+                ]),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            expect(getCount1()).toEqual(1);
+            expect(getCount2()).toEqual(1);
+        }
+    }
 });

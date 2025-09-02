@@ -2,12 +2,14 @@ import _Fuse from "fuse.js";
 import {
     AccountDevice,
     checkAccountVersionConditionCheck,
-    createAccountTransactionEntries,
+    createAccountTransactionEntry,
+    createAccountWithEmailAddressTransactionEntries,
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
     getAccountIdByEmailAddressIfExists,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
+import {getBot} from "~/server/bots/bots_table.js";
 import {
     DynamoActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
@@ -31,6 +33,7 @@ import {
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {isDynamoTransactionCancelledExceptionByConditionCheckError} from "~/server/dynamo/core/is_dynamo_transaction_cancelled_exception_by_condition_check_error.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -43,7 +46,7 @@ import {
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {AvatarModel, AvatarSchema, AvatarTheme} from "~/shared/avatar/avatar_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
-import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -72,7 +75,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -85,11 +88,7 @@ import {
     SpaceAccountSettings,
     SpaceAccountSettingsSchema,
 } from "~/shared/spaces/space_account_settings.js";
-import {
-    SpaceAccountState,
-    SpaceAccountStateType,
-    spaceAccountStateDefault,
-} from "~/shared/spaces/space_account_state.js";
+import {SpaceAccountState, spaceAccountStateDefault} from "~/shared/spaces/space_account_state.js";
 import {spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel, SpaceRole, SpaceRoleSchema, hasSpaceRole} from "~/shared/spaces/space_model.js";
 
@@ -181,6 +180,14 @@ const SpacesTable = DynamoTableSchema.new({
                         addedTime: Schema.date.originalPropertyKey("joinedTime"),
 
                         /**
+                         * Is this a bot account? This is the same `BotId` that's in
+                         * `accountItem.bot.botId`. We copy it here since the `bot`
+                         * property is immutable and it's useful to know whether an account
+                         * is a bot if we're authorizing.
+                         */
+                        botId: Schema.id<BotId>().optional(),
+
+                        /**
                          * The state of the account's membership in this space.
                          *
                          * As of 2025-07-30, this used to be removal?: { time: Date } to mark
@@ -270,6 +277,29 @@ const SpacesTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         spaceIds: IdByteSetSchema.get<SpaceId>(),
                         invitePendingSpaceIds: IdByteSetSchema.get<SpaceId>().default(new Set()),
+                    }),
+                },
+            ],
+        },
+
+        /**
+         * All the spaces our bot is instantiated in. We have a separate `AccountId`
+         * for each space a bot is in. That way bot accounts can't accidentally read
+         * data from spaces they're not a part of.
+         */
+        {
+            name: "Bot",
+            partitionKeyAttributes: {
+                botId: DynamoKeyAttributeSchema.id<BotId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Space",
+                    sortKeyAttributes: {
+                        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                    },
+                    attributes: Schema.object({
+                        accountId: Schema.id<AccountId>(),
                     }),
                 },
             ],
@@ -608,13 +638,25 @@ export const addSpaceAccountBeforeExecuteTestCheckpoint =
  */
 function validateAccountStateForSpaceAddition({
     spaceId,
+    account,
     accountSpacesItem,
     spaceAccountItem,
 }: {
     spaceId: SpaceId;
+    account: AccountModelWithoutSpace | null;
     accountSpacesItem: AccountSpacesItem | null;
     spaceAccountItem: SpaceAccountItem | null;
 }) {
+    // Bot accounts can only be a member of one space. Don't allow adding a bot
+    // account to a new space but it's ok if the bot account was previously a
+    // member of the space that was removed. Then it's ok to add the bot account
+    // back to the space.
+    if (account?.botId && !spaceAccountItem) {
+        throw new FailedPreconditionError(
+            "Can’t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
+        );
+    }
+
     const accountSpaceIds: Set<SpaceId> = accountSpacesItem
         ? new Set(accountSpacesItem.spaceIds)
         : new Set();
@@ -689,8 +731,13 @@ async function getAddSpaceAccountTransactionEntries({
         assert(spaceAccountItem.state.reason === "ActionByAdmin");
 
         // If there was already a space account item, we need to update it
-        // Make sure we're passing InvitePending here
-        assert(newSpaceAccountState.type === "InvitePending");
+        // Make sure we're passing `InvitePending` here unless we're adding a bot which
+        // will always be added as active.
+        //
+        // Bots are added back to spaces as `Active` since a bot won't be accepting
+        // invites. That'd be silly.
+        const expectedNewAccountStateType = account?.botId ? "Active" : "InvitePending";
+        assert(newSpaceAccountState.type === expectedNewAccountStateType);
 
         updateOrCreateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
             ...spaceAccountItem,
@@ -700,6 +747,11 @@ async function getAddSpaceAccountTransactionEntries({
             state: newSpaceAccountState,
         });
     } else {
+        // Can only add bot to space through `instantiateBotSpaceAccount()`.
+        assert(!account?.botId);
+        const expectedNewAccountStateType = role === "Owner" ? "Active" : "InvitePending";
+        assert(newSpaceAccountState.type === expectedNewAccountStateType);
+
         updateOrCreateSpaceAccountItemTransactionEntry = SpacesTable.transactionCreateItem({
             partitionType: "Space",
             sortRangeType: "Account",
@@ -722,6 +774,13 @@ async function getAddSpaceAccountTransactionEntries({
         updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type === "InvitePending"
     ) {
         accountInvitePendingSpaceIds.add(spaceItem.spaceId);
+    }
+
+    // Sanity check: Bot accounts should only ever be in a single space and never
+    // invited to a space.
+    if (account?.botId) {
+        assert(accountSpaceIds.size === 1);
+        assert(accountInvitePendingSpaceIds.size === 0);
     }
 
     return {
@@ -814,7 +873,12 @@ export async function addSpaceAccountWithoutAuthorization(
             throw new NotFoundError("Account not found");
         }
 
-        validateAccountStateForSpaceAddition({spaceId, accountSpacesItem, spaceAccountItem});
+        validateAccountStateForSpaceAddition({
+            spaceId,
+            account,
+            accountSpacesItem,
+            spaceAccountItem,
+        });
 
         // Make sure there aren't any other owners in the space.
         //
@@ -853,10 +917,8 @@ export async function addSpaceAccountWithoutAuthorization(
             spaceAccountItem,
             accountSpacesItem,
             newSpaceAccountState:
-                role === "Owner"
-                    ? {
-                          type: "Active",
-                      }
+                role === "Owner" || spaceAccountItem?.botId
+                    ? {type: "Active"}
                     : {
                           type: "InvitePending",
                           invitedTime: new Date(),
@@ -895,6 +957,98 @@ export async function addSpaceAccountWithoutAuthorization(
     });
 
     return createdAccount;
+}
+
+/**
+ * Creates an account for a bot in a space. You must be an admin in the space
+ * to instantiate a bot account in a space. Each bot can only be instantiated
+ * once per space.
+ */
+// TODO(calebmer, #api): Can we share some code with whatever Josh ends up with
+// for adding/inviting accounts?
+export async function instantiateBotSpaceAccount(
+    context: ServerActionContext,
+    {spaceId, botId}: {spaceId: SpaceId; botId: BotId},
+): Promise<{accountId: AccountId}> {
+    await authorizeSpaceAccess(context, spaceId, "Admin");
+
+    const bot = await getBot(context, botId);
+
+    const accountId = generateId<AccountId>();
+
+    const currentTime = new Date();
+
+    try {
+        await DynamoTableSchema.executeTransaction(context, [
+            createAccountTransactionEntry({
+                id: accountId,
+                currentTime,
+                name: bot.name,
+                dangerouslyInstantiateBot: {
+                    botId,
+                    spaceId,
+                },
+            }),
+
+            // Make sure there's only one bot account per space. Also lets us conveniently
+            // query for all the spaces a bot is in.
+            SpacesTable.transactionCreateItem({
+                partitionType: "Bot",
+                sortRangeType: "Space",
+                botId,
+                spaceId,
+                accountId,
+            }),
+
+            // It's safe to use create-or-replace because we're creating the account in
+            // this transaction so we know there won't be another item for the account.
+            SpacesTable.transactionCreateOrReplaceItem({
+                partitionType: "Space",
+                sortRangeType: "Account",
+                spaceId,
+                accountId,
+                role: "Member",
+                addedTime: currentTime,
+                state: {type: "Active"},
+                // Include the `BotId` in the space account item so we can quickly check if a
+                // space account is a bot.
+                botId,
+            }),
+
+            // The bot account should only ever be in this one space. But for completeness
+            // we still create the `Spaces` item for the bot account.
+            //
+            // It's safe to use create-or-replace because we're creating the account in
+            // this transaction so we know there won't be another item for the account.
+            SpacesTable.transactionCreateOrReplaceItem({
+                partitionType: "Account",
+                sortRangeType: "Spaces",
+                accountId,
+                spaceIds: new Set([spaceId]),
+                invitePendingSpaceIds: new Set(),
+            }),
+        ]);
+    } catch (error) {
+        if (!isDynamoTransactionCancelledExceptionByConditionCheckError(error, 1)) {
+            throw error;
+        } else {
+            throw new FailedPreconditionError("Can’t instantiate bot twice in the same space");
+        }
+    }
+
+    // When an account is added to a space, index the account in the space so it
+    // can be searched.
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Account",
+            accountId,
+            updatedTraits: {type: "Some", traits: []},
+        },
+    });
+
+    return {accountId};
 }
 
 export const removeSpaceAccountBeforeExecuteTestCheckpoint =
@@ -1473,7 +1627,6 @@ export function getSpaceAccountsCacheForTest() {
  * ok if a user's access to a space lingers a bit after they've been removed
  * from the space. But false negatives means the user gets an error when trying
  * to access a space they just got access to which we want to avoid.
- *
  */
 export async function isAccountMemberOfSpaceWithoutAuthorization(
     context: Context<{
@@ -1485,7 +1638,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     spaceId: SpaceId,
     accountId: AccountId,
     expectedRole: SpaceRole = "Member",
-    allowedSpaceAccountStateTypes: Array<SpaceAccountStateType> = ["Active"],
+    options?: {allowInvitePending?: boolean},
 ): Promise<boolean> {
     // Check if all accounts in the space are cached...
     const accountsCacheData =
@@ -1497,14 +1650,18 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     const accountFromCache1 = accountsCacheData?.accountById.get(accountId);
     if (
         accountFromCache1 &&
-        allowedSpaceAccountStateTypes.includes(accountFromCache1.initialData.space.state.type)
+        (accountFromCache1.initialData.space.state.type === "Active" ||
+            (options?.allowInvitePending &&
+                accountFromCache1.initialData.space.state.type === "InvitePending"))
     ) {
-        // If we have a role expectation and the cached role matches, return true
+        // Sanity check: Don't allow bot accounts to have admin roles.
+        if (accountFromCache1.botId && accountFromCache1.initialData.space.role !== "Member") {
+            throw new DataLossError("Bot account should always have a member role");
+        }
+
         if (hasSpaceRole(accountFromCache1.initialData.space.role, expectedRole)) {
             return true;
         }
-        // If role doesn't match but user is a member, this is a role issue
-        // But fall through to check more authoritative sources since cache might be stale
     }
 
     // Check if `getAccountIfExists()` has loaded the account...
@@ -1514,8 +1671,15 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     );
     if (
         accountFromCache2 &&
-        allowedSpaceAccountStateTypes.includes(accountFromCache2.initialData.space.state.type)
+        (accountFromCache2.initialData.space.state.type === "Active" ||
+            (options?.allowInvitePending &&
+                accountFromCache2.initialData.space.state.type === "InvitePending"))
     ) {
+        // Sanity check: Don't allow bot accounts to have admin roles.
+        if (accountFromCache2.botId && accountFromCache2.initialData.space.role !== "Member") {
+            throw new DataLossError("Bot account should always have a member role");
+        }
+
         if (hasSpaceRole(accountFromCache2.initialData.space.role, expectedRole)) {
             return true;
         }
@@ -1537,7 +1701,16 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             allowsEventualReadConsistency: true,
         },
     );
-    if (item1 && allowedSpaceAccountStateTypes.includes(item1.state.type)) {
+    if (
+        item1 &&
+        (item1.state.type === "Active" ||
+            (options?.allowInvitePending && item1.state.type === "InvitePending"))
+    ) {
+        // Sanity check: Don't allow bot accounts to have admin roles.
+        if (item1.botId && item1.role !== "Member") {
+            throw new DataLossError("Bot account should always have a member role");
+        }
+
         if (hasSpaceRole(item1.role, expectedRole)) {
             return true;
         }
@@ -1551,16 +1724,21 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
         context,
         spaceId,
         accountId,
-        {
-            consistency: "Strong",
-        },
+        {consistency: "Strong"},
     );
-    if (item2 && allowedSpaceAccountStateTypes.includes(item2.state.type)) {
+    if (
+        item2 &&
+        (item2.state.type === "Active" ||
+            (options?.allowInvitePending && item2.state.type === "InvitePending"))
+    ) {
+        // Sanity check: Don't allow bot accounts to have admin roles.
+        if (item2.botId && item2.role !== "Member") {
+            throw new DataLossError("Bot account should always have a member role");
+        }
+
         if (hasSpaceRole(item2.role, expectedRole)) {
             return true;
         }
-        // User is a member but doesn't have the expected role
-        return false;
     }
 
     // User is not a member of the space at all
@@ -1616,7 +1794,7 @@ export async function authorizeSpaceAccess(
     }>,
     spaceId: SpaceId,
     expectedRole?: SpaceRole,
-    allowedSpaceAccountStateTypes?: Array<SpaceAccountStateType>,
+    options?: {allowInvitePending?: boolean},
 ): Promise<void> {
     switch (context.actor.type) {
         case "Session": {
@@ -1626,7 +1804,7 @@ export async function authorizeSpaceAccess(
                     spaceId,
                     context.actor.getAccountId(),
                     expectedRole,
-                    allowedSpaceAccountStateTypes,
+                    options,
                 ))
             ) {
                 throw createAuthorizeSpaceAccessPermissionDeniedError(
@@ -1659,6 +1837,7 @@ export async function authorizeSpaceAccess(
                     spaceId,
                     context.actor.getAccountId(),
                     expectedRole,
+                    options,
                 ))
             ) {
                 throw createAuthorizeSpaceAccessPermissionDeniedError(
@@ -1856,6 +2035,155 @@ export async function authorizeOwnAccountAccess(
 }
 
 /**
+ * Authorize that the provided space account isn't a bot. Throws an error if
+ * either the provided space account is a bot or the space account doesn't
+ * exist.
+ *
+ * If you called `authorizeSpaceAccess()` before this function (as a session
+ * actor for the `AccountId` you're passing into this function) then we don't
+ * make any database requests. The information we need os be available in
+ * cache.
+ */
+export async function authorizeNotBotSpaceAccount(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+) {
+    if (await isBotSpaceAccount(context, spaceId, accountId)) {
+        throw new PermissionDeniedError("Bot account not allowed");
+    }
+}
+
+/**
+ * Is the space account a bot? Same as if you checked
+ * `await getSpaceAccountBotIdIfExists() !== null`.
+ *
+ * Throws an error if the space account isn't found.
+ *
+ * If you called `authorizeSpaceAccess()` before this function (as a session
+ * actor for the `AccountId` you're passing into this function) then we don't
+ * make any database requests. The information we need os be available in
+ * cache.
+ *
+ * This function is strongly consistent. It makes an eventually consistent read
+ * to our action cache but since whether an account is or is not a bot is an
+ * immutable fact an eventually consistent read is fine.
+ */
+export async function isBotSpaceAccount(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<boolean> {
+    const botId = await getSpaceAccountBotIdIfExists(context, spaceId, accountId);
+    return botId !== null;
+}
+
+/**
+ * Is the space account a bot? If so what's the `BotId`?
+ *
+ * Throws an error if the space account isn't found.
+ *
+ * If you called `authorizeSpaceAccess()` before this function (as a session
+ * actor for the `AccountId` you're passing into this function) then we don't
+ * make any database requests. The information we need os be available in
+ * cache.
+ *
+ * This function is strongly consistent. It makes an eventually consistent read
+ * to our action cache but since whether an account is or is not a bot is an
+ * immutable fact an eventually consistent read is fine.
+ */
+export async function getSpaceAccountBotIdIfExists(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<BotId | null> {
+    const [, botId] = await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        getSpaceAccountBotIdIfExistsWithoutAuthorization(context, spaceId, accountId),
+    ]);
+    return botId;
+}
+
+/**
+ * Same as `getSpaceAccountBotIdIfExists()` but doesn't authorize that the
+ * context has access to the space.
+ */
+async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<BotId | null> {
+    // Check if all accounts in the space are cached...
+    const accountsCacheData =
+        await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+            context,
+            spaceId,
+        );
+
+    const accountFromCache1 = accountsCacheData?.accountById.get(accountId);
+    if (accountFromCache1) return accountFromCache1.botId ?? null;
+
+    // Check if `getAccountIfExists()` has loaded the account...
+    const accountFromCache2 = await AccountModelContextCache.getIfExists(
+        context,
+        `${spaceId}:${accountId}`,
+    );
+    if (accountFromCache2) return accountFromCache2.botId ?? null;
+
+    // Read the item with eventual consistency (and context caching). The `botId`
+    // property is immutable so if we find an item then we'll know if it's a bot or
+    // not. If we can't find a space account item then we try again with strong
+    // consistency.
+    const item1 = await getSpaceAccountItemIfExistsWithoutAuthorization(
+        context,
+        spaceId,
+        accountId,
+        {
+            consistency: "Eventual",
+            // It's ok to call this function when expecting strong read consistency.
+            // This authorization check is mostly strongly consistent since we retry with
+            // strong consistency below if our eventually consistent read fails.
+            allowsEventualReadConsistency: true,
+        },
+    );
+    if (item1) return item1.botId ?? null;
+
+    // If the item wasn't present in any cache and wasn't present when we read with
+    // eventual consistency then try finding the item again one last time with
+    // strong consistency.
+    const item2 = await getSpaceAccountItemIfExistsWithoutAuthorization(
+        context,
+        spaceId,
+        accountId,
+        {consistency: "Strong"},
+    );
+    if (item2) return item2.botId ?? null;
+
+    throw createAuthorizeSpaceAccessPermissionDeniedError(spaceId, accountId);
+}
+
+/**
  * As a system actor, impersonate any account in the system actor's space.
  * Throws an error if the provided account isn't a member of the space.
  *
@@ -1917,7 +2245,7 @@ export async function impersonateAccountAsSystemContext<
     );
 }
 
-const SpaceAccountItemContextCache = new ContextCache<
+const SpaceAccountItemContextCache = new DynamoContextCache<
     `${SpaceId}:${AccountId}`,
     SpaceAccountItem | null
 >({
@@ -1950,42 +2278,17 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
         allowsEventualReadConsistency?: boolean;
     } = {},
 ): Promise<SpaceAccountItem | null> {
-    switch (consistency) {
-        case "Eventual": {
-            return SpaceAccountItemContextCache.get(context, `${spaceId}:${accountId}`, () =>
-                SpacesTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Space",
-                        sortRangeType: "Account",
-                        spaceId,
-                        accountId,
-                    },
-                    {consistency: "Eventual", allowsEventualReadConsistency},
-                ),
-            );
-        }
-        case "Strong": {
-            const item = await SpacesTable.getItemIfExists(
+    return SpaceAccountItemContextCache.get(
+        context,
+        allowsEventualReadConsistency ? {consistency, allowsEventualReadConsistency} : consistency,
+        `${spaceId}:${accountId}`,
+        consistency =>
+            SpacesTable.getItemIfExists(
                 context,
-                {
-                    partitionType: "Space",
-                    sortRangeType: "Account",
-                    spaceId,
-                    accountId,
-                },
-                {consistency: "Strong"},
-            );
-
-            // We can't read from the cache when using strong consistency, but we can add
-            // the item we read to the cache for future eventually consistent reads.
-            SpaceAccountItemContextCache.set(context, `${spaceId}:${accountId}`, item);
-
-            return item;
-        }
-        default:
-            throw exhaustive(consistency);
-    }
+                {partitionType: "Space", sortRangeType: "Account", spaceId, accountId},
+                {consistency, allowsEventualReadConsistency},
+            ),
+    );
 }
 
 const AccountModelContextCache = new DynamoContextCache<
@@ -2381,11 +2684,18 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             }),
         ]);
 
-        validateAccountStateForSpaceAddition({spaceId, accountSpacesItem, spaceAccountItem});
+        validateAccountStateForSpaceAddition({
+            spaceId,
+            account,
+            accountSpacesItem,
+            spaceAccountItem,
+        });
+
+        const currentTime = new Date();
 
         const newSpaceAccountState: SpaceAccountState = {
             type: "InvitePending",
-            invitedTime: new Date(),
+            invitedTime: currentTime,
             pendingAccountData: {
                 id: accountId,
                 version: 0,
@@ -2421,12 +2731,13 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
         await DynamoTableSchema.executeTransaction(context, [
             ...(!existingAccountId
-                ? createAccountTransactionEntries({
+                ? createAccountWithEmailAddressTransactionEntries({
                       id: accountId,
                       // Use email as name for new account so they can be mentioned
                       // in the space before they join.
                       name: emailAddress,
                       emailAddress,
+                      currentTime,
                   })
                 : []),
             ...transactionEntries,
@@ -2604,16 +2915,10 @@ export async function internalValidateInviteEmailAddressToSpace(
 export async function getSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
-    options?: {
-        allowInvitePending?: boolean;
-    },
+    options?: {allowInvitePending?: boolean},
 ): Promise<SpaceModel> {
-    const allowedSpaceAccountStateTypes: Array<SpaceAccountStateType> = options?.allowInvitePending
-        ? ["Active", "InvitePending"]
-        : ["Active"];
-
     const [, spaceItem] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId, "Member", allowedSpaceAccountStateTypes),
+        authorizeSpaceAccess(context, spaceId, "Member", options),
         getSpaceItem(context, spaceId),
     ]);
 
@@ -2813,8 +3118,15 @@ export async function updateSpaceAccountRole(
             throw new NotFoundError("Account is not an active member of the space");
         }
 
+        // Should exist since we've checked that `spaceAccountItem` exists.
+        assert(account);
+
         if (hasSpaceRole(spaceAccountItem.role, "Owner")) {
             throw new PermissionDeniedError("Can’t modify space owner account’s role");
+        }
+
+        if (account.botId) {
+            throw new FailedPreconditionError("Can’t modify bot account’s role");
         }
 
         const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
@@ -2869,6 +3181,10 @@ export async function moveSpaceAccountOwnerRole(
     newOwnerAccount: AccountModel;
     oldOwnerAccount: AccountModel;
 }> {
+    // Make sure a session actor is moving the owner role and a system actor isn't
+    // doing it on a session actor's behalf.
+    context.actor.authorizeSession();
+
     await authorizeSpaceAccess(context, spaceId, "Owner");
 
     return moveSpaceAccountOwnerRoleWithoutAuthorization(context, {
@@ -2917,7 +3233,7 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
     oldOwnerAccount: AccountModel;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [oldSpaceAccountItem, newSpaceAccountItem, oldOwnerAccountItem, newOwnerAccountItem] =
+        const [oldSpaceAccountItem, newSpaceAccountItem, oldOwnerAccount, newOwnerAccount] =
             await runAllPromises([
                 SpacesTable.getItem(context, {
                     partitionType: "Space",
@@ -2935,6 +3251,10 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
                 dangerouslyGetAccountIfExistsWithoutCaching(context, newOwnerAccountId),
             ]);
 
+        // These should exist since the corresponding space items exist.
+        assert(oldOwnerAccount);
+        assert(newOwnerAccount);
+
         // Double check the old account is an owner. This is important if we need to
         // retry the transaction.
         if (oldSpaceAccountItem.role !== "Owner") {
@@ -2949,10 +3269,14 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
             throw new FailedPreconditionError("Can’t move space owner role to an inactive account");
         }
 
+        if (newSpaceAccountItem.botId) {
+            throw new FailedPreconditionError("Can’t move space owner role to bot account");
+        }
+
         // when `oldOwnerAccountId === newOwnerAccountId`, we don't need to update
         // anything although this is impossible to do from Alpine UI.
         if (oldOwnerAccountId === newOwnerAccountId) {
-            const account = createAccountModelFromItem(oldSpaceAccountItem, oldOwnerAccountItem);
+            const account = createAccountModelFromItem(oldSpaceAccountItem, oldOwnerAccount);
             return {
                 newOwnerAccount: account,
                 oldOwnerAccount: account,
@@ -2977,20 +3301,15 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
             newSpaceAccountItemUpdateEntry,
         ]);
 
-        const oldOwnerAccount = createAccountModelFromItem(
-            oldSpaceAccountItemUpdateEntry.newItem,
-            oldOwnerAccountItem,
-        );
-
-        // Pass the account data since this is not a removed account
-        const newOwnerAccount = createAccountModelFromItem(
-            newSpaceAccountItemUpdateEntry.newItem,
-            newOwnerAccountItem,
-        );
-
         return {
-            newOwnerAccount,
-            oldOwnerAccount,
+            newOwnerAccount: createAccountModelFromItem(
+                newSpaceAccountItemUpdateEntry.newItem,
+                newOwnerAccount,
+            ),
+            oldOwnerAccount: createAccountModelFromItem(
+                oldSpaceAccountItemUpdateEntry.newItem,
+                oldOwnerAccount,
+            ),
         };
     });
 }

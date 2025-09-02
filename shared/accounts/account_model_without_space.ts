@@ -1,6 +1,6 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {assertId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -24,6 +24,8 @@ export const AccountModelWithoutSpaceAndAvatarDataSchema = Schema.object({
     version: Schema.integer,
     name: LabelStringSchema,
     nameVersion: Schema.integer,
+    // If the account is a bot then this will be defined.
+    botId: Schema.id<BotId>().optional(),
 });
 export const AccountModelWithoutSpaceDataSchema = AccountModelWithoutSpaceAndAvatarDataSchema.merge(
     Schema.object({
@@ -69,6 +71,14 @@ export class AccountModelWithoutSpace {
         });
 
     private static _unknown: AccountModelWithoutSpace | null = null;
+
+    /**
+     * `botId` is immutable so it's ok to access it directly with `account.botId`
+     * instead of indirectly with `account.initialData.botId`.
+     */
+    public get botId() {
+        return this.initialData.botId;
+    }
 
     /**
      * Get the model for an unknown account. If we need an account model but we

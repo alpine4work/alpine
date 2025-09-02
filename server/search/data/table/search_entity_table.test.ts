@@ -1,4 +1,5 @@
 import {addDays} from "date-fns";
+import {createBotForTest} from "~/server/bots/bots_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -16,12 +17,14 @@ import {
     isSearchFavoriteEntity,
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
+    markSearchAffinityEntityInteractionForAccount,
     moveSearchFavoriteEntity,
     removeSearchAffinityEntityActiveTaskAssigneePoints,
     searchAffinityEntityQueryPageLimit,
     thirtyDaysDurationMs,
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
+import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -2146,4 +2149,79 @@ test("will show top three favorites at the start of affinity list when querying 
         session2.account.id,
         session3.account.id,
     ]);
+});
+
+test("adding and removing search affinity points is a noop for bot account", async () => {
+    const bot = await createBotForTest(context, {
+        name: "Test Bot",
+        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
+    });
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const {accountId: botAccountId} = await instantiateBotSpaceAccount(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+
+    const task = await TestTask.create(session);
+
+    const getTaskSearchAffinityPoints = async () => {
+        const affinities = await internalGetSearchAffinityEntities(
+            // HACK: Should be ok to use an impersonated action since all the function
+            // calls is `getAccountId()`.
+            //
+            // @ts-expect-error
+            space.impersonatedAction(botAccountId),
+            {spaceId: space.id, limit: 10},
+        );
+
+        return affinities.find(affinity => affinity.entityId === `Task:${task.id}`)?.points ?? null;
+    };
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await markSearchAffinityEntityInteractionForAccount(space.systemAction(), {
+        spaceId: space.id,
+        accountId: botAccountId,
+        entityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await markSearchAffinityEntityInteractionForAccount(space.systemAction(), {
+        spaceId: space.id,
+        accountId: botAccountId,
+        entityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await markSearchAffinityEntityInteractionForAccount(space.systemAction(), {
+        spaceId: space.id,
+        accountId: botAccountId,
+        entityId: `Task:${task.id}`,
+        interaction: {type: "MediumIntentUpdate"},
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await addSearchAffinityEntityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: botAccountId,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
+
+    await removeSearchAffinityEntityActiveTaskAssigneePoints(space.systemAction(), {
+        spaceId: space.id,
+        assigneeId: botAccountId,
+        taskId: task.id,
+    });
+
+    expect(await getTaskSearchAffinityPoints()).toEqual(null);
 });

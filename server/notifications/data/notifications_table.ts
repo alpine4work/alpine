@@ -62,12 +62,14 @@ import {
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
 import {
+    authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     getAccount,
     getRegisteredAccountDevices,
     impersonateAccountAsSystemContext,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
+    isBotSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
 import {
     FileTaskAuthorizer,
@@ -118,7 +120,8 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {generateId, isId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -1366,7 +1369,14 @@ export async function getInbox(
     context: ServerSessionActionContext,
     {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     return context.dynamo.retryTransaction(async context => {
         const inbox = await InboxTable.getRealtimeItemIfExists(
@@ -1375,7 +1385,7 @@ export async function getInbox(
                 partitionType: "Account",
                 sortRangeType: "InboxAttributes",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
             },
             {consistency},
         );
@@ -1384,7 +1394,7 @@ export async function getInbox(
         // If the inbox item doesn't exist yet, let's create one.
         const {getEvent} = await InboxTable.createItem(
             context,
-            getInitialInboxItem(spaceId, context.actor.getAccountId()),
+            getInitialInboxItem(spaceId, accountId),
             // By default condition check errors from `createItem()` call won't retry. Make
             // sure we handle race conditions by retrying on condition check error.
             {isConditionCheckErrorRetriable: true},
@@ -1449,13 +1459,17 @@ export async function getInboxEntries(
         afterCursor: DynamoIndexCursor | null;
     },
 ): Promise<DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>> {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     const result = await InboxEntriesIndex.realtimeQuery(context, {
-        partitionKey: {
-            spaceId,
-            accountId: context.actor.getAccountId(),
-        },
+        partitionKey: {spaceId, accountId},
         startSortKey:
             filter === "Archive"
                 ? {
@@ -1493,7 +1507,7 @@ export async function getInboxEntries(
             partitionType: "Account",
             sortRangeType: "InboxAttributes",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
         });
 
         assert(
@@ -1530,11 +1544,18 @@ export async function getInboxEntry(
         consistency?: DynamoReadConsistency;
     },
 ): Promise<DynamoGeneralRealtimeItem<InboxEntryModel>> {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     const item = await InboxTable.getRealtimeItem(
         context,
-        getInboxEntryItemKey({spaceId, accountId: context.actor.getAccountId(), key}),
+        getInboxEntryItemKey({spaceId, accountId, key}),
         {consistency},
     );
 
@@ -1552,13 +1573,17 @@ export async function backfillInboxEntries(
     context: ServerSessionActionContext,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     return InboxEntriesIndex.backfillRealtimeQuery(context, {
-        partitionKey: {
-            spaceId,
-            accountId: context.actor.getAccountId(),
-        },
+        partitionKey: {spaceId, accountId},
         readTime,
     });
 }
@@ -1578,7 +1603,14 @@ export async function observeInbox(
     context: ServerSessionActionContext,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     await InboxTable.updateItem(
         context,
@@ -1586,10 +1618,10 @@ export async function observeInbox(
             partitionType: "Account",
             sortRangeType: "InboxAttributes",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
         },
         item => {
-            item ??= getInitialInboxItem(spaceId, context.actor.getAccountId());
+            item ??= getInitialInboxItem(spaceId, accountId);
             return observeInboxItem(item);
         },
     );
@@ -1766,7 +1798,12 @@ async function archiveInboxEntryItemKey(
     context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
 ): Promise<{archiveTime: Date}> {
-    await authorizeSpaceAccess(context, itemKey.spaceId);
+    await runAllPromises([
+        authorizeSpaceAccess(context, itemKey.spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, itemKey.spaceId, itemKey.accountId),
+    ]);
 
     const {archiveTime, newInboxEntryItem, loudNotificationCountDifference} =
         await context.dynamo.retryTransaction(async context => {
@@ -1877,7 +1914,7 @@ async function archiveInboxEntryItemKey(
         context.process.waitUntil(
             sendPushNotificationToAccountDevices(context, {
                 accountId: context.actor.getAccountId(),
-                eventId: generateId(),
+                eventId: generateChronologicalId(),
                 newInboxEntryItem,
                 loudNotificationCountDifference,
             }),
@@ -1891,7 +1928,12 @@ async function unarchiveInboxEntryItemKey(
     context: ServerSessionActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
-    await authorizeSpaceAccess(context, itemKey.spaceId);
+    await runAllPromises([
+        authorizeSpaceAccess(context, itemKey.spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, itemKey.spaceId, itemKey.accountId),
+    ]);
 
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
@@ -2134,70 +2176,114 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             event,
         );
 
+        // Fan out to all subscribers.
         await runAllPromises(
-            mapIterable(accountIds, async accountId => {
-                // Make sure the account is a current member of the space.
-                if (!(await isAccountMemberOfSpace(context, event.spaceId, accountId))) {
-                    return;
-                }
-
-                // Make sure the subscriber still has access to the subject of this
-                // notification.
-                const result = await impersonateAccountAsSystemContext(
-                    context,
-                    accountId,
-                    context =>
-                        authorizeAccess(
-                            // We expect strong read consistency here too since we need read-after-write
-                            // consistency. For example, in cases where we're sending a notification right
-                            // after the account was granted access to the notification's subject.
-                            context.dynamo.expectStrongReadConsistency(),
-                            event,
-                            {info},
-                        ),
-                );
-                if (!result.ok) return;
-
-                await context.tracer.withSpan(
-                    "Process notification event for account",
-                    async (context, span) => {
-                        span.addData({
-                            notifications: {
-                                eventType: event.type,
-                                eventId: event.id,
-                            },
-                        });
-                        span.addPropagatedData({context: {accountId}});
-
-                        const result = await context.tracer.withSpan(
-                            "Update inbox entry",
-                            async context => updateInboxEntry(context, event, {info, accountId}),
-                        );
-                        if (!result) return;
-
-                        if (shouldSendPushNotification()) {
-                            await sendPushNotificationToAccountDevices(context, {
-                                accountId,
-                                eventId: event.id,
-                                newInboxEntryItem: result.newInboxEntryItem,
-                                loudNotificationCountDifference:
-                                    result.loudNotificationCountDifference,
-                                getAlertContent: () =>
-                                    getAlertContent(context, event, {
-                                        info,
-                                        accountId,
-                                        // TODO(calebmer): All notifications are currently in US English. When we
-                                        // localize the product this should change.
-                                        locale: defaultLocale,
-                                        entryItem: result.newInboxEntryItem,
-                                    }),
-                            });
-                        }
-                    },
-                );
-            }),
+            mapIterable(accountIds, async accountId => process(context, event, info, accountId)),
         );
     };
+
+    async function process(
+        context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+        event: Event,
+        info: Info,
+        accountId: AccountId,
+    ) {
+        // Make sure the account is a current member of the space.
+        if (!(await isAccountMemberOfSpace(context, event.spaceId, accountId))) {
+            return;
+        }
+
+        // If the account is a bot, we want to call the bot's webhook. Since bots don't
+        // have inboxes. This shouldn't make a separate database request since
+        // `isBotSpaceAccount()` reads from the caches populated by
+        // `isAccountMemberOfSpace()`.
+        if (await isBotSpaceAccount(context, event.spaceId, accountId)) {
+            await processForBot(context, event, info);
+            return;
+        }
+
+        // Make sure the subscriber still has access to the subject of this
+        // notification.
+        const result = await impersonateAccountAsSystemContext(context, accountId, context =>
+            authorizeAccess(
+                // We expect strong read consistency here too since we need read-after-write
+                // consistency. For example, in cases where we're sending a notification right
+                // after the account was granted access to the notification's subject.
+                context.dynamo.expectStrongReadConsistency(),
+                event,
+                {info},
+            ),
+        );
+        if (!result.ok) return;
+
+        await context.tracer.withSpan(
+            "Process notification event for account",
+            async (context, span) => {
+                span.addData({
+                    notifications: {
+                        eventType: event.type,
+                        eventId: event.id,
+                    },
+                });
+                span.addPropagatedData({context: {accountId}});
+
+                const result = await context.tracer.withSpan("Update inbox entry", async context =>
+                    updateInboxEntry(context, event, {info, accountId}),
+                );
+                if (!result) return;
+
+                if (shouldSendPushNotification()) {
+                    await sendPushNotificationToAccountDevices(context, {
+                        accountId,
+                        eventId: event.id,
+                        newInboxEntryItem: result.newInboxEntryItem,
+                        loudNotificationCountDifference: result.loudNotificationCountDifference,
+                        getAlertContent: () =>
+                            getAlertContent(context, event, {
+                                info,
+                                accountId,
+                                // TODO(calebmer): All notifications are currently in US English. When we
+                                // localize the product this should change.
+                                locale: defaultLocale,
+                                entryItem: result.newInboxEntryItem,
+                            }),
+                    });
+                }
+            },
+        );
+    }
+
+    async function processForBot(
+        context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+        event: Event,
+        info: Info,
+    ) {
+        // You grant a bot access to some content by mentioning the bot. Let's confirm
+        // that the AUTHOR of the message has access to the content and thus has the
+        // authority to grant the bot access to the content.
+        //
+        // NOTE(calebmer): This might be overkill. The fact that we have a
+        // `NotificationEvent` for the author is evidence that they have enough
+        // permission to create a message/comment/whatever on the target entity. This
+        // check, ideally, comes with no extra database cost: 1) the author will often
+        // also be a subscriber so we have the author's data cached, and 2) the
+        // authorization information of the underlying entity should also be cached
+        // since we need to load it for each subscriber. So given the extra safety is
+        // free, why not.
+        const result = await impersonateAccountAsSystemContext(context, event.authorId, context =>
+            authorizeAccess(
+                // We expect strong read consistency here too since we need read-after-write
+                // consistency. For example, in cases where we're sending a notification right
+                // after the account was granted access to the notification's subject.
+                context.dynamo.expectStrongReadConsistency(),
+                event,
+                {info},
+            ),
+        );
+        if (!result.ok) return;
+
+        // TODO(calebmer, #api): Call bot webhook instead
+    }
 }
 
 function shouldSendPushNotification() {
@@ -2618,8 +2704,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         //
         // [1]: https://zelark.github.io/nano-id-cc/
         const clientRequestToken = `i:${event.id.slice(
-            0,
-            maxClientRequestTokenEventIdLength,
+            -maxClientRequestTokenEventIdLength,
         )}-${accountId.slice(0, maxClientRequestTokenAccountIdLength)}`;
 
         assert(clientRequestToken.length <= dynamoClientRequestTokenMaxLength);
@@ -3808,7 +3893,14 @@ export async function getInboxChannelPostsEntryPosts(
         }
     >;
 }> {
-    await authorizeSpaceAccess(context, spaceId);
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
 
     if (afterPostId === null) {
         // If an inbox entry exists then the inbox attributes item should also exist.
@@ -3818,7 +3910,7 @@ export async function getInboxChannelPostsEntryPosts(
                 partitionType: "Account",
                 sortRangeType: "InboxAttributes",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
             },
             {
                 // Use a strong read consistency to make sure we get the up-to-date generation.
@@ -3836,7 +3928,7 @@ export async function getInboxChannelPostsEntryPosts(
                     partitionType: "Account",
                     sortRangeType: "InboxAttributes",
                     spaceId,
-                    accountId: context.actor.getAccountId(),
+                    accountId,
                 },
                 item => {
                     // If the generation was updated concurrently, we don't need to update
@@ -3855,7 +3947,7 @@ export async function getInboxChannelPostsEntryPosts(
                 partitionType: "Inbox",
                 sortRangeType: "ChannelPostsEntry",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 channelId,
                 bucketGeneration,
             },
@@ -3923,7 +4015,7 @@ export async function getInboxChannelPostsEntryPosts(
             partitionType: "Inbox",
             sortRangeType: "ChannelPostsEntry",
             spaceId,
-            accountId: context.actor.getAccountId(),
+            accountId,
             channelId,
             bucketGeneration,
         });
@@ -3989,7 +4081,14 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
     >;
 }> {
     const commentThreadIdsPromise = (async () => {
-        await authorizeSpaceAccess(context, spaceId);
+        const accountId = context.actor.getAccountId();
+
+        await runAllPromises([
+            authorizeSpaceAccess(context, spaceId),
+
+            // Bots don't have an inbox.
+            authorizeNotBotSpaceAccount(context, spaceId, accountId),
+        ]);
 
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
@@ -3998,7 +4097,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                 partitionType: "Account",
                 sortRangeType: "InboxAttributes",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
             },
             {
                 // Use a strong read consistency to make sure we get the up-to-date generation.
@@ -4016,7 +4115,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                     partitionType: "Account",
                     sortRangeType: "InboxAttributes",
                     spaceId,
-                    accountId: context.actor.getAccountId(),
+                    accountId,
                 },
                 item => {
                     // If the generation was updated concurrently, we don't need to update
@@ -4035,7 +4134,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                 partitionType: "Inbox",
                 sortRangeType: "DocumentNewCommentThreadsEntry",
                 spaceId,
-                accountId: context.actor.getAccountId(),
+                accountId,
                 documentId,
                 bucketGeneration,
             },
