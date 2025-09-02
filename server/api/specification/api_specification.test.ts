@@ -3,8 +3,11 @@ import {OpenAPIV3} from "openapi-types";
 import {join as joinPath} from "path";
 import Yaml from "yaml";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
@@ -31,6 +34,19 @@ function validate(specification: JsonValue) {
 
     function addError(error: string) {
         errors.push(`${error} (path: ${quote(printPath())})`);
+    }
+
+    function resolvePath(path: string): JsonValue {
+        assert(path.startsWith("#/"));
+        const pathSegments = path.slice(2).split("/");
+
+        let refValue: any = specification;
+
+        for (const refPathSegment of pathSegments) {
+            refValue = refValue?.[refPathSegment];
+        }
+
+        return refValue;
     }
 
     function visit(value: JsonValue) {
@@ -75,6 +91,109 @@ function validate(specification: JsonValue) {
                     addError(
                         quote`\`responses\` must have a \`default\` property with a \`$ref\` pointing to \`#/components/responses/Error\``,
                     );
+                }
+            }
+
+            // Make sure `discriminator` schemas match our expected format. This is for
+            // compatibility with JSON Schema. You could ignore the `discriminator`
+            // property and still correctly validate with JSON Schema.
+            if (isObject(value.discriminator)) {
+                if (!Array.isArray(value.oneOf)) {
+                    addError(quote`\`discriminator\` must be on a \`oneOf\` schema`);
+                } else {
+                    const refsArray = filterMapArray(value.oneOf, (subSchema, index) => {
+                        if (isObject(subSchema) && typeof subSchema.$ref === "string") {
+                            return subSchema.$ref;
+                        }
+
+                        path.push("oneOf");
+                        path.push(String(index));
+
+                        addError(quote`\`discriminator\`’s \`oneOf\` schemas must be \`$ref\`s`);
+
+                        path.pop();
+                        path.pop();
+
+                        return;
+                    });
+
+                    const refs = new Set(refsArray);
+
+                    if (refsArray.length !== refs.size) {
+                        addError(quote`\`discriminator\`’s \`oneOf\` \`$ref\`s aren’t unique`);
+                    }
+
+                    if (typeof value.discriminator.propertyName !== "string") {
+                        addError(quote`\`discriminator\` must have a string \`propertyName\``);
+                    } else if (!isObject(value.discriminator.mapping)) {
+                        addError(quote`\`discriminator\` must have a \`mapping\` property`);
+                    } else {
+                        const discriminatorRefs = new Set<string>();
+
+                        for (const [key, ref] of Object.entries(value.discriminator.mapping)) {
+                            path.push("discriminator");
+                            path.push("mapping");
+                            path.push(key);
+                            try {
+                                if (typeof ref !== "string") {
+                                    addError(
+                                        quote`\`discriminator\`’s \`mapping\`s must be strings`,
+                                    );
+                                    continue;
+                                }
+
+                                if (discriminatorRefs.has(ref)) {
+                                    addError(quote`\`discriminator\`’s \`mapping\`s aren’t unique`);
+                                    continue;
+                                }
+
+                                discriminatorRefs.add(ref);
+
+                                const refValue = resolvePath(ref);
+
+                                if (!isObject(refValue) || refValue.type !== "object") {
+                                    addError(
+                                        quote`\`discriminator\`’s \`mapping\` ${ref} doesn’t reference an object schema`,
+                                    );
+                                    continue;
+                                }
+
+                                if (
+                                    !isReadonlyArray(refValue.required) ||
+                                    !refValue.required.includes(value.discriminator.propertyName)
+                                ) {
+                                    addError(
+                                        quote`\`discriminator\`’s \`mapping\` ${ref} doesn’t have a required ${value.discriminator.propertyName} property`,
+                                    );
+                                }
+
+                                const hasConstProperty =
+                                    isObject(refValue.properties) &&
+                                    refValue.properties[value.discriminator.propertyName] &&
+                                    isObject(
+                                        refValue.properties[value.discriminator.propertyName],
+                                    ) &&
+                                    (refValue.properties[value.discriminator.propertyName] as any)
+                                        .const === key;
+
+                                if (!hasConstProperty) {
+                                    addError(
+                                        quote`\`discriminator\`’s \`mapping\` ${ref} doesn’t have a ${value.discriminator.propertyName} property that’s a \`const\` schema with value ${key}`,
+                                    );
+                                }
+                            } finally {
+                                path.pop();
+                                path.pop();
+                                path.pop();
+                            }
+                        }
+
+                        if (!isDeepEqual(refs, discriminatorRefs)) {
+                            addError(
+                                quote`\`discriminator\`’s \`oneOf\` \`$ref\`s must match \`discriminator\`’s \`mapping\`s`,
+                            );
+                        }
+                    }
                 }
             }
 
@@ -279,6 +398,61 @@ test("can validate invalid specification", () => {
                     },
                 },
             },
+            schemas: {
+                InvalidBlockElement1: {
+                    type: "number",
+                    discriminator: {
+                        propertyName: "type",
+                    },
+                },
+                InvalidBlockElement2: {
+                    oneOf: [
+                        {$ref: "#/components/schemas/ParagraphBlockElement"},
+                        {$ref: "#/components/schemas/QuoteBlockElement"},
+                        {type: "object", required: ["type"], properties: {type: {const: "Code"}}},
+                    ],
+                    discriminator: {
+                        propertyName: "type",
+                    },
+                },
+                InvalidBlockElement3: {
+                    oneOf: [
+                        {$ref: "#/components/schemas/ParagraphBlockElement"},
+                        {$ref: "#/components/schemas/QuoteBlockElement"},
+                    ],
+                    discriminator: {
+                        propertyName: "type",
+                        mapping: {
+                            NotParagraph: "#/components/schemas/ParagraphBlockElement",
+                            OtherParagraph: "#/components/schemas/ParagraphBlockElement",
+                            Code: "#/components/schemas/CodeBlockElement",
+                        },
+                    },
+                },
+                ParagraphBlockElement: {
+                    type: "object",
+                    required: ["type"],
+                    additionalProperties: false,
+                    properties: {
+                        type: {const: "Paragraph"},
+                    },
+                },
+                QuoteBlockElement: {
+                    type: "object",
+                    required: ["type"],
+                    additionalProperties: false,
+                    properties: {
+                        type: {const: "Quote"},
+                    },
+                },
+                CodeBlockElement: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        type: {const: "Code"},
+                    },
+                },
+            },
         },
     };
 
@@ -294,5 +468,13 @@ test("can validate invalid specification", () => {
         "Path segment `{yo-yo}` in path `/ping/{yo-yo}` must be `kebab-case` if it’s not a parameter and `{camelCase}` if it is a parameter (path: `#/paths`)",
         "Response name `test-error` must be `PascalCase` (path: `#/components/responses`)",
         "Response name `testError` must be `PascalCase` (path: `#/components/responses`)",
+        "`discriminator` must be on a `oneOf` schema (path: `#/components/schemas/InvalidBlockElement1`)",
+        "`discriminator`’s `oneOf` schemas must be `$ref`s (path: `#/components/schemas/InvalidBlockElement2/oneOf/2`)",
+        "`discriminator` must have a `mapping` property (path: `#/components/schemas/InvalidBlockElement2`)",
+        "`additionalProperties` must be set to `false` on all object schemas in the API specification (path: `#/components/schemas/InvalidBlockElement2/oneOf/2`)",
+        "`discriminator`’s `mapping` `#/components/schemas/ParagraphBlockElement` doesn’t have a `type` property that’s a `const` schema with value `NotParagraph` (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/NotParagraph`)",
+        "`discriminator`’s `mapping`s aren’t unique (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/OtherParagraph`)",
+        "`discriminator`’s `mapping` `#/components/schemas/CodeBlockElement` doesn’t have a required `type` property (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/Code`)",
+        "`discriminator`’s `oneOf` `$ref`s must match `discriminator`’s `mapping`s (path: `#/components/schemas/InvalidBlockElement3`)",
     ]);
 });

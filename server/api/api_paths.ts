@@ -1,5 +1,6 @@
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -71,6 +72,30 @@ export const apiPaths: {
         // TODO(calebmer, #api): Remove this route
         get: async () => {
             return {content: {title: "Lorem Ipsum"}};
+        },
+    },
+    "/chats/{id}/messages/{index}": {
+        // TODO(calebmer, #api): Implement this route
+        get: async () => {
+            throw new UnimplementedError("TODO");
+        },
+    },
+    "/documents/{id}/threads/{threadId}/messages/{index}": {
+        // TODO(calebmer, #api): Implement this route
+        get: async () => {
+            throw new UnimplementedError("TODO");
+        },
+    },
+    "/posts/{id}/messages/{index}": {
+        // TODO(calebmer, #api): Implement this route
+        get: async () => {
+            throw new UnimplementedError("TODO");
+        },
+    },
+    "/tasks/{id}/messages/{index}": {
+        // TODO(calebmer, #api): Implement this route
+        get: async () => {
+            throw new UnimplementedError("TODO");
         },
     },
 };

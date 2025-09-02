@@ -74,6 +74,94 @@ paths:
                                 properties:
                                     title: {type: string}
 
+    /chats/{id}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
+    /documents/{id}/threads/{threadId}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
+    /posts/{id}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
+    /tasks/{id}/messages/{index}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
 webhooks:
     bot:
         post:
@@ -121,6 +209,14 @@ components:
                                             the error.
 
     schemas:
+        # =========================================================================== #
+        #                                     IDs                                     #
+        # =========================================================================== #
+        #
+        # Ordered alphabetically assuming `Id` isn't appended as a suffix. e.g.
+        # `TaskId` comes before `TaskCollectionId` even though `C` comes before `I` in
+        # the alphabet.
+
         AccountId:
             type: string
             pattern: ^{{idRegExp}}$
@@ -129,7 +225,23 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        ChatId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
         DocumentId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        DocumentThreadId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        PostId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        TaskId:
             type: string
             pattern: ^{{idRegExp}}$
 
@@ -137,9 +249,31 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        # =========================================================================== #
+        #                                    Paths                                    #
+        # =========================================================================== #
+        #
+        # Ordered alphabetically assuming `Path` isn't appended as a suffix. e.g.
+        # `TaskPath` comes before `TaskCollectionPath` even though `C` comes before `P`
+        # in the alphabet.
+        #
+        # Path unions (e.g. `MessageRoomPath`) are last.
+
+        AccountPath:
+            type: string
+            pattern: ^/accounts/{{idRegExp}}$
+
+        ChannelPath:
+            type: string
+            pattern: ^/channels/{{idRegExp}}$
+
         ChatPath:
             type: string
             pattern: ^/chats/{{idRegExp}}$
+
+        DocumentPath:
+            type: string
+            pattern: ^/documents/{{idRegExp}}$
 
         DocumentThreadPath:
             type: string
@@ -153,12 +287,459 @@ components:
             type: string
             pattern: ^/tasks/{{idRegExp}}$
 
+        TaskCollectionPath:
+            type: string
+            pattern: ^/task-collections/{{idRegExp}}$
+
         MessageRoomPath:
             oneOf:
                 - $ref: "#/components/schemas/ChatPath"
                 - $ref: "#/components/schemas/DocumentThreadPath"
                 - $ref: "#/components/schemas/PostPath"
                 - $ref: "#/components/schemas/TaskPath"
+
+        ContentMentionInlineElementTargetPath:
+            oneOf:
+                - $ref: "#/components/schemas/AccountPath"
+                - $ref: "#/components/schemas/ChannelPath"
+                - $ref: "#/components/schemas/DocumentPath"
+                - $ref: "#/components/schemas/PostPath"
+                - $ref: "#/components/schemas/TaskPath"
+                - $ref: "#/components/schemas/TaskCollectionPath"
+
+        # =========================================================================== #
+        #                                   Content                                   #
+        # =========================================================================== #
+
+        Content:
+            type: object
+            additionalProperties: false
+            required: [elements]
+            properties:
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentBlockElement"
+
+        ContentBlockElement:
+            # TODO(calebmer, #public-api): We need to be able to add items without breaking
+            # backwards compatibility. When publishing the API, let's figure out what our
+            # schema evolution policy is.
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement"
+                - $ref: "#/components/schemas/ContentTableBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement"
+                    Table: "#/components/schemas/ContentTableBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+
+        ContentParagraphBlockElement:
+            type: object
+            required: [type, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Paragraph
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentListBlockElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+
+        ContentUnorderedListBlockElement:
+            type: object
+            required: [type, items]
+            additionalProperties: false
+            properties:
+                type:
+                    const: UnorderedList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem"
+
+        ContentOrderedListBlockElement:
+            type: object
+            required: [type, items]
+            additionalProperties: false
+            properties:
+                type:
+                    const: OrderedList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem"
+
+        ContentListBlockElementItem:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                # TODO(calebmer, #public-api): If `elements` is an empty array then this is a
+                # "phantom" list item. Phantom list items exist purely to increase the
+                # indentation level of their children and aren't rendered as a list item
+                # themselves. There's no bullet! An `elements` array with an empty paragraph
+                # does render an item.
+                #
+                # We need to clearly document this behavior in our API documentation.
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement"
+
+        ContentQuoteBlockElement:
+            type: object
+            required: [type, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Quote
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        oneOf:
+                            - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                            - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                            - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                        discriminator:
+                            propertyName: type
+                            mapping:
+                                Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                                UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                                OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+
+        ContentTableBlockElement:
+            type: object
+            required: [type, width, columns, rows]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Table
+                width:
+                    type: number
+                hasHeaderRow:
+                    type: boolean
+                hasHeaderColumn:
+                    type: boolean
+                columns:
+                    type: array
+                    minItems: 2
+                    items:
+                        type: object
+                        required: [width]
+                        additionalProperties: false
+                        properties:
+                            width:
+                                type: number
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementRow"
+
+        ContentTableBlockElementRow:
+            type: object
+            required: [cells]
+            additionalProperties: false
+            properties:
+                cells:
+                    type: array
+                    minItems: 2
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCell"
+
+        ContentTableBlockElementCell:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement"
+
+        ContentTableBlockElementCellBlockElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement"
+                - $ref: "#/components/schemas/ContentCodeBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+
+        ContentCodeBlockElement:
+            type: object
+            required: [type, language, lines]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+                language:
+                    type: string
+                    enum: {{codeBlockLanguageIds}}
+                lines:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementLine"
+
+        ContentCodeBlockElementLine:
+            type: object
+            required: [elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
+
+        ContentInlineElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentTextInlineElement"
+                - $ref: "#/components/schemas/ContentBreakInlineElement"
+                - $ref: "#/components/schemas/ContentMentionInlineElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/ContentTextInlineElement"
+                    Break: "#/components/schemas/ContentBreakInlineElement"
+                    Mention: "#/components/schemas/ContentMentionInlineElement"
+
+        ContentTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                    minLength: 1
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentBreakInlineElement:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Break
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentMentionInlineElement:
+            type: object
+            required: [type, targetPath]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                targetPath:
+                    $ref: "#/components/schemas/ContentMentionInlineElementTargetPath"
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
+                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
+                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
+                - $ref: "#/components/schemas/ContentInlineElementLinkMark"
+                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
+                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
+                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
+                    Link: "#/components/schemas/ContentInlineElementLinkMark"
+                    Code: "#/components/schemas/ContentInlineElementCodeMark"
+
+        ContentInlineElementBoldMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Bold
+
+        ContentInlineElementItalicMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Italic
+
+        ContentInlineElementStrikeMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Strike
+
+        ContentInlineElementLinkMark:
+            type: object
+            required: [type, url]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Link
+                url:
+                    type: string
+
+        ContentInlineElementCodeMark:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Code
+
+        ContentCodeBlockElementTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                    minLength: 1
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElementMark"
+
+        ContentCodeBlockElementTextInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
+                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
+                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
+                - $ref: "#/components/schemas/ContentInlineElementLinkMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
+                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
+                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
+                    Link: "#/components/schemas/ContentInlineElementLinkMark"
+
+        # =========================================================================== #
+        #                                  Messages                                   #
+        # =========================================================================== #
+
+        Message:
+            type: object
+            required: [roomPath, index, createdTime, payload]
+            additionalProperties: false
+            properties:
+                roomPath:
+                    $ref: "#/components/schemas/MessageRoomPath"
+                index:
+                    type: integer
+                    minimum: 0
+                createdTime:
+                    type: string
+                    format: date-time
+                payload:
+                    $ref: "#/components/schemas/MessagePayload"
+
+        MessagePayload:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayload"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageContentPayload"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
+
+        MessageContentPayload:
+            type: object
+            required: [type, content]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    oneOf:
+                        - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
+                    discriminator:
+                        propertyName: type
+                        mapping:
+                            Message: "#/components/schemas/MessageContentPayloadMessageParent"
+                content:
+                    $ref: "#/components/schemas/Content"
+
+                # TODO(calebmer, #api): Files? How do we get AI to read any attached files?
+
+        MessageContentPayloadMessageParent:
+            type: object
+            required: [type, index]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Message
+                index:
+                    type: integer
+                    minimum: 0
+
+        MessageDeletedPayload:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Deleted
+
+        # =========================================================================== #
+        #                                  Webhooks                                   #
+        # =========================================================================== #
 
         BotWebhookEvent:
             oneOf:
@@ -174,8 +755,7 @@ components:
             additionalProperties: false
             properties:
                 type:
-                    type: string
-                    enum: ["NewMessage"]
+                    const: NewMessage
                 roomPath:
                     $ref: "#/components/schemas/MessageRoomPath"
                 index:

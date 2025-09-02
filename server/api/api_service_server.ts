@@ -1,4 +1,5 @@
 import {Ajv} from "ajv";
+import _addAjvFormats from "ajv-formats";
 import FindMyWay from "find-my-way";
 import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
@@ -35,6 +36,10 @@ import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const addAjvFormats =
+    typeof _addAjvFormats === "function" ? _addAjvFormats : _addAjvFormats.default;
 
 // NOTE(calebmer, #public-api): The intent is to someday expose `ApiService` as
 // our public API. For now it's only used by our AI agent bots. As we work on
@@ -185,8 +190,34 @@ export async function createApiServiceRequestListener(
         discriminator: true,
     });
 
+    // Support formats like `date-time` from the OpenAPI specification.
+    addAjvFormats(ajv);
+
     const ajvSharedSchemaName = "shared.yaml";
-    ajv.addSchema(apiSpecification, ajvSharedSchemaName);
+
+    ajv.addSchema(
+        // Ajv supports `discriminator.propertyName` but not `discriminator.mapping`.
+        // So remove `discriminator.mapping` from our schema. Ajv uses
+        // `discriminator.propertyName` purely as an optimization and expects
+        // discriminator schemas to have constant property names at
+        // `discriminator.propertyName`.
+        //
+        // `api_specification.test.ts` makes sure our usage of `discriminator` is
+        // consistent and compatible with Ajv.
+        removeDiscriminatorMappingForAjv(apiSpecification as any) as any,
+        ajvSharedSchemaName,
+    );
+
+    function removeDiscriminatorMappingForAjv(value: JsonValue): JsonValue {
+        if (!isObject(value)) return value;
+        if (isReadonlyArray(value)) return value.map(removeDiscriminatorMappingForAjv);
+
+        return mapObjectValues(value, (keyValue, key) =>
+            key !== "mapping" && keyValue !== undefined
+                ? removeDiscriminatorMappingForAjv(keyValue)
+                : undefined,
+        );
+    }
 
     function compileWithAjv(schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject) {
         schema = updateRefsForAjv(schema as JsonValue) as

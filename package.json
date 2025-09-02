@@ -154,6 +154,7 @@
         "@web3-storage/multipart-parser": "1.0.0",
         "@xenova/transformers": "2.8.0",
         "ajv": "^8.17.1",
+        "ajv-formats": "^3.0.1",
         "ansi-styles": "^6.2.1",
         "autoprefixer": "^10.4.15",
         "aws-cdk": "2.1007.0",

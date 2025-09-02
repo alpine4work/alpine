@@ -15,6 +15,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//:node_modules/@types/prettier",
         "//:node_modules/ajv",
+        "//:node_modules/ajv-formats",
         "//:node_modules/escape-html",
         "//:node_modules/find-my-way",
         "//:node_modules/negotiator",

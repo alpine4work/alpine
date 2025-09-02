@@ -41,6 +41,7 @@ ts_project(
         "//:node_modules/prettier",
         "//:node_modules/typescript",
         "//server/helpers/node",
+        "//shared/content",
         "//shared/helpers",
         "//shared/id",
     ],
