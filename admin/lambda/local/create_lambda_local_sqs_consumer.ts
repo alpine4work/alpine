@@ -1,21 +1,31 @@
-import {Context as LambdaContext, SQSEvent, SQSHandler, SQSRecord} from "aws-lambda";
 import {randomUUID} from "crypto";
-import {createLambdaEventMockWithUnimplementedErrors} from "~/admin/lambda/local/internal/create_lambda_event_mock_with_unimplemented_errors.js";
-import {createLambdaLocalEventContext} from "~/admin/lambda/local/internal/create_lambda_local_event_context.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {JobQueueName} from "~/server/jobs/core/job_queue_name.js";
+import {JobQueueName, JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {InternalError} from "~/shared/error/error.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {DeadlineExceededError} from "~/shared/error/error.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type LambdaLocalSqsConsumerOptions = {
     /**
      * The Lambda handler function to wrap
      */
-    handler: SQSHandler;
+    handler: <T extends JobDescription & {type: JobTypeByQueueName[JobQueueName]}>(
+        processContext: LambdaActionContext,
+        {
+            job,
+            jobStartTime,
+            span,
+            sqsMessageId,
+        }: {
+            job: T;
+            jobStartTime: Date;
+            span: TracerSpan;
+            sqsMessageId: string;
+        },
+    ) => Promise<void>;
 
     /**
      * Local SQS server configuration
@@ -69,9 +79,28 @@ export function createLambdaLocalSqsConsumer(
         maxFiberCount: 1,
         maxFiberMessageCount: 1,
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         processJob: async (actionContext, job, jobStartTime, span) => {
-            await processJob({job, handler, functionName, timeoutMs});
+            let timeout: NodeJS.Timeout;
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeout = setTimeout(() => {
+                    reject(
+                        new DeadlineExceededError(
+                            quote`Lambda function ${functionName} timed out after ${timeoutMs}ms`,
+                        ),
+                    );
+                }, timeoutMs);
+            });
+
+            // Call the Lambda handler with timeout
+            await Promise.race([
+                handler(actionContext, {
+                    job,
+                    jobStartTime,
+                    span,
+                    sqsMessageId: randomUUID(),
+                }),
+                timeoutPromise,
+            ]).finally(() => clearTimeout(timeout));
         },
     });
 
@@ -83,46 +112,4 @@ export function createLambdaLocalSqsConsumer(
     );
 
     return consumer;
-}
-
-async function processJob({
-    job,
-    handler,
-    functionName,
-    timeoutMs,
-}: {
-    job: JobDescription;
-    handler: SQSHandler;
-    functionName: string;
-    timeoutMs: number;
-}) {
-    const requestId = randomUUID();
-    const event: SQSEvent = createSqsEvent(job);
-    const lambdaContext: LambdaContext = createLambdaLocalEventContext({
-        functionName,
-        requestId,
-        timeoutMs,
-    });
-
-    // NOTE(ifitzsimmons, #unimplemented-lambda-handler-callback)
-    const response = await handler(event, lambdaContext, noop);
-
-    if (response?.batchItemFailures && response.batchItemFailures.length > 0) {
-        throw new InternalError(
-            `Lambda SQS consumer (${functionName}) failed to process ${response.batchItemFailures.length} messages`,
-        );
-    }
-}
-
-function createSqsEvent(job: JobDescription): SQSEvent {
-    const requestId = randomUUID();
-
-    const sqsRecordBase: Partial<SQSRecord> = {
-        messageId: requestId,
-        body: JSON.stringify({job}),
-    };
-    const sqsRecord = createLambdaEventMockWithUnimplementedErrors(sqsRecordBase, "SQSRecord");
-    return {
-        Records: [sqsRecord],
-    };
 }
