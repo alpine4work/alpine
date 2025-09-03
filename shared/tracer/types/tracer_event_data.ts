@@ -1538,6 +1538,11 @@ export type TracerEventData = {
         /** The content length of the output file. */
         readonly outputContentLength?: number;
     };
+
+    readonly edge?: {
+        /** How long did the request to `AppService` from `EdgeService` take? */
+        readonly appServiceDurationMs?: number;
+    };
 };
 
 /**

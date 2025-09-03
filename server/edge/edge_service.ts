@@ -887,12 +887,19 @@ async function actuallyHandleFetch(
     const headers = new Headers(request.headers);
     addTracerPropagationContextHeader(headers, span);
 
+    const appServiceStartTime = span.clock.now();
+
     // This forwards the request from `EdgeService` to `AppService` completely
     // untouched. To `AppService` it will look like the request is coming from a
     // web browser.
     //
     // eslint-disable-next-line no-global-fetch
     const response = await fetch(request, {headers});
+
+    const appServiceEndTime = span.clock.now();
+
+    // Record how much time just the fetch to `AppService` took.
+    span.addData({edge: {appServiceDurationMs: appServiceEndTime - appServiceStartTime}});
 
     // Replace the `/*` route string with the route parsed by `AppService`. Given
     // the edge service span is usually the root span in our trace, having a more

@@ -515,6 +515,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         inputContentLength: Schema.integer,
         outputContentLength: Schema.integer,
     },
+    edge: {
+        appServiceDurationMs: Schema.float,
+    },
 };
 
 /**
