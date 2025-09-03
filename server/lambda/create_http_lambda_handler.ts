@@ -15,6 +15,7 @@ import {
     createTraceServerResponseHandleSpanName,
     startTracerSpanFromPropagationContextHeader,
 } from "~/server/tracer/trace_server_response.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -131,8 +132,13 @@ export function createHttpLambdaHandler({
 
             return {
                 statusCode: isSystemError(error) ? 500 : 400,
-                headers: {"content-type": "text/plain"},
-                body: "Internal server error",
+                headers: {"content-type": "application/json"},
+                body: JSON.stringify(
+                    ErrorSchema.serialize({
+                        ok: false,
+                        error,
+                    }),
+                ),
             };
         } finally {
             finishSpan();
