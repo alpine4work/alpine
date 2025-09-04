@@ -87,6 +87,19 @@ export function retryWithExponentialBackoff<Value>(
 
             const delayMs = Math.min(2 ** attemptNumber, 1000 * 10);
 
+            // Help developers debug retry loops. If we reach ~12 attempts during tests
+            // then there's probably a bug in the developer's code! That's causing them to
+            // retry forever without terminating. We log an error so a stack trace is
+            // included and the developer can find the offending code.
+            if (process.env.NODE_ENV === "test" && delayMs >= 4 * 1000) {
+                // eslint-disable-next-line no-console
+                console.error(
+                    new DeadlineExceededError(
+                        `\`retryWithExponentialBackoff()\` has made ${attemptNumber} attempts and is about to wait for ${delayMs}ms`,
+                    ),
+                );
+            }
+
             if (attemptNumber >= maxAttemptCount) {
                 throw new DeadlineExceededError(
                     `Retry with exponential backoff failed after ${attemptNumber} attempts`,

@@ -8,13 +8,17 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     DynamoTableSchema,
+    DynamoTableSchemaIndex,
     DynamoTableSchemaIndexConfigOptions,
     DynamoTableSchemaIndexKeyAttributesConfigBase,
     DynamoTableSchemaIndexKeyAttributesType,
     DynamoTableSchemaTypesBase,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {DynamoCondition} from "~/server/dynamo/core/internal/dynamo_condition.js";
+import {
+    DynamoCondition,
+    DynamoConditionExpression,
+} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
 import {getActorContextModuleKey} from "~/server/helpers/actor_context_module.js";
 import {
@@ -1539,7 +1543,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
-        options?: {oldItem?: Item},
+        options?: {oldItem?: Item | null},
     ): DynamoGeneralRealtimeTransactionEntry {
         return this.transactionDirectlyUpdateItemWithEvent(item, options).transactionEntry;
     }
@@ -1559,7 +1563,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public transactionDirectlyUpdateItemWithEvent<Item extends Types["Item"]>(
         newItem: Item,
-        {oldItem = newItem}: {oldItem?: Item} = {},
+        {oldItem = newItem}: {oldItem?: Item | null} = {},
     ): {
         transactionEntry: DynamoGeneralRealtimeTransactionEntry;
         getEvent: (
@@ -1594,7 +1598,14 @@ export class DynamoGeneralRealtimeTableSchema<
                         !hasOwnProperty(actualCondition, attributeName)
                     ) {
                         actualCondition ??= {};
-                        actualCondition[attributeName] = oldItem[attributeName];
+                        // This check is so we're correctly handling the case where we're
+                        // creating a new item (i.e. oldItem is null).
+                        if (oldItem !== null) {
+                            actualCondition[attributeName] = oldItem[attributeName];
+                        } else {
+                            actualCondition[attributeName] =
+                                DynamoConditionExpression.exists().not();
+                        }
                     }
                 }
             }
@@ -2952,6 +2963,56 @@ export class DynamoGeneralRealtimeTableSchema<
                 return {oldValue: oldValue as any, newValue: newValue as any};
             },
         };
+    }
+
+    /**
+     * Adds an index to a general realtime table without adding any realtime functionality.
+     *
+     * This means no realtime event transaction items are created specifically for this index's
+     * partition keys, and you cannot perform realtime queries or backfills against it.
+     * This is useful if you aren't sending updates to your index back to a client in real time
+     * and aren't concerned with anything other than the values in the index at query time.
+     *
+     * It is a wrapper around `DynamoTableSchema.addIndex()`, so has the same implementation details.
+     *
+     */
+    public addIndexWithoutRealtime<
+        ItemTypes extends Types["ItemType"],
+        PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+        SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+    >(
+        config: DynamoTableSchemaIndexConfigOptions<
+            Types,
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >,
+    ): DynamoTableSchemaIndex<
+        Types["ItemKey"] & ItemTypes,
+        Types["ItemKey"] & ItemTypes,
+        DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
+    > {
+        assert(
+            config.itemTypes.every(
+                itemType =>
+                    itemType.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
+                    itemType.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            ),
+            "Can’t access private realtime partition",
+        );
+
+        return this._table.addIndex<
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >(config);
     }
 
     private _getRealtimeEventItem(
