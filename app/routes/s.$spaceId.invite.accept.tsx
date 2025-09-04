@@ -8,9 +8,8 @@ import {FeedRouteShimmer} from "~/client/shimmer/route_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getOwnAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {acceptSpaceAccountInvite} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -21,17 +20,17 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    if (context.actor.type !== "Session") {
-        throw new PermissionDeniedError("Can’t load the invite page with a non-Session account");
-    }
-
-    const currentAccountResult = assertExists(
-        await getAccountIfExists(context, spaceId, context.actor.getAccountId(), {
-            disableOwnAccountAccessCheck: true,
-        }),
+    const currentAccount = await getOwnAccountIfExists(
+        context,
+        spaceId,
+        context.actor.getAccountId(),
     );
 
-    if (currentAccountResult.initialData.space.state.type !== "InvitePending") {
+    if (!currentAccount) {
+        throw new PermissionDeniedError("Account isn’t invited to the space");
+    }
+
+    if (currentAccount.initialData.space.state.type !== "InvitePending") {
         return redirect(`/s/${spaceId}`);
     }
 

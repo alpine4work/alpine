@@ -13,6 +13,7 @@ import {getBot} from "~/server/bots/bots_table.js";
 import {
     DynamoActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
+    DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
 } from "~/server/context/dynamo_actor_context_module.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
@@ -2397,20 +2398,30 @@ export async function getAccountIfExists(
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
-    options?: {consistency?: DynamoCacheReadConsistency; disableOwnAccountAccessCheck?: boolean},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel | null> {
-    // If the actor is trying to read their own account, we can let them skip the space
-    // authorization check since the actor has already logged in, and can see which
-    // spaces they have access to.
-    const shouldSkipAuthorization =
-        options?.disableOwnAccountAccessCheck &&
-        context.actor.type === "Session" &&
-        context.actor.getAccountId() === accountId;
+    await authorizeSpaceAccess(context, spaceId);
+    return getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
+}
 
-    if (!shouldSkipAuthorization) {
-        await authorizeSpaceAccess(context, spaceId);
-    }
-
+/**
+ * You're allowed to read your own account even if you don't have access to the
+ * space yet. Maybe you have an `InvitePending` account state.
+ */
+export async function getOwnAccountIfExists(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: DynamoSessionActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+) {
+    await authorizeOwnAccountAccess(context, accountId);
     return getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
 }
 

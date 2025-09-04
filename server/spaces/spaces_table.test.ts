@@ -22,6 +22,7 @@ import {
     getAccountIfExists,
     getOurAccountInvitePendingSpaceIds,
     getOurAccountSpaceIds,
+    getOwnAccountIfExists,
     getRegisteredAccountDevices,
     getSpace,
     getSpaceAccountForTest,
@@ -1710,7 +1711,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     );
 });
 
-test("`getAccountIfExists()` can use disableOwnAccountAccessCheck to read own account", async () => {
+test("`getOwnAccountIfExists()` can read own account even if an invite is pending", async () => {
     const space = await TestSpace.create(context);
 
     const [activeSession, removedSession, invitedSession] = await runAllPromises([
@@ -1742,9 +1743,7 @@ test("`getAccountIfExists()` can use disableOwnAccountAccessCheck to read own ac
     ).rejects.toThrow(PermissionDeniedError);
 
     // Should not throw if getting own account
-    await getAccountIfExists(removedSession.action(), space.id, removedSession.account.id, {
-        disableOwnAccountAccessCheck: true,
-    });
+    await getOwnAccountIfExists(removedSession.action(), space.id, removedSession.account.id);
 
     // Should throw on invited account without flag
     await expect(
@@ -1752,30 +1751,20 @@ test("`getAccountIfExists()` can use disableOwnAccountAccessCheck to read own ac
     ).rejects.toThrow(PermissionDeniedError);
 
     // Should not throw if getting own account
-    await getAccountIfExists(invitedSession.action(), space.id, invitedSession.account.id, {
-        disableOwnAccountAccessCheck: true,
-    });
+    await getOwnAccountIfExists(invitedSession.action(), space.id, invitedSession.account.id);
 
     // Cannot get other accounts when in non-active state, even with flag
     await expect(
-        getAccountIfExists(invitedSession.action(), space.id, removedSession.account.id, {
-            disableOwnAccountAccessCheck: true,
-        }),
+        getOwnAccountIfExists(invitedSession.action(), space.id, removedSession.account.id),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        getAccountIfExists(invitedSession.action(), space.id, activeSession.account.id, {
-            disableOwnAccountAccessCheck: true,
-        }),
+        getOwnAccountIfExists(invitedSession.action(), space.id, activeSession.account.id),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        getAccountIfExists(removedSession.action(), space.id, invitedSession.account.id, {
-            disableOwnAccountAccessCheck: true,
-        }),
+        getOwnAccountIfExists(removedSession.action(), space.id, invitedSession.account.id),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        getAccountIfExists(removedSession.action(), space.id, activeSession.account.id, {
-            disableOwnAccountAccessCheck: true,
-        }),
+        getOwnAccountIfExists(removedSession.action(), space.id, activeSession.account.id),
     ).rejects.toThrow(PermissionDeniedError);
 });
 

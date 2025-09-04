@@ -66,15 +66,19 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
+import {DynamoSessionActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
-import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {
     authorizeSpaceAccessIfPossible,
-    getAccountIfExists,
+    createAuthorizeSpaceAccessPermissionDeniedError,
+    getOwnAccountIfExists,
     getSpace,
 } from "~/server/spaces/spaces_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {alpioneers} from "~/shared/accounts/known_account_ids.js";
+import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -86,8 +90,12 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
@@ -106,6 +114,7 @@ import {
     standardSearchOptions,
 } from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -114,7 +123,6 @@ export const LoaderSchema = Schema.union({
         type: Schema.value("WithAccess"),
         space: SpaceModel.schema(),
         currentAccount: AccountModel.schema,
-        hasInternalAccess: Schema.boolean,
         inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
     }),
     WithoutAccess: Schema.object({
@@ -222,25 +230,32 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
         }
 
         case "Session": {
+            const sessionContext = context as Context<
+                Replace<LoaderContextModules, {actor: DynamoSessionActorContextModule}>
+            >;
+
             // In the case of a permission denial, we may want to expose certain space data
             // This is currently used when an InvitePending account requests data about the space.
             let space: SpaceModel | null = null;
 
             try {
-                // Kick off some requests, but don't await yet
-                const deferredPromises = [
-                    context.actor.getAccountAndHasInternalAccess(),
-                    getInbox(context.actor.authorizeSession(), {spaceId}),
-                ] as const;
-
                 // Await on data that we absolutely need first
-                const [currentAccountResult, currentSpace] = await runAllPromises([
-                    getAccountIfExists(context, spaceId, context.actor.getAccountId(), {
-                        disableOwnAccountAccessCheck: true,
-                    }),
-                    // If we're in an InvitePending state, we need to return the space
+                const [currentAccount, currentSpace, inboxResult] = await runAllPromises([
+                    getOwnAccountIfExists(
+                        sessionContext,
+                        spaceId,
+                        sessionContext.actor.getAccountId(),
+                    ),
+
+                    // If we're in an `InvitePending` state, we need to return the space
                     // data for the invite screen.
-                    getSpace(context, spaceId, {allowInvitePending: true}),
+                    getSpace(sessionContext, spaceId, {allowInvitePending: true}),
+
+                    // If `getInbox()` throws because we don't have space access, that's fine. This
+                    // might be a user with a pending invite. We want to load the inbox item here in
+                    // parallel with our other data in case we need it. If there's an error, catch
+                    // the error and throw later after we know we have space access.
+                    captureResultPromise(getInbox(context.actor.authorizeSession(), {spaceId})),
                 ]);
 
                 space = currentSpace;
@@ -252,7 +267,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 const currentPathname = url.pathname;
                 const invitePathRoot = `/s/${spaceId}/invite`;
                 const accountIsInvitePending =
-                    currentAccountResult?.initialData.space.state.type === "InvitePending";
+                    currentAccount?.initialData.space.state.type === "InvitePending";
 
                 if (accountIsInvitePending && !currentPathname.startsWith(invitePathRoot)) {
                     const to =
@@ -262,8 +277,16 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                     return redirect(`${invitePathRoot}${to ? `?to=${to}` : ""}`);
                 }
 
-                const [{hasInternalAccess}, inbox] = await runAllPromises(deferredPromises);
-                const currentAccount = assertExists(currentAccountResult);
+                // It's probably safe to assert here since `getSpace()` will throw if the
+                // account doesn't have access (and doesn't have an `InvitePending` state).
+                if (!currentAccount) {
+                    throw createAuthorizeSpaceAccessPermissionDeniedError(
+                        space.id,
+                        sessionContext.actor.getAccountId(),
+                    );
+                }
+
+                const inbox = unwrapResult(inboxResult);
 
                 const propagateEventData: TracerEventData = {
                     context: {
@@ -278,7 +301,6 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         type: "WithAccess",
                         space,
                         currentAccount,
-                        hasInternalAccess,
                         inbox,
                     },
                     {propagateEventData},
@@ -390,10 +412,16 @@ export default function SpaceLayoutRoute() {
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
     useEffect(() => {
-        if (loaderData.type === "WithAccess" && loaderData.hasInternalAccess) {
+        if (
+            loaderData.type === "WithAccess" &&
+            // TODO(calebmer): Gate access to `dev` console helper behind a feature flag
+            // instead of looking for known spaces/accounts.
+            (spaceId === alpineCompanyKnownSpaceId ||
+                hasOwnProperty(alpioneers, loaderData.currentAccount.id))
+        ) {
             attachDevConsoleForAccountInProduction();
         }
-    }, [loaderData]);
+    }, [loaderData, spaceId]);
 
     const lastOpenedSpaceIdRef = useRef<SpaceId | null>(null);
     useEffect(() => {
