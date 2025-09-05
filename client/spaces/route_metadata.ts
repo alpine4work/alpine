@@ -12,6 +12,9 @@ const metadataByRouteId: Record<
         errorTitle: "Couldn’t open space",
         spaceSideBarSpacing: "Always",
     },
+    "routes/s.$spaceId.accounts.$accountId": {
+        errorTitle: "Couldn’t open account",
+    },
     "routes/s.$spaceId.channels.$channelId._index": {
         errorTitle: "Couldn’t open channel",
     },

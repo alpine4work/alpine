@@ -413,12 +413,12 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "Quote";
-                readonly elements: readonly (
-                    | components["schemas"]["ContentParagraphBlockElement"]
-                    | components["schemas"]["ContentUnorderedListBlockElement"]
-                    | components["schemas"]["ContentOrderedListBlockElement"]
-                )[];
+                readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement"][];
             };
+            readonly ContentQuoteBlockElementBlockElement:
+                | components["schemas"]["ContentParagraphBlockElement"]
+                | components["schemas"]["ContentUnorderedListBlockElement"]
+                | components["schemas"]["ContentOrderedListBlockElement"];
             readonly ContentTableBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -523,6 +523,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Mention";
                 readonly targetPath: components["schemas"]["ContentMentionInlineElementTargetPath"];
+                readonly title?: string;
                 readonly isAccountShortName?: boolean;
                 readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
             };

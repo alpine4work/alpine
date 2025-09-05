@@ -2,6 +2,7 @@
 
 export type AppSpaceRouteId =
     | "routes/s.$spaceId._index"
+    | "routes/s.$spaceId.accounts.$accountId"
     | "routes/s.$spaceId.channels.$channelId._index"
     | "routes/s.$spaceId.channels.$channelId.files"
     | "routes/s.$spaceId.channels.new"

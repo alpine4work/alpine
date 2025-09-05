@@ -15,6 +15,7 @@ import {
     DocumentWithoutTitleContent,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -105,7 +106,14 @@ export function parseSearchContent(
     };
 
     const parseBlockNode = (
-        inputNode: BlockContent | DefinitionContent,
+        inputNode:
+            | BlockContent
+            | DefinitionContent
+            // Make TypeScript happy. `math` is valid `BlockContent` when we run TypeScript
+            // on the entire codebase since it's used in `parseApiContentFromMarkdown()`
+            // but it's not available when we run TypeScript just on this Bazel package.
+            // Make the two environments consistent by adding a stub type here.
+            | {readonly type: "math"},
         indent: number,
     ): Iterable<Node> => {
         switch (inputNode.type) {
@@ -325,6 +333,12 @@ export function parseSearchContent(
                 ];
             }
 
+            case "math": {
+                throw new InternalError(
+                    "Unreachable, search Markdown parser doesn’t use math plugin",
+                );
+            }
+
             default:
                 throw exhaustive(inputNode);
         }
@@ -360,7 +374,16 @@ export function parseSearchContent(
         }
     }
 
-    function* actuallyParsePhrasingNode(inputNode: PhrasingContent): Iterable<Node> {
+    function* actuallyParsePhrasingNode(
+        inputNode:
+            | PhrasingContent
+            // Make TypeScript happy. `inlineMath` is valid `BlockContent` when we run
+            // TypeScript on the entire codebase since it's used in
+            // `parseApiContentFromMarkdown()` but it's not available when we run
+            // TypeScript just on this Bazel package. Make the two environments consistent
+            // by adding a stub type here.
+            | {type: "inlineMath"},
+    ): Iterable<Node> {
         switch (inputNode.type) {
             case "text": {
                 if (inputNode.value.length > 0) {
@@ -514,6 +537,12 @@ export function parseSearchContent(
                     yield schema.text(text);
                 }
                 break;
+            }
+
+            case "inlineMath": {
+                throw new InternalError(
+                    "Unreachable, search Markdown parser doesn’t use math plugin",
+                );
             }
 
             default:

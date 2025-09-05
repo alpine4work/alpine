@@ -69,6 +69,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/agents:agents_lib",
     "//server/alpha:alpha",
     "//server/api:api_lib",
+    "//server/api/markdown:markdown",
     "//server/api/specification:specification",
     "//server/api/specification:specification_generate_lib",
     "//server/apns:apns",

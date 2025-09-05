@@ -1,4 +1,5 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {parseApiContentMentionInlineElementTargetPath} from "~/server/api/markdown/parse_api_content_mention_inline_element_target_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -10,17 +11,7 @@ import {
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {assertId} from "~/shared/id/id.js";
-import {
-    AccountId,
-    ChannelId,
-    DocumentId,
-    PostId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
@@ -168,41 +159,38 @@ function fromApiContentMentionInlineElement(
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
-    assert(element.targetPath.startsWith("/"));
-    const targetPathSegments = element.targetPath.slice(1).split("/");
+    const targetPathObject = parseApiContentMentionInlineElementTargetPath(element.targetPath);
 
     let mention: ContentMention;
 
-    if (targetPathSegments[0] === "accounts") {
+    if (targetPathObject.type === "Account") {
         mention = {
             type: "Account",
-            accountId: assertId<AccountId>(targetPathSegments[1] ?? ""),
+            accountId: targetPathObject.accountId,
             isShort: element.isAccountShortName ?? false,
         };
     } else {
         let entityId: SearchMentionEntityId;
 
-        switch (targetPathSegments[0]) {
-            case "documents": {
-                entityId = `Document:${assertId<DocumentId>(targetPathSegments[1] ?? "")}`;
+        switch (targetPathObject.type) {
+            case "Document": {
+                entityId = `Document:${targetPathObject.documentId}`;
                 break;
             }
-            case "channels": {
-                entityId = `Channel:${assertId<ChannelId>(targetPathSegments[1] ?? "")}`;
+            case "Channel": {
+                entityId = `Channel:${targetPathObject.channelId}`;
                 break;
             }
-            case "tasks": {
-                entityId = `Task:${assertId<TaskId>(targetPathSegments[1] ?? "")}`;
+            case "Task": {
+                entityId = `Task:${targetPathObject.taskId}`;
                 break;
             }
-            case "task-collections": {
-                entityId = `TaskCollection:${assertId<TaskCollectionId>(
-                    targetPathSegments[1] ?? "",
-                )}`;
+            case "TaskCollection": {
+                entityId = `TaskCollection:${targetPathObject.collectionId}`;
                 break;
             }
-            case "posts": {
-                entityId = `Post:${assertId<PostId>(targetPathSegments[1] ?? "")}`;
+            case "Post": {
+                entityId = `Post:${targetPathObject.postId}`;
                 break;
             }
             default:

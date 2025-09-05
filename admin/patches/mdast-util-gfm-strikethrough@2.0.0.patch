@@ -1,0 +1,111 @@
+diff --git a/lib/index.js b/lib/index.js
+index 1a1463967110645620d922832c95e0f85e727b71..8f12576bd95a7b67f3912fa52ee13aaee76a2c3f 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -10,6 +10,9 @@
+  * @typedef {import('mdast-util-to-markdown').Options} ToMarkdownExtension
+  */
+ 
++import {encodeCharacterReference} from 'mdast-util-to-markdown/lib/util/encode-character-reference.js'
++import {encodeInfo} from 'mdast-util-to-markdown/lib/util/encode-info.js'
++
+ /**
+  * List of constructs that occur in phrasing (paragraphs, headings), but cannot
+  * contain strikethrough.
+@@ -89,18 +92,88 @@ function exitStrikethrough(token) {
+ function handleDelete(node, _, state, info) {
+   const tracker = state.createTracker(info)
+   const exit = state.enter('strikethrough')
+-  let value = tracker.move('~~')
+-  value += state.containerPhrasing(node, {
+-    ...tracker.current(),
+-    before: value,
+-    after: '~'
+-  })
+-  value += tracker.move('~~')
++  const before = tracker.move('~~')
++
++  // NOTE(calebmer): Use the same encoding logic as strong/emphasis. We copied the
++  // surrounding code from `mdast-util-to-markdown/lib/handle/strong.js`.
++  let between = tracker.move(
++    state.containerPhrasing(node, {
++      ...tracker.current(),
++      before,
++      after: '~'
++    })
++  )
++  const betweenHead = getFirstCodePoint(between)
++  const open = encodeInfo(
++    getLastCodePoint(info.before).codePointAt(0),
++    betweenHead.codePointAt(0),
++    '~'
++  )
++
++  if (open.inside) {
++    between = encodeCharacterReference(betweenHead.codePointAt(0)) + between.slice(betweenHead.length)
++  }
++
++  const betweenTail = getLastCodePoint(between)
++  const close = encodeInfo(
++    getFirstCodePoint(info.after).codePointAt(0),
++    betweenTail.codePointAt(0),
++    '~'
++  )
++
++  if (close.inside) {
++    // NOTE(calebmer): If we encode a character reference that was before an escape
++    // character then we need to double escape the escape character so it doesn't
++    // escape the new character reference.
++    between =
++      (between.slice(-(betweenTail.length + 1), -betweenTail.length) === '\\'
++        ? between.slice(0, -(betweenTail.length + 1)) + '\\\\'
++        : between.slice(0, -betweenTail.length)) +
++      encodeCharacterReference(betweenTail.codePointAt(0))
++  }
++
++  const after = tracker.move('~~')
++
+   exit()
+-  return value
++
++  state.attentionEncodeSurroundingInfo = {
++    after: close.outside,
++    before: open.outside
++  }
++  return before + between + after
+ }
+ 
+ /** @type {ToMarkdownHandle} */
+ function peekDelete() {
+   return '~'
+ }
++
++function getFirstCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const first = string.charCodeAt(0)
++  
++  // Check if it's a high surrogate
++  if (first >= 0xD800 && first <= 0xDBFF && string.length > 1) {
++    // Return 2 characters if it's a surrogate pair
++    return string.slice(0, 2)
++  }
++  
++  // Return single character
++  return string.slice(0, 1)
++}
++
++function getLastCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const lastChar = string.charCodeAt(string.length - 1)
++  
++  // Check if it's a low surrogate (0xDC00-0xDFFF)
++  if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && string.length > 1) {
++    // It's a low surrogate, so the code point starts at length - 2
++    return string.slice(-2)
++  }
++  
++  // It's either a BMP character or a high surrogate without a pair
++  return string.slice(-1)
++}

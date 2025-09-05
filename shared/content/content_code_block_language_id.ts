@@ -14,7 +14,13 @@ export type ContentCodeBlockLanguageId = (typeof contentCodeBlockLanguageIds)[nu
  * as opposed to scrolling through an alphabetically sorted list of obscure
  * languages.
  *
+ * IMPORTANT: All code block languages must correspond to a name in
+ * [`linguist/lib/linguist/languages.yml`][2] for the language (either the main
+ * name or an alias). That way when we print content to Markdown, the code
+ * block can be parsed and syntax highlighted in GitHub.
+ *
  * [1]: https://survey.stackoverflow.co/2023/#most-popular-technologies-language-prof
+ * [2]: https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml
  */
 export const contentCodeBlockLanguageIds = [
     "text",

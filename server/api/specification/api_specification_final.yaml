@@ -381,16 +381,19 @@ components:
                     type: array
                     minItems: 1
                     items:
-                        oneOf:
-                            - $ref: "#/components/schemas/ContentParagraphBlockElement"
-                            - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
-                            - $ref: "#/components/schemas/ContentOrderedListBlockElement"
-                        discriminator:
-                            propertyName: type
-                            mapping:
-                                Paragraph: "#/components/schemas/ContentParagraphBlockElement"
-                                UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
-                                OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement"
+
+        ContentQuoteBlockElementBlockElement:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
 
         ContentTableBlockElement:
             type: object
@@ -439,7 +442,6 @@ components:
             properties:
                 elements:
                     type: array
-                    minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement"
 
@@ -533,6 +535,9 @@ components:
                     const: Mention
                 targetPath:
                     $ref: "#/components/schemas/ContentMentionInlineElementTargetPath"
+                title:
+                    type: string
+                    minLength: 1
                 isAccountShortName:
                     type: boolean
                 marks:
@@ -608,6 +613,7 @@ components:
                 text:
                     type: string
                     minLength: 1
+                    pattern: ^[^\n\r]*$
                 marks:
                     type: array
                     items:

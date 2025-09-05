@@ -1,0 +1,380 @@
+diff --git a/lib/handle/emphasis.js b/lib/handle/emphasis.js
+index 92be547459a62ae18f813651b713d31fbc4efbe0..40c93b015d28ec5c1e2ed1675c31846f763e3d06 100644
+--- a/lib/handle/emphasis.js
++++ b/lib/handle/emphasis.js
+@@ -3,6 +3,7 @@
+  * @import {Emphasis, Parents} from 'mdast'
+  */
+ 
++import {classifyCharacter} from 'micromark-util-classify-character'
+ import {checkEmphasis} from '../util/check-emphasis.js'
+ import {encodeCharacterReference} from '../util/encode-character-reference.js'
+ import {encodeInfo} from '../util/encode-info.js'
+@@ -17,7 +18,7 @@ emphasis.peek = emphasisPeek
+  * @returns {string}
+  */
+ export function emphasis(node, _, state, info) {
+-  const marker = checkEmphasis(state)
++  const marker = node.data?.emphasisMarker ?? checkEmphasis(state)
+   const exit = state.enter('emphasis')
+   const tracker = state.createTracker(info)
+   const before = tracker.move(marker)
+@@ -29,22 +30,33 @@ export function emphasis(node, _, state, info) {
+       ...tracker.current()
+     })
+   )
+-  const betweenHead = between.charCodeAt(0)
++  const betweenHead = getFirstCodePoint(between)
+   const open = encodeInfo(
+-    info.before.charCodeAt(info.before.length - 1),
+-    betweenHead,
++    getLastCodePoint(info.before).codePointAt(0),
++    betweenHead.codePointAt(0),
+     marker
+   )
+ 
+   if (open.inside) {
+-    between = encodeCharacterReference(betweenHead) + between.slice(1)
++    between = encodeCharacterReference(betweenHead.codePointAt(0)) + between.slice(betweenHead.length)
+   }
+ 
+-  const betweenTail = between.charCodeAt(between.length - 1)
+-  const close = encodeInfo(info.after.charCodeAt(0), betweenTail, marker)
++  const betweenTail = getLastCodePoint(between)
++  const close = encodeInfo(
++    getFirstCodePoint(info.after).codePointAt(0),
++    betweenTail.codePointAt(0),
++    marker
++  )
+ 
+   if (close.inside) {
+-    between = between.slice(0, -1) + encodeCharacterReference(betweenTail)
++    // NOTE(calebmer): If we encode a character reference that was before an escape
++    // character then we need to double escape the escape character so it doesn't
++    // escape the new character reference.
++    between =
++      (between.slice(-(betweenTail.length + 1), -betweenTail.length) === '\\'
++        ? between.slice(0, -(betweenTail.length + 1)) + '\\\\'
++        : between.slice(0, -betweenTail.length)) +
++      encodeCharacterReference(betweenTail.codePointAt(0))
+   }
+ 
+   const after = tracker.move(marker)
+@@ -67,3 +79,33 @@ export function emphasis(node, _, state, info) {
+ function emphasisPeek(_, _1, state) {
+   return state.options.emphasis || '*'
+ }
++
++function getFirstCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const first = string.charCodeAt(0)
++  
++  // Check if it's a high surrogate
++  if (first >= 0xD800 && first <= 0xDBFF && string.length > 1) {
++    // Return 2 characters if it's a surrogate pair
++    return string.slice(0, 2)
++  }
++  
++  // Return single character
++  return string.slice(0, 1)
++}
++
++function getLastCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const lastChar = string.charCodeAt(string.length - 1)
++  
++  // Check if it's a low surrogate (0xDC00-0xDFFF)
++  if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && string.length > 1) {
++    // It's a low surrogate, so the code point starts at length - 2
++    return string.slice(-2)
++  }
++  
++  // It's either a BMP character or a high surrogate without a pair
++  return string.slice(-1)
++}
+diff --git a/lib/handle/strong.js b/lib/handle/strong.js
+index 475d5f78b9373ce400c36bdbb0fe8a9374249ef1..a85be8562fd2f6e7b4872bce4cc59bfdfdec884b 100644
+--- a/lib/handle/strong.js
++++ b/lib/handle/strong.js
+@@ -29,22 +29,33 @@ export function strong(node, _, state, info) {
+       ...tracker.current()
+     })
+   )
+-  const betweenHead = between.charCodeAt(0)
++  const betweenHead = getFirstCodePoint(between)
+   const open = encodeInfo(
+-    info.before.charCodeAt(info.before.length - 1),
+-    betweenHead,
++    getLastCodePoint(info.before).codePointAt(0),
++    betweenHead.codePointAt(0),
+     marker
+   )
+ 
+   if (open.inside) {
+-    between = encodeCharacterReference(betweenHead) + between.slice(1)
++    between = encodeCharacterReference(betweenHead.codePointAt(0)) + between.slice(betweenHead.length)
+   }
+ 
+-  const betweenTail = between.charCodeAt(between.length - 1)
+-  const close = encodeInfo(info.after.charCodeAt(0), betweenTail, marker)
++  const betweenTail = getLastCodePoint(between)
++  const close = encodeInfo(
++    getFirstCodePoint(info.after).codePointAt(0),
++    betweenTail.codePointAt(0),
++    marker
++  )
+ 
+   if (close.inside) {
+-    between = between.slice(0, -1) + encodeCharacterReference(betweenTail)
++    // NOTE(calebmer): If we encode a character reference that was before an escape
++    // character then we need to double escape the escape character so it doesn't
++    // escape the new character reference.
++    between =
++      (between.slice(-(betweenTail.length + 1), -betweenTail.length) === '\\'
++        ? between.slice(0, -(betweenTail.length + 1)) + '\\\\'
++        : between.slice(0, -betweenTail.length)) +
++      encodeCharacterReference(betweenTail.codePointAt(0))
+   }
+ 
+   const after = tracker.move(marker + marker)
+@@ -67,3 +78,33 @@ export function strong(node, _, state, info) {
+ function strongPeek(_, _1, state) {
+   return state.options.strong || '*'
+ }
++
++function getFirstCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const first = string.charCodeAt(0)
++  
++  // Check if it's a high surrogate
++  if (first >= 0xD800 && first <= 0xDBFF && string.length > 1) {
++    // Return 2 characters if it's a surrogate pair
++    return string.slice(0, 2)
++  }
++  
++  // Return single character
++  return string.slice(0, 1)
++}
++
++function getLastCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const lastChar = string.charCodeAt(string.length - 1)
++  
++  // Check if it's a low surrogate (0xDC00-0xDFFF)
++  if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && string.length > 1) {
++    // It's a low surrogate, so the code point starts at length - 2
++    return string.slice(-2)
++  }
++  
++  // It's either a BMP character or a high surrogate without a pair
++  return string.slice(-1)
++}
+diff --git a/lib/unsafe.js b/lib/unsafe.js
+index c5c5d4a12ad91e8e15c5fcb0dedf1d376bebfeb6..01a1b2ed744c9832194bb644cbf0e1d23bd1802c 100644
+--- a/lib/unsafe.js
++++ b/lib/unsafe.js
+@@ -102,10 +102,13 @@ export const unsafe = [
+   // slash (closing tag), question mark (instruction), or a letter (tag).
+   // An autolink also starts with a letter.
+   // Finally, it could break out of a destination literal.
+-  {atBreak: true, character: '<', after: '[!/?A-Za-z]'},
++  {atBreak: true, character: '<', after: '[\\x00-\\x1F\\x21-\\x3B\\x3D\\x3F-\\x7F]'},
+   {
+     character: '<',
+-    after: '[!/?A-Za-z]',
++    // NOTE(calebmer): Our markdown parser is treating `<@0>`, `<0@0>`, and
++    // others as an autolink. Escape every time we see `<` followed by something
++    // other than a space, `<`, or `>`.
++    after: '[\\x00-\\x1F\\x21-\\x3B\\x3D\\x3F-\\x7F]',
+     inConstruct: 'phrasing',
+     notInConstruct: fullPhrasingSpans
+   },
+diff --git a/lib/util/container-phrasing.js b/lib/util/container-phrasing.js
+index 3b4dc46bcab677d1a86c0ca3cc0d11e876e7e81b..cd61673a309fd4f67771ac203b618d376f171a3f 100644
+--- a/lib/util/container-phrasing.js
++++ b/lib/util/container-phrasing.js
+@@ -47,11 +47,13 @@ export function containerPhrasing(parent, state, info) {
+       // @ts-expect-error: hush, it’s actually a `zwitch`.
+       if (handle && handle.peek) handle = handle.peek
+       after = handle
+-        ? handle(children[index + 1], parent, state, {
++        // NOTE(calebmer): Get the first Unicode code point NOT the first UTF-16
++        // code unit.
++        ? getFirstCodePoint(handle(children[index + 1], parent, state, {
+             before: '',
+             after: '',
+             ...tracker.current()
+-          }).charAt(0)
++          }))
+         : ''
+     } else {
+       after = info.after
+@@ -88,9 +90,11 @@ export function containerPhrasing(parent, state, info) {
+     // If we had to encode the first character after the previous node and it’s
+     // still the same character,
+     // encode it.
+-    if (encodeAfter && encodeAfter === value.slice(0, 1)) {
++    if (encodeAfter && encodeAfter === value.slice(0, encodeAfter.length)) {
+       value =
+-        encodeCharacterReference(encodeAfter.charCodeAt(0)) + value.slice(1)
++        // NOTE(calebmer): Escape the first Unicode code point NOT the first UTF-16
++        // code unit.
++        encodeCharacterReference(encodeAfter.codePointAt(0)) + value.slice(encodeAfter.length)
+     }
+ 
+     const encodingInfo = state.attentionEncodeSurroundingInfo
+@@ -104,11 +108,19 @@ export function containerPhrasing(parent, state, info) {
+       if (
+         results.length > 0 &&
+         encodingInfo.before &&
+-        before === results[results.length - 1].slice(-1)
++        before === results[results.length - 1].slice(-before.length)
+       ) {
++        const lastResult = results[results.length - 1]
+         results[results.length - 1] =
+-          results[results.length - 1].slice(0, -1) +
+-          encodeCharacterReference(before.charCodeAt(0))
++          // NOTE(calebmer): If we encode a character reference that was before an escape
++          // character then we need to double escape the escape character so it doesn't
++          // escape the new character reference.
++          (lastResult.slice(-(before.length + 1), -before.length) === '\\'
++            ? lastResult.slice(0, -(before.length + 1)) + '\\\\'
++            : lastResult.slice(0, -before.length)) +
++          // NOTE(calebmer): Escape the last Unicode code point NOT the last UTF-16
++          // code unit.
++          encodeCharacterReference(before.codePointAt(0))
+       }
+ 
+       if (encodingInfo.after) encodeAfter = after
+@@ -116,10 +128,42 @@ export function containerPhrasing(parent, state, info) {
+ 
+     tracker.move(value)
+     results.push(value)
+-    before = value.slice(-1)
++    // NOTE(calebmer): Get the last Unicode code point NOT the last UTF-16
++    // code unit.
++    before = getLastCodePoint(value)
+   }
+ 
+   indexStack.pop()
+ 
+   return results.join('')
+ }
++
++function getFirstCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const first = string.charCodeAt(0)
++  
++  // Check if it's a high surrogate
++  if (first >= 0xD800 && first <= 0xDBFF && string.length > 1) {
++    // Return 2 characters if it's a surrogate pair
++    return string.slice(0, 2)
++  }
++  
++  // Return single character
++  return string.slice(0, 1)
++}
++
++function getLastCodePoint(string) {
++  if (string.length === 0) return ''
++  
++  const lastChar = string.charCodeAt(string.length - 1)
++  
++  // Check if it's a low surrogate (0xDC00-0xDFFF)
++  if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && string.length > 1) {
++    // It's a low surrogate, so the code point starts at length - 2
++    return string.slice(-2)
++  }
++  
++  // It's either a BMP character or a high surrogate without a pair
++  return string.slice(-1)
++}
+diff --git a/lib/util/encode-info.js b/lib/util/encode-info.js
+index 8895a7953535c49280f31724772ac11eea1d1c66..b69d4ea51b9ab792d3350152342d8947b07a5aed 100644
+--- a/lib/util/encode-info.js
++++ b/lib/util/encode-info.js
+@@ -39,8 +39,12 @@ import {classifyCharacter} from 'micromark-util-classify-character'
+ // And by encoding itself.
+ // Encoding them will break constructs or double encode things.
+ export function encodeInfo(outside, inside, marker) {
+-  const outsideKind = classifyCharacter(outside)
+-  const insideKind = classifyCharacter(inside)
++  // NOTE(calebmer): Always encode Unicode code points that'll be represented with
++  // more than one UTF-16 code unit (`inside > 0xFFFF` or `outside > 0xFFFF`). That
++  // way we don't have to rely on the Markdown parser correctly determining whether
++  // a two code unit UTF-16 string is punctuation or not.
++  const outsideKind = outside > 0xFFFF ? 2 : classifyCharacter(outside)
++  const insideKind = inside > 0xFFFF ? 2 : classifyCharacter(inside)
+ 
+   // Letter outside:
+   if (outsideKind === undefined) {
+@@ -55,7 +59,7 @@ export function encodeInfo(outside, inside, marker) {
+         ? // Whitespace inside: encode both (letter, whitespace).
+           {inside: true, outside: true}
+         : // Punctuation inside: encode outer (letter)
+-          {inside: false, outside: true}
++          {inside: inside > 0xFFFF, outside: true}
+   }
+ 
+   // Whitespace outside:
+@@ -67,16 +71,16 @@ export function encodeInfo(outside, inside, marker) {
+         ? // Whitespace inside: encode both (whitespace).
+           {inside: true, outside: true}
+         : // Punctuation inside: already forms.
+-          {inside: false, outside: false}
++          {inside: inside > 0xFFFF, outside: false}
+   }
+ 
+   // Punctuation outside:
+   return insideKind === undefined
+     ? // Letter inside: already forms.
+-      {inside: false, outside: false}
++      {inside: false, outside: outside > 0xFFFF}
+     : insideKind === 1
+       ? // Whitespace inside: encode inner (whitespace).
+-        {inside: true, outside: false}
++        {inside: true, outside: outside > 0xFFFF}
+       : // Punctuation inside: already forms.
+-        {inside: false, outside: false}
++        {inside: inside > 0xFFFF, outside: outside > 0xFFFF}
+ }
+diff --git a/lib/util/safe.js b/lib/util/safe.js
+index 456fe215ae3d032ffaea4590f0d097bcb9195619..e99b2c8be343a6c7903c65bd0c89459c60ecad36 100644
+--- a/lib/util/safe.js
++++ b/lib/util/safe.js
+@@ -52,8 +52,11 @@ export function safe(state, input, config) {
+     let match
+ 
+     while ((match = expression.exec(value))) {
+-      const before = 'before' in pattern || Boolean(pattern.atBreak)
+-      const after = 'after' in pattern
++      // NOTE(calebmer): This looks like a straight up bug to me. If the `after` property
++      // exists but it's `undefined` then it's considered to be true! `inlineMath` declares a
++      // `$` unsafe character with `after: undefined` which is how I found this.
++      const before = ('before' in pattern && pattern.before !== undefined) || Boolean(pattern.atBreak)
++      const after = 'after' in pattern && pattern.after !== undefined
+       const position = match.index + (before ? match[1].length : 0)
+ 
+       if (positions.includes(position)) {
+diff --git a/package.json b/package.json
+index e6036c90373807540c008b5df69a0b24422a61c1..da4af9bd5f720480c7de53cce82d5d957f43ea49 100644
+--- a/package.json
++++ b/package.json
+@@ -28,7 +28,11 @@
+     "unist-util-remove-position": "^5.0.0",
+     "xo": "^0.59.0"
+   },
+-  "exports": "./index.js",
++  "exports": {
++    ".": "./index.js",
++    "./lib/util/encode-character-reference.js": "./lib/util/encode-character-reference.js",
++    "./lib/util/encode-info.js": "./lib/util/encode-info.js"
++  },
+   "files": [
+     "lib/",
+     "index.d.ts",

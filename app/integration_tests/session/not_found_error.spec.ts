@@ -16,6 +16,10 @@ type AppSpaceDynamicRouteId = RemoveSpaceFromAppSpaceRouteId<AppSpaceRouteId> &
 // here. If you add a new route then the TypeScript type will update and you'll
 // get a TypeScript error. When this happens please add a test here.
 const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
+    "accounts.$accountId": () => {
+        // This route only redirects to `/chat/with/${accountId}` right now so it
+        // doesn't have its own not found page.
+    },
     "channels.$channelId._index": () => {
         test("not found error for route `channels.$channelId._index`", async ({
             page,

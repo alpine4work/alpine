@@ -1,0 +1,30 @@
+diff --git a/dev/index.js b/dev/index.js
+index f2ca1158ce2f39bab74240b0eadaa106522c0908..f4b4d491fc08ce454be9df7f9c22b9b7999f2247 100644
+--- a/dev/index.js
++++ b/dev/index.js
+@@ -249,6 +249,9 @@ function regexCheck(regex) {
+    *   Whether the character code matches the bound regex.
+    */
+   function check(code) {
+-    return code !== null && code > -1 && regex.test(String.fromCharCode(code))
++    // NOTE(calebmer): We may be passing in Unicode code points into this function.
++    // Not just UTF-16 code units. Should behave the same for Unicode code points
++    // that can be represented by a single UTF-16 code unit.
++    return code !== null && code > -1 && regex.test(String.fromCodePoint(code))
+   }
+ }
+diff --git a/index.js b/index.js
+index 5f40d0a87f48a45b7b8c569f52243e98a3f3b984..4518fe315d2f62013fefb48aa35b9f151777f906 100644
+--- a/index.js
++++ b/index.js
+@@ -243,6 +243,9 @@ function regexCheck(regex) {
+    *   Whether the character code matches the bound regex.
+    */
+   function check(code) {
+-    return code !== null && code > -1 && regex.test(String.fromCharCode(code))
++    // NOTE(calebmer): We may be passing in Unicode code points into this function.
++    // Not just UTF-16 code units. Should behave the same for Unicode code points
++    // that can be represented by a single UTF-16 code unit.
++    return code !== null && code > -1 && regex.test(String.fromCodePoint(code))
+   }
+ }

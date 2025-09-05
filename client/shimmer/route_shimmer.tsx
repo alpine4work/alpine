@@ -243,8 +243,9 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 
-    // NOTE(rohit): For this route, we only have a `loader` for the space layout
-    // without any UI, hence no shimmer.
+    // These routes currently only perform a redirect. They don't render any UI and
+    // so don't need a shimmer.
+    "routes/s.$spaceId.accounts.$accountId": false,
     "routes/s.$spaceId.settings._index": false,
 
     // NOTE(rohit): We don't have a design for layout routes.

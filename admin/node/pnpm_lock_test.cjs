@@ -95,6 +95,14 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["qs", ["6.11.0", "6.14.0"]],
     ["negotiator", ["0.6.3", "1.0.0"]],
 
+    // NOTE(calebmer, 2025-08-27): Duplicate packages after adding a couple MDAST
+    // dependencies for API markdown parsing/printing.
+    ["@types/hast", ["2.3.4", "3.0.4"]],
+    ["dom-serializer", ["1.4.1", "2.0.0"]],
+    ["domutils", ["2.8.0", "3.2.2"]],
+    ["pure-rand", ["6.0.2", "7.0.1"]],
+    ["unist-util-remove-position", ["4.0.1", "5.0.0"]],
+
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
     // duplicate packages could be an issue and we tried to fix some easy
@@ -128,7 +136,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["color-convert", ["0.5.3", "1.9.3", "2.0.1"]],
     ["color-name", ["1.1.3", "1.1.4"]],
     ["color", ["3.2.1", "4.2.3"]],
-    ["commander", ["2.20.3", "5.1.0"]],
+    ["commander", ["2.20.3", "5.1.0", "8.3.0"]],
     ["convert-source-map", ["1.8.0", "2.0.0"]],
     ["cookie-signature", ["1.0.6", "1.2.1"]],
     ["cookie", ["0.4.1", "0.4.2", "0.5.0", "0.6.0"]],
@@ -137,10 +145,10 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["debug", ["2.6.9", "3.2.7", "4.4.1"]],
     ["dedent", ["0.7.0", "1.5.3"]],
     ["doctrine", ["2.1.0", "3.0.0"]],
-    ["domhandler", ["3.3.0", "4.3.1"]],
+    ["domhandler", ["3.3.0", "4.3.1", "5.0.3"]],
     ["dotenv", ["10.0.0", "16.0.3"]],
     ["emoji-regex", ["8.0.0", "9.2.2", "10.2.1"]],
-    ["entities", ["2.2.0", "4.5.0"]],
+    ["entities", ["2.2.0", "4.5.0", "6.0.1"]],
     ["escape-string-regexp", ["2.0.0", "4.0.0"]],
     ["eslint-scope", ["5.1.1", "7.2.2"]],
     ["eslint-visitor-keys", ["1.3.0", "2.1.0", "3.4.3"]],
@@ -155,7 +163,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["glob", ["7.2.3", "8.0.3", "10.3.15", "11.0.1"]],
     ["globals", ["11.12.0", "13.24.0"]],
     ["globby", ["11.1.0", "13.1.3"]],
-    ["htmlparser2", ["4.1.0", "6.1.0"]],
+    ["htmlparser2", ["4.1.0", "6.1.0", "10.0.0"]],
     ["http-proxy-agent", ["4.0.1", "5.0.0", "7.0.2"]],
     ["human-signals", ["2.1.0", "3.0.1"]],
     ["iconv-lite", ["0.4.24", "0.6.3"]],
@@ -173,7 +181,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["locate-path", ["5.0.0", "6.0.0"]],
     ["lru-cache", ["4.1.5", "5.1.1", "6.0.0", "7.18.3", "10.2.2", "11.1.0"]],
     ["mdast-util-from-markdown", ["1.2.0", "2.0.0"]],
-    ["mdast-util-to-markdown", ["1.3.0", "2.1.0"]],
+    ["mdast-util-to-markdown", ["1.3.0", "2.1.2"]],
     ["mdast-util-to-string", ["3.1.0", "4.0.0"]],
     ["micromark-core-commonmark", ["1.0.6", "2.0.0"]],
     ["micromark-factory-destination", ["1.0.0", "2.0.0"]],
