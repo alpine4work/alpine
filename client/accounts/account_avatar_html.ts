@@ -1,3 +1,4 @@
+import {renderRemovedAccountAvatarHtml} from "~/client/accounts/removed_account_avatar_html.js";
 import {
     backgroundColorVar,
     borderRadius as borderRadiusValues,
@@ -7,11 +8,13 @@ import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_ac
 import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
 import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
+import {SpaceAccountStateType} from "~/shared/spaces/space_account_state.js";
 
 export const accountAvatarClassName = sprinkles({
     flexShrink: "0",
@@ -60,30 +63,60 @@ export function renderAccountAvatar({
     accountData,
     size,
     backgroundBorderWidth,
+    spacingScale,
 }: {
     accountData: AccountModelData;
     size: Spacing;
     backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
+    spacingScale: SpacingScale;
 }): HtmlElementGenerator {
     // IMPORTANT: If you update the HTML here you should also update
     // `<AccountAvatar>` for code that render avatars in React.
     if (accountData.avatar?.content) {
+        if (
+            accountData.space.state.type === "InvitePending" &&
+            !accountData.space.state.wasPreviouslyRemoved
+        ) {
+            // TODO(ifitzsimmons, #account-avatar-override): We should never get here. If the account
+            // was never in the space and they've been invited, they should not have an avatar.
+            // We should log a warning here to notify us of data loss / corruption
+            return renderAccountAvatarWithInitials({
+                accountData,
+                size,
+                backgroundBorderWidth,
+                spacingScale,
+            });
+        }
+
         return renderAccountAvatarWithImage({
             content: accountData.avatar.content,
             size,
+            spacingScale,
+            accountState: accountData.space.state.type,
         });
     } else {
         return renderAccountAvatarWithInitials({
             accountData,
             size,
             backgroundBorderWidth,
+            spacingScale,
         });
     }
 }
 
 const imageUrlCache = new WeakMap<Uint8Array, string>();
 
-function renderAccountAvatarWithImage({content, size}: {content: Uint8Array; size: Spacing}) {
+function renderAccountAvatarWithImage({
+    content,
+    size,
+    spacingScale,
+    accountState,
+}: {
+    content: Uint8Array;
+    size: Spacing;
+    spacingScale: SpacingScale;
+    accountState: SpaceAccountStateType;
+}) {
     const imageUrl = getOrSetDefaultMapValue(
         imageUrlCache,
         content,
@@ -97,10 +130,6 @@ function renderAccountAvatarWithImage({content, size}: {content: Uint8Array; siz
         `width: ${spacing[size]}`,
         `height: ${spacing[size]}`,
         "position: relative",
-        "display: flex",
-        "align-items: center",
-        "justify-content: center",
-        "overflow: hidden",
     ].join(";");
     outerHtml.setAttribute("style", outerStyleString);
 
@@ -110,10 +139,19 @@ function renderAccountAvatarWithImage({content, size}: {content: Uint8Array; siz
         "width: 100%",
         "height: 100%",
         "object-fit: cover",
+        "overflow: hidden",
         `border-radius: ${borderRadiusValues["full"]}`,
     ].join(";");
     innerHtml.setAttribute("style", innerHtmlStyleString);
     innerHtml.setAttribute("aria-hidden", "true");
+
+    if (accountState !== "Active") {
+        renderRemovedAccountAvatarHtml({
+            size,
+            spacingScale,
+            outerHtml,
+        });
+    }
 
     return outerHtml;
 }
@@ -122,10 +160,12 @@ function renderAccountAvatarWithInitials({
     accountData,
     size,
     backgroundBorderWidth,
+    spacingScale,
 }: {
     accountData: AccountModelData;
     size: Spacing;
     backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
+    spacingScale: SpacingScale;
 }) {
     const {firstInitial, lastInitial} = getAccountAvatarInitials(accountData);
 
@@ -156,6 +196,21 @@ function renderAccountAvatarWithInitials({
     innerHtml.appendChild(
         new HtmlTextGenerator(`${firstInitial.toUpperCase()}${lastInitial?.toUpperCase() ?? ""}`),
     );
+
+    // If the account is pending an invite and it was never a member of the space, we should render
+    // the default account avatar (their initials with a themed background) WITHOUT the removed
+    // account UX – they should appear active until they reject the invite.
+    if (
+        (accountData.space.state.type === "InvitePending" &&
+            accountData.space.state.wasPreviouslyRemoved) ||
+        accountData.space.state.type === "Removed"
+    ) {
+        renderRemovedAccountAvatarHtml({
+            size,
+            spacingScale,
+            outerHtml,
+        });
+    }
 
     return outerHtml;
 }

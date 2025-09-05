@@ -418,6 +418,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     references: content.references,
                     mention,
                     isInert,
+                    spacingScale,
                 });
 
                 return {html};

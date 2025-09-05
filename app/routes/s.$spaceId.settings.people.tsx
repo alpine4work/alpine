@@ -392,9 +392,7 @@ export default function SpacePeopleSettingsRoute() {
                                         alignItems="center"
                                         gap="3"
                                     >
-                                        <Box opacity="60">
-                                            <AccountAvatar account={account} size="8" />
-                                        </Box>
+                                        <AccountAvatar account={account} size="8" />
                                         <Box fontStyle="semi-bold" fontSize="100" userSelect="text">
                                             {account.name}
                                         </Box>

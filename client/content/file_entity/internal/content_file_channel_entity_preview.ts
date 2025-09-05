@@ -251,6 +251,7 @@ export function renderContentFileChannelEntityPreview(
                     renderAccountAvatar({
                         accountData: account,
                         size: avatarSize,
+                        spacingScale,
                         backgroundBorderWidth:
                             previewAccounts.length > 1 || accountCount > previewAccounts.length
                                 ? borderWidth

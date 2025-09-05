@@ -9,6 +9,7 @@ import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/st
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -39,6 +40,7 @@ export function createContentEditorMentionNodeViewConstructor({
         const accountRegistry = getAccountRegistry(spaceId);
         const searchEntityRegistry = getSearchEntityRegistry(spaceId);
         const {references} = getContentEditorReferences(view.state);
+        const spacingScale = getSpacingScaleWithoutListening();
 
         const htmlStore = computeStore(get => {
             return renderContentMentionToHtml(get, {
@@ -50,6 +52,7 @@ export function createContentEditorMentionNodeViewConstructor({
                 references,
                 mention,
                 isInert: false,
+                spacingScale,
             });
         });
 

@@ -21,6 +21,7 @@ import {ContentReferences} from "~/shared/content/content_references.js";
 import {truncateContentMentionText} from "~/shared/content/render_content_mention_to_text.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, addRemLengths} from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     HtmlElementGenerator,
@@ -44,6 +45,7 @@ export function renderContentMentionToHtml(
     {
         accountRegistry,
         searchEntityRegistry,
+        spacingScale,
         routeLayout,
         spaceId,
         currentAccount,
@@ -53,6 +55,7 @@ export function renderContentMentionToHtml(
     }: {
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
+        spacingScale: SpacingScale;
         routeLayout: RouteLayout;
         spaceId: SpaceId | null;
         currentAccount: AccountModel | null;
@@ -226,6 +229,7 @@ export function renderContentMentionToHtml(
                         children: renderAccountAvatar({
                             accountData,
                             size: contentStyles.mentionIconWithScalingSize,
+                            spacingScale,
                         }),
                     }),
                 );

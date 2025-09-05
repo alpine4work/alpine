@@ -111,6 +111,7 @@ export function renderContentFilePostEntityPreview(
             renderAccountAvatar({
                 accountData: authorAccountData,
                 size: avatarSize,
+                spacingScale,
             }),
         );
 
