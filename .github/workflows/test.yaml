@@ -2,8 +2,8 @@ name: Test
 on: push
 
 jobs:
-    test:
-        name: Test
+    unit-tests:
+        name: Unit tests
         runs-on: [self-hosted, aws-test]
         steps:
             - name: Checkout repo
@@ -12,35 +12,41 @@ jobs:
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
 
-            # Run TypeScript, ESLint, and Prettier first. These tests are fast and easily
-            # cacheable. If TypeScript fails it's also very likely unit tests or
-            # integration tests will fail since some code is not structured properly.
-            #
-            # Running these tests first gives the developer fast feedback. It also leads to
-            # a lower total cost for CI since we can stop executing tests early on a type
-            # system failure.
-            - name: Test (tier 1)
+            # Run TypeScript, ESLint, Prettier, and unit tests. These tests are fast and
+            # easily cacheable. Running these tests first gives the developer fast feedback
+            # and leads to a lower total cost for CI since we can stop executing tests early
+            # on failures.
+            - name: Unit tests
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright,-macos --nofetch
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-playwright,-macos --nofetch
 
-            # After our tier 1 tests pass run all other tests except integration tests
-            # written for Playwright. Playwright integration tests are expensive so we only
-            # run them once all other tests have passed.
-            - name: Test (tier 2)
-              run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright,-macos --nofetch
+    integration-tests:
+        name: Integration tests
+        runs-on: [self-hosted, aws-test]
+        strategy:
+            matrix:
+                test_category:
+                    - { name: "Tasks", tag_filter: "playwright_tasks" }
+                    - { name: "Documents", tag_filter: "playwright_documents" }
+                    - { name: "Forum", tag_filter: "playwright_forum" }
+                    - { name: "Miscellaneous", tag_filter: "playwright,-playwright_forum,-playwright_documents,-playwright_tasks" }
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v3
 
-            # Run integration tests with Plawright after all other tests have passed. These
-            # tests are expensive to run and are flaky. We run them last since if any other
-            # test fails there's a good chance integration tests will also fail. So we
-            # save resources by not running integration tests.
+            - name: Initialize Bazel cache
+              uses: ./.github/actions/initialize-bazel-cache
+
+            # Run integration tests with Playwright. These tests are expensive to run and
+            # are flaky. We run them after all other tests have passed and break them into
+            # categories to run in parallel.
             #
             # We set `--notest_keep_going`. If any integration test fails we immediately
             # fail the build and exit to speed up test result turnaround time for
             # developers.
-            - name: Test (tier 3)
+            - name: Integration tests
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=playwright,-dev-check,-macos --nofetch --nokeep_going --notest_keep_going
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=${{ matrix.test_category.tag_filter }},-macos --nofetch --nokeep_going --notest_keep_going
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -57,6 +63,27 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
+    # Single job to check all required commit checks
+    # This is used for GitHub's required job status checks
+    commit-test-results:
+      if: ${{ always() }}
+      runs-on: ubuntu-latest
+      name: Commit test results
+      needs: [unit-tests, integration-tests]
+      steps:
+        - run: |
+            integration_tests_result="${{ needs.integration-tests.result }}"
+            if [[ $integration_tests_result == "success" || $integration_tests_result == "skipped" ]]; then
+              unit_tests_result="${{ needs.unit-tests.result }}"
+              if [[ $unit_tests_result == "success" || $unit_tests_result == "skipped" ]]; then
+                exit 0
+              else
+                exit 1
+              fi
+            else
+              exit 1
+            fi
+
     schedule-deploy:
         name: Schedule deploy
         runs-on: ubuntu-latest
@@ -67,7 +94,7 @@ jobs:
         # a message to our job queue via lambda. This will make sure our commit is eventually
         # deployed.
         if: github.ref == 'refs/heads/main'
-        needs: [test]
+        needs: [commit-test-results]
         steps:
             - name: Schedule deploy
               run: |

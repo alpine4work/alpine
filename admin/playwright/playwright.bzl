@@ -109,6 +109,9 @@ def playwright_test(
     if not src.endswith(".spec.ts") and not src.endswith(".spec.tsx"):
         fail("test source must end in `.spec.{ts,tsx}`")
 
+    # Extract directory name from src path to use as a tag
+    directory_tag = "playwright_" + (src.split("/")[0] if "/" in src else "root")
+
     src_js = "{}.js".format(src[:len(src) - 4] if src.endswith(".spec.tsx") else src[:len(src) - 3])
 
     swc_compile(
@@ -165,6 +168,7 @@ def playwright_test(
     _playwright_project_test(
         name = name,
         project = "chromium",
+        tags = [directory_tag],
     )
 
     if not ("firefox" in skip_projects):
@@ -174,7 +178,7 @@ def playwright_test(
             # Don't run as a part of `bazel test //...`. This means the test won't run in
             # CI. To save time and reduce flakes, we only run integration tests on the
             # browsers we focus support on. (Chrome and Safari Mobile.)
-            tags = ["manual"],
+            tags = ["manual", directory_tag],
         )
 
     if not ("webkit_desktop" in skip_projects):
@@ -184,13 +188,14 @@ def playwright_test(
             # Don't run as a part of `bazel test //...`. This means the test won't run in
             # CI. To save time and reduce flakes, we only run integration tests on the
             # browsers we focus support on. (Chrome and Safari Mobile.)
-            tags = ["manual"],
+            tags = ["manual", directory_tag],
         )
 
     if not ("webkit_mobile" in skip_projects):
         _playwright_project_test(
             name = name,
             project = "webkit_mobile",
+            tags = [directory_tag],
         )
 
 def _playwright_project_test(
