@@ -447,7 +447,7 @@ function getResizeFileLambda(
         cloudflareAccountId: string;
     },
 ) {
-    const resizeFileLambda = new AwsHttpLambda(scope, "ResizeFile", {
+    const resizeFileLambda = new AwsHttpLambda(scope, "ResizeFileLambda", {
         bazelConfiguration: {
             bazelTarget: "//server/files/processor/resize_file:resize_file_lambda",
             handlerFilePath: "lambda/resize_file_lambda",

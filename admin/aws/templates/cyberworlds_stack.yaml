@@ -4447,7 +4447,7 @@ Resources:
             Priority: 101
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/ResizeAvatarRoutingRule/Resource
-    FileProcessorServiceResizeFileExecutionRole24431F60:
+    FileProcessorServiceResizeFileLambdaExecutionRoleF8DE5EEB:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -4469,8 +4469,8 @@ Resources:
                         - Ref: AWS::Partition
                         - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/ExecutionRole/Resource
-    FileProcessorServiceResizeFileExecutionRoleDefaultPolicy5A1E4384:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/ExecutionRole/Resource
+    FileProcessorServiceResizeFileLambdaExecutionRoleDefaultPolicy83FC798D:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -4479,7 +4479,7 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::GetAtt:
-                              - FileProcessorServiceResizeFileFunctionDeadLetterQueue99FD8156
+                              - FileProcessorServiceResizeFileLambdaFunctionDeadLetterQueue03DE1624
                               - Arn
                     - Action:
                           - secretsmanager:DescribeSecret
@@ -4508,20 +4508,20 @@ Resources:
                                         - Arn
                                   - /index/*
                 Version: 2012-10-17
-            PolicyName: FileProcessorServiceResizeFileExecutionRoleDefaultPolicy5A1E4384
+            PolicyName: FileProcessorServiceResizeFileLambdaExecutionRoleDefaultPolicy83FC798D
             Roles:
-                - Ref: FileProcessorServiceResizeFileExecutionRole24431F60
+                - Ref: FileProcessorServiceResizeFileLambdaExecutionRoleF8DE5EEB
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/ExecutionRole/DefaultPolicy/Resource
-    FileProcessorServiceResizeFileFunctionDeadLetterQueue99FD8156:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/ExecutionRole/DefaultPolicy/Resource
+    FileProcessorServiceResizeFileLambdaFunctionDeadLetterQueue03DE1624:
         Type: AWS::SQS::Queue
         Properties:
             MessageRetentionPeriod: 1209600
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/DeadLetterQueue/Resource
-    FileProcessorServiceResizeFileFunction15E4BF66:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/DeadLetterQueue/Resource
+    FileProcessorServiceResizeFileLambdaFunctionFC92A347:
         Type: AWS::Lambda::Function
         Properties:
             Architectures:
@@ -4539,7 +4539,7 @@ Resources:
             DeadLetterConfig:
                 TargetArn:
                     Fn::GetAtt:
-                        - FileProcessorServiceResizeFileFunctionDeadLetterQueue99FD8156
+                        - FileProcessorServiceResizeFileLambdaFunctionDeadLetterQueue03DE1624
                         - Arn
             Environment:
                 Variables:
@@ -4561,15 +4561,15 @@ Resources:
             PackageType: Image
             Role:
                 Fn::GetAtt:
-                    - FileProcessorServiceResizeFileExecutionRole24431F60
+                    - FileProcessorServiceResizeFileLambdaExecutionRoleF8DE5EEB
                     - Arn
             Timeout: 30
         DependsOn:
-            - FileProcessorServiceResizeFileExecutionRoleDefaultPolicy5A1E4384
-            - FileProcessorServiceResizeFileExecutionRole24431F60
+            - FileProcessorServiceResizeFileLambdaExecutionRoleDefaultPolicy83FC798D
+            - FileProcessorServiceResizeFileLambdaExecutionRoleF8DE5EEB
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Resource
-    FileProcessorServiceResizeFileFunctionLogRetentionE7FB8260:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/Resource
+    FileProcessorServiceResizeFileLambdaFunctionLogRetentionBCCEBEE2:
         Type: Custom::LogRetention
         Properties:
             ServiceToken:
@@ -4580,49 +4580,49 @@ Resources:
                 Fn::Join:
                     - ""
                     - - /aws/lambda/
-                      - Ref: FileProcessorServiceResizeFileFunction15E4BF66
+                      - Ref: FileProcessorServiceResizeFileLambdaFunctionFC92A347
             RetentionInDays: 7
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/LogRetention/Resource
-    FileProcessorServiceResizeFileFunctionCurrentVersionLatest:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/LogRetention/Resource
+    FileProcessorServiceResizeFileLambdaFunctionCurrentVersionLatest:
         Type: AWS::Lambda::Version
         Properties:
             FunctionName:
-                Ref: FileProcessorServiceResizeFileFunction15E4BF66
+                Ref: FileProcessorServiceResizeFileLambdaFunctionFC92A347
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/CurrentVersion/Resource
-    FileProcessorServiceResizeFileFunctionAliaslatestFFC456FE:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/CurrentVersion/Resource
+    FileProcessorServiceResizeFileLambdaFunctionAliaslatest97DD3C8B:
         Type: AWS::Lambda::Alias
         Properties:
             FunctionName:
-                Ref: FileProcessorServiceResizeFileFunction15E4BF66
+                Ref: FileProcessorServiceResizeFileLambdaFunctionFC92A347
             FunctionVersion:
                 Fn::GetAtt:
-                    - FileProcessorServiceResizeFileFunctionCurrentVersionLatest
+                    - FileProcessorServiceResizeFileLambdaFunctionCurrentVersionLatest
                     - Version
             Name: latest
             ProvisionedConcurrencyConfig:
                 ProvisionedConcurrentExecutions: 5
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Aliaslatest/Resource
-    FileProcessorServiceResizeFileFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY074D5890:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/Aliaslatest/Resource
+    FileProcessorServiceResizeFileLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY1BF387DE:
         Type: AWS::Lambda::Permission
         Properties:
             Action: lambda:InvokeFunction
             FunctionName:
-                Ref: FileProcessorServiceResizeFileFunctionAliaslatestFFC456FE
+                Ref: FileProcessorServiceResizeFileLambdaFunctionAliaslatest97DD3C8B
             Principal: elasticloadbalancing.amazonaws.com
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFile/Function/Aliaslatest/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/Aliaslatest/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
     FileProcessorServiceResizeFileLambdaTargetGroup732CA815:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             TargetType: lambda
             Targets:
                 - Id:
-                      Ref: FileProcessorServiceResizeFileFunctionAliaslatestFFC456FE
+                      Ref: FileProcessorServiceResizeFileLambdaFunctionAliaslatest97DD3C8B
         DependsOn:
-            - FileProcessorServiceResizeFileFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY074D5890
+            - FileProcessorServiceResizeFileLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY1BF387DE
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaTargetGroup/Resource
     FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961:
