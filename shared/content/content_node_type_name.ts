@@ -116,6 +116,22 @@ export const contentMarkTypeNames = {
 };
 
 /**
+ * Name of all list item node types for any kind of content in our system.
+ *
+ * May include nodes names that don't exist in the `shared/content` package but
+ * do exist elsewhere (like `shared/documents`).
+ *
+ * Useful for writing code that operates on any kind of content.
+ */
+export type ContentListItemNodeTypeName = keyof typeof contentListItemNodeTypeNames;
+
+export const contentListItemNodeTypeNames = {
+    unorderedListItem: true,
+    orderedListItem: true,
+    checkListItem: true,
+};
+
+/**
  * Make sure that our type names cover everything in the ProseMirror schema.
  */
 export function assertContentTypeNamesCoverProsemirrorSchema(schema: ProsemirrorSchema) {
@@ -132,6 +148,10 @@ export function assertContentTypeNamesCoverProsemirrorSchema(schema: Prosemirror
 
         if (type.groups.includes("block") || type.groups.includes("tableBlock")) {
             assert(hasOwnProperty(contentBlockNodeTypeNames, type.name));
+        }
+
+        if (type.groups.includes("listItem")) {
+            assert(hasOwnProperty(contentListItemNodeTypeNames, type.name));
         }
     }
 

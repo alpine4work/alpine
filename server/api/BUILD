@@ -21,6 +21,7 @@ ts_project(
         "//:node_modules/negotiator",
         "//:node_modules/openapi-types",
         "//:node_modules/prettier",
+        "//:node_modules/prosemirror-model",
         "//:node_modules/yaml",
         "//server/api/specification",
         "//server/cloudflare/r2",
