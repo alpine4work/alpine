@@ -5535,13 +5535,13 @@ Parameters:
         Default: /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id
     FileProcessorServiceResizeFileServiceLambdaWeight8C995723:
         Type: Number
-        Default: 0
+        Default: 10
         Description: Percentage of traffic to send to ResizeFileService Lambda (0-100)
         MaxValue: 100
         MinValue: 0
     FileProcessorServiceLegacyFileProcessorServiceWeightFE41AE99:
         Type: Number
-        Default: 100
+        Default: 90
         Description: Percentage of traffic to send to Legacy FileProcessorService (0-100)
         MaxValue: 100
         MinValue: 0

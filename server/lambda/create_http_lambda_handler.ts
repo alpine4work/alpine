@@ -11,6 +11,7 @@ import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js"
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
+import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {
     createTraceServerResponseHandleSpanName,
     startTracerSpanFromPropagationContextHeader,
@@ -20,7 +21,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export function createHttpLambdaHandler({
@@ -51,105 +52,153 @@ export function createHttpLambdaHandler({
     serviceName: TracerServiceName;
     tokenServiceName: TokenServiceName;
 }): APIGatewayProxyHandler {
-    const tokenAgentAndOptionsPromise = getLambdaActionContextOptions(serviceSecretsSchema).then(
-        options => {
-            return createServiceTokenAgent({
-                serviceName: tokenServiceName,
-                options,
-            }).then(tokenAgent => {
-                return {tokenAgent, options};
-            });
-        },
-    );
     const awsSigner = new AwsRequestSigner();
+    let tokenAgentAndOptionsPromise;
 
     // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Convert to Lambda Response
     // Streaming so that we can run cleanup processes after sending responses to clients.
     // https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html
     return async (event: APIGatewayProxyEvent, lambdaContext: LambdaContext) => {
-        const {tokenAgent, options} = await tokenAgentAndOptionsPromise;
-
         const promiseWaiter = new PromiseWaiter();
-        const [tracer, honeycombTracerClient] = createLambdaTracerAndHoneycombClient({
-            serviceName,
-            jsHost: "Node",
-            promiseWaiter,
-            honeycombApiKey: options.honeycombApiKey,
-        });
-
-        const url = getUrl(event);
-
-        const abortController = new AbortController();
-        const request = new Request(url, {
-            method: event.httpMethod,
-            headers: new Headers(event.headers as Record<string, string>),
-            signal: abortController.signal,
-            ...(event.body ? {body: event.body} : {}),
-        });
-        const spanName = createTraceServerResponseHandleSpanName(tracer, request, route);
-        const {span, finishSpan} = startTracerSpanFromPropagationContextHeader(
-            tracer,
-            spanName,
-            request.headers,
-        );
-        const actionContext = createLambdaActionContext({
-            awsSigner,
-            options,
-            promiseWaiter,
-            span,
-            tokenAgent,
-            tracer,
-        });
+        let span: TracerSpan | null = null;
+        let finishSpan: (() => void) | null = null;
+        let honeycombTracerClient: HoneycombTracerClient | null = null;
 
         try {
-            return await withLambdaTimeout(lambdaContext, abortController, async () => {
-                // stream response here, wait for process event after
-                const response = await handleRequest(actionContext, {
-                    request,
-                    url,
-                    lambdaContext,
-                    span,
-                    tokenAgent: tokenAgent,
+            tokenAgentAndOptionsPromise ??= getLambdaActionContextOptions(
+                serviceSecretsSchema,
+            ).then(async options => {
+                const tokenAgent = await createServiceTokenAgent({
+                    serviceName: tokenServiceName,
+                    options,
                 });
+                return {tokenAgent, options};
+            });
+            const {tokenAgent, options} = await tokenAgentAndOptionsPromise;
 
-                // Convert Response to API Gateway format
-                const body = await response.arrayBuffer();
-                const headers: Record<string, string> = {};
+            let tracer: TracerRoot;
+            [tracer, honeycombTracerClient] = createLambdaTracerAndHoneycombClient({
+                serviceName,
+                jsHost: "Node",
+                promiseWaiter,
+                honeycombApiKey: options.honeycombApiKey,
+            });
 
-                response.headers.forEach((value, key) => {
-                    headers[key] = value;
-                });
+            const url = getUrl(event);
 
-                return {
-                    statusCode: response.status,
-                    headers,
-                    body: Buffer.from(body).toString("base64"),
-                    isBase64Encoded: true,
-                };
+            const abortController = new AbortController();
+            const request = new Request(url, {
+                method: event.httpMethod,
+                headers: new Headers(event.headers as Record<string, string>),
+                signal: abortController.signal,
+                ...(event.body ? {body: event.body} : {}),
+            });
+            const spanName = createTraceServerResponseHandleSpanName(tracer, request, route);
+            ({span, finishSpan} = startTracerSpanFromPropagationContextHeader(
+                tracer,
+                spanName,
+                request.headers,
+            ));
+            const actionContext = createLambdaActionContext({
+                awsSigner,
+                options,
+                promiseWaiter,
+                span,
+                tokenAgent,
+                tracer,
+            });
+
+            return await actuallyHandleRequest({
+                handleRequest,
+                lambdaContext,
+                abortController,
+                actionContext,
+                span,
+                tokenAgent,
+                request,
+                url,
             });
         } catch (error) {
-            span.addException(error);
-
-            return {
-                statusCode: isSystemError(error) ? 500 : 400,
-                headers: {"content-type": "application/json"},
-                body: JSON.stringify(
-                    ErrorSchema.serialize({
-                        ok: false,
-                        error,
-                    }),
-                ),
-            };
+            if (span) {
+                span.addException(error);
+            } else {
+                // NOTE(ifitzsimmons, 2025-09-05): If we failed to handle the request due to
+                // resource allocation issues, we want to log an error to Cloudwatch. Theoretically,
+                // this should never happen, but this will help us debug the issue.
+                // eslint-disable-next-line no-console
+                console.error("Error outside of HTTP lambda request handler:", error);
+            }
+            return intoHttpReponse(error);
         } finally {
-            finishSpan();
-            // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Fire and forget request
-            // that flushes the batch of honeycomb events.
-            promiseWaiter.waitUntil(async () => {
-                await honeycombTracerClient?.flushScheduledEventBatch();
-            });
-            void promiseWaiter.wait();
+            finishSpanAndFlushHoneycombEvents(finishSpan, honeycombTracerClient, promiseWaiter);
         }
     };
+}
+
+async function actuallyHandleRequest({
+    handleRequest,
+    lambdaContext,
+    abortController,
+    actionContext,
+    span,
+    tokenAgent,
+    request,
+    url,
+}: {
+    handleRequest: (
+        processContext: LambdaActionContext,
+        {
+            request,
+            url,
+            lambdaContext,
+            span,
+            tokenAgent,
+        }: {
+            request: Request;
+            url: URL;
+            lambdaContext: LambdaContext;
+            span: TracerSpan;
+            tokenAgent: TokenAgent;
+        },
+    ) => Promise<Response>;
+    lambdaContext: LambdaContext;
+    abortController: AbortController;
+    actionContext: LambdaActionContext;
+    span: TracerSpan;
+    tokenAgent: TokenAgent;
+    request: Request;
+    url: URL;
+}) {
+    try {
+        return await withLambdaTimeout(lambdaContext, abortController, async () => {
+            // stream response here, wait for process event after
+            const response = await handleRequest(actionContext, {
+                request,
+                url,
+                lambdaContext,
+                span,
+                tokenAgent,
+            });
+
+            // Convert Response to API Gateway format
+            const body = await response.arrayBuffer();
+            const headers: Record<string, string> = {};
+
+            response.headers.forEach((value, key) => {
+                headers[key] = value;
+            });
+
+            return {
+                statusCode: response.status,
+                headers,
+                body: Buffer.from(body).toString("base64"),
+                isBase64Encoded: true,
+            };
+        });
+    } catch (error) {
+        span.addException(error);
+        return intoHttpReponse(error);
+    }
 }
 
 function getUrl(event: APIGatewayProxyEvent) {
@@ -173,4 +222,26 @@ function getUrl(event: APIGatewayProxyEvent) {
     }
 
     return new URL(event.path + queryString, baseUrl);
+}
+
+function intoHttpReponse(error: unknown) {
+    return {
+        statusCode: isSystemError(error) ? 500 : 400,
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({ok: false, error: ErrorSchema.serialize(error)}),
+    };
+}
+
+function finishSpanAndFlushHoneycombEvents(
+    finishSpan: (() => void) | null,
+    honeycombTracerClient: HoneycombTracerClient | null,
+    promiseWaiter: PromiseWaiter,
+) {
+    finishSpan?.();
+    // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Fire and forget request
+    // that flushes the batch of honeycomb events.
+    promiseWaiter.waitUntil(async () => {
+        await honeycombTracerClient?.flushScheduledEventBatch();
+    });
+    void promiseWaiter.wait();
 }

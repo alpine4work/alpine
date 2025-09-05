@@ -107,12 +107,19 @@ export function createLambdaActionContext({
     });
 }
 
+const secretsManagerClient = new SecretsManagerClient({
+    region: process.env.AWS_REGION,
+});
+
 async function getServiceSecretsFromArn(
-    secretArn: string,
     serviceSecretsSchema: Schema<ServerSecrets>,
 ): Promise<ServerSecrets> {
-    const client = new SecretsManagerClient({});
-    const response = await client.send(
+    const secretArn = assertExists(
+        process.env.SECRET_ARN,
+        "Missing SECRET_ARN environment variable",
+    );
+
+    const response = await secretsManagerClient.send(
         new GetSecretValueCommand({
             SecretId: secretArn,
         }),
@@ -127,14 +134,8 @@ async function getServiceSecretsFromArn(
 export async function getLambdaActionContextOptions(
     serviceSecretsSchema: Schema<ServerSecrets>,
 ): Promise<LambdaActionContextOptions> {
-    // Get the secret ARN from environment variables
-    const secretArn = assertExists(
-        process.env.SECRET_ARN,
-        "Missing SECRET_ARN environment variable",
-    );
-
     // Fetch all secrets from AWS Secrets Manager
-    const secret = await getServiceSecretsFromArn(secretArn, serviceSecretsSchema);
+    const secret = await getServiceSecretsFromArn(serviceSecretsSchema);
 
     // Parse all environment variables and secrets into options
     return {
