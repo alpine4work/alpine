@@ -176,7 +176,18 @@ const MessageContentPayloadSchema = Schema.object({
     clerical: MessageContentPayloadClericalSchema.optional(),
 });
 
-const MessageDeletedPayloadSchema = Schema.object({
+const MessageDeletedPayloadSchema: Schema<{
+    readonly type: "Deleted";
+    readonly deletedTime: Date;
+
+    // Allow accessing these properties on a `MessagePayload` union with TypeScript
+    // as a convenience.
+    readonly parentMessageIndex?: undefined;
+    readonly content?: undefined;
+    readonly contentUpdatedTime?: undefined;
+    readonly fileIds?: undefined;
+    readonly clerical?: undefined;
+}> = Schema.object({
     type: Schema.value("Deleted"),
 
     /**

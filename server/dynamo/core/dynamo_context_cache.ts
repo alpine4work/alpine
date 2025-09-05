@@ -150,9 +150,32 @@ export class DynamoContextCache<Key extends string | number, Value> {
      */
     public getIfExists(
         context: Context<{cache: CacheContextModule}>,
+        consistency: DynamoCacheReadConsistency,
         key: Key,
-    ): Promise<Value> | null {
-        return this._cache.getIfExists(context, key)?.then(entry => entry.value) ?? null;
+    ): Promise<Value | null> | null {
+        if (consistency === "Strong") return null;
+
+        return (
+            this._cache.getIfExists(context, key)?.then(entry => {
+                switch (consistency) {
+                    case "Eventual": {
+                        return entry.value;
+                    }
+                    case "StrongWithinCache": {
+                        switch (entry.consistency) {
+                            case "Strong":
+                                return entry.value;
+                            case "Eventual":
+                                return null;
+                            default:
+                                throw exhaustive(entry.consistency);
+                        }
+                    }
+                    default:
+                        throw exhaustive(consistency);
+                }
+            }) ?? null
+        );
     }
 
     /**
@@ -183,5 +206,13 @@ export class DynamoContextCache<Key extends string | number, Value> {
         entryPromise.catch(() => {});
 
         this._cache.set(context, key, entryPromise);
+    }
+
+    /**
+     * Unconditionally remove a value from the cache. The next time we try to read
+     * the key from the cache it'll be repopulated.
+     */
+    public delete(context: Context<{cache: CacheContextModule}>, key: Key): void {
+        this._cache.delete(context, key);
     }
 }

@@ -1,13 +1,14 @@
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
     FileChatAuthorizer,
     authorizeChatAccess,
-    authorizeChatAccessForAccount,
     authorizeChatAccessIfPossible,
     backfillChatMessages,
     createChatForTest,
     deleteChatMessage,
     getChat,
     getChatAccountIds,
+    getChatAccountIdsForBotScope,
     getChatMessage,
     getChatMessagePayload,
     getChatMessagesFromEnd,
@@ -27,12 +28,13 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
+import {idRegExp} from "~/shared/id/id_reg_exp.js";
 import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
@@ -3291,499 +3293,6 @@ test("can get chats shared between an account and other accounts", async () => {
     ).toEqual(sortSharedChats([]));
 });
 
-test("can not get chat you don’t have access to", async () => {
-    const scenario = await createScenario();
-
-    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
-        spaceId: scenario.spaceA.id,
-        otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
-        content: content1,
-    });
-
-    await expect(
-        getChat(context.action(scenario.sessionA1), message.chatId),
-    ).resolves.not.toBeNull();
-    await expect(
-        getChatAccountIds(context.action(scenario.sessionA1), message.chatId),
-    ).resolves.not.toBeNull();
-
-    await expect(
-        getChat(context.action(scenario.sessionA2), message.chatId),
-    ).resolves.not.toBeNull();
-    await expect(
-        getChatAccountIds(context.action(scenario.sessionA2), message.chatId),
-    ).resolves.not.toBeNull();
-
-    await expect(getChat(context.action(scenario.sessionA3), message.chatId)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        getChatAccountIds(context.action(scenario.sessionA3), message.chatId),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        getChat(
-            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA2.account.id),
-            message.chatId,
-        ),
-    ).resolves.not.toBeNull();
-    await expect(
-        getChatAccountIds(
-            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA2.account.id),
-            message.chatId,
-        ),
-    ).resolves.not.toBeNull();
-
-    await expect(
-        getChat(
-            context.impersonatedAccountAction(scenario.spaceB.id, scenario.sessionA2.account.id),
-            message.chatId,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-    await expect(
-        getChatAccountIds(
-            context.impersonatedAccountAction(scenario.spaceB.id, scenario.sessionA2.account.id),
-            message.chatId,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        getChat(
-            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA3.account.id),
-            message.chatId,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-    await expect(
-        getChatAccountIds(
-            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA3.account.id),
-            message.chatId,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(getChat(context.anonymousAction(), message.chatId)).rejects.toThrow(
-        UnauthenticatedError,
-    );
-    await expect(getChatAccountIds(context.anonymousAction(), message.chatId)).rejects.toThrow(
-        UnauthenticatedError,
-    );
-
-    await expect(getChat(context.action(scenario.sessionB1), message.chatId)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        getChatAccountIds(context.action(scenario.sessionB1), message.chatId),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        getChat(context.systemAction(scenario.spaceA.id), message.chatId),
-    ).resolves.not.toBeNull();
-    await expect(
-        getChatAccountIds(context.systemAction(scenario.spaceA.id), message.chatId),
-    ).resolves.not.toBeNull();
-
-    await expect(getChat(context.systemAction(scenario.spaceB.id), message.chatId)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        getChatAccountIds(context.systemAction(scenario.spaceB.id), message.chatId),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("correctly authorizes which accounts are in the chat", async () => {
-    const scenario = await createScenario();
-
-    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
-        spaceId: scenario.spaceA.id,
-        otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
-        content: content1,
-    });
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA1),
-            message.chatId,
-            scenario.sessionA1.account.id,
-        ),
-    ).resolves.toBeTruthy();
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA1),
-            message.chatId,
-            scenario.sessionA2.account.id,
-        ),
-    ).resolves.toBeTruthy();
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA1),
-            message.chatId,
-            scenario.sessionA3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA1),
-            message.chatId,
-            scenario.sessionX2.account.id,
-        ),
-    ).resolves.toBeTruthy();
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA1),
-            message.chatId,
-            scenario.sessionX3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA1),
-            message.chatId,
-            scenario.sessionB1.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("can not authorize which accounts are in the chat if session does not have access to chat", async () => {
-    const scenario = await createScenario();
-
-    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
-        spaceId: scenario.spaceA.id,
-        otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
-        content: content1,
-    });
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA3),
-            message.chatId,
-            scenario.sessionA1.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA3),
-            message.chatId,
-            scenario.sessionA2.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA3),
-            message.chatId,
-            scenario.sessionA3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA3),
-            message.chatId,
-            scenario.sessionX2.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA3),
-            message.chatId,
-            scenario.sessionX3.account.id,
-        ),
-    ).rejects.toThrow("Session actor account doesn’t have access to chat");
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.action(scenario.sessionA3),
-            message.chatId,
-            scenario.sessionB1.account.id,
-        ),
-    ).rejects.toThrow("Session actor account doesn’t have access to chat");
-});
-
-test("correctly authorizes which accounts are in the chat as system", async () => {
-    const scenario = await createScenario();
-
-    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
-        spaceId: scenario.spaceA.id,
-        otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
-        content: content1,
-    });
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceA.id),
-            message.chatId,
-            scenario.sessionA1.account.id,
-        ),
-    ).resolves.toBeTruthy();
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceA.id),
-            message.chatId,
-            scenario.sessionA2.account.id,
-        ),
-    ).resolves.toBeTruthy();
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceA.id),
-            message.chatId,
-            scenario.sessionA3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceA.id),
-            message.chatId,
-            scenario.sessionX2.account.id,
-        ),
-    ).resolves.toBeTruthy();
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceA.id),
-            message.chatId,
-            scenario.sessionX3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceA.id),
-            message.chatId,
-            scenario.sessionB1.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("can not authorize which accounts are in the chat if system context does not have access to chat", async () => {
-    const scenario = await createScenario();
-
-    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
-        spaceId: scenario.spaceA.id,
-        otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
-        content: content1,
-    });
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceB.id),
-            message.chatId,
-            scenario.sessionA1.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceB.id),
-            message.chatId,
-            scenario.sessionA2.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceB.id),
-            message.chatId,
-            scenario.sessionA3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceB.id),
-            message.chatId,
-            scenario.sessionX2.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceB.id),
-            message.chatId,
-            scenario.sessionX3.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.systemAction(scenario.spaceB.id),
-            message.chatId,
-            scenario.sessionB1.account.id,
-        ),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("only authorizes chat access for accounts in a chat", async () => {
-    const space = await TestSpace.create(context);
-    const otherSpace = await TestSpace.create(context);
-    const [session1, session2, session3] = await space.createSessions(3);
-
-    await otherSpace.addAccount(session1);
-
-    const chat = await TestChat.get(session1, session2);
-
-    await authorizeChatAccess(session1.action(), chat.id);
-
-    await authorizeChatAccess(session2.action(), chat.id);
-
-    await expect(authorizeChatAccess(session3.action(), chat.id)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await authorizeChatAccess(space.systemAction(), chat.id);
-
-    await expect(authorizeChatAccess(otherSpace.systemAction(), chat.id)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(authorizeChatAccess(context.anonymousAction(), chat.id)).rejects.toThrow(
-        UnauthenticatedError,
-    );
-
-    await authorizeChatAccess(
-        context.impersonatedAccountAction(space.id, session1.account.id),
-        chat.id,
-    );
-
-    await authorizeChatAccess(
-        context.impersonatedAccountAction(space.id, session2.account.id),
-        chat.id,
-    );
-
-    await expect(
-        authorizeChatAccess(
-            context.impersonatedAccountAction(space.id, session3.account.id),
-            chat.id,
-        ),
-    ).rejects.toThrow("Account doesn’t have access to chat");
-
-    await expect(
-        authorizeChatAccess(
-            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
-            chat.id,
-        ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
-
-    expect((await authorizeChatAccessIfPossible(session1.action(), chat.id)).ok).toBe(true);
-
-    expect((await authorizeChatAccessIfPossible(session2.action(), chat.id)).ok).toBe(true);
-
-    expect((await authorizeChatAccessIfPossible(session3.action(), chat.id)).ok).toBe(false);
-
-    expect((await authorizeChatAccessIfPossible(space.systemAction(), chat.id)).ok).toBe(true);
-
-    expect((await authorizeChatAccessIfPossible(otherSpace.systemAction(), chat.id)).ok).toBe(
-        false,
-    );
-
-    expect((await authorizeChatAccessIfPossible(context.anonymousAction(), chat.id)).ok).toBe(
-        false,
-    );
-
-    expect(
-        (
-            await authorizeChatAccessIfPossible(
-                context.impersonatedAccountAction(space.id, session1.account.id),
-                chat.id,
-            )
-        ).ok,
-    ).toEqual(true);
-
-    expect(
-        (
-            await authorizeChatAccessIfPossible(
-                context.impersonatedAccountAction(space.id, session2.account.id),
-                chat.id,
-            )
-        ).ok,
-    ).toEqual(true);
-
-    expect(
-        (
-            await authorizeChatAccessIfPossible(
-                context.impersonatedAccountAction(space.id, session3.account.id),
-                chat.id,
-            )
-        ).ok,
-    ).toEqual(false);
-
-    expect(
-        (
-            await authorizeChatAccessIfPossible(
-                context.impersonatedAccountAction(otherSpace.id, session1.account.id),
-                chat.id,
-            )
-        ).ok,
-    ).toEqual(false);
-
-    await authorizeChatAccessForAccount(session1.action(), chat.id, session1.account.id);
-
-    await authorizeChatAccessForAccount(session2.action(), chat.id, session1.account.id);
-
-    await expect(
-        authorizeChatAccessForAccount(session3.action(), chat.id, session1.account.id),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await authorizeChatAccessForAccount(space.systemAction(), chat.id, session1.account.id);
-
-    await expect(
-        authorizeChatAccessForAccount(otherSpace.systemAction(), chat.id, session1.account.id),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        authorizeChatAccessForAccount(context.anonymousAction(), chat.id, session1.account.id),
-    ).rejects.toThrow(UnauthenticatedError);
-
-    await authorizeChatAccessForAccount(
-        context.impersonatedAccountAction(space.id, session1.account.id),
-        chat.id,
-        session1.account.id,
-    );
-
-    await authorizeChatAccessForAccount(
-        context.impersonatedAccountAction(space.id, session2.account.id),
-        chat.id,
-        session1.account.id,
-    );
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.impersonatedAccountAction(space.id, session3.account.id),
-            chat.id,
-            session1.account.id,
-        ),
-    ).rejects.toThrow("Session actor account doesn’t have access to chat");
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
-            chat.id,
-            session1.account.id,
-        ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
-
-    await expect(
-        authorizeChatAccessForAccount(
-            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
-            chat.id,
-            session2.account.id,
-        ),
-    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
-});
-
 test("authorizing chat access as session actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
@@ -4333,6 +3842,48 @@ test("will send share notification messages separately to each account", async (
     ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 });
 
+test("won’t send share notification messages to bot account", async () => {
+    const bot = await TestBot.create(context);
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const {id: botAccountId} = await bot.instantiate(adminSession);
+
+    const chat1 = await TestChat.get(session1, botAccountId);
+    const chat2 = await TestChat.get(session1, session2);
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1.id, messageIndex: 0}),
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat2.id, messageIndex: 0}),
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
+
+    const entity1Id: FileEntityId = `Document:${generateId<DocumentId>()}`;
+
+    await processSendShareNotificationJob(space.systemAction(), {
+        jobId: generateId(),
+        spaceId: space.id,
+        actorAccountId: session1.account.id,
+        entityId: entity1Id,
+        notification: {
+            accountIds: [botAccountId, session2.account.id],
+            content: createSimpleMessageContent("foobar"),
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1.id, messageIndex: 0}),
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat2.id, messageIndex: 0}),
+    ).resolves.toBeTruthy();
+});
+
 test("processing send share notification message job is idempotent", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3, session4] = await space.createSessions(4);
@@ -4531,6 +4082,233 @@ test("processing send share notification message job is idempotent", async () =>
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
     ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
+});
+
+test("can’t create a chat with only bot accounts", async () => {
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    const botAccount1 = await TestBot.createAndInstantiate(adminSession);
+    const botAccount2 = await TestBot.createAndInstantiate(adminSession);
+
+    await expect(
+        getOrCreateChatForAccounts(botAccount1.action(), {
+            spaceId: space.id,
+            otherAccountIds: [],
+        }),
+    ).rejects.toThrow("Can’t create a chat with only bot accounts");
+
+    await expect(
+        getOrCreateChatForAccounts(botAccount1.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount2.id],
+        }),
+    ).rejects.toThrow("Can’t create a chat with only bot accounts");
+
+    await expect(
+        getOrCreateChatForAccounts(botAccount1.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount1.id],
+        }),
+    ).rejects.toThrow("Can’t create a chat with only bot accounts");
+
+    expect(
+        await getOrCreateChatForAccounts(botAccount1.action(), {
+            spaceId: space.id,
+            otherAccountIds: [adminSession.account.id],
+        }),
+    ).toMatch(idRegExp);
+
+    expect(
+        await getOrCreateChatForAccounts(botAccount1.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount2.id, adminSession.account.id],
+        }),
+    ).toMatch(idRegExp);
+
+    await expect(
+        getOrCreateChatForAccounts(botAccount2.action(), {
+            spaceId: space.id,
+            otherAccountIds: [],
+        }),
+    ).rejects.toThrow("Can’t create a chat with only bot accounts");
+
+    await expect(
+        getOrCreateChatForAccounts(botAccount2.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount1.id],
+        }),
+    ).rejects.toThrow("Can’t create a chat with only bot accounts");
+
+    expect(
+        await getOrCreateChatForAccounts(botAccount2.action(), {
+            spaceId: space.id,
+            otherAccountIds: [adminSession.account.id],
+        }),
+    ).toMatch(idRegExp);
+
+    expect(
+        await getOrCreateChatForAccounts(botAccount2.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount1.id, adminSession.account.id],
+        }),
+    ).toMatch(idRegExp);
+});
+
+test("bot can read messages in a chat if it’s scope allows", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const [session2, session3] = await space.createSessions(2);
+
+    const bot = await TestBot.createAndInstantiate(session1);
+
+    const chat = await TestChat.get(session2, session3);
+
+    const message = await chat.sendMessage(session2, "foo");
+
+    const {payload} = await getChatMessagePayload(
+        bot.action({type: "Account", accountId: session3.account.id}),
+        {
+            chatId: chat.id,
+            messageIndex: message.index,
+        },
+    );
+
+    // eslint-disable-next-line string-quotes
+    expect(payload.content?.toString()).toEqual('doc(paragraph("foo"))');
+});
+
+test("bot can’t send messages in a chat if it’s not a member even if its scope allows reads", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const [session2, session3] = await space.createSessions(2);
+
+    const bot = await TestBot.createAndInstantiate(session1);
+
+    const chat = await TestChat.get(session2, session3);
+
+    await chat.sendMessage(session2, "foo");
+
+    await expect(
+        sendChatMessage(bot.action({type: "Account", accountId: session3.account.id}), {
+            chatId: chat.id,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("bar"),
+            fileIds: [],
+        }),
+    ).rejects.toThrow("Account doesn’t have access to chat");
+});
+
+test("bot can send messages in a chat if it’s a member", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const [session2, session3] = await space.createSessions(2);
+
+    const bot = await TestBot.createAndInstantiate(session1);
+
+    const chat = await TestChat.get(session2, session3, bot);
+
+    await chat.sendMessage(session2, "foo");
+
+    await sendChatMessage(bot.action({type: "Account", accountId: session3.account.id}), {
+        chatId: chat.id,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent("bar"),
+        fileIds: [],
+    });
+});
+
+describe("`getChatAccountIdsForBotScope()`", () => {
+    test("can get access policy for scoped chat", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const [session2, session3] = await space.createSessions(2);
+        const botAccount = await TestBot.createAndInstantiate(session1);
+
+        const chat = await TestChat.get(session2, session3);
+
+        expect(
+            await getChatAccountIdsForBotScope(
+                botAccount.action({type: "Chat", chatId: chat.id}),
+                chat.id,
+            ),
+        ).toEqual([session2.account.id, session3.account.id].sort(defaultCompareStrings));
+    });
+
+    test("can’t get access policy for scoped chat other than the one scoped", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const [session2, session3] = await space.createSessions(2);
+        const botAccount = await TestBot.createAndInstantiate(session1);
+
+        const chat = await TestChat.get(session2, session3);
+        const otherChat = await TestChat.get(session1, session3);
+
+        await expect(
+            getChatAccountIdsForBotScope(
+                botAccount.action({type: "Chat", chatId: chat.id}),
+                otherChat.id,
+            ),
+        ).rejects.toThrow("Can only get `AccountId`s for the scoped chat");
+    });
+
+    test("can’t get access policy with space scope", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const [session2, session3] = await space.createSessions(2);
+        const botAccount = await TestBot.createAndInstantiate(session1);
+
+        const chat = await TestChat.get(session2, session3);
+
+        await expect(
+            getChatAccountIdsForBotScope(botAccount.action({type: "Space"}), chat.id),
+        ).rejects.toThrow("Can only get `AccountId`s for the scoped chat");
+    });
+
+    test("can’t get access policy with account scope even if account has access to chat", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const [session2, session3] = await space.createSessions(2);
+        const botAccount = await TestBot.createAndInstantiate(session1);
+
+        const chat = await TestChat.get(session2, session3);
+
+        await expect(
+            getChatAccountIdsForBotScope(
+                botAccount.action({type: "Account", accountId: session2.account.id}),
+                chat.id,
+            ),
+        ).rejects.toThrow("Can only get `AccountId`s for the scoped chat");
+    });
+
+    test("can’t get access policy for chat in different space even if scope declares access", async () => {
+        const space = await TestSpace.create(context);
+        const otherSpace = await TestSpace.create(context);
+        const [session2, session3] = await space.createSessions(2);
+        const otherSession = await otherSpace.createSession({role: "Admin"});
+        const otherBotAccount = await TestBot.createAndInstantiate(otherSession);
+
+        const chat = await TestChat.get(session2, session3);
+
+        await expect(
+            getChatAccountIdsForBotScope(
+                otherBotAccount.action({type: "Chat", chatId: chat.id}),
+                chat.id,
+            ),
+        ).rejects.toThrow("Account doesn’t have access to space");
+    });
+
+    test("can’t get access policy for chat which doesn’t exist", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const chatId = generateId<ChatId>();
+
+        await expect(
+            getChatAccountIdsForBotScope(botAccount.action({type: "Chat", chatId}), chatId),
+        ).rejects.toThrow("Chat not found");
+    });
 });
 
 testMessagingImplementation<ChatId>(context, {

@@ -2381,7 +2381,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                     fileEntityResult: {
                                         ok: false,
                                         error: new PermissionDeniedError(
-                                            "Actor doesn’t have `View` access level to document",
+                                            "Actor doesn’t have `View` access level",
                                         ),
                                     },
                                 },
@@ -2455,7 +2455,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                     fileEntityResult: {
                                         ok: false,
                                         error: new PermissionDeniedError(
-                                            "Actor doesn’t have `View` access level to document",
+                                            "Actor doesn’t have `View` access level",
                                         ),
                                     },
                                 },
@@ -2550,7 +2550,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                     fileEntityResult: {
                                         ok: false,
                                         error: new PermissionDeniedError(
-                                            "Actor doesn’t have `View` access level to document",
+                                            "Actor doesn’t have `View` access level",
                                         ),
                                     },
                                 },
@@ -2632,7 +2632,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                     fileEntityResult: {
                                         ok: false,
                                         error: new PermissionDeniedError(
-                                            "Actor doesn’t have `View` access level to document",
+                                            "Actor doesn’t have `View` access level",
                                         ),
                                     },
                                 },
@@ -2991,7 +2991,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                     fileEntityResult: {
                                         ok: false,
                                         error: new PermissionDeniedError(
-                                            "Actor doesn’t have `View` access level to document",
+                                            "Actor doesn’t have `View` access level",
                                         ),
                                     },
                                 },
@@ -3058,7 +3058,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                     fileEntityResult: {
                                         ok: false,
                                         error: new PermissionDeniedError(
-                                            "Actor doesn’t have `View` access level to document",
+                                            "Actor doesn’t have `View` access level",
                                         ),
                                     },
                                 },

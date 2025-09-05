@@ -1,5 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -65,6 +66,9 @@ export class MyAccountDurableObjectAuthorizer {
             }
             case "Anonymous": {
                 throw unauthenticatedSessionError();
+            }
+            case "Bot": {
+                throw permissionDeniedBotError();
             }
             default:
                 throw exhaustive(context.actor);

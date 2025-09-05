@@ -1,8 +1,11 @@
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 let callbacks: Array<() => MaybePromise<void>> = [];
+let capturingCallbacks: Array<() => MaybePromise<void>> | null = null;
 
 let isTestRunning = false;
 
@@ -13,8 +16,7 @@ testSharedHooks.beforeEach(async () => {
 testSharedHooks.afterEach(async () => {
     isTestRunning = false;
 
-    let hasError = false;
-    let error;
+    const errors: Array<unknown> = [];
 
     while (callbacks.length > 0) {
         const currentCallbacks = callbacks;
@@ -23,15 +25,14 @@ testSharedHooks.afterEach(async () => {
         for (const callback of currentCallbacks) {
             try {
                 await callback();
-            } catch (_error) {
-                hasError = true;
-                error = _error;
+            } catch (error) {
+                errors.push(error);
             }
         }
     }
 
-    if (hasError) {
-        throw error;
+    if (errors.length > 0) {
+        throw createAggregateError(errors);
     }
 });
 
@@ -41,6 +42,11 @@ testSharedHooks.afterEach(async () => {
  * in the order this function is called.
  */
 export function afterTestEnds(callback: () => MaybePromise<void>) {
+    if (capturingCallbacks !== null) {
+        capturingCallbacks.push(callback);
+        return;
+    }
+
     if (!isTestRunning) {
         throw new InternalError(
             "Can’t register callback for after test ends when no test is running",
@@ -48,4 +54,42 @@ export function afterTestEnds(callback: () => MaybePromise<void>) {
     }
 
     callbacks.push(callback);
+}
+
+/**
+ * If you need to run some code in tests after a test block (e.g. in
+ * `beforeAll()`) then use this to capture callbacks passed into
+ * `afterTestEnds()`.
+ *
+ * Returns a function you call to run the `afterTestEnds()` callbacks.
+ */
+export async function captureAfterTestEndsCallbacks(
+    action: () => Promise<void>,
+): Promise<() => Promise<void>> {
+    assert(capturingCallbacks === null);
+    capturingCallbacks = [];
+
+    try {
+        await action();
+
+        const capturedCallbacks = capturingCallbacks;
+
+        return async () => {
+            const errors: Array<unknown> = [];
+
+            for (const callback of capturedCallbacks) {
+                try {
+                    await callback();
+                } catch (error) {
+                    errors.push(error);
+                }
+            }
+
+            if (errors.length > 0) {
+                throw createAggregateError(errors);
+            }
+        };
+    } finally {
+        capturingCallbacks = null;
+    }
 }

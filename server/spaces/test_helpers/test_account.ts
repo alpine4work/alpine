@@ -21,7 +21,7 @@ export class TestAccount {
 
     private _emailAddressCount = 0;
 
-    private constructor(context: TestContext, id: AccountId, initialName: string) {
+    protected constructor(context: TestContext, id: AccountId, initialName: string) {
         this.context = context;
         this.id = id;
         this.initialName = initialName;

@@ -4,6 +4,7 @@ ts_project(
     name = "bots",
     test_deps = [
         "//:node_modules/get-port",
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces",
         "//server/spaces/test_helpers",

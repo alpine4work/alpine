@@ -1,7 +1,16 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {
+    AccountId,
+    ChatId,
+    DocumentId,
+    PostId,
+    SessionId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type SessionTokenPayload = {
@@ -25,14 +34,44 @@ export type AnonymousTokenPayload = {
     readonly type: "Anonymous";
 };
 
-export type TokenPayload = SessionTokenPayload | SystemTokenPayload | AnonymousTokenPayload;
+export type BotTokenPayload = {
+    readonly type: "Bot";
+    readonly spaceId: SpaceId;
+    readonly accountId: AccountId;
+    readonly scope: BotTokenPayloadScope;
+};
+
+// TODO(calebmer, #api): Don't allow bots to be added to `AccessPolicy`'s
+// `accountGrantById`. Bots get access to stuff in different ways.
+export type BotTokenPayloadScope =
+    // The bot has access to everything this account has access to.
+    //
+    // Theoretically, this is the same as `Chat` for a 1:1 chat between just the
+    // bot and the account.
+    | {readonly type: "Account"; readonly accountId: AccountId}
+    // The bot has access to everything that everyone with view access to these
+    // entities has access to.
+    | {readonly type: "Chat"; readonly chatId: ChatId}
+    | {readonly type: "Document"; readonly documentId: DocumentId}
+    | {readonly type: "Post"; readonly postId: PostId}
+    | {readonly type: "Task"; readonly taskId: TaskId}
+    // The bot has access to only things that are shared with everyone in the
+    // space. So only what's been shared with `AccessPolicy`'s `defaultGrant`.
+    | {readonly type: "Space"};
+
+export type TokenPayload =
+    | SessionTokenPayload
+    | SystemTokenPayload
+    | AnonymousTokenPayload
+    | BotTokenPayload;
 
 export const TokenPayloadSchema = Schema.object({
     sid: Schema.id<SessionId>().optional(),
     aid: Schema.id<AccountId>().optional(),
-    // "w" stands for "workspace" since "s" is taken.
+    // "w" stands for "workspace" since "s" for "space" is taken.
     wid: Schema.id<SpaceId>().optional(),
     ano: Schema.value(1).optional(),
+    sco: Schema.string.optional(),
 })
     .transform<TokenPayload>({
         serialize: payload => {
@@ -43,26 +82,55 @@ export const TokenPayloadSchema = Schema.object({
                     return {wid: payload.spaceId};
                 case "Anonymous":
                     return {ano: 1};
+                case "Bot": {
+                    return {
+                        wid: payload.spaceId,
+                        aid: payload.accountId,
+                        sco: serializeBotTokenPayloadScope(payload.scope),
+                    };
+                }
                 default:
                     throw exhaustive(payload);
             }
         },
         deserialize: payload => {
-            if (payload.ano) {
+            if (payload.ano !== undefined) {
                 return {type: "Anonymous"};
             }
 
-            if (payload.wid) {
+            if (payload.sco !== undefined) {
+                if (payload.wid === undefined)
+                    throw new InvalidArgumentError("Token payload is missing required `wid` claim");
+
+                if (payload.aid === undefined)
+                    throw new InvalidArgumentError("Token payload is missing required `aid` claim");
+
+                const scope = deserializeBotTokenPayloadScope(payload.sco);
+                if (!scope) throw new InvalidArgumentError("Invalid bot token payload scope");
+
+                return {
+                    type: "Bot",
+                    spaceId: payload.wid,
+                    accountId: payload.aid,
+                    scope,
+                };
+            }
+
+            if (payload.wid !== undefined) {
+                // Defend against session or bot tokens being treated as system tokens.
+                if (payload.aid !== undefined)
+                    throw new InvalidArgumentError("Token payload has unexpected `aid` claim");
+
                 return {
                     type: "System",
                     spaceId: payload.wid,
                 };
             }
 
-            if (!payload.sid)
+            if (payload.sid === undefined)
                 throw new InvalidArgumentError("Token payload is missing required `sid` claim");
 
-            if (!payload.aid)
+            if (payload.aid === undefined)
                 throw new InvalidArgumentError("Token payload is missing required `aid` claim");
 
             return {
@@ -88,3 +156,53 @@ export const TokenPayloadSchema = Schema.object({
             return payload;
         },
     });
+
+function serializeBotTokenPayloadScope(scope: BotTokenPayloadScope): string {
+    switch (scope.type) {
+        case "Account":
+            return `a-${scope.accountId}`;
+        case "Chat":
+            return `c-${scope.chatId}`;
+        case "Document":
+            return `d-${scope.documentId}`;
+        case "Post":
+            return `p-${scope.postId}`;
+        case "Task":
+            return `t-${scope.taskId}`;
+        case "Space":
+            return "s";
+        default:
+            throw exhaustive(scope);
+    }
+}
+
+function deserializeBotTokenPayloadScope(scope: string): BotTokenPayloadScope | null {
+    if (scope === "s") {
+        return {type: "Space"};
+    } else {
+        const [type = "", id = ""] = scope.split("-", 2);
+        switch (type) {
+            case "a": {
+                if (isId<AccountId>(id)) return {type: "Account", accountId: id};
+                break;
+            }
+            case "c": {
+                if (isId<ChatId>(id)) return {type: "Chat", chatId: id};
+                break;
+            }
+            case "d": {
+                if (isId<DocumentId>(id)) return {type: "Document", documentId: id};
+                break;
+            }
+            case "p": {
+                if (isId<PostId>(id)) return {type: "Post", postId: id};
+            }
+            case "t": {
+                if (isId<TaskId>(id)) return {type: "Task", taskId: id};
+                break;
+            }
+        }
+    }
+
+    return null;
+}

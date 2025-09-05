@@ -1,7 +1,9 @@
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 
@@ -219,6 +221,19 @@ export const AccessPolicySchema = Schema.object({
     urlGrant: AccessPolicyUrlGrantSchema.nullable().default(null),
 });
 
+/**
+ * `AccessPolicy` but without the `generation` property for grants with a
+ * `Manage` access level.
+ */
+export type AccessPolicyWithoutGenerations = {
+    readonly accountGrantById: ReadonlyMap<
+        AccountId,
+        DistributiveOmit<AccessPolicyAccountGrant, "generation">
+    >;
+    readonly defaultGrant: DistributiveOmit<AccessPolicyDefaultGrant, "generation"> | null;
+    readonly urlGrant: AccessPolicyUrlGrant | null;
+};
+
 export const AccessPolicyRegister = createCrdtRegister(AccessPolicySchema);
 
 /**
@@ -388,5 +403,5 @@ export function validateAccessPolicyUpdate(
         return {ok: false, reason: "Can’t update access policy so that no one has manage access"};
     }
 
-    return {ok: true};
+    return okResult;
 }

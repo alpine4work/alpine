@@ -38,6 +38,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {isDynamoTransactionCancelledExceptionByConditionCheckError} from "~/server/dynamo/core/is_dynamo_transaction_cancelled_exception_by_condition_check_error.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
@@ -691,6 +692,7 @@ export async function removeSpaceAccount(
         }
         case "System":
         case "Anonymous":
+        case "Bot":
             break;
         default:
             throw exhaustive(context.actor);
@@ -1033,17 +1035,21 @@ export async function addSpaceAccountWithoutAuthorization(
  * to instantiate a bot account in a space. Each bot can only be instantiated
  * once per space.
  */
-// TODO(calebmer, #api): Can we share some code with whatever Josh ends up with
-// for adding/inviting accounts?
 export async function instantiateBotSpaceAccount(
     context: ServerActionContext,
-    {spaceId, botId}: {spaceId: SpaceId; botId: BotId},
-): Promise<{accountId: AccountId}> {
+    {
+        spaceId,
+        botId,
+        accountId = generateId<AccountId>(),
+    }: {
+        spaceId: SpaceId;
+        botId: BotId;
+        accountId?: AccountId;
+    },
+): Promise<{accountId: AccountId; name: string}> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
     const bot = await getBot(context, botId);
-
-    const accountId = generateId<AccountId>();
 
     const currentTime = new Date();
 
@@ -1117,7 +1123,7 @@ export async function instantiateBotSpaceAccount(
         },
     });
 
-    return {accountId};
+    return {accountId, name: bot.name};
 }
 
 export const removeSpaceAccountBeforeExecuteTestCheckpoint =
@@ -1736,6 +1742,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     // Check if `getAccountIfExists()` has loaded the account...
     const accountFromCache2 = await AccountModelContextCache.getIfExists(
         context,
+        "Eventual",
         `${spaceId}:${accountId}`,
     );
     if (
@@ -1866,34 +1873,13 @@ export async function authorizeSpaceAccess(
     options?: {allowInvitePending?: boolean},
 ): Promise<void> {
     switch (context.actor.type) {
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount":
+        case "Bot": {
             if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    spaceId,
-                    context.actor.getAccountId(),
-                    expectedRole,
-                    options,
-                ))
+                context.actor.type === "ImpersonatedAccount" &&
+                context.actor.getSpaceId() !== spaceId
             ) {
-                throw createAuthorizeSpaceAccessPermissionDeniedError(
-                    spaceId,
-                    context.actor.getAccountId(),
-                    expectedRole,
-                );
-            }
-            break;
-        }
-        case "System": {
-            if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System actor doesn’t have access to space", {
-                    aggregateDedupeKey: spaceId,
-                });
-            }
-            break;
-        }
-        case "ImpersonatedAccount": {
-            if (context.actor.getSpaceId() !== spaceId) {
                 throw new PermissionDeniedError(
                     "Impersonated account actor doesn’t have access to space",
                     {aggregateDedupeKey: spaceId},
@@ -1904,16 +1890,24 @@ export async function authorizeSpaceAccess(
                 !(await isAccountMemberOfSpaceWithoutAuthorization(
                     context,
                     spaceId,
-                    context.actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                     expectedRole,
                     options,
                 ))
             ) {
                 throw createAuthorizeSpaceAccessPermissionDeniedError(
                     spaceId,
-                    context.actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                     expectedRole,
                 );
+            }
+            break;
+        }
+        case "System": {
+            if (context.actor.getSpaceId() !== spaceId) {
+                throw new PermissionDeniedError("System actor doesn’t have access to space", {
+                    aggregateDedupeKey: spaceId,
+                });
             }
             break;
         }
@@ -1963,8 +1957,30 @@ export async function authorizeSpaceAccessIfPossible(
     spaceId: SpaceId,
 ): Promise<Result<void, ErrorBase>> {
     switch (context.actor.type) {
-        case "Session": {
-            const accountId = context.actor.getAccountId();
+        case "Session":
+        case "ImpersonatedAccount":
+        case "Bot": {
+            const accountId = context.actor.getPossiblyBotAccountId();
+
+            if (
+                context.actor.type === "ImpersonatedAccount" &&
+                context.actor.getSpaceId() !== spaceId
+            ) {
+                let error: ErrorBase | undefined;
+
+                return {
+                    ok: false,
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= new PermissionDeniedError(
+                            "Impersonated account actor doesn’t have access to space",
+                            {aggregateDedupeKey: spaceId},
+                        );
+                        return error;
+                    },
+                };
+            }
 
             if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
                 let error: ErrorBase | undefined;
@@ -1996,44 +2012,6 @@ export async function authorizeSpaceAccessIfPossible(
                         error ??= new PermissionDeniedError(
                             "System actor doesn’t have access to space",
                             {aggregateDedupeKey: spaceId},
-                        );
-                        return error;
-                    },
-                };
-            }
-            return okResult;
-        }
-        case "ImpersonatedAccount": {
-            const accountId = context.actor.getAccountId();
-
-            if (context.actor.getSpaceId() !== spaceId) {
-                let error: ErrorBase | undefined;
-
-                return {
-                    ok: false,
-                    get error() {
-                        // When this function is called, frequently we only check `ok`. So lazily
-                        // create an error only when needed.
-                        error ??= new PermissionDeniedError(
-                            "Impersonated account actor doesn’t have access to space",
-                            {aggregateDedupeKey: spaceId},
-                        );
-                        return error;
-                    },
-                };
-            }
-
-            if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
-                let error: ErrorBase | undefined;
-
-                return {
-                    ok: false,
-                    get error() {
-                        // When this function is called, frequently we only check `ok`. So lazily
-                        // create an error only when needed.
-                        error ??= createAuthorizeSpaceAccessPermissionDeniedError(
-                            spaceId,
-                            accountId,
                         );
                         return error;
                     },
@@ -2087,11 +2065,10 @@ export async function authorizeOwnAccountAccess(
             break;
         }
         case "Session":
-        case "ImpersonatedAccount": {
-            if (context.actor.getAccountId() !== accountId) {
-                throw new PermissionDeniedError(
-                    "Can’t access account that’s not the session actor’s",
-                );
+        case "ImpersonatedAccount":
+        case "Bot": {
+            if (context.actor.getPossiblyBotAccountId() !== accountId) {
+                throw new PermissionDeniedError("Can’t access account that’s not the actor’s");
             }
             break;
         }
@@ -2114,12 +2091,19 @@ export async function authorizeOwnAccountAccess(
  * cache.
  */
 export async function authorizeNotBotSpaceAccount(
-    context: ServerActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        actor: DynamoActorContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+    }>,
     spaceId: SpaceId,
     accountId: AccountId,
 ) {
     if (await isBotSpaceAccount(context, spaceId, accountId)) {
-        throw new PermissionDeniedError("Bot account not allowed");
+        throw permissionDeniedBotError();
     }
 }
 
@@ -2216,6 +2200,7 @@ async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
     // Check if `getAccountIfExists()` has loaded the account...
     const accountFromCache2 = await AccountModelContextCache.getIfExists(
         context,
+        "Eventual",
         `${spaceId}:${accountId}`,
     );
     if (accountFromCache2) return accountFromCache2.botId ?? null;
@@ -2293,12 +2278,24 @@ export async function impersonateAccountAsSystemContext<
         >,
     ) => Promise<Value>,
 ): Promise<Value> {
+    // Double check that this is a system actor.
+    context.actor.authorizeSystem();
+
     // Make sure the account exists and its a member of our space before we can
     // impersonate it.
     if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
         throw new PermissionDeniedError(
             "Can’t impersonate account that’s not a member of system actor’s space",
         );
+    }
+
+    // Bot accounts can't be impersonated. Bot accounts only get access to content
+    // through "scopes". When a bot is mentioned we give them a token with limited
+    // access but they may have access to content that wasn't directly shared with
+    // the bot. Therefore there's not much stuff a bot can do on its own so it
+    // doesn't make sense to impersonate a bot.
+    if (await isBotSpaceAccount(context, context.actor.getSpaceId(), accountId)) {
+        throw new PermissionDeniedError("Can’t impersonate bot account");
     }
 
     return context.with(

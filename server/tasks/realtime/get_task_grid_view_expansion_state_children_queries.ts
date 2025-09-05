@@ -1,9 +1,8 @@
+import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_table.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";
-import {
-    TaskAuthorizationActor,
-    authorizeTaskIndexDocAccessIfPossibleForActor,
-} from "~/server/tasks/data/task_table.js";
+import {authorizeTaskIndexDocAccessIfPossible} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -37,7 +36,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
     }: {
         server: TaskRealtimeServer;
         spaceId: SpaceId;
-        actor: TaskAuthorizationActor;
+        actor: TaskRealtimeActorInterface;
         limit: number;
         tasks: ReadonlyArray<TaskIndexDoc>;
         gridViewExpansionState: TaskGridViewExpansionState;
@@ -49,6 +48,12 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
     },
 ): Array<Promise<Result | null>> {
     const childrenQueryPromises: Array<Promise<Result | null>> = [];
+
+    if (actor.type !== "Session" && actor.type !== "ImpersonatedAccount") {
+        return childrenQueryPromises;
+    }
+
+    const actorAccountId = actor.getAccountId();
 
     if (!gridViewExpansionState) return childrenQueryPromises;
 
@@ -120,16 +125,15 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                 const childrenQueryPromise = (async () => {
                     const task = await server.getTask(context, spaceId, taskId);
 
-                    const authorizationResult = await authorizeTaskIndexDocAccessIfPossibleForActor(
+                    const authorizationResult = await impersonateAccountAsSystemContext(
                         context,
-                        actor,
-                        task,
-                        "View",
-                        {
-                            getTaskIndexDoc: taskId => server.getTask(context, spaceId, taskId),
-                            getCollectionIndexDoc: collectionId =>
-                                server.getCollection(context, spaceId, collectionId),
-                        },
+                        actorAccountId,
+                        accountContext =>
+                            authorizeTaskIndexDocAccessIfPossible(accountContext, task, "View", {
+                                getTaskIndexDoc: taskId => server.getTask(context, spaceId, taskId),
+                                getCollectionIndexDoc: collectionId =>
+                                    server.getCollection(context, spaceId, collectionId),
+                            }),
                     );
 
                     // We may have tasks in our expansion state that the user lost access too (e.g.

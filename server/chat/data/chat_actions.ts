@@ -1,4 +1,5 @@
 import murmurhash from "murmurhash";
+import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
     AccountChatsIndex,
     ChatTable,
@@ -7,10 +8,15 @@ import {
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerMinimalActionContext,
+    ServerMinimalBotActionContext,
+} from "~/server/context/server_minimal_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -35,7 +41,9 @@ import {
     authorizeSpaceAccessIfPossible,
     getAccount,
     isAccountMemberOfSpace,
+    isBotSpaceAccount,
 } from "~/server/spaces/spaces_table.js";
+import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
@@ -55,6 +63,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -84,6 +93,11 @@ export const FileChatAuthorizer = InternalFileChatAuthorizer;
 type ChatAttributesItem = DynamoTableItemType<typeof ChatTable, "Chat", "Attributes">;
 type ChatAccountItem = DynamoTableItemType<typeof ChatTable, "Chat", "Account">;
 type ChatMessageItem = DynamoTableItemType<typeof ChatTable, "Chat", "Messages">;
+
+type ChatItem = {
+    readonly attributesItem: ChatAttributesItem;
+    readonly accountItems: ReadonlyArray<ChatAccountItem>;
+};
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
@@ -178,7 +192,13 @@ export async function createChatForTest(
 
     // Make sure all accounts are members of the space the chat is being
     // created in.
-    await runAllPromises(accountIds.map(accountId => getAccount(context, spaceId, accountId)));
+    const accounts = await runAllPromises(
+        accountIds.map(accountId => getAccount(context, spaceId, accountId)),
+    );
+
+    if (accounts.every(account => account.botId)) {
+        throw new PermissionDeniedError("Can’t create a chat with only bot accounts");
+    }
 
     // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
     // this slightly awkward form to let tests mock different times for chat
@@ -270,7 +290,7 @@ export function getOptimisticChatId(
  * succession and get the same result.
  */
 export async function getOrCreateChatForAccounts(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -281,7 +301,7 @@ export async function getOrCreateChatForAccounts(
 ): Promise<ChatId> {
     const {chatId} = await actuallyGetOrCreateChatForAccounts(context, {
         spaceId,
-        actorAccountId: context.actor.getAccountId(),
+        actorAccountId: context.actor.getPossiblyBotAccountId(),
         otherAccountIds,
         initialSharedChatsPromise: null,
     });
@@ -395,8 +415,7 @@ type ChatForAccountsResult =
     | {
           type: "FoundItems";
           chatId: ChatId;
-          chatItem: ChatAttributesItem;
-          chatAccountItems: Array<ChatAccountItem>;
+          chatItem: ChatItem;
       };
 
 function actuallyGetOrCreateChatForAccounts(
@@ -431,73 +450,6 @@ function actuallyGetOrCreateChatForAccounts(
 
             const allSortedAccountIds = [...otherAccountIds, actorAccountId].sort();
 
-            const getChatAndAccounts = async (
-                chatId: ChatId,
-            ): Promise<{
-                chatItem: ChatAttributesItem;
-                chatAccountItems: Array<ChatAccountItem>;
-            } | null> => {
-                const queryConsistency: DynamoReadConsistency = "Eventual";
-                let chatItem: ChatAttributesItem | undefined;
-                const chatAccountItems: Array<ChatAccountItem> = [];
-
-                for await (const item of ChatTable.query(context, {
-                    limit: "All",
-                    consistency: queryConsistency,
-                    partitionKey: {
-                        partitionType: "Chat",
-                        chatId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Attributes",
-                    },
-                    endSortKey: {
-                        sortRangeType: "Account",
-                        accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-                    },
-                })) {
-                    switch (item.sortRangeType) {
-                        case "Attributes": {
-                            assert(!chatItem);
-                            chatItem = item;
-
-                            // Once we've loaded the chat item, we can add it to our authorization cache so
-                            // we don't need to make future network requests.
-                            ChatItemAuthorizationCache.set(
-                                context,
-                                queryConsistency,
-                                item.chatId,
-                                item,
-                            );
-                            break;
-                        }
-                        case "Account": {
-                            assert(chatItem);
-                            chatAccountItems.push(item);
-
-                            // Once we've loaded the chat account items, we can add it to our authorization
-                            // cache so we don't need to make future network requests.
-                            ChatAccountItemAuthorizationCache.set(
-                                context,
-                                queryConsistency,
-                                `${item.chatId}:${item.accountId}`,
-                                item,
-                            );
-                            break;
-                        }
-                        default:
-                            throw exhaustive(item);
-                    }
-                }
-
-                if (!chatItem) return null;
-
-                return {
-                    chatItem,
-                    chatAccountItems,
-                };
-            };
-
             const createChatForAccounts = async (
                 chatId: ChatId,
             ): Promise<ChatForAccountsResult> => {
@@ -508,7 +460,7 @@ function actuallyGetOrCreateChatForAccounts(
                 try {
                     const createdTime = new Date();
 
-                    const chatItem: ChatAttributesItem = {
+                    const attributesItem: ChatAttributesItem = {
                         partitionType: "Chat",
                         sortRangeType: "Attributes",
                         chatId,
@@ -523,7 +475,7 @@ function actuallyGetOrCreateChatForAccounts(
                         },
                     };
 
-                    const chatAccountItems = Array.from(
+                    const accountItems = Array.from(
                         allSortedAccountIds,
                         (accountId): ChatAccountItem => ({
                             partitionType: "Chat",
@@ -539,8 +491,8 @@ function actuallyGetOrCreateChatForAccounts(
                     await DynamoTableSchema.executeTransaction(
                         context,
                         [
-                            ChatTable.transactionCreateItem(chatItem),
-                            ...chatAccountItems.map(chatAccountItem =>
+                            ChatTable.transactionCreateItem(attributesItem),
+                            ...accountItems.map(chatAccountItem =>
                                 ChatTable.transactionCreateOrReplaceItem(chatAccountItem),
                             ),
                         ],
@@ -557,14 +509,20 @@ function actuallyGetOrCreateChatForAccounts(
                         },
                     );
 
+                    // Populate the newly created chat in the cache so if we need to read the chat
+                    // later it's available.
+                    ChatItemAuthorizationCache.set(context, "Strong", attributesItem.chatId, {
+                        attributesItem,
+                        accountItems,
+                    });
+
                     // NOTE(calebmer): We don't send an `IndexSearchEntity` job for chats until the
                     // first message is sent to that chat.
 
                     return {
                         type: "FoundItems",
-                        chatId: chatItem.chatId,
-                        chatItem,
-                        chatAccountItems,
+                        chatId: attributesItem.chatId,
+                        chatItem: {attributesItem, accountItems},
                     };
                 } catch (error) {
                     // If we have a race condition where some other process created this chat
@@ -574,6 +532,7 @@ function actuallyGetOrCreateChatForAccounts(
                         isDynamoConditionCheckError(error) ||
                         isDynamoIdempotentParameterMismatchError(error)
                     ) {
+                        ChatItemAuthorizationCache.delete(context, chatId);
                         retry(error);
                     }
 
@@ -581,28 +540,39 @@ function actuallyGetOrCreateChatForAccounts(
                 }
             };
 
-            const [{optimisticChatId, optimisticChatAndAccounts}] = await runAllPromises([
-                (async () => {
-                    const optimisticChatId = getOptimisticChatId(spaceId, allSortedAccountIds);
-                    const optimisticChatAndAccounts = await getChatAndAccounts(optimisticChatId);
-                    return {optimisticChatId, optimisticChatAndAccounts};
-                })(),
+            const [, {optimisticChatId, optimisticChatItem}, isActorBotAccount, otherAccounts] =
+                await runAllPromises([
+                    // Make sure the authenticated account has access to the space.
+                    authorizeSpaceAccess(context, spaceId),
 
-                // Make sure the authenticated account has access to the space.
-                authorizeSpaceAccess(context, spaceId),
+                    (async () => {
+                        const optimisticChatId = getOptimisticChatId(spaceId, allSortedAccountIds);
+                        const optimisticChatItem = await getChatItemIfExistsForAuthorization(
+                            context,
+                            optimisticChatId,
+                        );
+                        return {optimisticChatId, optimisticChatItem};
+                    })(),
 
-                // Make sure all accounts we are sending a message to are a part of the
-                // provided space.
-                runAllPromises(
-                    Array.from(otherAccountIds, accountId =>
-                        getAccount(context, spaceId, accountId),
+                    // Is the actor a bot account? We won't allow a chat with only bots.
+                    isBotSpaceAccount(context, spaceId, actorAccountId),
+
+                    // Make sure all accounts we are sending a message to are a part of the
+                    // provided space.
+                    runAllPromises(
+                        Array.from(otherAccountIds, accountId =>
+                            getAccount(context, spaceId, accountId),
+                        ),
                     ),
-                ),
-            ]);
+                ]);
+
+            if (isActorBotAccount && otherAccounts.every(account => account.botId)) {
+                throw new PermissionDeniedError("Can’t create a chat with only bot accounts");
+            }
 
             // If the optimistic `ChatId` does not exist then create a new chat with the
             // optimistic `ChatId` and send a message there.
-            if (!optimisticChatAndAccounts) {
+            if (!optimisticChatItem) {
                 return createChatForAccounts(optimisticChatId);
             }
 
@@ -610,17 +580,17 @@ function actuallyGetOrCreateChatForAccounts(
             // our expected space and accounts. If it does then hooray! We can send a chat
             // message here.
             if (
-                optimisticChatAndAccounts.chatItem.spaceId === spaceId &&
+                optimisticChatItem.attributesItem.spaceId === spaceId &&
                 isDeepEqual(
                     allSortedAccountIds,
                     // Chat account items should be sorted by DynamoDB.
-                    optimisticChatAndAccounts.chatAccountItems.map(item => item.accountId),
+                    optimisticChatItem.accountItems.map(item => item.accountId),
                 )
             ) {
                 return {
                     type: "FoundItems",
-                    chatId: optimisticChatAndAccounts.chatItem.chatId,
-                    ...optimisticChatAndAccounts,
+                    chatId: optimisticChatItem.attributesItem.chatId,
+                    chatItem: optimisticChatItem,
                 };
             }
 
@@ -647,7 +617,7 @@ function actuallyGetOrCreateChatForAccounts(
  * Send a message to to the provided chat.
  */
 export function sendChatMessage(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         chatId,
         parentMessageIndex,
@@ -667,7 +637,7 @@ export function sendChatMessage(
 }> {
     return sendChatMessageForAccount(context, {
         chatId,
-        authorId: context.actor.getAccountId(),
+        authorId: context.actor.getPossiblyBotAccountId(),
         parentMessageIndex,
         content,
         fileIds,
@@ -706,9 +676,9 @@ function sendChatMessageForAccount(
         // Make sure we're either a system actor or a session actor for this account.
         await authorizeOwnAccountAccess(context, authorId);
 
-        const [{chatItem, chatAccountItem}] = await runAllPromises([
+        const [{chatAttributesItem, chatAccountItem}] = await runAllPromises([
             (async () => {
-                const result = await authorizeChatAccessForAccountAndReturnItems(
+                const items = await authorizeChatAccessForAccountAndReturnItems(
                     context,
                     chatId,
                     authorId,
@@ -720,7 +690,7 @@ function sendChatMessageForAccount(
                         isId<FileId>(fileId)
                             ? getFileFromAttachment(
                                   context,
-                                  result.chatItem.spaceId,
+                                  items.chatAttributesItem.spaceId,
                                   fileId,
                                   FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
                               )
@@ -728,7 +698,7 @@ function sendChatMessageForAccount(
                     ),
                 );
 
-                return result;
+                return items;
             })(),
             (async () => {
                 if (typeof parentMessageIndex !== "number") return;
@@ -745,14 +715,14 @@ function sendChatMessageForAccount(
                         attributes: [],
                     },
                 );
-                if (!parentMessageItem) throw new NotFoundError("Post parent comment not found");
+                if (!parentMessageItem) throw new NotFoundError("Chat parent message not found");
             })(),
         ]);
 
         if (clerical && context.actor.type !== "System")
             throw new PermissionDeniedError("Only system actors can send clerical messages");
 
-        const messageIndex = chatItem.messagesSummary.nextMessageIndex;
+        const messageIndex = chatAttributesItem.messagesSummary.nextMessageIndex;
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
         const createdTime = new Date(Date.now());
@@ -780,11 +750,11 @@ function sendChatMessageForAccount(
                     {partitionType: "Chat", sortRangeType: "Attributes", chatId},
                     "messagesSummary",
                     {
-                        nextMessageIndex: chatItem.messagesSummary.nextMessageIndex + 1,
-                        lastChangeTime: chatItem.messagesSummary.lastChangeTime,
-                        messageCount: chatItem.messagesSummary.messageCount + 1,
+                        nextMessageIndex: chatAttributesItem.messagesSummary.nextMessageIndex + 1,
+                        lastChangeTime: chatAttributesItem.messagesSummary.lastChangeTime,
+                        messageCount: chatAttributesItem.messagesSummary.messageCount + 1,
                     },
-                    {updateLockVersion: chatItem.updateLockVersion},
+                    {updateLockVersion: chatAttributesItem.updateLockVersion},
                 ),
             ],
             {clientRequestToken},
@@ -798,7 +768,7 @@ function sendChatMessageForAccount(
             event: {
                 type: "CreateChatMessage",
                 id: generateChronologicalId(),
-                spaceId: chatItem.spaceId,
+                spaceId: chatAttributesItem.spaceId,
                 chatId,
                 messageIndex,
                 createdTime,
@@ -812,7 +782,7 @@ function sendChatMessageForAccount(
 
         context.jobs.send({
             type: "IndexSearchEntity",
-            spaceId: chatItem.spaceId,
+            spaceId: chatAttributesItem.spaceId,
             update: {
                 type: "ChatMessage",
                 chatId,
@@ -828,7 +798,7 @@ function sendChatMessageForAccount(
         if (messageIndex === 0) {
             context.jobs.send({
                 type: "IndexSearchEntity",
-                spaceId: chatItem.spaceId,
+                spaceId: chatAttributesItem.spaceId,
                 update: {
                     type: "Chat",
                     chatId,
@@ -856,43 +826,25 @@ function sendChatMessageForAccount(
 
                 if (chatAccountItem.chatAccountCount !== 2) {
                     await markSearchAffinityEntityInteraction(sessionContext, {
-                        spaceId: chatItem.spaceId,
-                        entityId: `Chat:${chatItem.chatId}`,
+                        spaceId: chatAttributesItem.spaceId,
+                        entityId: `Chat:${chatAttributesItem.chatId}`,
                         interaction,
                     });
                 } else {
                     const chatAccountIds =
                         // If `accountIdsForOneOnOne` is available we can use it, otherwise we need to
                         // query chat accounts to get our partner's `AccountId`.
-                        chatItem.accountIdsForOneOnOne ??
-                        (
-                            await arrayFromAsyncIterable(
-                                ChatTable.query(context, {
-                                    partitionKey: {
-                                        partitionType: "Chat",
-                                        chatId,
-                                    },
-                                    startSortKey: {
-                                        sortRangeType: "Account",
-                                        accountId:
-                                            DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
-                                    },
-                                    endSortKey: {
-                                        sortRangeType: "Account",
-                                        accountId:
-                                            DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-                                    },
-                                    limit: "All",
-                                }),
-                            )
-                        ).map(({accountId}) => accountId);
+                        chatAttributesItem.accountIdsForOneOnOne ??
+                        (await getChatItemForAuthorization(context, chatId)).accountItems.map(
+                            ({accountId}) => accountId,
+                        );
 
                     const otherChatAccountIds = chatAccountIds.filter(
                         chatAccountId => chatAccountId !== sessionContext.actor.getAccountId(),
                     );
 
                     await markSearchAffinityEntityInteraction(sessionContext, {
-                        spaceId: chatItem.spaceId,
+                        spaceId: chatAttributesItem.spaceId,
                         entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
                         interaction,
                     });
@@ -908,10 +860,14 @@ function sendChatMessageForAccount(
             for (const mentionedAccountId of mentionedAccountIds) {
                 context.process.waitUntil(async () => {
                     if (
-                        await isAccountMemberOfSpace(context, chatItem.spaceId, mentionedAccountId)
+                        await isAccountMemberOfSpace(
+                            context,
+                            chatAttributesItem.spaceId,
+                            mentionedAccountId,
+                        )
                     ) {
                         await markSearchAffinityEntityInteraction(sessionContext, {
-                            spaceId: chatItem.spaceId,
+                            spaceId: chatAttributesItem.spaceId,
                             entityId: `Account:${mentionedAccountId}`,
                             interaction: {type: "HighIntentUpdate"},
                         });
@@ -921,7 +877,7 @@ function sendChatMessageForAccount(
         }
 
         return {
-            spaceId: chatItem.spaceId,
+            spaceId: chatAttributesItem.spaceId,
             chatId,
             index: messageIndex,
             createdTime,
@@ -929,19 +885,25 @@ function sendChatMessageForAccount(
     });
 }
 
-const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatAttributesItem | null>({
+const ChatAttributesItemAuthorizationCache = new DynamoContextCache<
+    ChatId,
+    ChatAttributesItem | null
+>({
     // Allow sharing this cache because the loaded DynamoDB item doesn't depend
     // on who the actor is.
     whenActorChanges: "DangerouslyShare",
 });
 
-async function getChatItemIfExistsForAuthorization(
+async function getChatAttributesItemIfExistsForAuthorization(
     context: ServerActionContext,
     chatId: ChatId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<ChatAttributesItem | null> {
-    return ChatItemAuthorizationCache.get(context, consistency, chatId, consistency =>
-        ChatTable.getItemIfExists(
+    const chatItem = await ChatItemAuthorizationCache.getIfExists(context, consistency, chatId);
+    if (chatItem) return chatItem.attributesItem;
+
+    return ChatAttributesItemAuthorizationCache.get(context, consistency, chatId, consistency => {
+        return ChatTable.getItemIfExists(
             context,
             {
                 partitionType: "Chat",
@@ -949,16 +911,16 @@ async function getChatItemIfExistsForAuthorization(
                 chatId,
             },
             {consistency},
-        ),
-    );
+        );
+    });
 }
 
-async function getChatItemForAuthorization(
+async function getChatAttributesItemForAuthorization(
     context: ServerActionContext,
     chatId: ChatId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ChatAttributesItem> {
-    const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
+    const chatItem = await getChatAttributesItemIfExistsForAuthorization(context, chatId, options);
     if (!chatItem) throw createChatNotFoundError(chatId);
     return chatItem;
 }
@@ -978,6 +940,11 @@ async function getChatAccountItemIfExistsForAuthorization(
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<ChatAccountItem | null> {
+    const chatItem = await ChatItemAuthorizationCache.getIfExists(context, consistency, chatId);
+    if (chatItem) {
+        return chatItem.accountItems.find(item => item.accountId === accountId) ?? null;
+    }
+
     return ChatAccountItemAuthorizationCache.get(
         context,
         consistency,
@@ -994,6 +961,71 @@ async function getChatAccountItemIfExistsForAuthorization(
                 {consistency},
             ),
     );
+}
+
+const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatItem | null>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
+
+function getChatItemIfExistsForAuthorization(
+    context: ServerMinimalActionContext,
+    chatId: ChatId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<ChatItem | null> {
+    return ChatItemAuthorizationCache.get(context, consistency, chatId, async consistency => {
+        let attributesItem: ChatAttributesItem | undefined;
+        const accountItems: Array<ChatAccountItem> = [];
+
+        for await (const item of ChatTable.query(context, {
+            limit: "All",
+            consistency,
+            partitionKey: {
+                partitionType: "Chat",
+                chatId,
+            },
+            startSortKey: {
+                sortRangeType: "Attributes",
+            },
+            endSortKey: {
+                sortRangeType: "Account",
+                accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+            },
+        })) {
+            switch (item.sortRangeType) {
+                case "Attributes": {
+                    assert(!attributesItem);
+                    attributesItem = item;
+                    break;
+                }
+                case "Account": {
+                    assert(attributesItem);
+                    accountItems.push(item);
+                    break;
+                }
+                default:
+                    throw exhaustive(item);
+            }
+        }
+
+        if (!attributesItem) {
+            assert(accountItems.length === 0);
+            return null;
+        }
+
+        return {attributesItem, accountItems};
+    });
+}
+
+async function getChatItemForAuthorization(
+    context: ServerMinimalActionContext,
+    chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<ChatItem> {
+    const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
+    if (!chatItem) throw createChatNotFoundError(chatId);
+    return chatItem;
 }
 
 export function createChatNotFoundError(chatId: ChatId) {
@@ -1014,8 +1046,7 @@ export async function authorizeChatAccess(
     chatId: ChatId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId}> {
-    const {spaceId} = await authorizeChatAccessAndReturnItem(context, chatId, options);
-    return {spaceId};
+    return unwrapResult(await authorizeChatAccessIfPossible(context, chatId, options));
 }
 
 /**
@@ -1031,8 +1062,7 @@ export async function authorizeChatAccessIfPossible(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<{spaceId: SpaceId}, ErrorBase>> {
     const result = await authorizeChatAccessAndReturnItemIfPossible(context, chatId, options);
-    if (!result.ok) return result;
-    return {ok: true, value: {spaceId: result.value.spaceId}};
+    return mapResult(result, ({spaceId}) => ({spaceId}));
 }
 
 async function authorizeChatAccessAndReturnItem(
@@ -1051,26 +1081,57 @@ async function authorizeChatAccessAndReturnItemIfPossible(
     switch (context.actor.type) {
         case "Session":
         case "ImpersonatedAccount": {
-            const chatItemResult = await authorizeChatAccessForAccountAndReturnItemsIfPossible(
+            const result = await authorizeChatAccessForAccountAndReturnItemsIfPossible(
                 context,
                 chatId,
                 context.actor.getAccountId(),
                 options,
             );
-            if (!chatItemResult.ok) return chatItemResult;
-            return {ok: true, value: chatItemResult.value.chatItem};
+            return mapResult(result, ({chatAttributesItem}) => chatAttributesItem);
         }
 
         // If we have access to the space, we have access to the chat...
         case "System": {
-            const chatItem = await getChatItemForAuthorization(context, chatId, options);
-            const result = await authorizeSpaceAccessIfPossible(context, chatItem.spaceId);
+            const attributesItem = await getChatAttributesItemForAuthorization(
+                context,
+                chatId,
+                options,
+            );
+            const result = await authorizeSpaceAccessIfPossible(context, attributesItem.spaceId);
             if (!result.ok) return result;
-            return {ok: true, value: chatItem};
+            return {ok: true, value: attributesItem};
         }
 
         case "Anonymous": {
             return {ok: false, error: unauthenticatedSessionError()};
+        }
+
+        case "Bot": {
+            const chatItem = await getChatItemForAuthorization(context, chatId, options);
+
+            const accessPolicy: AccessPolicyWithoutGenerations = {
+                accountGrantById: new Map(
+                    chatItem.accountItems.map(({accountId}) => [accountId, {level: "Edit"}]),
+                ),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+
+            const ok = await evaluateAccessPolicy(
+                context,
+                chatItem.attributesItem.spaceId,
+                accessPolicy,
+                "Edit",
+            );
+
+            if (!ok) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError("Bot actor doesn’t have access to chat"),
+                };
+            }
+
+            return {ok: true, value: chatItem.attributesItem};
         }
 
         default:
@@ -1093,12 +1154,39 @@ export async function authorizeChatAccessForAccount(
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
-    const {
-        chatItem: {spaceId},
-        chatAccountItem: {chatAccountCount},
-    } = await authorizeChatAccessForAccountAndReturnItems(context, chatId, accountId, options);
+    return unwrapResult(
+        await authorizeChatAccessForAccountIfPossible(context, chatId, accountId, options),
+    );
+}
 
-    return {spaceId, chatAccountCount};
+/**
+ * Authorizes that the provided account has access to the chat.
+ *
+ * If this is a session context, we also check that our session's account has
+ * access to the chat.
+ *
+ * Returns some data related to the chat that exists on the item's we
+ * query for.
+ */
+export async function authorizeChatAccessForAccountIfPossible(
+    context: ServerActionContext,
+    chatId: ChatId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<{spaceId: SpaceId; chatAccountCount: number}, ErrorBase>> {
+    const result = await authorizeChatAccessForAccountAndReturnItemsIfPossible(
+        context,
+        chatId,
+        accountId,
+        options,
+    );
+    return mapResult(
+        result,
+        ({chatAttributesItem: {spaceId}, chatAccountItem: {chatAccountCount}}) => ({
+            spaceId,
+            chatAccountCount,
+        }),
+    );
 }
 
 async function authorizeChatAccessForAccountAndReturnItems(
@@ -1106,7 +1194,7 @@ async function authorizeChatAccessForAccountAndReturnItems(
     chatId: ChatId,
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{chatItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}> {
+): Promise<{chatAttributesItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}> {
     return unwrapResult(
         await authorizeChatAccessForAccountAndReturnItemsIfPossible(
             context,
@@ -1117,66 +1205,82 @@ async function authorizeChatAccessForAccountAndReturnItems(
     );
 }
 
-async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
+export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
     context: ServerActionContext,
     chatId: ChatId,
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<Result<{chatItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}, ErrorBase>> {
-    const [chatItemResult, chatAccountItem, actorChatAccountItem] = await runAllPromises([
-        getChatItemForAuthorization(context, chatId, options).then(
-            async (chatItem): Promise<Result<ChatAttributesItem, ErrorBase>> => {
-                const result = await authorizeSpaceAccessIfPossible(context, chatItem.spaceId);
-                if (!result.ok) return result;
-                return {ok: true, value: chatItem};
-            },
-        ),
-        getChatAccountItemIfExistsForAuthorization(context, chatId, accountId, options),
-        (async (): Promise<"Ignored" | "Unauthenticated" | ChatAccountItem | null> => {
+): Promise<
+    Result<{chatAttributesItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}, ErrorBase>
+> {
+    const [chatAttributesItemResult, chatAccountItem] = await runAllPromises([
+        (async (): Promise<Result<ChatAttributesItem, ErrorBase>> => {
             switch (context.actor.type) {
                 case "Session":
                 case "ImpersonatedAccount": {
                     // We already are loading our session's chat account item above.
-                    if (context.actor.getAccountId() === accountId) return "Ignored";
+                    if (context.actor.getAccountId() === accountId) {
+                        const attributesItem = await getChatAttributesItemForAuthorization(
+                            context,
+                            chatId,
+                            options,
+                        );
 
-                    return getChatAccountItemIfExistsForAuthorization(
-                        context,
-                        chatId,
-                        context.actor.getAccountId(),
-                        options,
+                        // Throw if actor doesn't have access to the chat. We only return a `Result`
+                        // when the account we're checking doesn't have access to the chat.
+                        const result = await authorizeSpaceAccessIfPossible(
+                            context,
+                            attributesItem.spaceId,
+                        );
+                        if (!result.ok) return result;
+                        return {ok: true, value: attributesItem};
+                    }
+
+                    // Intentionally fallthrough...
+                }
+                case "System":
+                case "Anonymous":
+                case "Bot": {
+                    // Throw if actor doesn't have access to the chat. We only return a `Result`
+                    // when the account we're checking doesn't have access to the chat.
+                    const attributesItem = unwrapResult(
+                        await authorizeChatAccessAndReturnItemIfPossible(context, chatId),
                     );
-                }
-                case "System": {
-                    // If we have access to the space (authorized above), we have access to
-                    // the chat...
-                    return "Ignored";
-                }
-                case "Anonymous": {
-                    // We don't need to return an `unauthenticatedSessionError()` error here since
-                    // `authorizeSpaceAccessIfPossible()` above will error for anonymous actors.
-                    return "Ignored";
+
+                    // Make sure the account is a member of the space. If the account was removed
+                    // from the space then we want to return a `PermissionDeniedError`.
+                    if (
+                        !(await isAccountMemberOfSpace(context, attributesItem.spaceId, accountId))
+                    ) {
+                        return {
+                            ok: false,
+                            error: new PermissionDeniedError("Account isn’t a member of space"),
+                        };
+                    }
+
+                    return {ok: true, value: attributesItem};
                 }
                 default:
                     throw exhaustive(context.actor);
             }
         })(),
+
+        // Load the account we're authorizing. We intentionally put this second so if
+        // we have a bot actor that loads the full account (with
+        // `getChatItemForAuthorization()`) then we won't need to make a second request
+        // here thanks to `getChatAccountItemIfExistsForAuthorization()` checking the
+        // `getChatItemForAuthorization()` cache first.
+        getChatAccountItemIfExistsForAuthorization(context, chatId, accountId, options),
     ]);
 
-    if (!chatItemResult.ok) return chatItemResult;
-    const chatItem = chatItemResult.value;
-
-    if (!actorChatAccountItem) {
-        return {
-            ok: false,
-            error: new PermissionDeniedError("Session actor account doesn’t have access to chat"),
-        };
-    }
+    if (!chatAttributesItemResult.ok) return chatAttributesItemResult;
+    const chatAttributesItem = chatAttributesItemResult.value;
 
     if (!chatAccountItem) {
         return {ok: false, error: new PermissionDeniedError("Account doesn’t have access to chat")};
     }
 
-    return {ok: true, value: {chatItem, chatAccountItem}};
+    return {ok: true, value: {chatAttributesItem, chatAccountItem}};
 }
 
 /**
@@ -1324,101 +1428,36 @@ export function getSharedChatsForTest(
  * Get the provided chat by `ChatId`.
  */
 export async function getChat(context: ServerActionContext, chatId: ChatId): Promise<ChatModel> {
-    const queryConsistency: DynamoReadConsistency = "Eventual";
-    let chatItem: ChatAttributesItem | undefined;
-    const chatAccountItems: Array<ChatAccountItem> = [];
+    const chatItem = await getChatItemForAuthorization(context, chatId);
 
-    for await (const item of ChatTable.query(context, {
-        limit: "All",
-        consistency: queryConsistency,
-        partitionKey: {
-            partitionType: "Chat",
-            chatId,
-        },
-        startSortKey: {
-            sortRangeType: "Attributes",
-        },
-        endSortKey: {
-            sortRangeType: "Account",
-            accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-        },
-    })) {
-        switch (item.sortRangeType) {
-            case "Attributes": {
-                assert(!chatItem);
-                chatItem = item;
+    // This call won't make any database calls since it's after the
+    // `getChatItemForAuthorization()` call which will cache the data we need.
+    await authorizeChatAccess(context, chatId);
 
-                // Once we've loaded the chat item, we can add it to our authorization cache so
-                // we don't need to make future network requests.
-                ChatItemAuthorizationCache.set(context, queryConsistency, item.chatId, item);
-                break;
-            }
-            case "Account": {
-                assert(chatItem);
-                chatAccountItems.push(item);
-
-                // Once we've loaded the chat account items, we can add it to our authorization
-                // cache so we don't need to make future network requests.
-                ChatAccountItemAuthorizationCache.set(
-                    context,
-                    queryConsistency,
-                    `${item.chatId}:${item.accountId}`,
-                    item,
-                );
-                break;
-            }
-            default:
-                throw exhaustive(item);
-        }
-    }
-
-    if (!chatItem) throw createChatNotFoundError(chatId);
-
-    return createChatModelFromItems(context, chatItem, chatAccountItems);
+    return createChatModelFromItem(context, chatItem);
 }
 
-async function createChatModelFromItems(
+async function createChatModelFromItem(
     context: ServerActionContext,
-    chatItem: ChatAttributesItem,
-    chatAccountItems: ReadonlyArray<ChatAccountItem>,
+    chatItem: ChatItem,
 ): Promise<ChatModel> {
-    const [accounts] = await runAllPromises([
-        runAllPromises(
-            chatAccountItems.map(chatAccountItem => {
-                if (chatAccountItem.spaceId !== chatItem.spaceId)
-                    throw new DataLossError(
-                        "Expected chat account item to have same `SpaceId` as chat item",
-                    );
-
-                return getAccount(context, chatItem.spaceId, chatAccountItem.accountId);
-            }),
-        ),
-        authorizeSpaceAccess(context, chatItem.spaceId),
-    ]);
-
-    switch (context.actor.type) {
-        case "Session":
-        case "ImpersonatedAccount": {
-            const sessionAccountId = context.actor.getAccountId();
-            if (!accounts.some(account => account.id === sessionAccountId))
-                throw new PermissionDeniedError("Account doesn’t have access to chat");
-            break;
-        }
-        case "System":
-        case "Anonymous": {
-            // Already authenticated these with `authorizeSpaceAccess()`.
-            break;
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
+    const accounts = await runAllPromises(
+        chatItem.accountItems.map(chatAccountItem => {
+            if (chatAccountItem.spaceId !== chatItem.attributesItem.spaceId) {
+                throw new DataLossError(
+                    "Expected chat account item to have same `SpaceId` as chat item",
+                );
+            }
+            return getAccount(context, chatItem.attributesItem.spaceId, chatAccountItem.accountId);
+        }),
+    );
 
     return new ChatModel({
-        id: chatItem.chatId,
-        spaceId: chatItem.spaceId,
-        createdTime: chatItem.createdTime,
-        messageCount: chatItem.messagesSummary.messageCount,
-        lastMessageChangeTime: chatItem.messagesSummary.lastChangeTime,
+        id: chatItem.attributesItem.chatId,
+        spaceId: chatItem.attributesItem.spaceId,
+        createdTime: chatItem.attributesItem.createdTime,
+        messageCount: chatItem.attributesItem.messagesSummary.messageCount,
+        lastMessageChangeTime: chatItem.attributesItem.messagesSummary.lastChangeTime,
         // NOTE(calebmer): Ideally we sort chat accounts by some kind of affinity to
         // the current account? That seems like a good default.
         accounts: accounts
@@ -1442,86 +1481,38 @@ export async function getChatAccountIds(
     hasMessages: boolean;
     accountIds: ReadonlyArray<AccountId>;
 }> {
-    let chatItem: ChatAttributesItem | undefined;
-    const accountIds: Array<AccountId> = [];
+    const chatItem = await getChatItemForAuthorization(context, chatId, {consistency});
 
-    for await (const item of ChatTable.query(context, {
-        limit: "All",
-        consistency,
-        partitionKey: {
-            partitionType: "Chat",
-            chatId,
-        },
-        startSortKey: {
-            sortRangeType: "Attributes",
-        },
-        endSortKey: {
-            sortRangeType: "Account",
-            accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-        },
-    })) {
-        switch (item.sortRangeType) {
-            case "Attributes": {
-                assert(!chatItem);
-                chatItem = item;
-
-                // Once we've loaded the chat item, we can add it to our authorization cache so
-                // we don't need to make future network requests.
-                ChatItemAuthorizationCache.set(context, consistency, item.chatId, item);
-                break;
-            }
-            case "Account": {
-                assert(chatItem);
-
-                if (item.spaceId !== chatItem.spaceId)
-                    throw new DataLossError(
-                        "Expected chat account item to have same `SpaceId` as chat item",
-                    );
-
-                accountIds.push(item.accountId);
-
-                // Once we've loaded the chat account items, we can add it to our authorization
-                // cache so we don't need to make future network requests.
-                ChatAccountItemAuthorizationCache.set(
-                    context,
-                    consistency,
-                    `${item.chatId}:${item.accountId}`,
-                    item,
-                );
-                break;
-            }
-            default:
-                throw exhaustive(item);
-        }
-    }
-
-    if (!chatItem) throw createChatNotFoundError(chatId);
-
-    await authorizeSpaceAccess(context, chatItem.spaceId);
-
-    switch (context.actor.type) {
-        case "Session":
-        case "ImpersonatedAccount": {
-            const sessionAccountId = context.actor.getAccountId();
-            if (!accountIds.some(accountId => accountId === sessionAccountId))
-                throw new PermissionDeniedError("Account doesn’t have access to chat");
-            break;
-        }
-        case "System":
-        case "Anonymous": {
-            // Already authenticated these with `authorizeSpaceAccess()`.
-            break;
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
+    // This call won't make any database calls since it's after the
+    // `getChatItemForAuthorization()` call which will cache the data we need.
+    await authorizeChatAccess(context, chatId, {consistency});
 
     return {
-        createdTime: chatItem.createdTime,
-        spaceId: chatItem.spaceId,
-        hasMessages: chatItem.messagesSummary.messageCount > 0,
-        accountIds,
+        createdTime: chatItem.attributesItem.createdTime,
+        spaceId: chatItem.attributesItem.spaceId,
+        hasMessages: chatItem.attributesItem.messagesSummary.messageCount > 0,
+        accountIds: chatItem.accountItems.map(({accountId}) => accountId),
     };
+}
+
+/**
+ * Load the chat's accounts for a bot scoped to the chat. Used
+ * when evaluating whether a bot has permissions to certain resources.
+ */
+export async function getChatAccountIdsForBotScope(
+    context: ServerMinimalBotActionContext,
+    chatId: ChatId,
+): Promise<ReadonlyArray<AccountId>> {
+    const scope = context.actor.getScope();
+    if (scope.type !== "Chat" || scope.chatId !== chatId) {
+        throw new PermissionDeniedError("Can only get `AccountId`s for the scoped chat");
+    }
+
+    const chatItem = await getChatItemForAuthorization(context, chatId);
+
+    await authorizeSpaceAccess(context, chatItem.attributesItem.spaceId);
+
+    return chatItem.accountItems.map(({accountId}) => accountId);
 }
 
 /**
@@ -1799,7 +1790,7 @@ export function deleteChatMessage(
  * Get our chat and initial messages that come with it efficiently at once.
  */
 export function getChatAndInitialMessages(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         chatId,
         messagesLimit,
@@ -1822,7 +1813,7 @@ export function getChatAndInitialMessages(
 }
 
 async function actuallyGetChatAndInitialMessages(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         result,
         messagesLimit,
@@ -1844,11 +1835,13 @@ async function actuallyGetChatAndInitialMessages(
             break;
         }
         case "FoundItems": {
-            chatPromise = createChatModelFromItems(
-                context,
-                result.chatItem,
-                result.chatAccountItems,
-            );
+            chatPromise = (async () => {
+                // This call won't make any database calls since it's (hopefully) after a
+                // `getChatItemForAuthorization()` call which will cache the data we need.
+                await authorizeChatAccess(context, result.chatId);
+
+                return createChatModelFromItem(context, result.chatItem);
+            })();
             break;
         }
         default:
@@ -2437,6 +2430,9 @@ export async function processSendShareNotificationJob(
     await runAllPromises(
         notification.accountIds.map(async otherAccountId => {
             if (otherAccountId === actorAccountId) return;
+
+            // Don't send share notification to bot accounts.
+            if (await isBotSpaceAccount(context, spaceId, otherAccountId)) return;
 
             const {chatId} = await actuallyGetOrCreateChatForAccounts(context, {
                 spaceId,

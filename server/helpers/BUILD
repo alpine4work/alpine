@@ -18,6 +18,7 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/search",
         "//shared/tracer",
     ],
 )

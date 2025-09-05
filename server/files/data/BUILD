@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "data",
     test_deps = [
+        "//server/bots/test_helpers",
         "//server/chat/data:data_testonly",
         "//server/dynamo/test_helpers",
         "//server/forum/data:data_testonly",

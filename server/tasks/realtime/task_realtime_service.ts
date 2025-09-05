@@ -1,9 +1,18 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
 } from "~/server/context/dynamo_actor_context_module.js";
+import {
+    ChatInjectionContextModule,
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerBasicProcessContextModules,
@@ -34,6 +43,7 @@ import {
     TaskRealtimeSystemActionContext,
     TaskRealtimeSystemActionContextModules,
 } from "~/server/tasks/data/task_realtime_context.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -135,6 +145,10 @@ export async function run({
             options,
         }),
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
+        chatInjection: new ChatInjectionContextModule(chatInjection),
+        documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
+        forumInjection: new ForumInjectionContextModule(forumInjection),
+        tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
     const [server, {start}] = TaskRealtimeServer.new(processContext);

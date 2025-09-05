@@ -1,4 +1,4 @@
-import {createBotForTest} from "~/server/bots/bots_table.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -16,7 +16,6 @@ import {enableMockFileTaskCollectionEntityModelForTest} from "~/server/files/dat
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -2244,18 +2243,12 @@ test("can add feed account candidates", async () => {
 });
 
 test("can’t add feed account candidates for bot account", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
 
-    const {accountId: botAccountId} = await instantiateBotSpaceAccount(adminSession.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const {id: botAccountId} = await bot.instantiate(adminSession);
 
     const id1 = generateId<DocumentId>();
     const id2 = generateId<DocumentId>();
@@ -2660,18 +2653,12 @@ test("get and update feed gets new entries every call", async () => {
 });
 
 test("can’t get and update feed for bot account", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
-    const {accountId: botAccountId} = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const {id: botAccountId} = await bot.instantiate(session);
 
     const channel = await TestChannel.create(session);
     await ProcessContextModule.waitForTestTasks();

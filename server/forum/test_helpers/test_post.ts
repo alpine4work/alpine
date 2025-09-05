@@ -36,6 +36,7 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 let testPostCount = 1;
 
 export type TestPostCreateOptions = {
+    id?: PostId;
     files?: ReadonlyArray<TestFile>;
     attachFiles?: ReadonlyArray<TestFile>;
 };
@@ -89,12 +90,15 @@ export class TestPost extends TestCommentRoomBase {
                 ? contentOrOptions
                 : `Test Post ${testPostCount++}`;
 
-        const {files = emptyArray, attachFiles: originalAttachFiles = emptyArray} =
-            options ??
-            (typeof contentOrOptions !== "string" && !(contentOrOptions instanceof Node)
-                ? contentOrOptions
-                : null) ??
-            {};
+        const {
+            id: postId,
+            files = emptyArray,
+            attachFiles: originalAttachFiles = emptyArray,
+        } = options ??
+        (typeof contentOrOptions !== "string" && !(contentOrOptions instanceof Node)
+            ? contentOrOptions
+            : null) ??
+        {};
 
         if (typeof content === "string") {
             content = createSimplePostContent(content);
@@ -168,6 +172,7 @@ export class TestPost extends TestCommentRoomBase {
         }
 
         const post = await createPost(session.action(), {
+            id: postId,
             channelId: channel.id,
             draftId,
             content: assertPostContent(content),

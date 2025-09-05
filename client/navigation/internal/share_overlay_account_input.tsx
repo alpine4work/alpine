@@ -120,6 +120,9 @@ function ShareOverlayAccountInput(
                             // Don't allow sharing with an account that was removed.
                             if (accountData.space.state.type !== "Active") return;
 
+                            // Don't allow sharing with bot accounts.
+                            if (accountData.botId) return;
+
                             return {
                                 key: accountData.id,
                                 accountData,

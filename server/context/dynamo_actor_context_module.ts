@@ -3,12 +3,13 @@ import {
     ActorContextModuleBase,
     ActorServiceName,
     AnonymousActorContextModule,
+    BotActorContextModule,
     ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {TokenPayload} from "~/server/tokens/token_payload.js";
+import {BotTokenPayloadScope, TokenPayload} from "~/server/tokens/token_payload.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -30,7 +31,8 @@ export type DynamoActorContextModule =
     | DynamoSessionActorContextModule
     | DynamoSystemActorContextModule
     | DynamoAnonymousActorContextModule
-    | DynamoImpersonatedAccountActorContextModule;
+    | DynamoImpersonatedAccountActorContextModule
+    | DynamoBotActorContextModule;
 
 interface DynamoActorContextModuleBase extends ActorContextModuleBase {
     /**
@@ -158,6 +160,9 @@ export interface SessionInterface {
  * An actor which has a session. A session can only be created by a user who
  * successfully passed an authentication challenge (e.g. enters a one time
  * password provided over email) to prove they are some account.
+ *
+ * Should never be associated with a bot account. Bot accounts should
+ * exclusively use the bot actor.
  */
 export class DynamoSessionActorContextModule
     extends DynamoUnknownActorContextModule
@@ -279,6 +284,10 @@ export class DynamoSessionActorContextModule
         readonly hasInternalAccess: boolean;
     }> {
         return this._session.getAccountAndHasInternalAccess(this._context);
+    }
+
+    public getPossiblyBotAccountId(): AccountId {
+        return this._session.accountId;
     }
 
     public fork() {
@@ -425,6 +434,17 @@ export class DynamoAnonymousActorContextModule
     }
 }
 
+/**
+ * Impersonated account actors have access to everything the account has access
+ * to in a single space. They don't have access to documents or tasks or
+ * anything else the account has access to in another space.
+ *
+ * Since system actors have access to everything in a space, they're allowed to
+ * impersonate any accounts in their space.
+ *
+ * Should never be associated with a bot account. Bot accounts should
+ * exclusively use the bot actor.
+ */
 export class DynamoImpersonatedAccountActorContextModule
     extends DynamoUnknownActorContextModule
     implements DynamoActorContextModuleBase, ImpersonatedAccountActorContextModule
@@ -488,11 +508,139 @@ export class DynamoImpersonatedAccountActorContextModule
         return this._accountId;
     }
 
+    public getPossiblyBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
     public fork() {
         return new DynamoImpersonatedAccountActorContextModule(
             this.serviceName,
             this._spaceId,
             this._accountId,
+        );
+    }
+}
+
+/**
+ * Bot account actors have access to everything in a scope and everything that
+ * the accounts in the scope ALL have access to. Bot accounts are only ever in
+ * one space so it's implied that a bot actor only has access to one space.
+ */
+export class DynamoBotActorContextModule
+    extends DynamoUnknownActorContextModule
+    implements DynamoActorContextModuleBase, BotActorContextModule
+{
+    public readonly type = "Bot";
+
+    private readonly _spaceId: SpaceId;
+    private readonly _accountId: AccountId;
+    private readonly _scope: BotTokenPayloadScope;
+
+    /**
+     * Name of the service which initiated the current action. Only services that
+     * can sign tokens can create a system actor context.
+     */
+    public readonly serviceName: ActorServiceName;
+
+    private constructor(
+        serviceName: ActorServiceName,
+        spaceId: SpaceId,
+        accountId: AccountId,
+        scope: BotTokenPayloadScope,
+    ) {
+        super(() => Promise.resolve(this));
+        this.serviceName = serviceName;
+        this._spaceId = spaceId;
+        this._accountId = accountId;
+        this._scope = scope;
+    }
+
+    /**
+     * Dangerous since you can pass in an arbitrary `accountId`, `scope`, and
+     * `serviceName` here. An attacker could get broad access to our system if they
+     * can call this function!
+     */
+    public static dangerouslyNew(
+        serviceName: ActorServiceName,
+        spaceId: SpaceId,
+        accountId: AccountId,
+        scope: BotTokenPayloadScope,
+    ) {
+        return new DynamoBotActorContextModule(serviceName, spaceId, accountId, scope);
+    }
+
+    public override async isAuthenticatedSession() {
+        return false;
+    }
+
+    public override async authenticate<
+        Modules extends {
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            cache: CacheContextModule;
+            actor: DynamoUnknownActorContextModule;
+        },
+    >(
+        this: ContextModuleBase<Modules> & DynamoBotActorContextModule,
+    ): Promise<Context<Replace<Modules, {actor: DynamoBotActorContextModule}>>> {
+        return this._context as any;
+    }
+
+    public getTokenPayload(): TokenPayload {
+        return {
+            type: "Bot",
+            spaceId: this._spaceId,
+            accountId: this._accountId,
+            scope: this._scope,
+        };
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: DynamoSessionActorContextModule}>> {
+        throw new PermissionDeniedError("Bot actor is not a session actor");
+    }
+
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: DynamoSystemActorContextModule}>> {
+        throw new PermissionDeniedError("Bot actor is not a system actor");
+    }
+
+    public getSpaceId(): SpaceId {
+        return this._spaceId;
+    }
+
+    public getBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    /**
+     * The scope of the bot actor. The actor can only access what ALL non-bot
+     * accounts within the scope have access to.
+     *
+     * We assume the scope is a valid entity in the same space as the bot
+     * account. If the entity doesn't exist or is in another space, that's a bug.
+     *
+     * We implicitly have access to the `AccessPolicy` of the scoped entity. Since
+     * we need to know what accounts are in the scope to know what else the bot
+     * actor has access to.
+     */
+    public getScope(): BotTokenPayloadScope {
+        return this._scope;
+    }
+
+    public getPossiblyBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    public fork() {
+        return new DynamoBotActorContextModule(
+            this.serviceName,
+            this._spaceId,
+            this._accountId,
+            this._scope,
         );
     }
 }

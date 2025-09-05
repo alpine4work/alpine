@@ -1,4 +1,13 @@
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {
+    ChatInjectionContextModule,
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {finishInitializingDynamoTableSchemas} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {allMigrations} from "~/server/migration/all_migrations.js";
 import {
@@ -11,6 +20,7 @@ import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -102,6 +112,10 @@ export async function run({
             options,
         }),
         opensearch: opensearchContextModule,
+        chatInjection: new ChatInjectionContextModule(chatInjection),
+        documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
+        forumInjection: new ForumInjectionContextModule(forumInjection),
+        tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
     try {

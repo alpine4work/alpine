@@ -3,7 +3,7 @@ import {
     registerOurAccountAppleDeviceToken,
     updateOurAccountName,
 } from "~/server/accounts/accounts_actions.js";
-import {createBotForTest} from "~/server/bots/bots_table.js";
+import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -29,6 +29,7 @@ import {
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     getSpaceIfPossible,
+    impersonateAccountAsSystemContext,
     instantiateBotSpaceAccount,
     isAccountMemberOfSpaceWithoutAuthorization,
     isBotSpaceAccount,
@@ -63,6 +64,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceAccountStateType} from "~/shared/spaces/space_account_state.js";
@@ -772,7 +774,7 @@ test("`isAccountMemberOfSpace()` ignores the `getAccountIfExists()` cache if acc
     expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
 });
 
-describe(`authorizeSpaceAccess()`, () => {
+describe("`authorizeSpaceAccess()`", () => {
     const setupUserState = async ({
         space,
         userRole,
@@ -2270,7 +2272,7 @@ test("`authorizeSpaceAccess()` can’t authorize space access for anonymous acto
     });
 });
 
-test("can’t authorize space access for impersonated actor", async () => {
+test("can’t authorize space access for impersonated actor in the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -2341,6 +2343,139 @@ test("can’t authorize space access for impersonated actor", async () => {
         ok: false,
         error: expect.any(PermissionDeniedError),
     });
+});
+
+describe("authorize bot actor", () => {
+    type Options = {
+        sharedBot: TestBot;
+        space: TestSpace;
+        otherSpace: TestSpace;
+        session: TestSpaceSession;
+        otherSession: TestSpaceSession;
+    };
+
+    const botAccount = {
+        name: "bot",
+        make: (options: Options) => TestBot.createAndInstantiate(options.session),
+    };
+
+    const otherBotAccount = {
+        name: "other bot",
+        make: (options: Options) => TestBot.createAndInstantiate(options.otherSession),
+    };
+
+    const sharedBotAccount = {
+        name: "shared bot",
+        make: (options: Options) => options.sharedBot.instantiate(options.session),
+    };
+
+    const otherSharedBotAccount = {
+        name: "other shared bot",
+        make: (options: Options) => options.sharedBot.instantiate(options.otherSession),
+    };
+
+    const space = {
+        name: "space",
+        make: (options: Options) => options.space,
+    };
+
+    const otherSpace = {
+        name: "other space",
+        make: (options: Options) => options.otherSpace,
+    };
+
+    const testCases: Array<{
+        ok: boolean;
+        botAccount: {name: string; make: (options: Options) => MaybePromise<TestBotAccount>};
+        space: {name: string; make: (options: Options) => MaybePromise<TestSpace>};
+    }> = [
+        {ok: true, botAccount, space},
+        {ok: false, botAccount, space: otherSpace},
+        {ok: false, botAccount: otherBotAccount, space},
+        {ok: true, botAccount: otherBotAccount, space: otherSpace},
+        {ok: true, botAccount: sharedBotAccount, space},
+        {ok: false, botAccount: sharedBotAccount, space: otherSpace},
+        {ok: false, botAccount: otherSharedBotAccount, space},
+        {ok: true, botAccount: otherSharedBotAccount, space: otherSpace},
+    ];
+
+    for (const testCase of testCases) {
+        test(`\`authorizeSpaceAccess()\` for ${testCase.botAccount.name} ${
+            testCase.ok ? "succeeds" : "fails"
+        } in ${testCase.space.name}`, async () => {
+            const [sharedBot, space, otherSpace] = await runAllPromises([
+                TestBot.create(context),
+                TestSpace.create(context),
+                TestSpace.create(context),
+            ]);
+
+            const [session, otherSession] = await runAllPromises([
+                space.createSession({role: "Admin"}),
+                otherSpace.createSession({role: "Admin"}),
+            ]);
+
+            const options = {
+                sharedBot,
+                space,
+                otherSpace,
+                session,
+                otherSession,
+            };
+
+            const [testBotAccount, testSpace] = await runAllPromises([
+                testCase.botAccount.make(options),
+                testCase.space.make(options),
+            ]);
+
+            if (testCase.ok) {
+                await authorizeSpaceAccess(testBotAccount.action(), testSpace.id);
+            } else {
+                await expect(
+                    authorizeSpaceAccess(testBotAccount.action(), testSpace.id),
+                ).rejects.toThrow(PermissionDeniedError);
+            }
+        });
+
+        test(`\`authorizeSpaceAccessIfPossible()\` for ${testCase.botAccount.name} ${
+            testCase.ok ? "succeeds" : "fails"
+        } in ${testCase.space.name}`, async () => {
+            const [sharedBot, space, otherSpace] = await runAllPromises([
+                TestBot.create(context),
+                TestSpace.create(context),
+                TestSpace.create(context),
+            ]);
+
+            const [session, otherSession] = await runAllPromises([
+                space.createSession({role: "Admin"}),
+                otherSpace.createSession({role: "Admin"}),
+            ]);
+
+            const options = {
+                sharedBot,
+                space,
+                otherSpace,
+                session,
+                otherSession,
+            };
+
+            const [testBotAccount, testSpace] = await runAllPromises([
+                testCase.botAccount.make(options),
+                testCase.space.make(options),
+            ]);
+
+            if (testCase.ok) {
+                expect(
+                    (await authorizeSpaceAccessIfPossible(testBotAccount.action(), testSpace.id))
+                        .ok,
+                ).toEqual(true);
+            } else {
+                expect(
+                    (await authorizeSpaceAccessIfPossible(testBotAccount.action(), testSpace.id))
+                        .ok,
+                ).toEqual(false);
+            }
+        });
+    }
 });
 
 test("allows space member to update space name", async () => {
@@ -5687,10 +5822,7 @@ test("`getSpaceIfPossible()` returns an error for an anonymous actor", async () 
 });
 
 test("can instantiate a bot in a space as an admin", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context, {name: "Test Bot"});
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -5746,10 +5878,7 @@ test("can instantiate a bot in a space as an admin", async () => {
 });
 
 test("can instantiate a bot in a space as an owner", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context, {name: "Test Bot"});
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -5790,10 +5919,7 @@ test("can instantiate a bot in a space as an owner", async () => {
 });
 
 test("can’t add a bot instantiated in one space to another space", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -5817,10 +5943,7 @@ test("can’t add a bot instantiated in one space to another space", async () =>
 });
 
 test("can remove bot from space it was instantiated in and can add it back", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context, {name: "Test Bot"});
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -5890,10 +6013,7 @@ test("can remove bot from space it was instantiated in and can add it back", asy
 });
 
 test("can’t make a bot account a space admin", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context, {name: "Test Bot"});
 
     const space = await TestSpace.create(context);
 
@@ -5949,10 +6069,7 @@ test("can’t make a bot account a space admin", async () => {
 });
 
 test("can’t make a bot account a space owner", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context, {name: "Test Bot"});
 
     const space = await TestSpace.create(context);
 
@@ -6000,10 +6117,7 @@ test("can’t make a bot account a space owner", async () => {
 });
 
 test("can check whether an account is a bot or not", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
@@ -6090,10 +6204,7 @@ test("can check whether an account is a bot or not", async () => {
 });
 
 test("`isBotSpaceAccount()` after `authorizeSpaceAccess()` is cached", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
 
@@ -6469,4 +6580,140 @@ test("`isBotSpaceAccount()` after `authorizeSpaceAccess()` is cached", async () 
             expect(getCount2()).toEqual(1);
         }
     }
+});
+
+describe("`impersonateAccountAsSystemContext()`", () => {
+    test("can impersonate an account", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        expect(
+            await impersonateAccountAsSystemContext(
+                space.systemAction(),
+                session.account.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).toEqual({
+            actorType: "ImpersonatedAccount",
+            spaceId: space.id,
+            accountId: session.account.id,
+        });
+    });
+
+    test("can’t impersonate an account as a session actor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        await expect(
+            impersonateAccountAsSystemContext(
+                // @ts-expect-error
+                session.action(),
+                session.account.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).rejects.toThrow("Session actor is not a system actor");
+    });
+
+    test("can’t impersonate an account as an impersonated account actor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        await expect(
+            impersonateAccountAsSystemContext(
+                // @ts-expect-error
+                space.impersonatedAction(session),
+                session.account.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).rejects.toThrow("Impersonated account actor is not a system actor");
+    });
+
+    test("can’t impersonate an account as a bot actor", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        await expect(
+            impersonateAccountAsSystemContext(
+                // @ts-expect-error
+                botAccount.action(),
+                session.account.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).rejects.toThrow("Bot actor is not a system actor");
+    });
+
+    test("can’t impersonate an account as a bot actor with a scope for that account", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        await expect(
+            impersonateAccountAsSystemContext(
+                // @ts-expect-error
+                botAccount.action({type: "Account", accountId: session.account.id}),
+                session.account.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).rejects.toThrow("Bot actor is not a system actor");
+    });
+
+    test("can’t impersonate an account that’s not a member of the space", async () => {
+        const space = await TestSpace.create(context);
+
+        const otherSpace = await TestSpace.create(context);
+        const otherSession = await otherSpace.createSession();
+
+        await expect(
+            impersonateAccountAsSystemContext(
+                space.systemAction(),
+                otherSession.account.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).rejects.toThrow("Can’t impersonate account that’s not a member of system actor’s space");
+    });
+
+    test("can’t impersonate bot account", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        await expect(
+            impersonateAccountAsSystemContext(
+                space.systemAction(),
+                botAccount.id,
+                async context => ({
+                    actorType: context.actor.type,
+                    spaceId: context.actor.getSpaceId(),
+                    accountId: context.actor.getAccountId(),
+                }),
+            ),
+        ).rejects.toThrow("Can’t impersonate bot account");
+    });
 });

@@ -712,7 +712,7 @@ test("can have one account fail to load data while other accounts successfully l
                               ok: false,
                               error: expect.objectContaining({
                                   message:
-                                      "Actor doesn’t have `View` access level to document (and 2 other errors)",
+                                      "Actor doesn’t have `View` access level (and 2 other errors)",
                               }),
                           },
                 ]),

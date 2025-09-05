@@ -25,6 +25,7 @@ ts_project(
         "//:node_modules/yaml",
         "//server/api/markdown",
         "//server/api/specification",
+        "//server/chat/data",
         "//server/cloudflare/r2",
         "//server/context",
         "//server/documents/data",

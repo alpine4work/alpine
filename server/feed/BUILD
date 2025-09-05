@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "feed",
     test_deps = [
+        "//server/bots/test_helpers",
         "//server/documents/test_helpers",
         "//server/forum/test_helpers",
         "//server/tasks/test_helpers",

@@ -27,6 +27,7 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {TaskContextModuleActionTransaction} from "~/server/context/task_context_module_base.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
@@ -34,7 +35,11 @@ import {
     DynamoReadConsistency,
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicyWithoutGenerations,
+} from "~/shared/access/access_policy.js";
 import {Context, ContextModulesType} from "~/shared/context/context.js";
 import {ContextModuleBase as _ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
@@ -55,10 +60,12 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {
     AccountId,
     ChannelId,
+    ChatId,
     DocumentId,
     PostId,
     SpaceId,
     TaskCollectionId,
+    TaskId,
 } from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -70,11 +77,25 @@ const ContextModuleBase = _ContextModuleBase;
 type ContextModuleBase<Modules extends {[key: string]: ContextModuleBase | undefined} = {}> =
     _ContextModuleBase<Modules>;
 
+export type ChatInjectionContextModule = InstanceType<typeof ChatInjectionContextModule>;
+
+export const ChatInjectionContextModule = createInjectionContextModule<ChatInjection>({
+    getChatAccountIdsForBotScope: true,
+});
+
+export type ChatInjection = {
+    getChatAccountIdsForBotScope(
+        context: ServerMinimalBotActionContext,
+        chatId: ChatId,
+    ): Promise<ReadonlyArray<AccountId>>;
+};
+
 export type DocumentsInjectionContextModule = InstanceType<typeof DocumentsInjectionContextModule>;
 
 export const DocumentsInjectionContextModule = createInjectionContextModule<DocumentsInjection>({
     authorizeDocumentAccessIfPossible: true,
     getDocumentContentPreviewIfPossible: true,
+    getDocumentAccessPolicyForBotScope: true,
 });
 
 export type DocumentsInjection = {
@@ -102,6 +123,11 @@ export type DocumentsInjection = {
         },
         ErrorBase
     > | null>;
+
+    getDocumentAccessPolicyForBotScope(
+        context: ServerMinimalBotActionContext,
+        documentId: DocumentId,
+    ): Promise<AccessPolicy>;
 };
 
 export type ForumInjectionContextModule = InstanceType<typeof ForumInjectionContextModule>;
@@ -111,6 +137,7 @@ export const ForumInjectionContextModule = createInjectionContextModule<ForumInj
     getChannelAndMetadataIfPossible: true,
     isSubscribedToChannel: true,
     getPostIfPossible: true,
+    getPostAccessPolicyForBotScope: true,
 });
 
 export type ForumInjection = {
@@ -142,6 +169,11 @@ export type ForumInjection = {
         postId: PostId,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<Result<DynamoGeneralRealtimeItem<PostModel>, ErrorBase>>;
+
+    getPostAccessPolicyForBotScope(
+        context: ServerMinimalBotActionContext,
+        postId: PostId,
+    ): Promise<AccessPolicy>;
 };
 
 export type SearchInjectionContextModule = InstanceType<typeof SearchInjectionContextModule>;
@@ -187,6 +219,7 @@ export const TasksInjectionContextModule = createInjectionContextModule<TasksInj
     indexTaskActionTransactionAssumingItsCommitted: true,
     authorizeTaskCollectionAccessIfPossible: true,
     internalGetUpdateOurAccountNameTaskTransactionEntries: true,
+    getTaskAccessPolicyForBotScope: true,
 });
 
 export type TasksInjection = {
@@ -209,6 +242,11 @@ export type TasksInjection = {
             nameVersion: number;
         },
     ): Array<DynamoTransactionEntry>;
+
+    getTaskAccessPolicyForBotScope(
+        context: ServerMinimalBotActionContext,
+        taskId: TaskId,
+    ): Promise<AccessPolicyWithoutGenerations>;
 };
 
 type ArrayTail<T extends ReadonlyArray<unknown>> = T extends readonly [any, ...infer U] ? U : [];

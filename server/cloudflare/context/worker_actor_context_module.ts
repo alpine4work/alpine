@@ -1,11 +1,13 @@
 import {
     ActorContextModuleBase,
     AnonymousActorContextModule,
+    BotActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -17,7 +19,8 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 export type WorkerActorContextModule =
     | WorkerSessionActorContextModule
     | WorkerSystemActorContextModule
-    | WorkerAnonymousActorContextModule;
+    | WorkerAnonymousActorContextModule
+    | WorkerBotActorContextModule;
 
 /**
  * Verify the token and return an actor context module corresponding to
@@ -42,6 +45,14 @@ export async function createWorkerActorContextModule(
         }
         case "Anonymous": {
             return WorkerAnonymousActorContextModule.dangerouslyNew(serviceName);
+        }
+        case "Bot": {
+            return WorkerBotActorContextModule.dangerouslyNew(
+                serviceName,
+                payload.spaceId,
+                payload.accountId,
+                payload.scope,
+            );
         }
         default:
             throw exhaustive(payload);
@@ -113,6 +124,10 @@ export class WorkerSessionActorContextModule
     }
 
     public getAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    public getPossiblyBotAccountId(): AccountId {
         return this._accountId;
     }
 
@@ -235,5 +250,86 @@ export class WorkerAnonymousActorContextModule
 
     public fork() {
         return new WorkerAnonymousActorContextModule(this.serviceName);
+    }
+}
+
+export class WorkerBotActorContextModule
+    extends ContextModuleBase
+    implements WorkerActorContextModuleBase, BotActorContextModule
+{
+    public readonly type = "Bot";
+
+    private readonly _spaceId: SpaceId;
+    private readonly _accountId: AccountId;
+    private readonly _scope: BotTokenPayloadScope;
+
+    /**
+     * Name of the service which initiated the current action. If the browser
+     * initiated an action the service name is `AppClient`.
+     */
+    public readonly serviceName: TokenServiceName;
+
+    private constructor(
+        serviceName: TokenServiceName,
+        spaceId: SpaceId,
+        accountId: AccountId,
+        scope: BotTokenPayloadScope,
+    ) {
+        super();
+        this.serviceName = serviceName;
+        this._spaceId = spaceId;
+        this._accountId = accountId;
+        this._scope = scope;
+    }
+
+    /**
+     * Dangerous since you can pass in an arbitrary `accountId`, `scope`, and
+     * `serviceName` here. An attacker could get broad access to our system if they
+     * can call this function!
+     */
+    public static dangerouslyNew(
+        serviceName: TokenServiceName,
+        spaceId: SpaceId,
+        accountId: AccountId,
+        scope: BotTokenPayloadScope,
+    ) {
+        return new WorkerBotActorContextModule(serviceName, spaceId, accountId, scope);
+    }
+
+    public getSpaceId(): SpaceId {
+        return this._spaceId;
+    }
+
+    public getBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    public getPossiblyBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
+    public getScope(): BotTokenPayloadScope {
+        return this._scope;
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: WorkerSessionActorContextModule}>> {
+        throw new PermissionDeniedError("Bot actor is not a session actor");
+    }
+
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: WorkerSystemActorContextModule}>> {
+        throw new PermissionDeniedError("Bot actor is not a system actor");
+    }
+
+    public fork() {
+        return new WorkerBotActorContextModule(
+            this.serviceName,
+            this._spaceId,
+            this._accountId,
+            this._scope,
+        );
     }
 }

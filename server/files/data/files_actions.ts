@@ -1,7 +1,7 @@
 import prettyBytes from "pretty-bytes";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
-    ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
@@ -178,7 +178,7 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * resulting file item in DynamoDB won't be very useful.
  */
 export async function startUploadingFile(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         spaceId,
         fileId: providedFileId = null,
@@ -314,7 +314,7 @@ export async function startUploadingFile(
             fileId,
             contentType,
             contentLength,
-            uploaderId: context.actor.getAccountId(),
+            uploaderId: context.actor.getPossiblyBotAccountId(),
             isUploading: true,
             alternative: hasAlternative ? {isProcessing: true} : null,
             preview,
@@ -357,7 +357,7 @@ export async function startUploadingFile(
  * on `startUploadingFile()` for more information.
  */
 export async function finishUploadingAndStartProcessingFile(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         spaceId,
         fileId,
@@ -516,6 +516,12 @@ export class FileUploader {
             }
             case "Anonymous": {
                 throw unauthenticatedSessionError();
+            }
+            case "Bot": {
+                if (this.uploaderId !== context.actor.getBotAccountId()) {
+                    throw new PermissionDeniedError("Account is not the file’s uploader account");
+                }
+                break;
             }
             default:
                 throw exhaustive(context.actor);
@@ -1290,6 +1296,12 @@ async function getFileItemIfExistsAsUploader(
         }
         case "Anonymous": {
             throw unauthenticatedSessionError();
+        }
+        case "Bot": {
+            if (item.uploaderId !== context.actor.getBotAccountId()) {
+                throw new PermissionDeniedError("Account didn’t upload file");
+            }
+            break;
         }
         default:
             throw exhaustive(context.actor);

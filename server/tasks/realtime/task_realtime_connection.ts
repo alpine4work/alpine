@@ -1,7 +1,11 @@
 import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    impersonateAccountAsSystemContext,
+} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {
     TaskRealtimeProcessContext,
     TaskRealtimeSessionActionContext,
@@ -9,9 +13,8 @@ import {
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
 import {
-    TaskAuthorizationActor,
-    authorizeTaskCollectionIndexDocAccessIfPossibleForActor,
-    authorizeTaskIndexDocAccessIfPossibleForActor,
+    authorizeTaskCollectionIndexDocAccessIfPossible,
+    authorizeTaskIndexDocAccessIfPossible,
     getTaskGridViewExpansionState,
 } from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
@@ -86,7 +89,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     public readonly spaceId: SpaceId;
     public readonly accountId: AccountId;
 
-    public readonly actor: TaskAuthorizationActor = {
+    public readonly actor: TaskRealtimeActorInterface = {
         type: "Session",
         getAccountId: () => this.accountId,
     };
@@ -1484,17 +1487,16 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     const authorizationStateVersion =
                         eventBuilder.getDefaultAuthorizationStateVersion(this);
 
-                    const promise = authorizeTaskIndexDocAccessIfPossibleForActor(
+                    const promise = impersonateAccountAsSystemContext(
                         context,
-                        this.actor,
-                        newTask,
-                        "View",
-                        {
-                            getTaskIndexDoc: taskId =>
-                                this._server.getTask(context, this.spaceId, taskId),
-                            getCollectionIndexDoc: collectionId =>
-                                this._server.getCollection(context, this.spaceId, collectionId),
-                        },
+                        this.accountId,
+                        accountContext =>
+                            authorizeTaskIndexDocAccessIfPossible(accountContext, newTask, "View", {
+                                getTaskIndexDoc: taskId =>
+                                    this._server.getTask(context, this.spaceId, taskId),
+                                getCollectionIndexDoc: collectionId =>
+                                    this._server.getCollection(context, this.spaceId, collectionId),
+                            }),
                     ).then(result => {
                         if (!result.ok) {
                             eventBuilder.addUnauthorizedTaskBackfill(
@@ -1616,11 +1618,15 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     const authorizationStateVersion =
                         eventBuilder.getDefaultAuthorizationStateVersion(this);
 
-                    const promise = authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+                    const promise = impersonateAccountAsSystemContext(
                         context,
-                        this.actor,
-                        newCollection,
-                        "View",
+                        this.accountId,
+                        accountContext =>
+                            authorizeTaskCollectionIndexDocAccessIfPossible(
+                                accountContext,
+                                newCollection,
+                                "View",
+                            ),
                     ).then(result => {
                         const wasPreviouslyAuthorized = false;
 
@@ -1767,19 +1773,17 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     // should have already been handled when we added/removed the direct reference.
                     if (this._directlySubscribedTaskStateById.has(task.id)) return;
 
-                    const newAuthorizationStatePromise =
-                        authorizeTaskIndexDocAccessIfPossibleForActor(
-                            context,
-                            this.actor,
-                            task,
-                            "View",
-                            {
+                    const newAuthorizationStatePromise = impersonateAccountAsSystemContext(
+                        context,
+                        this.accountId,
+                        accountContext =>
+                            authorizeTaskIndexDocAccessIfPossible(accountContext, task, "View", {
                                 getTaskIndexDoc: taskId =>
                                     this._server.getTask(context, this.spaceId, taskId),
                                 getCollectionIndexDoc: collectionId =>
                                     this._server.getCollection(context, this.spaceId, collectionId),
-                            },
-                        ).then(result => (result.ok ? "Authorized" : "Unauthorized"));
+                            }),
+                    ).then(result => (result.ok ? "Authorized" : "Unauthorized"));
 
                     const oldAuthorizationStatePromise = referencedTask.authorizationStatePromise;
 
@@ -1902,25 +1906,28 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     const oldAuthorizationStatePromise =
                         referencedCollection.authorizationStatePromise;
 
-                    const newAuthorizationStatePromise =
-                        authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
-                            context,
-                            this.actor,
-                            collection,
-                            "View",
-                        ).then(async result => {
-                            if (result.ok) {
-                                return {state: "Authorized" as const};
-                            } else {
-                                const oldAuthorizationState = await oldAuthorizationStatePromise;
-                                return {
-                                    state: "Unauthorized" as const,
-                                    wasPreviouslyAuthorized:
-                                        oldAuthorizationState.state === "Authorized" ||
-                                        oldAuthorizationState.wasPreviouslyAuthorized,
-                                };
-                            }
-                        });
+                    const newAuthorizationStatePromise = impersonateAccountAsSystemContext(
+                        context,
+                        this.accountId,
+                        accountContext =>
+                            authorizeTaskCollectionIndexDocAccessIfPossible(
+                                accountContext,
+                                collection,
+                                "View",
+                            ),
+                    ).then(async result => {
+                        if (result.ok) {
+                            return {state: "Authorized" as const};
+                        } else {
+                            const oldAuthorizationState = await oldAuthorizationStatePromise;
+                            return {
+                                state: "Unauthorized" as const,
+                                wasPreviouslyAuthorized:
+                                    oldAuthorizationState.state === "Authorized" ||
+                                    oldAuthorizationState.wasPreviouslyAuthorized,
+                            };
+                        }
+                    });
 
                     const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
                         this,
@@ -1998,12 +2005,23 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         // `TaskRealtimeStore` won't have evicted the task collection yet so load the
         // task collection from our store and run authorization.
         if (!referencedCollectionState) {
-            const result = await authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+            const collectionPromise = this._server.getCollection(
                 context,
-                this.actor,
-                await this._server.getCollection(context, this.spaceId, collectionId),
-                "View",
+                this.spaceId,
+                collectionId,
             );
+
+            const [, result] = await runAllPromises([
+                collectionPromise,
+                impersonateAccountAsSystemContext(context, this.accountId, async accountContext =>
+                    authorizeTaskCollectionIndexDocAccessIfPossible(
+                        accountContext,
+                        await collectionPromise,
+                        "View",
+                    ),
+                ),
+            ]);
+
             return result.ok;
         }
 

@@ -13,8 +13,8 @@ import {
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
 import {
-    authorizeTaskCollectionIndexDocAccessIfPossibleForActor,
-    authorizeTaskIndexDocAccessIfPossibleForActor,
+    authorizeTaskCollectionIndexDocAccessIfPossible,
+    authorizeTaskIndexDocAccessIfPossible,
     getTaskGridViewExpansionState,
 } from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
@@ -136,9 +136,8 @@ export async function loadTaskRealtimeQueries(
 
                 trackTaskDependencies(context, task);
 
-                const result = await authorizeTaskIndexDocAccessIfPossibleForActor(
-                    context,
-                    actor,
+                const result = await authorizeTaskIndexDocAccessIfPossible(
+                    originalContext,
                     task,
                     "View",
                     {
@@ -170,9 +169,8 @@ export async function loadTaskRealtimeQueries(
             const promise = (async () => {
                 const collection = await server.getCollection(context, spaceId, collectionId);
 
-                const result = await authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
-                    context,
-                    actor,
+                const result = await authorizeTaskCollectionIndexDocAccessIfPossible(
+                    originalContext,
                     collection,
                     "View",
                 );

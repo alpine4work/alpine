@@ -67,6 +67,10 @@ export class TestSessionActorContextModule
         return this._accountId;
     }
 
+    public getPossiblyBotAccountId(): AccountId {
+        return this._accountId;
+    }
+
     public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: TestSessionActorContextModule}>> {

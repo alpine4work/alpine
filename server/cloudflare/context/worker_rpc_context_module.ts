@@ -23,6 +23,7 @@ import {
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {printSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -66,6 +67,15 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                 case "Anonymous": {
                     tokenPayload = {
                         type: "Anonymous",
+                    };
+                    break;
+                }
+                case "Bot": {
+                    tokenPayload = {
+                        type: "Bot",
+                        spaceId: context.actor.getSpaceId(),
+                        accountId: context.actor.getBotAccountId(),
+                        scope: context.actor.getScope(),
                     };
                     break;
                 }
@@ -329,6 +339,13 @@ function getTokenPayloadKey(tokenPayload: TokenPayload): string {
             return `System:${tokenPayload.spaceId}`;
         case "Anonymous":
             return "Anonymous";
+        case "Bot": {
+            return `Bot:${tokenPayload.accountId}-${
+                tokenPayload.scope.type === "Space"
+                    ? "Space"
+                    : printSearchDynamicEntityId(tokenPayload.scope)
+            }`;
+        }
         default:
             throw exhaustive(tokenPayload);
     }

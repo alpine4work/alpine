@@ -1,5 +1,5 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
-import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
+import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
@@ -45,7 +45,7 @@ export async function prepareTaskForClient(
         isSpaceAccessAuthorized,
         isCollectionAccessAuthorized,
     }: {
-        actor: TaskAuthorizationActor;
+        actor: TaskRealtimeActorInterface;
         isSpaceAccessAuthorized: boolean;
         isCollectionAccessAuthorized: (collectionId: TaskCollectionId) => Promise<boolean>;
     },
@@ -154,7 +154,7 @@ export async function prepareTaskForClient(
         assigneePosition:
             task.rawAssigneePosition.value &&
             (actor.type === "System" ||
-                (actor.type === "Session" &&
+                ((actor.type === "Session" || actor.type === "ImpersonatedAccount") &&
                     task.rawAssigneePosition.value.accountId !== actor.getAccountId()))
                 ? new TaskAssigneePositionRegister(null, task.assignee.version)
                 : task.rawAssigneePosition,

@@ -6,6 +6,7 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     createServiceCloudflareR2ContextModule,
     serviceCloudflareR2Options,
@@ -17,6 +18,7 @@ import {
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {
+    ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
     SearchInjectionContextModule,
@@ -287,6 +289,7 @@ export async function run({
         apns: apnsContextModule,
         github: githubContextModule,
         scheduler: schedulerContextModule,
+        chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),

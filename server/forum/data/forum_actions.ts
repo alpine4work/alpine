@@ -1,4 +1,6 @@
+import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -13,8 +15,13 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerMinimalActionContext,
+    ServerMinimalBotActionContext,
+} from "~/server/context/server_minimal_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
     DynamoCacheReadConsistency,
@@ -41,6 +48,7 @@ import {
     internalMaxChannelContributionCount,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
+import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
@@ -53,19 +61,17 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {
     authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
-    createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
     isAccountMemberOfSpace,
-    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {
-    AccessLevel,
-    AccessPolicy,
-    validateAccessPolicyUpdate,
-} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
@@ -123,13 +129,13 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
@@ -138,7 +144,6 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {
@@ -463,19 +468,7 @@ export async function createChannel(
         throw new InvalidArgumentError("Channels don’t currently support `urlGrant`s");
     }
 
-    if (
-        !(await evaluateAccessPolicy(
-            context,
-            spaceId,
-            context.actor.getAccountId(),
-            accessPolicy,
-            "Manage",
-        ))
-    ) {
-        throw new InvalidArgumentError(
-            "Account actor must have `Manage` access level on channels they create",
-        );
-    }
+    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);
 
     const creatorId = context.actor.getAccountId();
 
@@ -597,86 +590,24 @@ async function authorizeChannelItemAccessIfPossible(
     ),
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
-    switch (context.actor.type) {
-        // System actors can read all documents in the space they have access to.
-        case "System": {
-            if (context.actor.getSpaceId() !== channelItem.spaceId) {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        "System actor doesn’t have access to channel’s space",
-                    ),
-                };
-            }
+    const isAccessAuthorized = await evaluateAccessPolicy(
+        context,
+        channelItem.spaceId,
+        channelItem.accessPolicy,
+        expectedAccessLevel,
+    );
 
-            return okResult;
-        }
-        case "Session":
-        case "ImpersonatedAccount":
-        case "Anonymous": {
-            if (
-                context.actor.type === "ImpersonatedAccount" &&
-                context.actor.getSpaceId() !== channelItem.spaceId
-            ) {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        "Impersonated account actor doesn’t have access to channel’s space",
-                    ),
-                };
-            }
+    if (isAccessAuthorized) return okResult;
 
-            // Evaluate the document access policy.
-            const isAccessAuthorized = await evaluateAccessPolicy(
-                context,
-                channelItem.spaceId,
-                context.actor.type !== "Anonymous" ? context.actor.getAccountId() : null,
-                channelItem.accessPolicy,
-                expectedAccessLevel,
-            );
-
-            if (isAccessAuthorized) return okResult;
-
-            // Throw an unauthenticated error if this is an anonymous user instead of
-            // returning false. We want to show the user the unauthenticated error display
-            // message when they don't have access.
-            if (context.actor.type === "Anonymous") {
-                return {ok: false, error: unauthenticatedSessionError()};
-            } else if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    channelItem.spaceId,
-                    context.actor.getAccountId(),
-                ))
-            ) {
-                return {
-                    ok: false,
-                    error: createAuthorizeSpaceAccessPermissionDeniedError(
-                        channelItem.spaceId,
-                        context.actor.getAccountId(),
-                    ),
-                };
-            } else {
-                const channelId = "id" in channelItem ? channelItem.id : channelItem.channelId;
-
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        quote`Actor doesn’t have ${expectedAccessLevel} access level to channel`,
-                        {
-                            aggregateDedupeKey: channelId,
-                            displayMessage:
-                                channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-                                    expectedAccessLevel
-                                ],
-                        },
-                    ),
-                };
-            }
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
+    return {
+        ok: false,
+        error: await createAccessPolicyPermissionDeniedError(context, {
+            spaceId: channelItem.spaceId,
+            expectedAccessLevel,
+            aggregateDedupeKey: "id" in channelItem ? channelItem.id : channelItem.channelId,
+            displayMessages: channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+        }),
+    };
 }
 
 /**
@@ -1060,7 +991,13 @@ const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
 });
 
 async function getChannelPreviewItemForAuthorizationIfExists(
-    context: ServerActionContext,
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+    }>,
     channelId: ChannelId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<ChannelPreviewAttributesItem | null> {
@@ -1081,7 +1018,7 @@ async function getChannelPreviewItemForAuthorizationIfExists(
 }
 
 async function getChannelPreviewItemForAuthorization(
-    context: ServerActionContext,
+    context: ServerMinimalActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ChannelPreviewAttributesItem> {
@@ -1381,9 +1318,16 @@ export async function isSubscribedToChannel(
 /**
  * Get all subscribers to the channel.
  *
- * Tries to avoid returning accounts that don't have access to the channel
- * anymore. But it's possible due to race conditions we'll return an account
- * who's lost access to the channel.
+ * May return accounts that don't have access to the channel anymore. If you're
+ * going to send a notification, you should filter down this list to accounts
+ * that still have channel access.
+ *
+ * For example, if you're added to the private channel then you subscribe to
+ * the private chanel (we add a `Channel#Subscription` item) then you're
+ * removed from the private channel we don't remove your
+ * `Channel#Subscription` item. You'll be returned from this function and we
+ * need to make sure you don't get a notification during notification event
+ * processing.
  */
 export async function getChannelNotificationSubscribers(
     context: ServerSystemActionContext,
@@ -1403,35 +1347,26 @@ export async function getChannelNotificationSubscribers(
 
     await authorizeChannelItemAccess(context, channelItem, "View");
 
-    const accountIds = await parallelMapAsyncIterableToArray(
-        ForumTable.query(context, {
-            consistency,
-            limit: "All",
-            partitionKey: {partitionType: "Channel", channelId},
-            startSortKey: {
-                sortRangeType: "Subscription",
-                accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
-            },
-            endSortKey: {
-                sortRangeType: "Subscription",
-                accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-            },
-        }),
-        async item => {
-            const hasAccess = await evaluateAccessPolicy(
-                context,
-                channelItem.spaceId,
-                item.accountId,
-                channelItem.accessPolicy,
-                "View",
-            );
-
-            if (!hasAccess) return null;
-            return item.accountId;
-        },
+    const accountIds = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(
+            ForumTable.query(context, {
+                consistency,
+                limit: "All",
+                partitionKey: {partitionType: "Channel", channelId},
+                startSortKey: {
+                    sortRangeType: "Subscription",
+                    accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
+                },
+                endSortKey: {
+                    sortRangeType: "Subscription",
+                    accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+                },
+            }),
+            item => item.accountId,
+        ),
     );
 
-    return accountIds.filter(isNonNullable);
+    return accountIds;
 }
 
 /**
@@ -1697,14 +1632,12 @@ async function updateChannelAccessPolicyBase(
                     throw new InvalidArgumentError("Channels don’t currently support `urlGrant`s");
                 }
 
-                const result = validateAccessPolicyUpdate(
-                    context.actor.getAccountId(),
+                await validateAccessPolicyUpdateForServer(
+                    context,
+                    channelItem.spaceId,
                     oldAccessPolicy,
                     newAccessPolicy,
                 );
-                if (!result.ok) {
-                    throw new FailedPreconditionError(result.reason);
-                }
 
                 const oldHasAddedFeedCandidateEntry = channelItem.hasAddedFeedCandidateEntry;
                 const newHasAddedFeedCandidateEntry =
@@ -1965,10 +1898,12 @@ function getPostContentFileIds(content: PostContent): Set<FileId> {
 export async function createPost(
     context: ServerSessionActionContext,
     {
+        id: postId = generateId<PostId>(),
         channelId,
         draftId = null,
         content,
     }: {
+        id?: PostId;
         channelId: ChannelId;
         draftId?: PostDraftId | null;
         content: PostContent;
@@ -1989,7 +1924,7 @@ export async function createPost(
     const postItem: PostAttributesItem = {
         partitionType: "Post",
         sortRangeType: "Attributes",
-        postId: generateId(),
+        postId,
         spaceId,
         channelId,
         // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
@@ -2010,7 +1945,7 @@ export async function createPost(
     // Add our new post to the authorization cache BEFORE we create the post. That
     // way when we attach files with `attachFileFromAttachment()` they'll read the
     // post from this cache and won't throw a not found error.
-    PostItemAuthorizationCache.set(context, "Strong", postItem.postId, postItem);
+    PostItemAuthorizationCache.set(context, "Strong", postId, postItem);
 
     const fileIds = getPostContentFileIds(postItem.content);
 
@@ -2030,7 +1965,7 @@ export async function createPost(
                 }),
                 to: FilePostAuthorizer.bind({
                     type: "Post",
-                    postId: postItem.postId,
+                    postId,
                 }),
             });
         }),
@@ -2066,7 +2001,7 @@ export async function createPost(
                 sortRangeType: "PostFiles",
                 channelId,
                 postCreatedTime: postItem.createdTime,
-                postId: postItem.postId,
+                postId,
                 spaceId: postItem.spaceId,
                 fileIds,
             }),
@@ -2086,7 +2021,7 @@ export async function createPost(
     context.process.waitUntil(async () => {
         await addFeedCandidateEntry(context, postItem.spaceId, {
             type: "Post",
-            postId: postItem.postId,
+            postId,
             channelId: postItem.channelId,
             authorId: postItem.authorId,
             createdTime: postItem.createdTime,
@@ -2226,7 +2161,7 @@ export async function createPost(
             id: generateChronologicalId(),
             spaceId,
             channelId: postItem.channelId,
-            postId: postItem.postId,
+            postId,
             createdTime: postItem.createdTime,
             authorId: postItem.authorId,
             mentionedAccountIds,
@@ -2240,7 +2175,7 @@ export async function createPost(
         spaceId,
         update: {
             type: "Post",
-            postId: postItem.postId,
+            postId,
             // Nothing depends on this entity when it's created. Don't bother trying to
             // reindex dependencies.
             updatedTraits: {type: "None"},
@@ -2282,7 +2217,7 @@ export async function createPost(
     }
 
     return {
-        id: postItem.postId,
+        id: postId,
         spaceId,
         createdTime: postItem.createdTime,
         getDynamoGeneralRealtimeEventTransaction: async context => ({
@@ -2500,6 +2435,27 @@ export async function dangerouslyGetPostAuthorWithoutAuthorization(
     const postItem = await getPostItemForAuthorization(context, postId);
     await authorizeSpaceAccess(context, postItem.spaceId);
     return getAccount(context, postItem.spaceId, postItem.authorId);
+}
+
+/**
+ * Load the post's access policy for a bot scoped to the post. Used
+ * when evaluating whether a bot has permissions to certain resources.
+ */
+export async function getPostAccessPolicyForBotScope(
+    context: ServerMinimalBotActionContext,
+    postId: PostId,
+): Promise<AccessPolicy> {
+    const scope = context.actor.getScope();
+    if (scope.type !== "Post" || scope.postId !== postId) {
+        throw new PermissionDeniedError("Can only get access policy for the scoped post");
+    }
+
+    const postItem = await getPostItemForAuthorization(context, postId);
+    const channelItem = await getChannelPreviewItemForAuthorization(context, postItem.channelId);
+
+    await authorizeSpaceAccess(context, channelItem.spaceId);
+
+    return channelItem.accessPolicy;
 }
 
 /**
@@ -2745,7 +2701,7 @@ const PostItemAuthorizationCache = new DynamoContextCache<
 });
 
 async function getPostItemForAuthorizationIfExists(
-    context: ServerActionContext,
+    context: ServerMinimalActionContext,
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<Pick<
@@ -2769,7 +2725,7 @@ async function getPostItemForAuthorizationIfExists(
 }
 
 async function getPostItemForAuthorization(
-    context: ServerActionContext,
+    context: ServerMinimalActionContext,
     postId: PostId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<
@@ -2836,8 +2792,9 @@ export async function authorizePostAccessIfPossible(
                     break;
                 }
                 case "Session":
-                case "ImpersonatedAccount": {
-                    if (postItem.authorId !== context.actor.getAccountId()) {
+                case "ImpersonatedAccount":
+                case "Bot": {
+                    if (postItem.authorId !== context.actor.getPossiblyBotAccountId()) {
                         return {
                             ok: false,
                             error: new PermissionDeniedError(
@@ -4259,6 +4216,9 @@ export async function authorizePostDraftAccess(
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
 
+    // Bots can't access drafts. Bots must directly create posts.
+    await authorizeNotBotSpaceAccount(context, spaceId, accountId);
+
     switch (context.actor.type) {
         case "System": {
             // We don't have a use case for system actions looking at drafts right now. So
@@ -4274,6 +4234,9 @@ export async function authorizePostDraftAccess(
         }
         case "Anonymous": {
             throw unauthenticatedSessionError();
+        }
+        case "Bot": {
+            throw permissionDeniedBotError();
         }
         default:
             throw exhaustive(context.actor);

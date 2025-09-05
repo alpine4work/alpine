@@ -26,6 +26,12 @@ export async function redirectToAuthenticatedHome(loaderContext: LoaderContext) 
             );
         }
 
+        case "Bot": {
+            // Bots aren't allowed to load the app. They must use `ApiService` to interact
+            // with Alpine.
+            throw new PermissionDeniedError("Can’t load the application with a bot actor");
+        }
+
         case "Anonymous": {
             // We don't have any context to what Anonymous users will expect to see here
             // Just throw them to the space switcher

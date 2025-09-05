@@ -4,10 +4,17 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/context/dynamo_actor_context_module.js";
 import {
+    ChatInjectionContextModule,
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
+import {
     ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -32,11 +39,16 @@ export type TaskRealtimeProcessContextModules = {
     jobs: JobsContextModule;
     constants: ServerConstantsContextModule;
     opensearch: OpensearchContextModule;
+    chatInjection: ChatInjectionContextModule;
+    documentsInjection: DocumentsInjectionContextModule;
+    forumInjection: ForumInjectionContextModule;
+    tasksInjection: TasksInjectionContextModule;
 };
 
 export type TaskRealtimeActionContext = Context<TaskRealtimeActionContextModules>;
 
 assertAssignableTypes<ServerActionContext, TaskRealtimeActionContext>();
+assertAssignableTypes<TaskRealtimeActionContext, ServerMinimalActionContext>();
 
 export type TaskRealtimeActionContextModules = TaskRealtimeProcessContextModules & {
     batch: BatchContextModule;

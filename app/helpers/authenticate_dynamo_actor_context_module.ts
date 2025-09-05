@@ -136,6 +136,12 @@ export async function authenticateDynamoActorContextModule(
             case "Anonymous": {
                 return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
             }
+            case "Bot": {
+                // Bot actors can't render React pages or call RPCs. They must use the API.
+                throw new PermissionDeniedError(
+                    "Can’t access `AppService` as a bot actor, bot actors must use `ApiService`",
+                );
+            }
             default:
                 throw exhaustive(authorizationHeaderPayload);
         }

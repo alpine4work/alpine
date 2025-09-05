@@ -4,11 +4,11 @@ import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_c
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {
     TaskRealtimeProcessContext,
     TaskRealtimeSystemActionContext,
 } from "~/server/tasks/data/task_realtime_context.js";
-import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -41,7 +41,7 @@ export interface TaskRealtimeUpdateEventConnection {
     readonly clock: HybridLogicalClock;
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
-    readonly actor: TaskAuthorizationActor;
+    readonly actor: TaskRealtimeActorInterface;
     sendEvent(context: TaskRealtimeProcessContext, event: TaskRealtimeEvent): void;
     isReferencedCollectionAccessAuthorized(
         context: TaskRealtimeSystemActionContext,

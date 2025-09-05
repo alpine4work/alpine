@@ -201,6 +201,12 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
             );
         }
 
+        case "Bot": {
+            // Bots aren't allowed to load the app. They must use `ApiService` to interact
+            // with Alpine.
+            throw new PermissionDeniedError("Can’t load the application with a bot actor");
+        }
+
         case "Anonymous": {
             const space = new SpaceModel({
                 id: spaceId,

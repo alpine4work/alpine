@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",

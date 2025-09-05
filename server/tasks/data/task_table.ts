@@ -2,7 +2,9 @@ import {CalendarDate} from "@internationalized/date";
 import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
+import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
@@ -16,6 +18,7 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -29,11 +32,7 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
-import {
-    ActorContextModule,
-    SystemActorContextModule,
-} from "~/server/helpers/actor_context_module.js";
-import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
@@ -41,7 +40,6 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
-    createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
     getAccountIfExists,
     isAccountMemberOfSpace,
@@ -65,8 +63,9 @@ import {
     AccessLevel,
     AccessPolicy,
     AccessPolicyRegister,
+    AccessPolicyWithoutGenerations,
     hasAccessLevel,
-    validateAccessPolicyUpdate,
+    maxAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -100,7 +99,6 @@ import {
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -2293,13 +2291,15 @@ class TaskActionTransactionCommitState {
         }
     }
 
-    public evaluateAccessPolicy(accessPolicy: AccessPolicy, expectedAccessLevel: AccessLevel) {
-        return evaluateAccessPolicy(
+    public async validateAccessPolicyUpdate(
+        oldAccessPolicy: AccessPolicy | null,
+        newAccessPolicy: AccessPolicy,
+    ) {
+        await validateAccessPolicyUpdateForServer(
             this._context,
             this._spaceId,
-            this._context.actor.getAccountId(),
-            accessPolicy,
-            expectedAccessLevel,
+            oldAccessPolicy,
+            newAccessPolicy,
         );
     }
 
@@ -2400,6 +2400,11 @@ async function actuallyCommitTaskActionTransaction(
                             sortRangeType: "EssentialAttributes",
                             taskId,
                             spaceId,
+                            // TODO(calebmer, #api): Think about bot "credit". Ideally bots come with an
+                            // initiator. The initiator should get partial credit. For example task created
+                            // by Caleb (with ChatGPT). Counting steps on documents and tasks should be
+                            // similar. "caleb's docs" in search should find docs written by me (with
+                            // ChatGPT).
                             creatorId: taskAction.creatorId,
                             createdTime: action.time,
                             deletedTime: null,
@@ -3149,16 +3154,10 @@ async function actuallyCommitTaskActionTransaction(
                             lastTaskAddedTime: null,
                         };
 
-                        if (
-                            !(await state.evaluateAccessPolicy(
-                                newCollectionItem.accessPolicy.value,
-                                "Manage",
-                            ))
-                        ) {
-                            throw new InvalidArgumentError(
-                                "Must have the `Manage` access level on a collection you create",
-                            );
-                        }
+                        await state.validateAccessPolicyUpdate(
+                            null,
+                            newCollectionItem.accessPolicy.value,
+                        );
 
                         state.createCollectionItem(newCollectionItem);
 
@@ -3316,14 +3315,10 @@ async function actuallyCommitTaskActionTransaction(
                                     version: action.time,
                                 });
 
-                                const result = validateAccessPolicyUpdate(
-                                    state.getActorAccountId(),
+                                await state.validateAccessPolicyUpdate(
                                     collectionItem.accessPolicy.value,
                                     newAccessPolicy.value,
                                 );
-                                if (!result.ok) {
-                                    throw new FailedPreconditionError(result.reason);
-                                }
 
                                 const oldHasAddedFeedCandidateEntry =
                                     collectionItem.hasAddedFeedCandidateEntry;
@@ -3451,7 +3446,11 @@ export function deleteTaskAndAllChildren(
 
             rootParentTaskItem =
                 (isInitialAttempt
-                    ? await TaskItemAuthorizationCache.getIfExists(context, parentTaskId)
+                    ? await TaskItemAuthorizationCache.getIfExists(
+                          context,
+                          "Eventual",
+                          parentTaskId,
+                      )
                     : null) ??
                 (await TaskTable.getItem(context, {
                     partitionType: "Task",
@@ -4179,23 +4178,14 @@ async function getTaskCollectionItemForAuthorizationIfExists(
     );
 }
 
-export type TaskAuthorizationActor =
-    | {readonly type: "System"; getSpaceId(): SpaceId}
-    | {readonly type: "Session"; getAccountId(): AccountId}
-    | {readonly type: "Anonymous"}
-    | {readonly type: "ImpersonatedAccount"; getSpaceId(): SpaceId; getAccountId(): AccountId};
-
-assertAssignableTypes<ActorContextModule, TaskAuthorizationActor>();
-
 async function authorizeTaskCollectionItemAccess(
     context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ): Promise<void> {
     unwrapResult(
-        await authorizeTaskCollectionItemAccessIfPossibleForActor(
+        await authorizeTaskCollectionItemAccessIfPossible(
             context,
-            context.actor,
             collectionItem,
             expectedAccessLevel,
         ),
@@ -4208,29 +4198,21 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasks(
     expectedAccessLevel: AccessLevel,
 ): Promise<void> {
     unwrapResult(
-        await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleForActor(
+        await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
             context,
-            context.actor,
             collectionItem,
             expectedAccessLevel,
         ),
     );
 }
 
-async function authorizeTaskCollectionItemAccessIfPossibleForActor(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    actor: TaskAuthorizationActor,
+async function authorizeTaskCollectionItemAccessIfPossible(
+    context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
-    const result = await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleForActor(
+    const result = await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
         context,
-        actor,
         collectionItem,
         expectedAccessLevel,
     );
@@ -4241,7 +4223,7 @@ async function authorizeTaskCollectionItemAccessIfPossibleForActor(
     if (result.ok && isTaskCollectionItemDeleted(collectionItem)) {
         let isMemberOfSpace = false;
 
-        switch (actor.type) {
+        switch (context.actor.type) {
             case "System": {
                 isMemberOfSpace = true;
                 break;
@@ -4251,16 +4233,17 @@ async function authorizeTaskCollectionItemAccessIfPossibleForActor(
                 break;
             }
             case "Session":
-            case "ImpersonatedAccount": {
+            case "ImpersonatedAccount":
+            case "Bot": {
                 isMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
                     context,
                     collectionItem.spaceId,
-                    actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                 );
                 break;
             }
             default:
-                throw exhaustive(actor);
+                throw exhaustive(context.actor);
         }
 
         if (!isMemberOfSpace) {
@@ -4287,93 +4270,29 @@ async function authorizeTaskCollectionItemAccessIfPossibleForActor(
     return result;
 }
 
-async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleForActor(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    actor: TaskAuthorizationActor,
+async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
+    context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
-    switch (actor.type) {
-        case "System": {
-            if (actor.getSpaceId() !== collectionItem.spaceId) {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        "System actor doesn’t have access to task collection’s space",
-                    ),
-                };
-            }
+    const isAccessAuthorized = await evaluateAccessPolicy(
+        context,
+        collectionItem.spaceId,
+        collectionItem.accessPolicy.value,
+        expectedAccessLevel,
+    );
 
-            return okResult;
-        }
-        case "Session":
-        case "ImpersonatedAccount":
-        case "Anonymous": {
-            if (
-                actor.type === "ImpersonatedAccount" &&
-                actor.getSpaceId() !== collectionItem.spaceId
-            ) {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        "Impersonated account actor doesn’t have access to task collection’s space",
-                    ),
-                };
-            }
+    if (isAccessAuthorized) return okResult;
 
-            const isAccessAuthorized = await evaluateAccessPolicy(
-                context,
-                collectionItem.spaceId,
-                actor.type !== "Anonymous" ? actor.getAccountId() : null,
-                collectionItem.accessPolicy.value,
-                expectedAccessLevel,
-            );
-
-            if (isAccessAuthorized) return okResult;
-
-            // Throw an unauthenticated error if this is an anonymous user instead of
-            // returning false. We want to show the user the unauthenticated error display
-            // message when they don't have access.
-            if (actor.type === "Anonymous") {
-                return {ok: false, error: unauthenticatedSessionError()};
-            } else if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    collectionItem.spaceId,
-                    actor.getAccountId(),
-                ))
-            ) {
-                return {
-                    ok: false,
-                    error: createAuthorizeSpaceAccessPermissionDeniedError(
-                        collectionItem.spaceId,
-                        actor.getAccountId(),
-                    ),
-                };
-            } else {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        quote`Actor doesn’t have ${expectedAccessLevel} access level to task collection`,
-                        {
-                            aggregateDedupeKey: collectionItem.collectionId,
-                            displayMessage:
-                                taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-                                    expectedAccessLevel
-                                ],
-                        },
-                    ),
-                };
-            }
-        }
-        default:
-            throw exhaustive(actor);
-    }
+    return {
+        ok: false,
+        error: await createAccessPolicyPermissionDeniedError(context, {
+            spaceId: collectionItem.spaceId,
+            expectedAccessLevel,
+            aggregateDedupeKey: collectionItem.collectionId,
+            displayMessages: taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+        }),
+    };
 }
 
 /**
@@ -4432,9 +4351,8 @@ export async function authorizeTaskCollectionAccessIfPossible(
     );
     if (!collectionItem) return null;
 
-    const result = await authorizeTaskCollectionItemAccessIfPossibleForActor(
+    const result = await authorizeTaskCollectionItemAccessIfPossible(
         context,
-        context.actor,
         collectionItem,
         expectedAccessLevel,
     );
@@ -4457,20 +4375,13 @@ export async function authorizeTaskCollectionAccessIfPossible(
  * responsibilities. Like properly stopping data from being sent to the client
  * when this function returns false.
  */
-export function authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    actor: TaskAuthorizationActor,
+export function authorizeTaskCollectionIndexDocAccessIfPossible(
+    context: TaskRealtimeActionContext,
     collectionIndexDoc: TaskCollectionIndexDoc,
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
-    return authorizeTaskCollectionItemAccessIfPossibleForActor(
+    return authorizeTaskCollectionItemAccessIfPossible(
         context,
-        actor,
         convertTaskCollectionIndexDocToItem(collectionIndexDoc),
         expectedAccessLevel,
     );
@@ -4500,18 +4411,11 @@ export async function authorizeTaskAccess(
     const taskItem = await getTaskItemForAuthorization(context, taskId, loaders, options);
 
     unwrapResult(
-        await authorizeTaskItemAccessIfPossibleForActor(
-            context,
-            context.actor,
-            taskItem,
-            expectedAccessLevel,
-            {
-                getTaskItem: taskId =>
-                    getTaskItemForAuthorization(context, taskId, loaders, options),
-                getCollectionItem: collectionId =>
-                    getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
-            },
-        ),
+        await authorizeTaskItemAccessIfPossible(context, taskItem, expectedAccessLevel, {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
+        }),
     );
 
     return {spaceId: taskItem.spaceId, createdTime: taskItem.createdTime};
@@ -4541,17 +4445,11 @@ export async function authorizeTaskAccessIfPossible(
     const taskItem = await getTaskItemForAuthorizationIfExists(context, taskId, loaders, options);
     if (!taskItem) return null;
 
-    const result = await authorizeTaskItemAccessIfPossibleForActor(
-        context,
-        context.actor,
-        taskItem,
-        expectedAccessLevel,
-        {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
-        },
-    );
+    const result = await authorizeTaskItemAccessIfPossible(context, taskItem, expectedAccessLevel, {
+        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
+        getCollectionItem: collectionId =>
+            getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
+    });
     if (!result.ok) return result;
 
     return {ok: true, value: {spaceId: taskItem.spaceId, createdTime: taskItem.createdTime}};
@@ -4578,13 +4476,7 @@ async function authorizeTaskItemAccess(
     },
 ): Promise<void> {
     unwrapResult(
-        await authorizeTaskItemAccessIfPossibleForActor(
-            context,
-            context.actor,
-            taskItem,
-            expectedAccessLevel,
-            loaders,
-        ),
+        await authorizeTaskItemAccessIfPossible(context, taskItem, expectedAccessLevel, loaders),
     );
 }
 
@@ -4600,9 +4492,8 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
     },
 ): Promise<void> {
     unwrapResult(
-        await authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
+        await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
             context,
-            context.actor,
             taskItem,
             expectedAccessLevel,
             loaders,
@@ -4610,14 +4501,8 @@ async function authorizeTaskItemAccessAllowingDeletedTasks(
     );
 }
 
-async function authorizeTaskItemAccessIfPossibleForActor(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    actor: TaskAuthorizationActor,
+async function authorizeTaskItemAccessIfPossible(
+    context: TaskRealtimeActionContext,
     taskItem: TaskEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -4627,9 +4512,8 @@ async function authorizeTaskItemAccessIfPossibleForActor(
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
 ): Promise<Result<void, ErrorBase>> {
-    const result = await authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
+    const result = await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
         context,
-        actor,
         taskItem,
         expectedAccessLevel,
         loaders,
@@ -4640,7 +4524,7 @@ async function authorizeTaskItemAccessIfPossibleForActor(
     if (result.ok && taskItem.deletedTime) {
         let isMemberOfSpace = false;
 
-        switch (actor.type) {
+        switch (context.actor.type) {
             case "System": {
                 isMemberOfSpace = true;
                 break;
@@ -4654,12 +4538,20 @@ async function authorizeTaskItemAccessIfPossibleForActor(
                 isMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
                     context,
                     taskItem.spaceId,
-                    actor.getAccountId(),
+                    context.actor.getAccountId(),
                 );
                 break;
             }
+            case "Bot": {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError("Bot can’t access deleted tasks", {
+                        displayMessage: errorDisplayMessage`Task was deleted.`,
+                    }),
+                };
+            }
             default:
-                throw exhaustive(actor);
+                throw exhaustive(context.actor);
         }
 
         if (!isMemberOfSpace) {
@@ -4685,14 +4577,8 @@ async function authorizeTaskItemAccessIfPossibleForActor(
     return result;
 }
 
-async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    actor: TaskAuthorizationActor,
+async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
+    context: TaskRealtimeActionContext,
     taskItem: TaskEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -4702,9 +4588,9 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
 ): Promise<Result<void, ErrorBase>> {
-    switch (actor.type) {
+    switch (context.actor.type) {
         case "System": {
-            if (actor.getSpaceId() !== taskItem.spaceId) {
+            if (context.actor.getSpaceId() !== taskItem.spaceId) {
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
@@ -4717,8 +4603,12 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
         }
         case "Session":
         case "ImpersonatedAccount":
+        case "Bot":
         case "Anonymous": {
-            if (actor.type === "ImpersonatedAccount" && actor.getSpaceId() !== taskItem.spaceId) {
+            if (
+                context.actor.type === "ImpersonatedAccount" &&
+                context.actor.getSpaceId() !== taskItem.spaceId
+            ) {
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
@@ -4727,17 +4617,18 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 };
             }
 
-            const accountId = actor.type !== "Anonymous" ? actor.getAccountId() : null;
+            const actorAccountId =
+                context.actor.type !== "Anonymous" ? context.actor.getPossiblyBotAccountId() : null;
 
-            if (accountId !== null) {
+            if (actorAccountId !== null) {
                 // The task creator has edit access level on their own task.
                 if (
-                    accountId === taskItem.creatorId &&
+                    actorAccountId === taskItem.creatorId &&
                     hasAccessLevel("Edit", expectedAccessLevel) &&
                     (await isAccountMemberOfSpaceWithoutAuthorization(
                         context,
                         taskItem.spaceId,
-                        accountId,
+                        actorAccountId,
                     ))
                 ) {
                     return okResult;
@@ -4746,12 +4637,12 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 // The task assignee has edit access level on their own task.
                 if (
                     taskItem.assigneeId.value &&
-                    accountId === taskItem.assigneeId.value &&
+                    actorAccountId === taskItem.assigneeId.value &&
                     hasAccessLevel("Edit", expectedAccessLevel) &&
                     (await isAccountMemberOfSpaceWithoutAuthorization(
                         context,
                         taskItem.spaceId,
-                        accountId,
+                        actorAccountId,
                     ))
                 ) {
                     return okResult;
@@ -4770,7 +4661,6 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                     const hasAccess = await evaluateAccessPolicy(
                         context,
                         collectionItem.spaceId,
-                        accountId,
                         collectionItem.accessPolicy.value,
                         expectedAccessLevel,
                     );
@@ -4790,9 +4680,8 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 // a parent task that is not deleted then check it before throwing a permission
                 // denied error.
                 if (!parentTaskItem.deletedTime) {
-                    return authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
+                    return authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                         context,
-                        actor,
                         parentTaskItem,
                         expectedAccessLevel,
                         loaders,
@@ -4800,43 +4689,18 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 }
             }
 
-            // Throw an unauthenticated error if this is an anonymous user instead of
-            // returning false. We want to show the user the unauthenticated error display
-            // message when they don't have access.
-            if (actor.type === "Anonymous") {
-                return {ok: false, error: unauthenticatedSessionError()};
-            } else if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    taskItem.spaceId,
-                    actor.getAccountId(),
-                ))
-            ) {
-                return {
-                    ok: false,
-                    error: createAuthorizeSpaceAccessPermissionDeniedError(
-                        taskItem.spaceId,
-                        actor.getAccountId(),
-                    ),
-                };
-            } else {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        quote`Actor doesn’t have ${expectedAccessLevel} access level to task`,
-                        {
-                            aggregateDedupeKey: taskItem.taskId,
-                            displayMessage:
-                                taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-                                    expectedAccessLevel
-                                ],
-                        },
-                    ),
-                };
-            }
+            return {
+                ok: false,
+                error: await createAccessPolicyPermissionDeniedError(context, {
+                    spaceId: taskItem.spaceId,
+                    expectedAccessLevel,
+                    aggregateDedupeKey: taskItem.taskId,
+                    displayMessages: taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+                }),
+            };
         }
         default:
-            throw exhaustive(actor);
+            throw exhaustive(context.actor);
     }
 }
 
@@ -4985,6 +4849,129 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
     return value;
 }
 
+/**
+ * Load the task's access policy for a bot scoped to the task. Used
+ * when evaluating whether a bot has permissions to certain resources.
+ *
+ * We grant access to the task based on:
+ *
+ * - The task's creator
+ * - The task's assignee
+ * - The task's collections
+ * - The task's parent task (recursively)
+ */
+export async function getTaskAccessPolicyForBotScope(
+    context: ServerMinimalBotActionContext,
+    taskId: TaskId,
+): Promise<AccessPolicyWithoutGenerations> {
+    const scope = context.actor.getScope();
+    if (scope.type !== "Task" || scope.taskId !== taskId) {
+        throw new PermissionDeniedError("Can only get access policy for the scoped task");
+    }
+
+    const accountGrantById = new Map<AccountId, {level: AccessLevel}>();
+    let defaultGrant: {level: AccessLevel} | null = null;
+    let urlGrant: {level: "View"} | null = null;
+
+    const seenCollectionIds = new Set<TaskCollectionId>();
+    const seenTaskIds = new Set<TaskId>([taskId]);
+
+    function addAccountGrant(accountId: AccountId, accessLevel: AccessLevel) {
+        let accountGrant = accountGrantById.get(accountId);
+        if (accountGrant === undefined) {
+            accountGrant = {level: accessLevel};
+            accountGrantById.set(accountId, accountGrant);
+        } else {
+            accountGrant.level = maxAccessLevel(accountGrant.level, accessLevel);
+        }
+    }
+
+    function addDefaultGrant(accessLevel: AccessLevel) {
+        if (defaultGrant === null) {
+            defaultGrant = {level: accessLevel};
+        } else {
+            defaultGrant.level = maxAccessLevel(defaultGrant.level, accessLevel);
+        }
+    }
+
+    function addUrlGrant(accessLevel: "View") {
+        if (urlGrant === null) {
+            urlGrant = {level: "View"};
+        } else {
+            // The only acceptable access level right now is `View`.
+            cast<"View">(accessLevel);
+        }
+    }
+
+    const addTaskGrants = async (taskItem: TaskEssentialAttributesItemBase) => {
+        addAccountGrant(taskItem.creatorId, "Edit");
+
+        if (taskItem.assigneeId.value) {
+            addAccountGrant(taskItem.assigneeId.value, "Edit");
+        }
+
+        await runAllPromises([
+            (async () => {
+                if (!taskItem.parentTaskId.value) return;
+
+                if (seenTaskIds.has(taskItem.parentTaskId.value)) return;
+                seenTaskIds.add(taskItem.parentTaskId.value);
+
+                const parentTaskItem = await getTaskItemForAuthorization(
+                    context,
+                    taskItem.parentTaskId.value,
+                    null,
+                );
+
+                if (parentTaskItem.deletedTime) return;
+
+                await addTaskGrants(parentTaskItem);
+            })(),
+            runAllPromises(
+                taskItem.collections.getArray().map(async ({collectionId}) => {
+                    if (seenCollectionIds.has(collectionId)) return;
+                    seenCollectionIds.add(collectionId);
+
+                    const collectionItem = await getTaskCollectionItemForAuthorization(
+                        context,
+                        collectionId,
+                        null,
+                    );
+
+                    if (isTaskCollectionItemDeleted(collectionItem)) return;
+
+                    const accessPolicy = collectionItem.accessPolicy.value;
+
+                    for (const [accountId, accountGrant] of accessPolicy.accountGrantById) {
+                        addAccountGrant(accountId, accountGrant.level);
+                    }
+
+                    if (accessPolicy.defaultGrant) {
+                        addDefaultGrant(accessPolicy.defaultGrant.level);
+                    }
+
+                    if (accessPolicy.urlGrant) {
+                        addUrlGrant(accessPolicy.urlGrant.level);
+                    }
+                }),
+            ),
+        ]);
+    };
+
+    const rootTaskItem = await getTaskItemForAuthorization(context, taskId, null);
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, rootTaskItem.spaceId),
+        !rootTaskItem.deletedTime ? addTaskGrants(rootTaskItem) : null,
+    ]);
+
+    return {
+        accountGrantById,
+        defaultGrant,
+        urlGrant,
+    };
+}
+
 export async function getTaskComment(
     context: ServerActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
@@ -5074,17 +5061,11 @@ export async function getTaskOwnerIfPossible(
 ): Promise<Result<AccountModel, ErrorBase>> {
     const taskItem = await getTaskItemForAuthorization(context, taskId, null);
 
-    const result = await authorizeTaskItemAccessIfPossibleForActor(
-        context,
-        context.actor,
-        taskItem,
-        "View",
-        {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, null),
-        },
-    );
+    const result = await authorizeTaskItemAccessIfPossible(context, taskItem, "View", {
+        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+        getCollectionItem: collectionId =>
+            getTaskCollectionItemForAuthorization(context, collectionId, null),
+    });
     if (!result.ok) return result;
 
     const owner = taskItem.assigneeId.value
@@ -5739,9 +5720,8 @@ export async function getTaskNotesContentAndOptionalInitialComments(
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
-    const commentAuthorizationResult = await authorizeTaskItemAccessIfPossibleForActor(
+    const commentAuthorizationResult = await authorizeTaskItemAccessIfPossible(
         context,
-        context.actor,
         item,
         "Comment",
         {
@@ -6170,14 +6150,8 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
  * responsibilities. Like properly stopping data from being sent to the client
  * when this function returns false.
  */
-export function authorizeTaskIndexDocAccessIfPossibleForActor(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
-    actor: TaskAuthorizationActor,
+export function authorizeTaskIndexDocAccessIfPossible(
+    context: TaskRealtimeActionContext,
     taskIndexDoc: TaskIndexDoc,
     expectedAccessLevel: AccessLevel,
     loaders: {
@@ -6185,9 +6159,8 @@ export function authorizeTaskIndexDocAccessIfPossibleForActor(
         getCollectionIndexDoc: (taskId: TaskCollectionId) => Promise<TaskCollectionIndexDoc>;
     },
 ): Promise<Result<void, ErrorBase>> {
-    return authorizeTaskItemAccessIfPossibleForActor(
+    return authorizeTaskItemAccessIfPossible(
         context,
-        actor,
         convertTaskIndexDocToItem(taskIndexDoc),
         expectedAccessLevel,
         {
@@ -6918,9 +6891,8 @@ export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
 
     // We need to double check that we have access to this collection. Since the
     // collection search index might be out of date.
-    const result = await authorizeTaskCollectionItemAccessIfPossibleForActor(
+    const result = await authorizeTaskCollectionItemAccessIfPossible(
         context,
-        context.actor,
         collectionItem,
         expectedAccessLevel,
     );
@@ -6985,9 +6957,8 @@ export async function getTaskCollectionSearchResultIfPossible(
 
     // We need to double check that we have access to this collection. Since the
     // collection search index might be out of date.
-    const result = await authorizeTaskCollectionItemAccessIfPossibleForActor(
+    const result = await authorizeTaskCollectionItemAccessIfPossible(
         context,
-        context.actor,
         collectionItem,
         expectedAccessLevel,
     );

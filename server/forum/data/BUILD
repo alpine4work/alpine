@@ -13,6 +13,7 @@ ts_project(
     name = "data",
     test_deps = [
         "//:node_modules/date-fns",
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/forum/test_helpers",

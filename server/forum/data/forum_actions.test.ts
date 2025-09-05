@@ -1,4 +1,5 @@
 import {addMinutes} from "date-fns";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
@@ -31,6 +32,7 @@ import {
     getChannelPreview,
     getChannelRealtimeEvent,
     getPost,
+    getPostAccessPolicyForBotScope,
     getPostAndInitialComments,
     getPostAuthorAndChannelPreviewIfPossible,
     getPostCommentAuthors,
@@ -65,7 +67,6 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -93,6 +94,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
@@ -155,7 +158,7 @@ test("can’t create a channel if the actor doesn’t have manage access", async
                 urlGrant: null,
             },
         }),
-    ).rejects.toThrow("Account actor must have `Manage` access level on channels they create");
+    ).rejects.toThrow("Account actor must have `Manage` access level on anything they create");
 
     await createChannel(session1.action(), {
         spaceId: space.id,
@@ -419,40 +422,40 @@ test("can’t get a private channel", async () => {
     );
 
     await expect(getChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     await expect(getChannelIfPossible(session3.action(), channel.id)).resolves.toEqual(
         expect.objectContaining({
             ok: false,
             error: expect.objectContaining({
-                message: "Actor doesn’t have `View` access level to channel",
+                message: "Actor doesn’t have `View` access level",
             }),
         }),
     );
     await expect(
         getChannelNameAndDescriptionContentAndContributors(session3.action(), channel.id),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(
         getChannelAndMetadata(session3.action(), {channelId: channel.id, postFilesLimit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(
         getChannelAndMetadata(session3.action(), {
             channelId: channel.id,
             postFilesLimit: 100,
             afterItemKey: getChannelContributorsKey(channel.id),
         }),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(
         getChannelContributors(session3.action(), channel.id, {limit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(
         backfillChannelAndMetadata(session3.action(), {
             channelId: channel.id,
             readTime: new Date(),
         }),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(authorizeChannelAccess(session3.action(), channel.id, "View")).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     expect((await authorizeChannelAccessIfPossible(session3.action(), channel.id, "View")).ok).toBe(
         false,
@@ -600,7 +603,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 2",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -611,7 +614,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 3",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -622,7 +625,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 4",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -633,7 +636,7 @@ test("can’t update a channel’s name without manage access", async () => {
             channelId: channel.id,
             name: "Test 5",
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
 
@@ -781,7 +784,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 2"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -795,7 +798,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 3"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -809,7 +812,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 4"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -823,7 +826,7 @@ test("can’t update a channel’s description without manage access", async () 
             channelId: channel.id,
             description: createSimpleMessageContent("Test 5"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect(
         (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
@@ -923,7 +926,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 2a",
             description: createSimpleMessageContent("Test 2b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -939,7 +942,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 3a",
             description: createSimpleMessageContent("Test 3b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -955,7 +958,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 4a",
             description: createSimpleMessageContent("Test 4b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -971,7 +974,7 @@ test("can’t update a channel’s name and description without manage access", 
             name: "Test 5a",
             description: createSimpleMessageContent("Test 5b"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
     expect(
@@ -1015,7 +1018,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1033,7 +1036,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Comment");
 
@@ -1051,7 +1054,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Edit");
 
@@ -1069,7 +1072,7 @@ test("can’t update channel access policy without manage access", async () => {
             },
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Manage");
 
@@ -1120,7 +1123,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1133,7 +1136,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Comment");
 
@@ -1146,7 +1149,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Edit");
 
@@ -1159,7 +1162,7 @@ test("can’t update channel access policy (with add account grants function) wi
             ]),
             notification: null,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Manage` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Manage` access level");
 
     await channel.access.grantDefault(session1, "Manage");
 
@@ -1243,6 +1246,55 @@ test("can’t update channel access policy with invalid update", async () => {
     ).rejects.toThrow("Can’t change default grant manage generation");
 });
 
+test("can’t create channel shared with bot account", async () => {
+    const bot = await TestBot.create(context);
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const session = await space.createSession();
+
+    const {id: botAccountId} = await bot.instantiate(adminSession);
+
+    await expect(
+        TestChannel.create(session, {
+            access: {
+                accountGrantById: new Map([
+                    [session.account.id, {level: "Manage", generation: 0}],
+                    [botAccountId, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow("Can’t grant access to a bot account");
+});
+
+test("can’t update channel access policy with bot account", async () => {
+    const bot = await TestBot.create(context);
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const session = await space.createSession();
+    const channel = await TestChannel.create(session, {access: "Private"});
+
+    const {id: botAccountId} = await bot.instantiate(adminSession);
+
+    await expect(
+        updateChannelAccessPolicy(session.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session.account.id, {level: "Manage", generation: 0}],
+                    [botAccountId, {level: "Manage", generation: 1}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+            notification: null,
+        }),
+    ).rejects.toThrow("Can’t grant access to a bot account");
+});
+
 test("can’t update channel access policy with `urlGrant``", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -1313,7 +1365,7 @@ test("can’t create a post without edit access", async () => {
             channelId: channel.id,
             content: createSimplePostContent("Test post 1"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1322,7 +1374,7 @@ test("can’t create a post without edit access", async () => {
             channelId: channel.id,
             content: createSimplePostContent("Test post 2"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
     await channel.access.grantDefault(session1, "Comment");
 
@@ -1331,7 +1383,7 @@ test("can’t create a post without edit access", async () => {
             channelId: channel.id,
             content: createSimplePostContent("Test post 3"),
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
     await channel.access.grantDefault(session1, "Edit");
 
@@ -1406,25 +1458,25 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     const post = await channel.createPost(session1);
 
     await expect(getPost(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     expect((await getPostIfPossible(session2.action(), post.id)).error).toEqual(
-        new PermissionDeniedError("Actor doesn’t have `View` access level to channel"),
+        new PermissionDeniedError("Actor doesn’t have `View` access level"),
     );
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     expect(
         (await getPostContentAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level to channel");
+    ).toContain("Actor doesn’t have `View` access level");
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level to channel");
+    ).toContain("Actor doesn’t have `View` access level");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 
     await channel.access.grantDefault(session1, "View");
 
@@ -1489,25 +1541,25 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     await channel.access.revokeDefault(session1);
 
     await expect(getPost(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     expect((await getPostIfPossible(session2.action(), post.id)).error).toEqual(
-        new PermissionDeniedError("Actor doesn’t have `View` access level to channel"),
+        new PermissionDeniedError("Actor doesn’t have `View` access level"),
     );
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     expect(
         (await getPostContentAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level to channel");
+    ).toContain("Actor doesn’t have `View` access level");
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
-    ).toContain("Actor doesn’t have `View` access level to channel");
+    ).toContain("Actor doesn’t have `View` access level");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 });
 
 test("can get a post", async () => {
@@ -1654,13 +1706,13 @@ test("can’t get the comment authors for a post in a channel you don’t have a
 
     await expect(
         getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 
     await post.createComment(session2, testMessageContent1);
 
     await expect(
         getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100}),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 
     await channel.access.grant(session1, session3, "View");
 
@@ -4023,7 +4075,7 @@ test("can’t update a post after losing channel access", async () => {
             postId: post.id,
             content: testContent3,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
@@ -4054,7 +4106,7 @@ test("can’t update a post after losing channel access", async () => {
             postId: post.id,
             content: testContent3,
         }),
-    ).rejects.toThrow("Actor doesn’t have `Edit` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
@@ -4558,42 +4610,590 @@ test("can add accounts to spaces as admin", async () => {
     );
 });
 
-test("can authorize post access at different levels", async () => {
-    const space1 = await TestSpace.create(context);
-    const space2 = await TestSpace.create(context);
+describe("`authorizePostAccess()`", () => {
+    let scenario: Awaited<ReturnType<typeof createScenario>>;
 
-    const [session1, session2, session3, session5, session6, session7, session8] =
-        await space1.createSessions(7);
-    const session4 = await space2.createSession();
+    beforeAll(async () => {
+        scenario = await createScenario();
+    });
 
-    await space2.addAccount(session1);
+    async function createScenario() {
+        const bot1 = await TestBot.create(context);
 
-    const channel = await TestChannel.create(session1);
+        const space1 = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
 
-    const post4 = await channel.createPost(session6);
-    const post5 = await channel.createPost(session7);
-    const post6 = await channel.createPost(session8);
+        const session1 = await space1.createSession({role: "Admin"});
+        const [session2, session3, session5, session6, session7, session8] =
+            await space1.createSessions(6);
+        const session4 = await space2.createSession({role: "Admin"});
 
-    await channel.access.revokeDefault(session1);
-    await channel.access.grant(session1, session2, "Manage");
-    await channel.access.grant(session1, session3, "Manage");
-    await channel.access.grant(session1, session6, "View");
-    await channel.access.grant(session1, session7, "Comment");
-    await channel.access.grant(session1, session8, "Edit");
+        await space2.addAccount(session1);
 
-    const post1 = await channel.createPost(session1);
-    const post2 = await channel.createPost(session2);
-    const post3 = await channel.createPost(session3);
+        const bot1Account1 = await bot1.instantiate(session1);
+        const bot1Account2 = await bot1.instantiate(session4);
 
-    const impersonate = (space: TestSpace, session: TestSession) => {
-        return context.impersonatedAccountAction(space.id, session.account.id);
+        const bot2Account = await TestBot.createAndInstantiate(session1);
+        const bot3Account = await TestBot.createAndInstantiate(session4);
+
+        const channel = await TestChannel.create(session1);
+
+        const post4 = await channel.createPost(session6);
+        const post5 = await channel.createPost(session7);
+        const post6 = await channel.createPost(session8);
+
+        await channel.access.revokeDefault(session1);
+        await channel.access.grant(session1, session2, "Manage");
+        await channel.access.grant(session1, session3, "Manage");
+        await channel.access.grant(session1, session6, "View");
+        await channel.access.grant(session1, session7, "Comment");
+        await channel.access.grant(session1, session8, "Edit");
+
+        const post1 = await channel.createPost(session1);
+        const post2 = await channel.createPost(session2);
+        const post3 = await channel.createPost(session3);
+
+        return {
+            space1,
+            space2,
+            session1,
+            session2,
+            session3,
+            session4,
+            session5,
+            session6,
+            session7,
+            session8,
+            channel,
+            post1,
+            post2,
+            post3,
+            post4,
+            post5,
+            post6,
+            bot1Account1,
+            bot1Account2,
+            bot2Account,
+            bot3Account,
+        };
+    }
+
+    type ExpectedResult = "PermissionDenied" | "Unauthenticated" | null;
+
+    const testCases: Record<
+        "post1" | "post2" | "post3" | "post4" | "post5" | "post6",
+        Record<
+            "View" | "Edit",
+            {
+                anonymous: ExpectedResult;
+                system: Record<"space1" | "space2", ExpectedResult>;
+                session: Record<
+                    | "session1"
+                    | "session2"
+                    | "session3"
+                    | "session4"
+                    | "session5"
+                    | "session6"
+                    | "session7"
+                    | "session8",
+                    ExpectedResult
+                >;
+                impersonatedAccount: {
+                    space1: Record<
+                        | "session1"
+                        | "session2"
+                        | "session3"
+                        | "session4"
+                        | "session5"
+                        | "session6"
+                        | "session7"
+                        | "session8",
+                        ExpectedResult
+                    >;
+                    space2: Record<"session1", ExpectedResult>;
+                };
+                bot: Record<
+                    "bot1Account1" | "bot1Account2" | "bot2Account" | "bot3Account",
+                    ExpectedResult
+                >;
+            }
+        >
+    > = {
+        post1: {
+            View: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: null,
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: null,
+                    session7: null,
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: null,
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: null,
+                        session7: null,
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: null,
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: null,
+                    bot3Account: "PermissionDenied",
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: "PermissionDenied",
+                    session3: "PermissionDenied",
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: "PermissionDenied",
+                    session7: "PermissionDenied",
+                    session8: "PermissionDenied",
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: "PermissionDenied",
+                        session3: "PermissionDenied",
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: "PermissionDenied",
+                        session7: "PermissionDenied",
+                        session8: "PermissionDenied",
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: "PermissionDenied",
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: "PermissionDenied",
+                    bot3Account: "PermissionDenied",
+                },
+            },
+        },
+        post2: {
+            View: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: null,
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: null,
+                    session7: null,
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: null,
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: null,
+                        session7: null,
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: null,
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: null,
+                    bot3Account: "PermissionDenied",
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: "PermissionDenied",
+                    session2: null,
+                    session3: "PermissionDenied",
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: "PermissionDenied",
+                    session7: "PermissionDenied",
+                    session8: "PermissionDenied",
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: "PermissionDenied",
+                        session2: null,
+                        session3: "PermissionDenied",
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: "PermissionDenied",
+                        session7: "PermissionDenied",
+                        session8: "PermissionDenied",
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: "PermissionDenied",
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: "PermissionDenied",
+                    bot3Account: "PermissionDenied",
+                },
+            },
+        },
+        post3: {
+            View: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: null,
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: null,
+                    session7: null,
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: null,
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: null,
+                        session7: null,
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: null,
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: null,
+                    bot3Account: "PermissionDenied",
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: "PermissionDenied",
+                    session2: "PermissionDenied",
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: "PermissionDenied",
+                    session7: "PermissionDenied",
+                    session8: "PermissionDenied",
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: "PermissionDenied",
+                        session2: "PermissionDenied",
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: "PermissionDenied",
+                        session7: "PermissionDenied",
+                        session8: "PermissionDenied",
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: "PermissionDenied",
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: "PermissionDenied",
+                    bot3Account: "PermissionDenied",
+                },
+            },
+        },
+        post4: {
+            View: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: null,
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: null,
+                    session7: null,
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: null,
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: null,
+                        session7: null,
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: null,
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: null,
+                    bot3Account: "PermissionDenied",
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: "PermissionDenied",
+                    session2: "PermissionDenied",
+                    session3: "PermissionDenied",
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: "PermissionDenied",
+                    session7: "PermissionDenied",
+                    session8: "PermissionDenied",
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: "PermissionDenied",
+                        session2: "PermissionDenied",
+                        session3: "PermissionDenied",
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: "PermissionDenied",
+                        session7: "PermissionDenied",
+                        session8: "PermissionDenied",
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: "PermissionDenied",
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: "PermissionDenied",
+                    bot3Account: "PermissionDenied",
+                },
+            },
+        },
+        post5: {
+            View: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: null,
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: null,
+                    session7: null,
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: null,
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: null,
+                        session7: null,
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: null,
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: null,
+                    bot3Account: "PermissionDenied",
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: "PermissionDenied",
+                    session2: "PermissionDenied",
+                    session3: "PermissionDenied",
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: "PermissionDenied",
+                    session7: "PermissionDenied",
+                    session8: "PermissionDenied",
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: "PermissionDenied",
+                        session2: "PermissionDenied",
+                        session3: "PermissionDenied",
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: "PermissionDenied",
+                        session7: "PermissionDenied",
+                        session8: "PermissionDenied",
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: "PermissionDenied",
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: "PermissionDenied",
+                    bot3Account: "PermissionDenied",
+                },
+            },
+        },
+        post6: {
+            View: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: null,
+                    session2: null,
+                    session3: null,
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: null,
+                    session7: null,
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: null,
+                        session2: null,
+                        session3: null,
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: null,
+                        session7: null,
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: null,
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: null,
+                    bot3Account: "PermissionDenied",
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated",
+                system: {
+                    space1: null,
+                    space2: "PermissionDenied",
+                },
+                session: {
+                    session1: "PermissionDenied",
+                    session2: "PermissionDenied",
+                    session3: "PermissionDenied",
+                    session4: "PermissionDenied",
+                    session5: "PermissionDenied",
+                    session6: "PermissionDenied",
+                    session7: "PermissionDenied",
+                    session8: null,
+                },
+                impersonatedAccount: {
+                    space1: {
+                        session1: "PermissionDenied",
+                        session2: "PermissionDenied",
+                        session3: "PermissionDenied",
+                        session4: "PermissionDenied",
+                        session5: "PermissionDenied",
+                        session6: "PermissionDenied",
+                        session7: "PermissionDenied",
+                        session8: null,
+                    },
+                    space2: {
+                        session1: "PermissionDenied",
+                    },
+                },
+                bot: {
+                    bot1Account1: "PermissionDenied",
+                    bot1Account2: "PermissionDenied",
+                    bot2Account: "PermissionDenied",
+                    bot3Account: "PermissionDenied",
+                },
+            },
+        },
     };
 
-    const auth = async (
+    async function runTest(
         context: ServerActionContext,
         id: PostId,
         expectedAccessLevel: "View" | "Edit",
-    ) => {
+    ) {
         const result = await authorizePostAccessIfPossible(context, id, expectedAccessLevel);
 
         try {
@@ -4613,375 +5213,111 @@ test("can authorize post access at different levels", async () => {
                 throw error;
             }
         }
-    };
+    }
 
-    expect(await auth(space1.systemAction(), post1.id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post1.id, "View")).toEqual(null);
-    expect(await auth(session2.action(), post1.id, "View")).toEqual(null);
-    expect(await auth(session3.action(), post1.id, "View")).toEqual(null);
-    expect(await auth(session4.action(), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post1.id, "View")).toEqual(null);
-    expect(await auth(session7.action(), post1.id, "View")).toEqual(null);
-    expect(await auth(session8.action(), post1.id, "View")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post1.id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post1.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post1.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post1.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post1.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session7), post1.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session8), post1.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post1.id, "View")).toEqual("PermissionDenied");
+    for (const [postName, testCases1] of getObjectEntriesWithKeyofType(testCases)) {
+        for (const [accessLevel, testCases2] of getObjectEntriesWithKeyofType(testCases1)) {
+            {
+                const expectedResult = testCases2.anonymous;
 
-    expect(await auth(space1.systemAction(), post1.id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post1.id, "Edit")).toEqual(null);
-    expect(await auth(session2.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session7.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session8.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), post1.id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post1.id, "Edit")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session7), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session8), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), post1.id, "Edit")).toEqual("PermissionDenied");
+                test(
+                    // eslint-disable-next-line jest/valid-title
+                    quote`${postName} authorized for ${accessLevel} by anonymous actor ` +
+                        (expectedResult === null ? "is ok" : quote`throws ${expectedResult}`),
+                    async () => {
+                        expect(
+                            await runTest(
+                                context.anonymousAction(),
+                                scenario[postName].id,
+                                accessLevel,
+                            ),
+                        ).toEqual(expectedResult);
+                    },
+                );
+            }
 
-    expect(await auth(space1.systemAction(), post2.id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post2.id, "View")).toEqual(null);
-    expect(await auth(session2.action(), post2.id, "View")).toEqual(null);
-    expect(await auth(session3.action(), post2.id, "View")).toEqual(null);
-    expect(await auth(session4.action(), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post2.id, "View")).toEqual(null);
-    expect(await auth(session7.action(), post2.id, "View")).toEqual(null);
-    expect(await auth(session8.action(), post2.id, "View")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post2.id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post2.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post2.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post2.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post2.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session7), post2.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session8), post2.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post2.id, "View")).toEqual("PermissionDenied");
+            for (const [sessionName, expectedResult] of getObjectEntriesWithKeyofType(
+                testCases2.session,
+            )) {
+                test(
+                    // eslint-disable-next-line jest/valid-title
+                    quote`${postName} authorized for ${accessLevel} by ${sessionName} session actor ` +
+                        (expectedResult === null ? "is ok" : quote`throws ${expectedResult}`),
+                    async () => {
+                        expect(
+                            await runTest(
+                                scenario[sessionName].action(),
+                                scenario[postName].id,
+                                accessLevel,
+                            ),
+                        ).toEqual(expectedResult);
+                    },
+                );
+            }
 
-    expect(await auth(space1.systemAction(), post2.id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session2.action(), post2.id, "Edit")).toEqual(null);
-    expect(await auth(session3.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session7.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session8.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), post2.id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session2), post2.id, "Edit")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session7), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session8), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), post2.id, "Edit")).toEqual("PermissionDenied");
+            for (const [spaceName, expectedResult] of getObjectEntriesWithKeyofType(
+                testCases2.system,
+            )) {
+                test(
+                    // eslint-disable-next-line jest/valid-title
+                    quote`${postName} authorized for ${accessLevel} by ${spaceName} system actor ` +
+                        (expectedResult === null ? "is ok" : quote`throws ${expectedResult}`),
+                    async () => {
+                        expect(
+                            await runTest(
+                                scenario[spaceName].systemAction(),
+                                scenario[postName].id,
+                                accessLevel,
+                            ),
+                        ).toEqual(expectedResult);
+                    },
+                );
+            }
 
-    expect(await auth(space1.systemAction(), post3.id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post3.id, "View")).toEqual(null);
-    expect(await auth(session2.action(), post3.id, "View")).toEqual(null);
-    expect(await auth(session3.action(), post3.id, "View")).toEqual(null);
-    expect(await auth(session4.action(), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post3.id, "View")).toEqual(null);
-    expect(await auth(session7.action(), post3.id, "View")).toEqual(null);
-    expect(await auth(session8.action(), post3.id, "View")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post3.id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post3.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post3.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post3.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post3.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session7), post3.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session8), post3.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post3.id, "View")).toEqual("PermissionDenied");
+            for (const [spaceName, testCases3] of getObjectEntriesWithKeyofType(
+                testCases2.impersonatedAccount,
+            )) {
+                for (const [sessionName, expectedResult] of getObjectEntriesWithKeyofType(
+                    testCases3,
+                )) {
+                    test(
+                        // eslint-disable-next-line jest/valid-title
+                        quote`${postName} authorized for ${accessLevel} by ${sessionName} in ${spaceName} impersonated account actor ` +
+                            (expectedResult === null ? "is ok" : quote`throws ${expectedResult}`),
+                        async () => {
+                            expect(
+                                await runTest(
+                                    scenario[spaceName].impersonatedAction(scenario[sessionName]),
+                                    scenario[postName].id,
+                                    accessLevel,
+                                ),
+                            ).toEqual(expectedResult);
+                        },
+                    );
+                }
+            }
 
-    expect(await auth(space1.systemAction(), post3.id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session2.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), post3.id, "Edit")).toEqual(null);
-    expect(await auth(session4.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session7.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session8.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), post3.id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session2), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), post3.id, "Edit")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session7), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session8), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), post3.id, "Edit")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), post4.id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session2.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session3.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session7.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session8.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session7), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session8), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post4.id, "View")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), post4.id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session2.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session7.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session8.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), post4.id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session2), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session7), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session8), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), post4.id, "Edit")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), post4.id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session2.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session3.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session7.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(session8.action(), post4.id, "View")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session7), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session8), post4.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post4.id, "View")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), post5.id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session2.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session7.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session8.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), post5.id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session2), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session7), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session8), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), post5.id, "Edit")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), post6.id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post6.id, "View")).toEqual(null);
-    expect(await auth(session2.action(), post6.id, "View")).toEqual(null);
-    expect(await auth(session3.action(), post6.id, "View")).toEqual(null);
-    expect(await auth(session4.action(), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post6.id, "View")).toEqual(null);
-    expect(await auth(session7.action(), post6.id, "View")).toEqual(null);
-    expect(await auth(session8.action(), post6.id, "View")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post6.id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post6.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), post6.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), post6.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post6.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session7), post6.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session8), post6.id, "View")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post6.id, "View")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), post6.id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session2.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session7.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session8.action(), post6.id, "Edit")).toEqual(null);
-    expect(await auth(context.anonymousAction(), post6.id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session2), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session7), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session8), post6.id, "Edit")).toEqual(null);
-    expect(await auth(impersonate(space2, session1), post6.id, "Edit")).toEqual("PermissionDenied");
-});
-
-test("can authorize channel access at different levels", async () => {
-    const space1 = await TestSpace.create(context);
-    const space2 = await TestSpace.create(context);
-
-    const [session1, session2, session3, session4, session5] = await space1.createSessions(7);
-    const session6 = await space2.createSession();
-
-    await space2.addAccount(session1);
-
-    const channel = await TestChannel.create(session1);
-    const {id} = channel;
-
-    await channel.access.revokeDefault(session1);
-    await channel.access.grant(session1, session2, "View");
-    await channel.access.grant(session1, session3, "Comment");
-    await channel.access.grant(session1, session4, "Edit");
-
-    const impersonate = (space: TestSpace, session: TestSession) => {
-        return context.impersonatedAccountAction(space.id, session.account.id);
-    };
-
-    const auth = async (
-        context: ServerActionContext,
-        id: ChannelId,
-        expectedAccessLevel: AccessLevel,
-    ) => {
-        const result = await authorizeChannelAccessIfPossible(context, id, expectedAccessLevel);
-
-        try {
-            await authorizeChannelAccess(context, id, expectedAccessLevel);
-            expect(result.ok).toEqual(true);
-            return null;
-        } catch (error) {
-            if (error instanceof PermissionDeniedError) {
-                expect(result.ok).toEqual(false);
-                expect(result.error).toBeInstanceOf(PermissionDeniedError);
-                return "PermissionDenied";
-            } else if (error instanceof UnauthenticatedError) {
-                expect(result.ok).toEqual(false);
-                expect(result.error).toBeInstanceOf(UnauthenticatedError);
-                return "Unauthenticated";
-            } else {
-                throw error;
+            for (const [botName, expectedResult] of getObjectEntriesWithKeyofType(testCases2.bot)) {
+                test(
+                    // eslint-disable-next-line jest/valid-title
+                    quote`${postName} authorized for ${accessLevel} by ${botName} bot actor ` +
+                        (expectedResult === null ? "is ok" : quote`throws ${expectedResult}`),
+                    async () => {
+                        expect(
+                            await runTest(
+                                scenario[botName].action({
+                                    type: "Account",
+                                    accountId: scenario.session1.account.id,
+                                }),
+                                scenario[postName].id,
+                                accessLevel,
+                            ),
+                        ).toEqual(expectedResult);
+                    },
+                );
             }
         }
-    };
-
-    expect(await auth(space1.systemAction(), id, "View")).toEqual(null);
-    expect(await auth(space2.systemAction(), id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), id, "View")).toEqual(null);
-    expect(await auth(session2.action(), id, "View")).toEqual(null);
-    expect(await auth(session3.action(), id, "View")).toEqual(null);
-    expect(await auth(session4.action(), id, "View")).toEqual(null);
-    expect(await auth(session5.action(), id, "View")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), id, "View")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), id, "View")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session3), id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), id, "View")).toEqual(null);
-    expect(await auth(impersonate(space1, session5), id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), id, "View")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), id, "View")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), id, "Comment")).toEqual(null);
-    expect(await auth(space2.systemAction(), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), id, "Comment")).toEqual(null);
-    expect(await auth(session2.action(), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), id, "Comment")).toEqual(null);
-    expect(await auth(session4.action(), id, "Comment")).toEqual(null);
-    expect(await auth(session5.action(), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), id, "Comment")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), id, "Comment")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), id, "Comment")).toEqual(null);
-    expect(await auth(impersonate(space1, session4), id, "Comment")).toEqual(null);
-    expect(await auth(impersonate(space1, session5), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), id, "Comment")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), id, "Comment")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), id, "Edit")).toEqual(null);
-    expect(await auth(space2.systemAction(), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), id, "Edit")).toEqual(null);
-    expect(await auth(session2.action(), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), id, "Edit")).toEqual(null);
-    expect(await auth(session5.action(), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), id, "Edit")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), id, "Edit")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), id, "Edit")).toEqual(null);
-    expect(await auth(impersonate(space1, session5), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), id, "Edit")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), id, "Edit")).toEqual("PermissionDenied");
-
-    expect(await auth(space1.systemAction(), id, "Manage")).toEqual(null);
-    expect(await auth(space2.systemAction(), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(session1.action(), id, "Manage")).toEqual(null);
-    expect(await auth(session2.action(), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(session3.action(), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(session4.action(), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(session5.action(), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(session6.action(), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(context.anonymousAction(), id, "Manage")).toEqual("Unauthenticated");
-    expect(await auth(impersonate(space1, session1), id, "Manage")).toEqual(null);
-    expect(await auth(impersonate(space1, session2), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session3), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session4), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session5), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space1, session6), id, "Manage")).toEqual("PermissionDenied");
-    expect(await auth(impersonate(space2, session1), id, "Manage")).toEqual("PermissionDenied");
+    }
 });
 
 test("authorizing channel access as session actor is cached", async () => {
@@ -5429,15 +5765,15 @@ test("authorizing channel access after getting channel notification subscribers 
 
         await getChannelNotificationSubscribers(actionContext, channel.id);
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -5447,7 +5783,7 @@ test("authorizing channel access after getting channel notification subscribers 
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
     }
 });
 
@@ -5951,8 +6287,11 @@ test("authorizing post access after getting post as system actor is cached", asy
 test("can create, get, update, and authorize a post draft", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
-    const [session1, session2] = await space.createSessions(2);
+    const session1 = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession();
     const otherSession = await otherSpace.createSession();
+
+    const botAccount = await TestBot.createAndInstantiate(session1);
 
     const draftId = generateChronologicalId<PostDraftId>();
 
@@ -6016,6 +6355,14 @@ test("can create, get, update, and authorize a post draft", async () => {
     ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
 
     await expect(
+        authorizePostDraftAccess(botAccount.action(), space.id, botAccount.id, draftId),
+    ).rejects.toThrow("Bot account not allowed");
+
+    await expect(
+        authorizePostDraftAccess(botAccount.action(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Bot account not allowed");
+
+    await expect(
         createOrReplacePostDraft(session2.action(), space.id, session1.account.id, draftId, {
             channelId: null,
             content: createSimplePostContent("Test post content 2"),
@@ -6061,6 +6408,20 @@ test("can create, get, update, and authorize a post draft", async () => {
             },
         ),
     ).rejects.toThrow("Unauthenticated session");
+
+    await expect(
+        createOrReplacePostDraft(botAccount.action(), space.id, session1.account.id, draftId, {
+            channelId: null,
+            content: createSimplePostContent("Test post content 2"),
+        }),
+    ).rejects.toThrow("Bot account not allowed");
+
+    await expect(
+        createOrReplacePostDraft(botAccount.action(), space.id, botAccount.id, draftId, {
+            channelId: null,
+            content: createSimplePostContent("Test post content 2"),
+        }),
+    ).rejects.toThrow("Bot account not allowed");
 
     expect(
         await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
@@ -6237,7 +6598,7 @@ test("can check if actor is subscribed to channel", async () => {
 
     await expect(
         getChannelNotificationSubscribers(otherSpace.systemAction(), channel.id),
-    ).rejects.toThrow("System actor doesn’t have access to channel’s space");
+    ).rejects.toThrow("System actor doesn’t have access to space");
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
         session1.account.id,
@@ -6249,7 +6610,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6261,7 +6622,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual(
@@ -6273,7 +6634,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual(
@@ -6285,7 +6646,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6297,7 +6658,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6305,16 +6666,16 @@ test("can check if actor is subscribed to channel", async () => {
     ]);
 
     await expect(subscribeToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     await expect(unsubscribeFromChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6326,7 +6687,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
@@ -6336,7 +6697,7 @@ test("can check if actor is subscribed to channel", async () => {
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6347,34 +6708,38 @@ test("can check if actor is subscribed to channel", async () => {
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session2.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
-    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session2.account.id,
+    ]);
 
     await expect(unsubscribeFromChannel(session2.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     await expect(isSubscribedToChannel(session2.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
-    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session2.account.id,
+    ]);
 
     await channel.access.grant(session1, session2);
 
     expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
     expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
     await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to channel",
+        "Actor doesn’t have `View` access level",
     );
 
     expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
@@ -6410,7 +6775,7 @@ test("can only send share notification as a member of channel", async () => {
             accountIds: [session1.account.id],
             content: emptyMessageContent,
         }),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 });
 
 describe("Notification subscribers", () => {
@@ -8270,7 +8635,7 @@ test("can’t get post realtime event for post actor doesn’t have access to", 
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 });
 
 test("can’t get post realtime event for post in different space", async () => {
@@ -8625,7 +8990,7 @@ test("can’t get channel realtime event when actor doesn’t have access", asyn
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 });
 
 test("can’t get channel contributors and channel files realtime event when actor doesn’t have access", async () => {
@@ -8665,7 +9030,7 @@ test("can’t get channel contributors and channel files realtime event when act
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 });
 
 test("can’t get channel realtime event for post when actor doesn’t have access", async () => {
@@ -8689,7 +9054,7 @@ test("can’t get channel realtime event for post when actor doesn’t have acce
                 },
             },
         ]),
-    ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
 });
 
 test("can’t get channel realtime event when actor doesn’t have space access", async () => {
@@ -8881,5 +9246,118 @@ describe("getChannelAndMetadata", () => {
                 });
             });
         }
+    });
+});
+
+describe("`getPostAccessPolicyForBotScope()`", () => {
+    test("can get access policy for scoped post", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session);
+
+        expect(
+            await getPostAccessPolicyForBotScope(
+                botAccount.action({type: "Post", postId: post.id}),
+                post.id,
+            ),
+        ).toEqual(
+            expect.objectContaining({
+                accountGrantById: new Map([
+                    [session.account.id, expect.objectContaining({level: "Manage"})],
+                ]),
+            }),
+        );
+    });
+
+    test("can’t get access policy for scoped post other than the one scoped", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session);
+        const otherPost = await channel.createPost(session);
+
+        await expect(
+            getPostAccessPolicyForBotScope(
+                botAccount.action({type: "Post", postId: post.id}),
+                otherPost.id,
+            ),
+        ).rejects.toThrow("Can only get access policy for the scoped post");
+    });
+
+    test("can’t get access policy with space scope", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session);
+
+        await expect(
+            getPostAccessPolicyForBotScope(botAccount.action({type: "Space"}), post.id),
+        ).rejects.toThrow("Can only get access policy for the scoped post");
+    });
+
+    test("can’t get access policy with space scope even if post is shared with space", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        const post = await channel.createPost(session);
+
+        await expect(
+            getPostAccessPolicyForBotScope(botAccount.action({type: "Space"}), post.id),
+        ).rejects.toThrow("Can only get access policy for the scoped post");
+    });
+
+    test("can’t get access policy with account scope even if account has access to post", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session);
+
+        await expect(
+            getPostAccessPolicyForBotScope(
+                botAccount.action({type: "Account", accountId: session.account.id}),
+                post.id,
+            ),
+        ).rejects.toThrow("Can only get access policy for the scoped post");
+    });
+
+    test("can’t get access policy for post in different space even if scope declares access", async () => {
+        const space = await TestSpace.create(context);
+        const otherSpace = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const otherSession = await otherSpace.createSession({role: "Admin"});
+        const otherBotAccount = await TestBot.createAndInstantiate(otherSession);
+
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session);
+
+        await expect(
+            getPostAccessPolicyForBotScope(
+                otherBotAccount.action({type: "Post", postId: post.id}),
+                post.id,
+            ),
+        ).rejects.toThrow("Account doesn’t have access to space");
+    });
+
+    test("can’t get access policy for post which doesn’t exist", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const botAccount = await TestBot.createAndInstantiate(session);
+
+        const postId = generateId<PostId>();
+
+        await expect(
+            getPostAccessPolicyForBotScope(botAccount.action({type: "Post", postId}), postId),
+        ).rejects.toThrow("Post not found");
     });
 });

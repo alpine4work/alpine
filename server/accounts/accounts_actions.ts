@@ -16,6 +16,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {
     AccountModelWithoutSpace,
@@ -180,7 +181,7 @@ export async function createAccountEmailAddressForTest(
 ) {
     assert(process.env.NODE_ENV === "test");
 
-    // This is a test. We assume the `AccountId` exists.
+    // This is a test. We assume the `AccountId` exists and that it's not a bot.
 
     await AccountsTable.createItem(context, {
         partitionType: "AccountEmailAddress",
@@ -973,6 +974,9 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
         case "Anonymous": {
             throw unauthenticatedSessionError();
         }
+        case "Bot": {
+            throw permissionDeniedBotError();
+        }
         default:
             throw exhaustive(context.actor);
     }
@@ -1271,6 +1275,9 @@ export async function deleteAccountAppleDeviceTokenIfExists(
         }
         case "Anonymous": {
             throw unauthenticatedSessionError();
+        }
+        case "Bot": {
+            throw permissionDeniedBotError();
         }
         default:
             throw exhaustive(context.actor);

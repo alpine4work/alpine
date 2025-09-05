@@ -131,4 +131,13 @@ export class ContextCache<Key extends string | number, Value> {
         const cacheMap = context.cache._getCacheMap(this);
         cacheMap.set(key, Promise.resolve(value));
     }
+
+    /**
+     * Unconditionally remove a value from the cache. The next time we try to read
+     * the key from the cache it'll be repopulated.
+     */
+    public delete(context: Context<{cache: CacheContextModule}>, key: Key): void {
+        const cacheMap = context.cache._getCacheMap(this);
+        cacheMap.delete(key);
+    }
 }

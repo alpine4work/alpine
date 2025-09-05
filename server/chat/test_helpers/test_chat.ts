@@ -13,6 +13,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -38,25 +39,34 @@ export class TestChat extends TestMessageRoomBase {
 
     public static async get(
         session: TestSpaceSession,
-        ...otherAccounts: ReadonlyArray<TestSession | TestAccount>
+        ...otherAccounts: ReadonlyArray<TestSession | TestAccount | AccountId>
     ) {
         const chatId = await getOrCreateChatForAccounts(session.action(), {
             spaceId: session.space.id,
             otherAccountIds: otherAccounts.map(otherAccount =>
-                otherAccount instanceof TestSession ? otherAccount.account.id : otherAccount.id,
+                otherAccount instanceof TestSession
+                    ? otherAccount.account.id
+                    : typeof otherAccount === "string"
+                    ? otherAccount
+                    : otherAccount.id,
             ),
         });
 
         const accountById = new Map<AccountId, TestAccount>();
         accountById.set(session.account.id, session.account);
 
-        for (const otherAccount of otherAccounts) {
-            if (otherAccount instanceof TestSession) {
-                accountById.set(otherAccount.account.id, otherAccount.account);
-            } else {
-                accountById.set(otherAccount.id, otherAccount);
-            }
-        }
+        await runAllPromises(
+            otherAccounts.map(async otherAccount => {
+                if (otherAccount instanceof TestSession) {
+                    accountById.set(otherAccount.account.id, otherAccount.account);
+                } else if (typeof otherAccount === "string") {
+                    const actualOtherAccount = await TestAccount.get(session.context, otherAccount);
+                    accountById.set(otherAccount, actualOtherAccount);
+                } else {
+                    accountById.set(otherAccount.id, otherAccount);
+                }
+            }),
+        );
 
         const accounts = Array.from(accountById.values()).sort((account1, account2) =>
             defaultCompareStrings(account1.id, account2.id),

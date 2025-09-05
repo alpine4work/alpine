@@ -1,4 +1,4 @@
-import {TaskAuthorizationActor} from "~/server/tasks/data/task_table.js";
+import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -21,7 +21,7 @@ export async function prepareTaskActionForClient(
         isSpaceAccessAuthorized,
         isCollectionAccessAuthorized,
     }: {
-        actor: TaskAuthorizationActor;
+        actor: TaskRealtimeActorInterface;
         isSpaceAccessAuthorized: boolean;
         isCollectionAccessAuthorized: (collectionId: TaskCollectionId) => Promise<boolean>;
     },
@@ -93,7 +93,7 @@ export async function prepareTaskActionForClient(
                 }
                 case "UpdateAssigneePosition": {
                     if (
-                        actor.type !== "Session" ||
+                        (actor.type !== "Session" && actor.type !== "ImpersonatedAccount") ||
                         action.taskAction.accountId !== actor.getAccountId()
                     ) {
                         return null;

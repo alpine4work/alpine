@@ -1,6 +1,7 @@
 import {
     DynamoActorContextModule,
     DynamoAnonymousActorContextModule,
+    DynamoBotActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
@@ -100,6 +101,17 @@ export type ServerImpersonatedAccountActionContextModules = MergeObjectIntersect
 >;
 
 /**
+ * Context for actions by a bot in a specified scope.
+ */
+export type ServerBotActionContext = Context<ServerBotActionContextModules>;
+
+export type ServerBotActionContextModules = MergeObjectIntersection<
+    ServerActionContextModulesBase & {
+        actor: DynamoBotActorContextModule;
+    }
+>;
+
+/**
  * Context for actions where the actor might be a session actor but we need to
  * lazily authenticate to get an `DynamoActionContext`.
  */
@@ -108,5 +120,20 @@ export type ServerUnknownActionContext = Context<ServerUnknownActionContextModul
 export type ServerUnknownActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
         actor: DynamoUnknownActorContextModule;
+    }
+>;
+
+/**
+ * Context for actions where the actor is some account. Either a session actor,
+ * impersonated account actor, or bot account actor.
+ */
+export type ServerAccountActionContext = Context<ServerAccountActionContextModules>;
+
+export type ServerAccountActionContextModules = MergeObjectIntersection<
+    ServerActionContextModulesBase & {
+        actor:
+            | DynamoSessionActorContextModule
+            | DynamoImpersonatedAccountActorContextModule
+            | DynamoBotActorContextModule;
     }
 >;

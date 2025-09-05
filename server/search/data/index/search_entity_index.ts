@@ -2072,8 +2072,9 @@ async function prepareSearchEntityMediaForResult(
                             return true;
                         }
                         case "Session":
-                        case "ImpersonatedAccount": {
-                            return accountId !== context.actor.getAccountId();
+                        case "ImpersonatedAccount":
+                        case "Bot": {
+                            return accountId !== context.actor.getPossiblyBotAccountId();
                         }
                         default:
                             throw exhaustive(context.actor);

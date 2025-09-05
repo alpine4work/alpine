@@ -1,0 +1,86 @@
+import {createBotForTest} from "~/server/bots/bots_table.js";
+import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, BotId} from "~/shared/id/types/id_types.js";
+
+let testBotCount = 1;
+
+export class TestBot {
+    public readonly context: TestContext;
+    public readonly id: BotId;
+    public readonly initialName: string;
+
+    public constructor(context: TestContext, id: BotId, initialName: string) {
+        this.context = context;
+        this.id = id;
+        this.initialName = initialName;
+    }
+
+    public static async create(
+        context: TestContext,
+        {
+            name,
+            webhookUrl,
+        }: {
+            name?: string;
+            webhookUrl?: string;
+        } = {},
+    ) {
+        const count = name === undefined || webhookUrl === undefined ? testBotCount++ : 0;
+
+        const initialName = name ?? `Test Bot ${count}`;
+
+        const {id} = await createBotForTest(context, {
+            name: initialName,
+            webhookUrl: webhookUrl ?? `https://bot.test.cyberworlds.dev/webhook${count}`,
+        });
+
+        return new TestBot(context, id, initialName);
+    }
+
+    public async instantiate(
+        session: TestSpaceSession,
+        {id = generateId<AccountId>()}: {id?: AccountId} = {},
+    ) {
+        const {name} = await instantiateBotSpaceAccount(session.action(), {
+            spaceId: session.space.id,
+            botId: this.id,
+            accountId: id,
+        });
+
+        return TestBotAccount._new(this, session.space, id, name);
+    }
+
+    public static async createAndInstantiate(
+        session: TestSpaceSession,
+        {accountId}: {accountId?: AccountId} = {},
+    ) {
+        const bot = await TestBot.create(session.context);
+        return bot.instantiate(session, {id: accountId});
+    }
+}
+
+export class TestBotAccount extends TestAccount {
+    public readonly bot: TestBot;
+    public readonly space: TestSpace;
+
+    private constructor(bot: TestBot, space: TestSpace, id: AccountId, initialName: string) {
+        super(bot.context, id, initialName);
+        this.bot = bot;
+        this.space = space;
+    }
+
+    // Should only be called by `TestBot`.
+    public static _new(bot: TestBot, space: TestSpace, id: AccountId, initialName: string) {
+        return new TestBotAccount(bot, space, id, initialName);
+    }
+
+    public action(scope?: BotTokenPayloadScope) {
+        return this.bot.context.botAction(this.space.id, this.id, scope);
+    }
+}

@@ -12,6 +12,7 @@ alias(
 ts_project(
     name = "data",
     test_deps = [
+        "//server/bots/test_helpers",
         "//server/chat/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers",
@@ -23,13 +24,11 @@ ts_project(
     visibility = [
         "//admin/crawl:__pkg__",
         "//app:__pkg__",
-        "//server/migration:__pkg__",
-        "//server/notifications/data:__pkg__",
-        "//server/rpc:__pkg__",
-        "//server/search/data/index:__pkg__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//:node_modules/murmurhash",
+        "//server/access",
         "//server/content",
         "//server/context",
         "//server/dynamo/core",

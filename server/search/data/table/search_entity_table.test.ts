@@ -1,5 +1,5 @@
 import {addDays} from "date-fns";
-import {createBotForTest} from "~/server/bots/bots_table.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -24,7 +24,6 @@ import {
     thirtyDaysDurationMs,
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -2152,18 +2151,12 @@ test("will show top three favorites at the start of affinity list when querying 
 });
 
 test("adding and removing search affinity points is a noop for bot account", async () => {
-    const bot = await createBotForTest(context, {
-        name: "Test Bot",
-        webhookUrl: "https://bot.test.cyberworlds.dev/webhook",
-    });
+    const bot = await TestBot.create(context);
 
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
 
-    const {accountId: botAccountId} = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const {id: botAccountId} = await bot.instantiate(session);
 
     const task = await TestTask.create(session);
 

@@ -3,13 +3,12 @@ import {IncomingMessage, ServerResponse, createServer} from "http";
 import {Socket} from "net";
 import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {
-    createBotForTest,
     processCallBotWebhookJob,
     setIsProcessCallBotWebhookJobCrashSimulatedForTest,
 } from "~/server/bots/bots_table.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -83,7 +82,7 @@ test("if webhook is successful it’s only called once", async () => {
         res.end("200 OK");
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -91,10 +90,7 @@ test("if webhook is successful it’s only called once", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const event1Id = generateChronologicalId<BotWebhookEventId>();
 
@@ -118,7 +114,7 @@ test("if webhook is successful it’s only called once", async () => {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId: event1Id,
         event: event1,
     });
@@ -129,7 +125,7 @@ test("if webhook is successful it’s only called once", async () => {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId: event1Id,
         event: event1,
     });
@@ -140,7 +136,7 @@ test("if webhook is successful it’s only called once", async () => {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId: event2Id,
         event: event2,
     });
@@ -151,7 +147,7 @@ test("if webhook is successful it’s only called once", async () => {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId: event1Id,
         event: event1,
     });
@@ -172,7 +168,7 @@ test("if webhook is successful it’s only called once even if job is run multip
         res.end("200 OK");
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -180,10 +176,7 @@ test("if webhook is successful it’s only called once even if job is run multip
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const event1Id = generateChronologicalId<BotWebhookEventId>();
 
@@ -208,7 +201,7 @@ test("if webhook is successful it’s only called once even if job is run multip
             type: "CallBotWebhook",
             spaceId: space.id,
             botId: bot.id,
-            botAccountId: botAccount.accountId,
+            botAccountId: botAccount.id,
             eventId: event1Id,
             event: event1,
         }),
@@ -216,7 +209,7 @@ test("if webhook is successful it’s only called once even if job is run multip
             type: "CallBotWebhook",
             spaceId: space.id,
             botId: bot.id,
-            botAccountId: botAccount.accountId,
+            botAccountId: botAccount.id,
             eventId: event1Id,
             event: event1,
         }),
@@ -224,7 +217,7 @@ test("if webhook is successful it’s only called once even if job is run multip
             type: "CallBotWebhook",
             spaceId: space.id,
             botId: bot.id,
-            botAccountId: botAccount.accountId,
+            botAccountId: botAccount.id,
             eventId: event1Id,
             event: event1,
         }),
@@ -236,7 +229,7 @@ test("if webhook is successful it’s only called once even if job is run multip
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId: event1Id,
         event: event1,
     });
@@ -248,7 +241,7 @@ test("if webhook is successful it’s only called once even if job is run multip
             type: "CallBotWebhook",
             spaceId: space.id,
             botId: bot.id,
-            botAccountId: botAccount.accountId,
+            botAccountId: botAccount.id,
             eventId: event2Id,
             event: event2,
         }),
@@ -256,7 +249,7 @@ test("if webhook is successful it’s only called once even if job is run multip
             type: "CallBotWebhook",
             spaceId: space.id,
             botId: bot.id,
-            botAccountId: botAccount.accountId,
+            botAccountId: botAccount.id,
             eventId: event2Id,
             event: event2,
         }),
@@ -268,7 +261,7 @@ test("if webhook is successful it’s only called once even if job is run multip
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId: event1Id,
         event: event1,
     });
@@ -297,7 +290,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
         }
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -305,10 +298,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -324,7 +314,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -373,7 +363,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
         }
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -381,10 +371,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -400,7 +387,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -441,7 +428,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
         }
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -449,10 +436,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -468,7 +452,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -519,7 +503,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
         }
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -527,10 +511,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -546,7 +527,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -561,7 +542,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -616,7 +597,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
         );
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -624,10 +605,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -643,7 +621,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -724,7 +702,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
         );
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -732,10 +710,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -751,7 +726,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -824,7 +799,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
         );
     });
 
-    const bot = await createBotForTest(context, {
+    const bot = await TestBot.create(context, {
         name: "Test Bot",
         webhookUrl: server.baseUrl,
     });
@@ -832,10 +807,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Owner"});
 
-    const botAccount = await instantiateBotSpaceAccount(session.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-    });
+    const botAccount = await bot.instantiate(session);
 
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
@@ -851,7 +823,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });
@@ -884,7 +856,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
-        botAccountId: botAccount.accountId,
+        botAccountId: botAccount.id,
         eventId,
         event,
     });

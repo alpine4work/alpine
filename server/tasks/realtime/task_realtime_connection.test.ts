@@ -13704,7 +13704,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
         {
             type: "TaskSubscriptionError",
             id: taskSubscriptionId,
-            error: new PermissionDeniedError("Actor doesn’t have `View` access level to task"),
+            error: new PermissionDeniedError("Actor doesn’t have `View` access level"),
         },
     ]);
 
@@ -14619,9 +14619,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
         {
             type: "CollectionSubscriptionError",
             id: collectionSubscriptionId,
-            error: new PermissionDeniedError(
-                "Actor doesn’t have `View` access level to task collection",
-            ),
+            error: new PermissionDeniedError("Actor doesn’t have `View` access level"),
         },
     ]);
 
@@ -14720,9 +14718,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
         {
             type: "CollectionSubscriptionError",
             id: collectionSubscriptionId,
-            error: new PermissionDeniedError(
-                "Actor doesn’t have `View` access level to task collection",
-            ),
+            error: new PermissionDeniedError("Actor doesn’t have `View` access level"),
         },
         {
             type: "Update",

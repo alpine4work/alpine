@@ -1,3 +1,4 @@
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -479,11 +480,13 @@ test("can finish file processing preview size and preview placeholder in any ord
 
 test("can’t finish file preview processing with a different account", async () => {
     const space = await TestSpace.create(context);
-    const session = await space.createSession();
+    const session = await space.createSession({role: "Admin"});
     const otherSession = await space.createSession();
 
     const otherSpace = await TestSpace.create(context);
     await otherSpace.addAccount(session);
+
+    const botAccount = await TestBot.createAndInstantiate(session);
 
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
@@ -545,6 +548,13 @@ test("can’t finish file preview processing with a different account", async ()
     ).rejects.toThrow(
         new PermissionDeniedError("Impersonated account actor is not for the file’s space"),
     );
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewPlaceholder(
+            botAccount.action(),
+            fileImagePreviewPlaceholder1,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file’s uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6820,11 +6830,13 @@ test("system action from the wrong space can’t access file", async () => {
 
 test("only the uploader account can access their file", async () => {
     const space = await TestSpace.create(context);
-    const session = await space.createSession();
+    const session = await space.createSession({role: "Admin"});
     const otherSession = await space.createSession();
 
     const otherSpace = await TestSpace.create(context);
     await otherSpace.addAccount(session);
+
+    const botAccount = await TestBot.createAndInstantiate(session);
 
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
@@ -6873,6 +6885,10 @@ test("only the uploader account can access their file", async () => {
     ).rejects.toThrow(
         new PermissionDeniedError("Impersonated account actor doesn’t have access to space"),
     );
+
+    await expect(
+        getFileAsUploader(botAccount.action(), space.id, fileUploader.fileId),
+    ).rejects.toThrow(new PermissionDeniedError("Account didn’t upload file"));
 });
 
 test("can get file from attachment after it’s been attached", async () => {
@@ -8139,4 +8155,30 @@ test("can get all files attached to post draft", async () => {
             FilePostAuthorizer,
         ),
     ).toEqual([file1Uploader.fileId, file2Uploader.fileId]);
+});
+
+test("bot can upload file", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(session);
+
+    const {fileId} = await startUploadingFile(botAccount.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    expect(
+        (await getFileAsUploader(space.systemAction(), space.id, fileId)).initialData.isUploading,
+    ).toEqual(true);
+
+    await finishUploadingAndStartProcessingFile(botAccount.action(), {
+        spaceId: space.id,
+        fileId,
+    });
+
+    expect(
+        (await getFileAsUploader(space.systemAction(), space.id, fileId)).initialData.isUploading,
+    ).toEqual(false);
 });

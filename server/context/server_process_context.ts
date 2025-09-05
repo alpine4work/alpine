@@ -2,6 +2,7 @@ import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_co
 import {EdgeServiceContextModuleBase} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
+    ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
     SearchInjectionContextModule,
@@ -126,6 +127,7 @@ export type ServerProcessContextModules = {
     // These are used to call functions that aren't part of the current Bazel
     // package's dependency graph for either performance reasons or to avoid
     // cyclic dependencies.
+    chatInjection: ChatInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
     searchInjection: SearchInjectionContextModule;

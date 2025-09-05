@@ -1,3 +1,9 @@
+import {
+    ChatInjectionContextModule,
+    DocumentsInjectionContextModule,
+    ForumInjectionContextModule,
+    TasksInjectionContextModule,
+} from "~/server/context/injection_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_actions.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -27,6 +33,10 @@ export const allMigrations: {
             jobs: JobsContextModule;
             constants: ServerConstantsContextModule;
             opensearch: OpensearchContextModule;
+            chatInjection: ChatInjectionContextModule;
+            documentsInjection: DocumentsInjectionContextModule;
+            forumInjection: ForumInjectionContextModule;
+            tasksInjection: TasksInjectionContextModule;
         }>,
         options: {segmentIndex: number; totalSegmentCount: number},
     ) => Promise<void>;

@@ -14,6 +14,7 @@ import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_co
 import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
 import {
     DynamoAnonymousActorContextModule,
+    DynamoBotActorContextModule,
     DynamoImpersonatedAccountActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
@@ -21,6 +22,8 @@ import {
 } from "~/server/context/dynamo_actor_context_module.js";
 import {TestFilesContextModule} from "~/server/context/files_context_module.js";
 import {
+    ChatInjection,
+    ChatInjectionContextModule,
     DocumentsInjection,
     DocumentsInjectionContextModule,
     ForumInjection,
@@ -34,6 +37,7 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {
     ServerAnonymousActionContextModules,
+    ServerBotActionContextModules,
     ServerImpersonatedAccountActionContextModules,
     ServerSessionActionContextModules,
     ServerSystemActionContextModules,
@@ -60,6 +64,7 @@ import {
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {
@@ -124,6 +129,10 @@ export type TestImpersonatedAccountActionContextModules =
 export type TestImpersonatedAccountActionContext =
     Context<TestImpersonatedAccountActionContextModules>;
 
+export type TestBotActionContextModules = ServerBotActionContextModules & TestContextExtraModules;
+
+export type TestBotActionContext = Context<TestBotActionContextModules>;
+
 export type TestUnknownActionContextModules = ServerUnknownActionContextModules &
     TestContextExtraModules;
 
@@ -173,6 +182,19 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
         accountId: AccountId,
         options?: {serviceName: ActorServiceName},
     ): TestImpersonatedAccountActionContext;
+
+    /**
+     * An action for a bot in some specified scope.
+     *
+     * This function assumes you've already validated that `botAccountId` is
+     * actually an `AccountId` for a bot account.
+     */
+    botAction(
+        spaceId: SpaceId,
+        botAccountId: AccountId,
+        scope?: BotTokenPayloadScope,
+        options?: {serviceName: ActorServiceName},
+    ): TestBotActionContext;
 
     /**
      * An action where we don't know whether we're authenticated or not. When
@@ -246,6 +268,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
 export function createTestContext(
     options: {
         shouldStartOpensearch?: boolean;
+        chatInjection?: Partial<ChatInjection>;
         documentsInjection?: Partial<DocumentsInjection>;
         forumInjection?: Partial<ForumInjection>;
         searchInjection?: Partial<SearchInjection>;
@@ -436,7 +459,7 @@ export function createTestContext(
             | {id: SessionId; account: {id: AccountId}}
             | {sessionId: SessionId; accountId: AccountId},
         {
-            // Dangerously allow pretending to be from any context in tests.
+            // Dangerously allow pretending to be from any service in tests.
             serviceName = "Test",
         }: {
             serviceName?: ActorServiceName;
@@ -456,7 +479,7 @@ export function createTestContext(
     const createSystemContext = (
         spaceId: SpaceId,
         {
-            // Dangerously allow pretending to be from any context in tests.
+            // Dangerously allow pretending to be from any service in tests.
             serviceName = "Test",
         }: {
             serviceName?: ActorServiceName;
@@ -474,7 +497,7 @@ export function createTestContext(
     };
 
     const createAnonymousContext = ({
-        // Dangerously allow pretending to be from any context in tests.
+        // Dangerously allow pretending to be from any service in tests.
         serviceName = "Test",
     }: {
         serviceName?: ActorServiceName;
@@ -490,7 +513,7 @@ export function createTestContext(
         spaceId: SpaceId,
         accountId: AccountId,
         {
-            // Dangerously allow pretending to be from any context in tests.
+            // Dangerously allow pretending to be from any service in tests.
             serviceName = "Test",
         }: {
             serviceName?: ActorServiceName;
@@ -503,6 +526,30 @@ export function createTestContext(
                 DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
                 accountId,
             ),
+        });
+    };
+
+    const createBotContext = (
+        spaceId: SpaceId,
+        botAccountId: AccountId,
+        scope: BotTokenPayloadScope = {type: "Space"},
+        {
+            // Dangerously allow pretending to be from any service in tests.
+            serviceName = "Test",
+        }: {
+            serviceName?: ActorServiceName;
+        } = {},
+    ): TestBotActionContext => {
+        return processContext.clone({
+            cache: CacheContextModule.new(),
+            batch: BatchContextModule.new(),
+            actor: DynamoBotActorContextModule.dangerouslyNew(
+                serviceName,
+                spaceId,
+                botAccountId,
+                scope,
+            ),
+            fork: new ForkActionContextModule(),
         });
     };
 
@@ -548,6 +595,7 @@ export function createTestContext(
         edge: new TestLocalEdgeServiceContextModule(),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
+        chatInjection: ChatInjectionContextModule.test(options.chatInjection),
         documentsInjection: DocumentsInjectionContextModule.test(options.documentsInjection),
         forumInjection: ForumInjectionContextModule.test(options.forumInjection),
         searchInjection: SearchInjectionContextModule.test(searchInjection),
@@ -571,6 +619,7 @@ export function createTestContext(
         systemAction: createSystemContext,
         anonymousAction: createAnonymousContext,
         impersonatedAccountAction: createImpersonatedAccountContext,
+        botAction: createBotContext,
         unknownAnonymousAction: createUnknownAnonymousContext,
         withCache,
         escalateToSystemContext,

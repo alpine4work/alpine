@@ -7,7 +7,9 @@ import {
     RemoveNodeMarkStep,
     Step,
 } from "prosemirror-transform";
+import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -22,6 +24,10 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerMinimalActionContext,
+    ServerMinimalBotActionContext,
+} from "~/server/context/server_minimal_action_context.js";
 import {
     DocumentIndexSearchEntityJob,
     DocumentsTable,
@@ -40,7 +46,6 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
-import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
@@ -50,16 +55,10 @@ import {
 } from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
-    createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
     isAccountMemberOfSpace,
-    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {
-    AccessLevel,
-    AccessPolicy,
-    validateAccessPolicyUpdate,
-} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
@@ -127,7 +126,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -336,19 +334,7 @@ export async function createDocument(
 
     const accessPolicy: AccessPolicy = content.attrs.accessPolicy;
 
-    if (
-        !(await evaluateAccessPolicy(
-            context,
-            spaceId,
-            context.actor.getAccountId(),
-            accessPolicy,
-            "Manage",
-        ))
-    ) {
-        throw new InvalidArgumentError(
-            "Account actor must have `Manage` access level on documents they create",
-        );
-    }
+    await validateAccessPolicyUpdateForServer(context, spaceId, null, accessPolicy);
 
     const createdTime = new Date();
     const version = 0;
@@ -614,83 +600,24 @@ async function authorizeDocumentItemAccessIfPossible(
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
     expectedAccessLevel: AccessLevel,
 ): Promise<Result<void, ErrorBase>> {
-    switch (context.actor.type) {
-        // System actors can read all documents in the space they have access to.
-        case "System": {
-            if (context.actor.getSpaceId() !== documentItem.spaceId) {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        "System actor doesn’t have access to document’s space",
-                    ),
-                };
-            }
+    // Evaluate the document access policy.
+    const isAccessAuthorized = await evaluateAccessPolicy(
+        context,
+        documentItem.spaceId,
+        documentItem.accessPolicy,
+        expectedAccessLevel,
+    );
 
-            return okResult;
-        }
-        case "Session":
-        case "ImpersonatedAccount":
-        case "Anonymous": {
-            if (
-                context.actor.type === "ImpersonatedAccount" &&
-                context.actor.getSpaceId() !== documentItem.spaceId
-            ) {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        "Impersonated account actor doesn’t have access to document’s space",
-                    ),
-                };
-            }
+    if (isAccessAuthorized) return okResult;
 
-            // Evaluate the document access policy.
-            const isAccessAuthorized = await evaluateAccessPolicy(
-                context,
-                documentItem.spaceId,
-                context.actor.type !== "Anonymous" ? context.actor.getAccountId() : null,
-                documentItem.accessPolicy,
-                expectedAccessLevel,
-            );
-
-            if (isAccessAuthorized) return okResult;
-
-            // Throw an unauthenticated error if this is an anonymous user instead of
-            // returning false. We want to show the user the unauthenticated error display
-            // message when they don't have access.
-            if (context.actor.type === "Anonymous") {
-                return {ok: false, error: unauthenticatedSessionError()};
-            } else if (
-                !(await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    documentItem.spaceId,
-                    context.actor.getAccountId(),
-                ))
-            ) {
-                return {
-                    ok: false,
-                    error: createAuthorizeSpaceAccessPermissionDeniedError(
-                        documentItem.spaceId,
-                        context.actor.getAccountId(),
-                    ),
-                };
-            } else {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError(
-                        quote`Actor doesn’t have ${expectedAccessLevel} access level to document`,
-                        {
-                            displayMessage:
-                                documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
-                                    expectedAccessLevel
-                                ],
-                        },
-                    ),
-                };
-            }
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
+    return {
+        ok: false,
+        error: await createAccessPolicyPermissionDeniedError(context, {
+            spaceId: documentItem.spaceId,
+            expectedAccessLevel,
+            displayMessages: documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+        }),
+    };
 }
 
 const DocumentItemAuthorizationCache = new DynamoContextCache<
@@ -703,7 +630,7 @@ const DocumentItemAuthorizationCache = new DynamoContextCache<
 });
 
 async function getDocumentItemForAuthorization(
-    context: ServerActionContext,
+    context: ServerMinimalActionContext,
     documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentAttributesItem> {
@@ -713,7 +640,7 @@ async function getDocumentItemForAuthorization(
 }
 
 async function getDocumentItemForAuthorizationIfExists(
-    context: ServerActionContext,
+    context: ServerMinimalActionContext,
     documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentAttributesItem | null> {
@@ -1689,6 +1616,26 @@ export async function getDocumentContentForCollaborationServiceInitialization(
         content: internalDocument.content,
         creatorId: internalDocument.attributes.creatorId,
     };
+}
+
+/**
+ * Load the document's access policy for a bot scoped to the document. Used
+ * when evaluating whether a bot has permissions to certain resources.
+ */
+export async function getDocumentAccessPolicyForBotScope(
+    context: ServerMinimalBotActionContext,
+    documentId: DocumentId,
+): Promise<AccessPolicy> {
+    const scope = context.actor.getScope();
+    if (scope.type !== "Document" || scope.documentId !== documentId) {
+        throw new PermissionDeniedError("Can only get access policy for the scoped document");
+    }
+
+    const item = await getDocumentItemForAuthorization(context, documentId);
+
+    await authorizeSpaceAccess(context, item.spaceId);
+
+    return item.accessPolicy;
 }
 
 /**
@@ -2747,14 +2694,12 @@ export async function updateDocumentContent(
         // Make sure the access policy update is valid and the actor isn't removing
         // access from accounts with a lower manage generation.
         if (hasAccessPolicyChanged) {
-            const result = validateAccessPolicyUpdate(
-                context.actor.getAccountId(),
+            await validateAccessPolicyUpdateForServer(
+                context,
+                internalDocument.spaceId,
                 oldAccessPolicy,
                 newAccessPolicy,
             );
-            if (!result.ok) {
-                throw new FailedPreconditionError(result.reason);
-            }
         }
 
         // Add a feed candidate entry when the document is given a default grant for

@@ -95,7 +95,7 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -1215,6 +1215,9 @@ function protectInboxEntryModelBuilder<Value>(
                 throw new PermissionDeniedError("Can only read inbox for our own account");
             }
             return action(context);
+        }
+        case "Bot": {
+            throw new InternalError("Bot actors shouldn’t have an inbox");
         }
         default:
             throw exhaustive(context.actor);

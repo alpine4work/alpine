@@ -2446,6 +2446,7 @@ export async function isSearchFavoriteEntity(
     switch (context.actor.type) {
         case "System":
         case "Anonymous":
+        case "Bot":
             return false;
         case "Session":
         case "ImpersonatedAccount": {

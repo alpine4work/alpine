@@ -2,6 +2,7 @@ import {Session} from "~/server/accounts/accounts_actions.js";
 import {
     DynamoActorContextModule,
     DynamoAnonymousActorContextModule,
+    DynamoBotActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
 } from "~/server/context/dynamo_actor_context_module.js";
@@ -62,6 +63,21 @@ export async function createDynamoActorContextModule(
         }
         case "Anonymous": {
             return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
+        }
+        case "Bot": {
+            // We trust the token payload. We assume bot tokens are:
+            //
+            // 1. Signed with short lifetimes (a couple hours at most)
+            // 2. Include a bot `accountId`
+            //
+            // Unlike sessions where we need to keep checking the database to see if the
+            // session has been revoked.
+            return DynamoBotActorContextModule.dangerouslyNew(
+                serviceName,
+                authorizationHeaderPayload.spaceId,
+                authorizationHeaderPayload.accountId,
+                authorizationHeaderPayload.scope,
+            );
         }
         default:
             throw exhaustive(authorizationHeaderPayload);

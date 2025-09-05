@@ -4571,7 +4571,7 @@ test("can’t connect as a viewer and ask for comments", async () => {
             document.id,
             {withoutComments: false},
         ),
-    ).rejects.toThrow("Actor doesn’t have `Comment` access level to document");
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
     expect(
         await connection1.procedures.backfill({
@@ -5515,7 +5515,7 @@ test("can update access policy", async () => {
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     const accessPolicy1: AccessPolicy = {
@@ -5555,7 +5555,7 @@ test("can update access policy", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     await expect(connection2a.authorize()).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     expect(connection2a.getCloseError()).toBeInstanceOf(PermissionDeniedError);
@@ -5575,7 +5575,7 @@ test("can update access policy", async () => {
     const {unpause: unpause1} = await pausePromise1;
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     await connection1.procedures.updateContent({
@@ -5591,7 +5591,7 @@ test("can update access policy", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     const pausePromise2 =
@@ -5609,7 +5609,7 @@ test("can update access policy", async () => {
     const {unpause: unpause2} = await pausePromise2;
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     await connection1.procedures.updateContent({
@@ -5644,7 +5644,7 @@ test("can’t update access policy unintentionally", async () => {
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     const accessPolicy2: AccessPolicy = {
@@ -5690,7 +5690,7 @@ test("can’t update access policy unintentionally", async () => {
     expect(connection1.isClosed()).toEqual(true);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to document",
+        "Actor doesn’t have `View` access level",
     );
 });
 
@@ -5711,7 +5711,7 @@ test("can’t update access policy with the wrong intentional policy", async () 
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `Comment` access level to document",
+        "Actor doesn’t have `Comment` access level",
     );
 
     const accessPolicy2a: AccessPolicy = {
@@ -5763,7 +5763,7 @@ test("can’t update access policy with the wrong intentional policy", async () 
     expect(connection1.isClosed()).toEqual(true);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        "Actor doesn’t have `View` access level to document",
+        "Actor doesn’t have `View` access level",
     );
 });
 

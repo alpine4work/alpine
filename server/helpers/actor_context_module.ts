@@ -1,3 +1,4 @@
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -6,6 +7,7 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {printSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
 /**
@@ -32,7 +34,8 @@ export type ActorContextModule =
     | SessionActorContextModule
     | SystemActorContextModule
     | AnonymousActorContextModule
-    | ImpersonatedAccountActorContextModule;
+    | ImpersonatedAccountActorContextModule
+    | BotActorContextModule;
 
 export interface ActorContextModuleBase extends ContextModuleBase, ForkableContextModuleBase {
     /**
@@ -65,12 +68,19 @@ export interface ActorContextModuleBase extends ContextModuleBase, ForkableConte
  * When an account signs in to our service they're represented with a session
  * actor. Their session actor has access to everything the account has access
  * to.
+ *
+ * Should never be associated with a bot account. Bot accounts should
+ * exclusively use the bot actor.
  */
 export interface SessionActorContextModule extends ActorContextModuleBase {
     readonly type: "Session";
 
     getSessionId(): SessionId;
     getAccountId(): AccountId;
+
+    // Returns the same thing as `getAccountId()`. Has a scarier name so you
+    // consider the possibility that the actor is a bot account.
+    getPossiblyBotAccountId(): AccountId;
 }
 
 /**
@@ -97,12 +107,58 @@ export interface AnonymousActorContextModule extends ActorContextModuleBase {
  *
  * Since system actors have access to everything in a space, they're allowed to
  * impersonate any accounts in their space.
+ *
+ * Should never be associated with a bot account. Bot accounts should
+ * exclusively use the bot actor.
  */
 export interface ImpersonatedAccountActorContextModule extends ActorContextModuleBase {
     readonly type: "ImpersonatedAccount";
 
     getSpaceId(): SpaceId;
     getAccountId(): AccountId;
+
+    // Returns the same thing as `getAccountId()`. Has a scarier name so you
+    // consider the possibility that the actor is a bot account.
+    getPossiblyBotAccountId(): AccountId;
+}
+
+/**
+ * Bot account actors have access to everything in a scope and everything that
+ * the accounts in the scope ALL have access to. Bot accounts are only ever in
+ * one space so it's implied that a bot actor only has access to one space.
+ */
+export interface BotActorContextModule extends ActorContextModuleBase {
+    readonly type: "Bot";
+
+    getSpaceId(): SpaceId;
+
+    // We use the name `getBotAccountId()` instead of `getAccountId()` to make it
+    // intentionally awkward if the user wants to call `context.actor.getAccountId()`
+    // with `ActorBotContextModule | ActorSessionContextModule`. Bot actors behave
+    // differently than session actors with regard to permissions. Bot accounts get
+    // access to a scope and only content in that scope. They can't be granted
+    // access via an `AccessPolicy`.
+    //
+    // Generally you'll want a special case for bot accounts in your
+    // authorization code.
+    getBotAccountId(): AccountId;
+
+    /**
+     * The scope of the bot actor. The actor can only access what ALL non-bot
+     * accounts within the scope have access to.
+     *
+     * We assume the scope is a valid entity in the same space as the bot
+     * account. If the entity doesn't exist or is in another space, that's a bug.
+     *
+     * We implicitly have access to the `AccessPolicy` of the scoped entity. Since
+     * we need to know what accounts are in the scope to know what else the bot
+     * actor has access to.
+     */
+    getScope(): BotTokenPayloadScope;
+
+    // Returns the same thing as `getAccountId()`. Has a scarier name so you
+    // consider the possibility that the actor is a bot account.
+    getPossiblyBotAccountId(): AccountId;
 }
 
 /**
@@ -118,6 +174,13 @@ export function getActorContextModuleKey(actor: ActorContextModule): string {
             return "Anonymous";
         case "ImpersonatedAccount":
             return `ImpersonatedAccount:${actor.getSpaceId()}-${actor.getAccountId()}`;
+        case "Bot": {
+            const scope = actor.getScope();
+
+            return `Bot:${actor.getBotAccountId()}-${
+                scope.type === "Space" ? "Space" : printSearchDynamicEntityId(scope)
+            }`;
+        }
         default:
             throw exhaustive(actor);
     }
