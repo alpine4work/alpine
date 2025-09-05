@@ -374,7 +374,11 @@ async function getSpaceItemIfExists(
 }
 
 function createAvatarModelFromItem(
-    avatarItem: SpaceAvatarDarkThemeItem | SpaceAvatarLightThemeItem | null,
+    avatarItem:
+        | SpaceAvatarDarkThemeItem
+        | SpaceAvatarLightThemeItem
+        | SpaceAccountAvatarOverrideItem
+        | null,
 ): AvatarModel | null {
     if (!avatarItem) return null;
 
@@ -399,6 +403,15 @@ function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
 }
 
 type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
+type SpaceAccountAvatarOverrideItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "AccountAvatarOverride"
+>;
+type SpaceAccountItemWithAccountAvatarOverride = SpaceAccountItem & {
+    readonly accountAvatarOverride: SpaceAccountAvatarOverrideItem | null;
+};
+
 type AccountSpacesItem = DynamoTableItemType<typeof SpacesTable, "Account", "Spaces">;
 
 /**
@@ -791,6 +804,7 @@ async function getAddSpaceAccountTransactionEntries({
         : new Set();
 
     let updateOrCreateSpaceAccountItemTransactionEntry;
+    let updateOrCreateAccountAvatarOverrideItemTransactionEntry;
 
     // If the account was previously removed, we should re-add it
     if (spaceAccountItem) {
@@ -817,6 +831,10 @@ async function getAddSpaceAccountTransactionEntries({
             // We don't use newSpaceAccountState here as it's not a new space account
             state: newSpaceAccountState,
         });
+
+        // If the account was previously removed, we should not update the account avatar override
+        // item. Maintain the "removed" avatar UX until they re-accept
+        updateOrCreateAccountAvatarOverrideItemTransactionEntry = null;
     } else {
         // Can only add bot to space through `instantiateBotSpaceAccount()`.
         assert(!account?.botId);
@@ -832,18 +850,32 @@ async function getAddSpaceAccountTransactionEntries({
             addedTime: currentTime,
             state: newSpaceAccountState,
         });
+
+        // If the account was not previously a member of the space, we need to create an account
+        // avatar override item with null content so that the user's avatar does not show up
+        // in the space
+        updateOrCreateAccountAvatarOverrideItemTransactionEntry = SpacesTable.transactionCreateItem(
+            {
+                partitionType: "Space",
+                sortRangeType: "AccountAvatarOverride",
+                spaceId: spaceItem.spaceId,
+                accountId,
+                avatarId: null,
+                content: null,
+            },
+        );
     }
 
     await addSpaceAccountBeforeExecuteTestCheckpoint.waitForTest(
         `${spaceItem.spaceId}:${accountId}`,
     );
 
+    const newAccountStateType = updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type;
+
     // Only update the account's spaceIDs if the account is being added to the space as Active.
-    if (updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type === "Active") {
+    if (newAccountStateType === "Active") {
         accountSpaceIds.add(spaceItem.spaceId);
-    } else if (
-        updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type === "InvitePending"
-    ) {
+    } else if (newAccountStateType === "InvitePending") {
         accountInvitePendingSpaceIds.add(spaceItem.spaceId);
     }
 
@@ -854,6 +886,9 @@ async function getAddSpaceAccountTransactionEntries({
         assert(accountInvitePendingSpaceIds.size === 0);
     }
 
+    const shouldAddAccountAvatarOverride =
+        newAccountStateType !== "Active" &&
+        updateOrCreateAccountAvatarOverrideItemTransactionEntry !== null;
     return {
         transactionEntries: [
             // Since this transaction is security sensitive, make sure the account and
@@ -881,8 +916,16 @@ async function getAddSpaceAccountTransactionEntries({
                 invitePendingSpaceIds: accountInvitePendingSpaceIds,
             }),
             updateOrCreateSpaceAccountItemTransactionEntry,
+            ...(shouldAddAccountAvatarOverride
+                ? [assertExists(updateOrCreateAccountAvatarOverrideItemTransactionEntry)]
+                : []),
         ],
-        newItem: updateOrCreateSpaceAccountItemTransactionEntry.newItem,
+        newItem: {
+            ...updateOrCreateSpaceAccountItemTransactionEntry.newItem,
+            accountAvatarOverride: shouldAddAccountAvatarOverride
+                ? assertExists(updateOrCreateAccountAvatarOverrideItemTransactionEntry?.newItem)
+                : null,
+        },
     };
 }
 
@@ -994,6 +1037,7 @@ export async function addSpaceAccountWithoutAuthorization(
                           type: "InvitePending",
                           invitedTime: new Date(),
                           pendingAccountData: account.initialData,
+                          wasPreviouslyRemoved: spaceAccountItem?.state.type === "Removed",
                       },
         });
 
@@ -1200,6 +1244,21 @@ function removeSpaceAccountWithoutAuthorization(
             },
         });
 
+        const updateAccountAvatarOverrideTransactionEntry =
+            SpacesTable.transactionCreateOrReplaceItem({
+                partitionType: "Space",
+                sortRangeType: "AccountAvatarOverride",
+                spaceId,
+                accountId,
+                avatarId: account.initialData.avatar?.avatarId ?? null,
+                content: account.initialData.avatar?.content ?? null,
+                // NOTE(ifitzsimmons, 2025-08-25): When copying over the avatar content to the
+                // account avatar override item, we want to increment the version so that the
+                // SpaceAccountItem has the most recent avatar version. On the client, this will
+                // ensure that the AccountModel merge will use the override version.
+                updateLockVersion: (account.initialData.avatar?.version ?? 0) + 1,
+            });
+
         await removeSpaceAccountBeforeExecuteTestCheckpoint.waitForTest(`${spaceId}:${accountId}`);
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -1222,6 +1281,7 @@ function removeSpaceAccountWithoutAuthorization(
                 invitePendingSpaceIds: accountInvitePendingSpaceIds,
             }),
             updateSpaceAccountItemTransactionEntry,
+            updateAccountAvatarOverrideTransactionEntry,
         ]);
 
         // When an account is removed from a space, index the account in the space so it
@@ -1236,7 +1296,13 @@ function removeSpaceAccountWithoutAuthorization(
             },
         });
 
-        return createAccountModelFromItem(updateSpaceAccountItemTransactionEntry.newItem, null);
+        return createAccountModelFromItem(
+            {
+                ...updateSpaceAccountItemTransactionEntry.newItem,
+                accountAvatarOverride: updateAccountAvatarOverrideTransactionEntry.newItem,
+            },
+            null,
+        );
     });
 }
 
@@ -1262,13 +1328,41 @@ export const accountNameIndexFuseMinMatchCharLength = 4;
  */
 export const accountNameIndexFuseScoreMatchCutoff = 0.35;
 
+function getAccountAvatarModelForAccountModel(
+    item: SpaceAccountItemWithAccountAvatarOverride,
+    account: AccountModelWithoutSpace | null,
+) {
+    switch (item.state.type) {
+        case "Active": {
+            assert(account !== null);
+
+            // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): If there is an
+            // accountAvatarOverride item on the space account, we should emit a warning.
+            return account.initialData.avatar;
+        }
+        case "InvitePending":
+        case "Removed": {
+            if (!item.accountAvatarOverride) {
+                // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): This is an
+                // impossible state. We should emit an error without crashing the app. To avoid
+                // app crashes, we overwrite the account avatar with a null avatar if we get into
+                // this state.
+                return {avatarId: null, content: null, version: 0};
+            }
+
+            return createAvatarModelFromItem(item.accountAvatarOverride);
+        }
+        default:
+            throw exhaustive(item.state);
+    }
+}
+
 function createAccountModelFromItem(
-    item: SpaceAccountItem,
+    item: SpaceAccountItemWithAccountAvatarOverride,
     account: AccountModelWithoutSpace | null,
 ): AccountModel {
     let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
     let spaceAccountState: AccountModelDataSpaceState;
-    let avatar: AvatarModel | null;
 
     switch (item.state.type) {
         case "Active": {
@@ -1277,7 +1371,6 @@ function createAccountModelFromItem(
             spaceAccountState = {
                 type: "Active",
             };
-            avatar = account.initialData.avatar;
             break;
         }
         case "InvitePending": {
@@ -1285,8 +1378,6 @@ function createAccountModelFromItem(
             // given when the account was invited.
             accountData = item.state.pendingAccountData;
             spaceAccountState = item.state;
-            // TODO(ifitzsimmons, #remove-space-account-for-avatars)
-            avatar = null;
             break;
         }
         case "Removed": {
@@ -1295,8 +1386,6 @@ function createAccountModelFromItem(
             assert(account === null);
             accountData = item.state.oldAccountData;
             spaceAccountState = item.state;
-            // TODO(ifitzsimmons, #remove-space-account-for-avatars)
-            avatar = null;
             break;
         }
         default:
@@ -1305,7 +1394,7 @@ function createAccountModelFromItem(
 
     return new AccountModel({
         ...accountData,
-        avatar,
+        avatar: getAccountAvatarModelForAccountModel(item, account),
         space: {
             version: item.updateLockVersion ?? 0,
             addedTime: item.addedTime,
@@ -1632,7 +1721,29 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
             dynamodb: {consistentRead: consistency === "Strong"},
         });
 
-        const accounts = await parallelMapAsyncIterableToArray(
+        const accountAvatarOverrideItemsPromise: Promise<
+            Array<[AccountId, SpaceAccountAvatarOverrideItem]>
+        > = parallelMapAsyncIterableToArray(
+            SpacesTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Space",
+                    spaceId,
+                },
+                startSortKey: {
+                    sortRangeType: "AccountAvatarOverride",
+                    accountId: getMinId<AccountId>(),
+                },
+                endSortKey: {
+                    sortRangeType: "AccountAvatarOverride",
+                    accountId: getMaxId<AccountId>(),
+                },
+            }),
+            async item => [item.accountId, item],
+        );
+
+        const spaceAccountsPromise = arrayFromAsyncIterable(
             SpacesTable.query(context, {
                 limit: "All",
                 consistency,
@@ -1649,9 +1760,36 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                     accountId: getMaxId<AccountId>(),
                 },
             }),
-            async item => {
+        );
+
+        // NOTE(ifitzsimmons, #space-account-avatar-override-query) We could technically fetch
+        // the Space#Account and Space#AccountAvatarOverride items in a single query since the
+        // sort ranges are adjacent. However, we'd then have to perform an extra iteration on the
+        // result to split up the Space#Account and Space#AccountAvatarOverride items into separate
+        // lists. Given that Avatars are relatively large pieces of data (~ 3Kb) and that there
+        // may be many accounts in the space, the extra iteration seems not worth it. Splitting the
+        // queries into separate calls will incur at most 1 more RCU (because 2 avatars cannot fit
+        // within the 4Kb limit). I think that, for now, removing the need for the extra iteration
+        // is worth the cost of the extra DDB connection.
+        const [spaceAccounts, accountAvatarOverrideItems] = await runAllPromises([
+            spaceAccountsPromise,
+            accountAvatarOverrideItemsPromise,
+        ]);
+        const accountOverrideAvatarById = new Map<AccountId, SpaceAccountAvatarOverrideItem>(
+            accountAvatarOverrideItems,
+        );
+
+        return await runAllPromises(
+            spaceAccounts.map(async item => {
+                const accountAvatarOverride = accountOverrideAvatarById.get(item.accountId);
                 if (item.state.type !== "Active") {
-                    return createAccountModelFromItem(item, null);
+                    return createAccountModelFromItem(
+                        {
+                            ...item,
+                            accountAvatarOverride: accountAvatarOverride ?? null,
+                        },
+                        null,
+                    );
                 }
 
                 let account = await dangerouslyGetAccountIfExistsWithoutCaching(
@@ -1674,11 +1812,15 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                     throw new DataLossError("Space account item exists but account item doesn’t");
                 }
 
-                return createAccountModelFromItem(item, account);
-            },
+                return createAccountModelFromItem(
+                    {
+                        ...item,
+                        accountAvatarOverride: accountAvatarOverride ?? null,
+                    },
+                    account,
+                );
+            }),
         );
-
-        return accounts;
     });
 }
 
@@ -2553,7 +2695,31 @@ async function getAccountIfExistsWithoutAuthorization(
             if (!spaceAccountItem) return null;
 
             if (spaceAccountItem.state.type !== "Active") {
-                return createAccountModelFromItem(spaceAccountItem, null);
+                // NOTE(ifitzsimmons, #account-override-avatar-consistency):
+                // “We know there’s a potential eventual consistency race condition here where
+                // Space#Account has a non-Active state but we don’t find a
+                // Space#AccountAvatarOverride item due to eventual consistency lag. We’re not
+                // fixing this since we expect it to be quite rare in practice and the impact to be
+                // a pretty minor glitch (removed account appears as if they didn’t have an avatar
+                // set).
+                const spaceAccountAvatarOverride = await SpacesTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Space",
+                        sortRangeType: "AccountAvatarOverride",
+                        spaceId,
+                        accountId,
+                    },
+                    {consistency},
+                );
+
+                return createAccountModelFromItem(
+                    {
+                        ...spaceAccountItem,
+                        accountAvatarOverride: spaceAccountAvatarOverride ?? null,
+                    },
+                    null,
+                );
             } else {
                 // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
                 // our account table.
@@ -2561,7 +2727,14 @@ async function getAccountIfExistsWithoutAuthorization(
                     throw new DataLossError("Space account item exists but account item doesn’t");
                 }
 
-                return createAccountModelFromItem(spaceAccountItem, account);
+                return createAccountModelFromItem(
+                    {
+                        ...spaceAccountItem,
+                        // Active accounts should not have an avatar override
+                        accountAvatarOverride: null,
+                    },
+                    account,
+                );
             }
         },
     );
@@ -2780,6 +2953,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                 name: emailAddress.substring(0, 50),
                 nameVersion: 0,
             },
+            wasPreviouslyRemoved: spaceAccountItem?.state.type === "Removed",
         };
         let addSpaceAccountTransactionEntries;
 
@@ -3222,7 +3396,11 @@ export async function updateSpaceAccountRole(
         ]);
 
         return createAccountModelFromItem(
-            updateSpaceAccountItemTransactionEntry.newItem,
+            {
+                ...updateSpaceAccountItemTransactionEntry.newItem,
+                // Active accounts should not have an avatar override
+                accountAvatarOverride: null,
+            },
             spaceAccountItem.state.type === "Active" ? account : null,
         );
     });
@@ -3352,7 +3530,14 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
         // when `oldOwnerAccountId === newOwnerAccountId`, we don't need to update
         // anything although this is impossible to do from Alpine UI.
         if (oldOwnerAccountId === newOwnerAccountId) {
-            const account = createAccountModelFromItem(oldSpaceAccountItem, oldOwnerAccount);
+            const account = createAccountModelFromItem(
+                {
+                    ...oldSpaceAccountItem,
+                    // Active accounts should not have an avatar override
+                    accountAvatarOverride: null,
+                },
+                oldOwnerAccount,
+            );
             return {
                 newOwnerAccount: account,
                 oldOwnerAccount: account,
@@ -3379,11 +3564,11 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
 
         return {
             newOwnerAccount: createAccountModelFromItem(
-                newSpaceAccountItemUpdateEntry.newItem,
+                {...newSpaceAccountItemUpdateEntry.newItem, accountAvatarOverride: null},
                 newOwnerAccount,
             ),
             oldOwnerAccount: createAccountModelFromItem(
-                oldSpaceAccountItemUpdateEntry.newItem,
+                {...oldSpaceAccountItemUpdateEntry.newItem, accountAvatarOverride: null},
                 oldOwnerAccount,
             ),
         };
@@ -3457,6 +3642,15 @@ async function updateSpaceAccountWithInviteDecision(
             ...spaceAccountItem,
             state,
         });
+        const deleteAccountAvatarOverrideTransactionEntry =
+            newAccountStateType === "Active"
+                ? SpacesTable.transactionDeleteItemIfExists({
+                      partitionType: "Space",
+                      sortRangeType: "AccountAvatarOverride",
+                      spaceId,
+                      accountId,
+                  })
+                : undefined;
 
         await DynamoTableSchema.executeTransaction(context, [
             SpacesTable.transactionDirectlyUpdateItem({
@@ -3468,7 +3662,31 @@ async function updateSpaceAccountWithInviteDecision(
                 invitePendingSpaceIds: accountInvitePendingSpaceIds,
             }),
             updateSpaceAccountItemTransactionEntry,
+            ...(deleteAccountAvatarOverrideTransactionEntry
+                ? [deleteAccountAvatarOverrideTransactionEntry]
+                : []),
         ]);
+
+        let accountAvatarOverride = null;
+        if (newAccountStateType !== "Active") {
+            // NOTE(ifitzsimmons, #account-override-avatar-consistency):
+            // “We know there’s a potential eventual consistency race condition here where
+            // Space#Account has a non-Active state but we don’t find a
+            // Space#AccountAvatarOverride item due to eventual consistency lag. We’re not
+            // fixing this since we expect it to be quite rare in practice and the impact to be
+            // a pretty minor glitch (removed account appears as if they didn’t have an avatar
+            // set).
+            accountAvatarOverride = await SpacesTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "AccountAvatarOverride",
+                    spaceId,
+                    accountId,
+                },
+                {consistency: "Strong"},
+            );
+        }
 
         if (newAccountStateType === "Active") {
             // Reindex the account in all space search indexes where it appears. This may
@@ -3485,7 +3703,10 @@ async function updateSpaceAccountWithInviteDecision(
         }
 
         return createAccountModelFromItem(
-            updateSpaceAccountItemTransactionEntry.newItem,
+            {
+                ...updateSpaceAccountItemTransactionEntry.newItem,
+                accountAvatarOverride,
+            },
             updateSpaceAccountItemTransactionEntry.newItem.state.type === "Active" ? account : null,
         );
     });

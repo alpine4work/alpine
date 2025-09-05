@@ -9418,6 +9418,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "reuseReferenceId": "b9ed3c15"
                                                                 },
                                                                 "optional": false
+                                                            },
+                                                            "wasPreviouslyRemoved": {
+                                                                "valueSchema": {
+                                                                    "type": "Boolean"
+                                                                },
+                                                                "optional": true
                                                             }
                                                         }
                                                     }

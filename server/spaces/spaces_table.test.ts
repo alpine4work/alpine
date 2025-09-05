@@ -1093,6 +1093,11 @@ test("`getAccountIfExists()` will return a removed account", async () => {
                 },
                 role: "Member",
             },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
+            },
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
@@ -1198,6 +1203,11 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
+            },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
             },
         }),
     );
@@ -1364,6 +1374,11 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
                 },
                 role: "Member",
             },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
+            },
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
@@ -1404,6 +1419,11 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
+            },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
             },
         }),
     );
@@ -1468,6 +1488,11 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
+            },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
             },
         }),
     );
@@ -1628,6 +1653,11 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
                 },
                 role: "Member",
             },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
+            },
         }),
     );
     expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
@@ -1666,6 +1696,11 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
                     reason: "ActionByAdmin",
                 },
                 role: "Member",
+            },
+            avatar: {
+                version: 1,
+                avatarId: null,
+                content: null,
             },
         }),
     );

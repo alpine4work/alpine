@@ -22,6 +22,7 @@ export const SpaceAccountStateSchemas = {
         type: Schema.value("InvitePending"),
         invitedTime: Schema.date,
         pendingAccountData: AccountModelWithoutSpaceAndAvatarDataSchema,
+        wasPreviouslyRemoved: Schema.boolean.default(false),
     }),
 };
 
