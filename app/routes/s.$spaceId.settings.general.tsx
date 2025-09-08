@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {TextInputWithoutLabel} from "~/client/design/text_input.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {useColorScheme} from "~/client/helpers/color_scheme.js";
+import {ColorScheme} from "~/client/helpers/color_scheme.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     InlineEditorToolbar,
@@ -42,9 +42,6 @@ export async function loader({params}: LoaderArgs) {
 export default function SpaceGeneralSettingsRoute() {
     const context = useAppContext();
     const {space: originalSpace, updateSpace} = useSpaceContextAndRequireSpaceAccess();
-
-    const colorScheme = useColorScheme();
-    const colorSchemeOrDefault = colorScheme ?? "light";
 
     const inputRef = useRef<HTMLInputElement>(null);
     const nameInlineEditorToolbarRef = useRef<InlineEditorToolbarRef>(null);
@@ -87,12 +84,12 @@ export default function SpaceGeneralSettingsRoute() {
         inputElement.selectionEnd = inputElement.value.length;
     }, [name]);
 
-    const handleUploadAvatar = async (file: File) => {
+    const getHandleUploadAvatar = (colorScheme: ColorScheme) => async (file: File) => {
         const url = new URL(`/api/avatar/space/${originalSpace.id}`, window.location.href);
         // TODO(ifitzsimmons, #add-space-avatar-support)
         // This infers the type of space avatar from the user's current color scheme. Eventually
         // we should add a menu that lets them set this explicitly.
-        url.searchParams.set("themeColor", colorSchemeOrDefault);
+        url.searchParams.set("themeColor", colorScheme);
 
         const response = await fetchWithTracer(
             context.tracer.getTracer(),
@@ -172,7 +169,7 @@ export default function SpaceGeneralSettingsRoute() {
                 <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
                     <Box>
                         <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
-                            Logo
+                            Logo (light mode)
                         </Box>
                         <Box
                             paddingTop="1"
@@ -193,9 +190,38 @@ export default function SpaceGeneralSettingsRoute() {
                     </Box>
                     <AvatarUploader
                         borderRadius={spaceAvatarBorderRadius}
-                        onUploadAvatar={handleUploadAvatar}
+                        onUploadAvatar={getHandleUploadAvatar("light")}
                     >
-                        <SpaceAvatar space={originalSpace} size="12" />
+                        <SpaceAvatar space={originalSpace} size="12" theme="light" />
+                    </AvatarUploader>
+                </Box>
+                <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
+                    <Box>
+                        <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
+                            Logo (dark mode)
+                        </Box>
+                        <Box
+                            paddingTop="1"
+                            fontSize="75"
+                            color="grey-60"
+                            userSelect="text"
+                            style={{
+                                // Allow contextual alternate glyphs in regular text content.
+                                //
+                                // Particularly the "x" in "256x256".
+                                //
+                                // eslint-disable-next-line string-quotes
+                                fontFeatureSettings: '"calt" on',
+                            }}
+                        >
+                            Recommended size is 256x256px
+                        </Box>
+                    </Box>
+                    <AvatarUploader
+                        borderRadius={spaceAvatarBorderRadius}
+                        onUploadAvatar={getHandleUploadAvatar("dark")}
+                    >
+                        <SpaceAvatar space={originalSpace} size="12" theme="dark" />
                     </AvatarUploader>
                 </Box>
             </Box>

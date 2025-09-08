@@ -18,13 +18,18 @@ function getSpaceAvatarContainerClassName({
     size,
     theme,
     backgroundColor,
+    hasOverride,
 }: {
     size: Spacing;
     theme: AvatarTheme;
     backgroundColor?: ColorSchemeVar;
+    hasOverride?: boolean;
 }) {
-    const hiddenClassName =
-        theme === "dark" ? hiddenIfLightColorSchemeClassName : hiddenIfDarkColorSchemeClassName;
+    const hiddenClassName = !hasOverride
+        ? theme === "dark"
+            ? hiddenIfLightColorSchemeClassName
+            : hiddenIfDarkColorSchemeClassName
+        : undefined;
     return classNames(
         hiddenClassName,
         sprinkles({
@@ -41,7 +46,19 @@ function getSpaceAvatarContainerClassName({
     );
 }
 
-export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
+export function SpaceAvatar({
+    space,
+    size,
+    theme,
+}: {
+    space: SpaceModel;
+    size: Spacing;
+    theme?: AvatarTheme;
+}) {
+    if (theme) {
+        return <InternalSpaceAvatar space={space} size={size} theme={theme} hasOverride />;
+    }
+
     // NOTE(ifitzsimmons): We render two avatars and then rely on CSS to hide the appropriate
     // avatar according to the color theme ("light" or "dark"). For example, if a user is using
     // dark mode, the "light" InternalSpaceAvatar will be hidden.
@@ -59,16 +76,33 @@ function InternalSpaceAvatar({
     space,
     size,
     theme,
+    hasOverride,
 }: {
     space: SpaceModel;
     size: Spacing;
     theme: AvatarTheme;
+    hasOverride?: boolean;
 }) {
-    const avatarContent =
+    let avatarContent =
         theme === "dark" ? space.avatars?.darkTheme?.content : space.avatars?.lightTheme?.content;
 
+    if (!hasOverride) {
+        // If we're showing a dynamic avatar and the space doesn't have the theme icon,
+        // just default to one we do have mode icon.
+        if (theme === "dark" && !space.avatars?.darkTheme?.content) {
+            avatarContent = space.avatars?.lightTheme?.content;
+        } else if (theme === "light" && !space.avatars?.lightTheme?.content) {
+            avatarContent = space.avatars?.darkTheme?.content;
+        }
+    }
+
     return avatarContent ? (
-        <Box className={getSpaceAvatarContainerClassName({size, theme})}>
+        <Box
+            className={getSpaceAvatarContainerClassName({size, theme, hasOverride})}
+            backgroundColor={
+                hasOverride ? (theme === "dark" ? "grey-100-const" : "grey-0-const") : undefined
+            }
+        >
             <AvatarImage content={avatarContent} />
         </Box>
     ) : (
