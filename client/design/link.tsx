@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-restricted-imports
 import {Link as OriginalLink} from "@remix-run/react";
 import classNames from "classnames";
 import {MouseEvent, ReactNode} from "react";

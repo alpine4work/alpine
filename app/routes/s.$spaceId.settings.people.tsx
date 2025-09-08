@@ -1,7 +1,6 @@
 import {compareAsc, compareDesc} from "date-fns";
 import {CaretDown} from "phosphor-react";
 import {useMemo, useState} from "react";
-import {useRevalidator} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel, useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -11,6 +10,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useRevalidator} from "~/client/remix/use_revalidator.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {SettingsInvitePeopleModal} from "~/client/settings/settings_invite_people_modal.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
@@ -163,13 +163,14 @@ export default function SpacePeopleSettingsRoute() {
     }, [allAccountsDatas]);
 
     const onSendInvitesSuccess = () => {
+        // TODO: update this to use the promise that is now available
         // TODO: revalidate does not return a promise, so we can't wait for it to finish. We
         // should create some method of waiting for the data to come back before closing the modal.
         // This would be a great UX improvement as we don't want users to see flashes of new data
         // coming in after the modal closes.
 
         // If we've sent any new invites, revalidate to refetch the loader data.
-        revalidate();
+        void revalidate();
     };
 
     const handleConfirmMoveOwner = async () => {

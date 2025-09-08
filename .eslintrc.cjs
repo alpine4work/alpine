@@ -8,21 +8,48 @@ const baseNoRestrictedImports = {
         },
         {
             name: "react-router",
-            importNames: ["useNavigate", "Link"],
-            message:
-                "Import `useNavigate()` from `~/client/remix/use_navigate.js` and `<Link>` from `~/client/design/link.js`",
+            importNames: ["useNavigate"],
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
         },
         {
             name: "react-router-dom",
-            importNames: ["useNavigate", "Link"],
-            message:
-                "Import `useNavigate()` from `~/client/remix/use_navigate.js` and `<Link>` from `~/client/design/link.js`",
+            importNames: ["useNavigate"],
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
         },
         {
             name: "@remix-run/react",
-            importNames: ["useNavigate", "Link"],
-            message:
-                "Import `useNavigate()` from `~/client/remix/use_navigate.js` and `<Link>` from `~/client/design/link.js`",
+            importNames: ["useNavigate"],
+            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
+        },
+        {
+            name: "react-router",
+            importNames: ["Link"],
+            message: "Import `<Link>` from `~/client/design/link.js`",
+        },
+        {
+            name: "react-router-dom",
+            importNames: ["Link"],
+            message: "Import `<Link>` from `~/client/design/link.js`",
+        },
+        {
+            name: "@remix-run/react",
+            importNames: ["Link"],
+            message: "Import `<Link>` from `~/client/design/link.js`",
+        },
+        {
+            name: "react-router",
+            importNames: ["useRevalidator"],
+            message: "Import `useRevalidator()` from `~/client/remix/use_revalidator.js`",
+        },
+        {
+            name: "react-router-dom",
+            importNames: ["useRevalidator"],
+            message: "Import `useRevalidator()` from `~/client/remix/use_revalidator.js`",
+        },
+        {
+            name: "@remix-run/react",
+            importNames: ["useRevalidator"],
+            message: "Import `useRevalidator()` from `~/client/remix/use_revalidator.js`",
         },
         {
             name: "react-aria",
