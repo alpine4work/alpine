@@ -1535,6 +1535,7 @@ function MessageInputReplyingToMessage<
                         //
                         // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                         cursor="pointer"
+                        maxWidth="full"
                     >
                         <Box
                             className={sprinkles({
