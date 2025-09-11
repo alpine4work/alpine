@@ -162,7 +162,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
                 width="5"
                 height="5"
                 color="grey-70"
-                backgroundColor="grey-5"
+                backgroundColor="grey-5-translucent"
                 borderRadius="full"
                 borderBottomRightRadius="none"
                 fontSize="50"
