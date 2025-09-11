@@ -8382,3 +8382,157 @@ test("pressing delete in the first file in a table cell keeps the selection in t
     );
     expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
 });
+
+test("shift-tab removes a level of indentation when selecting multiple items when some are already indented", async () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 2},
+                        content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 2},
+                        content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(18), state.doc.resolve(43))),
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent({shiftKey: true}));
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+            },
+        ],
+    });
+});
+
+test("tab adds a level of indentation when selecting multiple items when some are already indented", async () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(18), state.doc.resolve(43))),
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+            },
+        ],
+    });
+});
