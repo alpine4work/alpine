@@ -4547,6 +4547,12 @@ Resources:
                     EDGE_SERVICE_URL: https://alpine.inc
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    HONEYCOMB_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
                     NODE_ENV: production
@@ -4726,6 +4732,12 @@ Resources:
                     EDGE_SERVICE_URL: https://alpine.inc
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    HONEYCOMB_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
                     NODE_ENV: production

@@ -4,6 +4,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {createLambdaTracerAndHoneycombClient} from "~/server/lambda/helpers/create_lambda_tracer_and_honeycomb_client.js";
 import {
     LambdaActionContext,
+    LambdaActionContextOptions,
     createLambdaActionContext,
     getLambdaActionContextOptions,
 } from "~/server/lambda/helpers/lambda_action_context.js";
@@ -23,6 +24,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+const honeycombApiKey = assertExists(
+    process.env.HONEYCOMB_API_KEY,
+    "HONEYCOMB_API_KEY is required",
+);
 
 export function createHttpLambdaHandler({
     handleRequest,
@@ -53,7 +59,10 @@ export function createHttpLambdaHandler({
     tokenServiceName: TokenServiceName;
 }): APIGatewayProxyHandler {
     const awsSigner = new AwsRequestSigner();
-    let tokenAgentAndOptionsPromise;
+    let tokenAgentAndOptionsPromise: Promise<{
+        tokenAgent: TokenAgent;
+        options: LambdaActionContextOptions;
+    }> | null = null;
 
     // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Convert to Lambda Response
     // Streaming so that we can run cleanup processes after sending responses to clients.
@@ -65,25 +74,6 @@ export function createHttpLambdaHandler({
         let honeycombTracerClient: HoneycombTracerClient | null = null;
 
         try {
-            tokenAgentAndOptionsPromise ??= getLambdaActionContextOptions(
-                serviceSecretsSchema,
-            ).then(async options => {
-                const tokenAgent = await createServiceTokenAgent({
-                    serviceName: tokenServiceName,
-                    options,
-                });
-                return {tokenAgent, options};
-            });
-            const {tokenAgent, options} = await tokenAgentAndOptionsPromise;
-
-            let tracer: TracerRoot;
-            [tracer, honeycombTracerClient] = createLambdaTracerAndHoneycombClient({
-                serviceName,
-                jsHost: "Node",
-                promiseWaiter,
-                honeycombApiKey: options.honeycombApiKey,
-            });
-
             const url = getUrl(event);
 
             const abortController = new AbortController();
@@ -93,12 +83,35 @@ export function createHttpLambdaHandler({
                 signal: abortController.signal,
                 ...(event.body ? {body: event.body} : {}),
             });
-            const spanName = createTraceServerResponseHandleSpanName(tracer, request, route);
-            ({span, finishSpan} = startTracerSpanFromPropagationContextHeader(
-                tracer,
-                spanName,
-                request.headers,
-            ));
+
+            let tracer: TracerRoot;
+            [tracer, honeycombTracerClient] = createLambdaTracerAndHoneycombClient({
+                serviceName,
+                jsHost: "Node",
+                promiseWaiter,
+                honeycombApiKey,
+            });
+            ({span, finishSpan} = getSpanForRequest(tracer, request, route));
+
+            tokenAgentAndOptionsPromise ??= span.withSpan(
+                "Allocate token agent and context options",
+                async childSpan =>
+                    getLambdaActionContextOptions(serviceSecretsSchema, childSpan).then(
+                        async options => {
+                            const tokenAgent = await childSpan.withSpan(
+                                "Creating token agent",
+                                async () =>
+                                    await createServiceTokenAgent({
+                                        serviceName: tokenServiceName,
+                                        options,
+                                    }),
+                            );
+                            return {tokenAgent, options};
+                        },
+                    ),
+            );
+            const {tokenAgent, options} = await tokenAgentAndOptionsPromise;
+
             const actionContext = createLambdaActionContext({
                 awsSigner,
                 options,
@@ -244,4 +257,9 @@ function finishSpanAndFlushHoneycombEvents(
         await honeycombTracerClient?.flushScheduledEventBatch();
     });
     void promiseWaiter.wait();
+}
+
+function getSpanForRequest(tracer: TracerRoot, request: Request, route: string) {
+    const spanName = createTraceServerResponseHandleSpanName(tracer, request, route);
+    return startTracerSpanFromPropagationContextHeader(tracer, spanName, request.headers);
 }

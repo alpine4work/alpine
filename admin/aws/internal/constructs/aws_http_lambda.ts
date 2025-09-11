@@ -11,6 +11,10 @@ export interface AwsHttpLambdaOptions extends Omit<AwsLambdaBaseOptions, "deploy
      * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
      * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.
      * Your Lambda code should use the AWS Secrets Manager client to retrieve secret values.
+     *
+     * See `server/aws/server_secrets_schema.ts` for the expected schema of the secret. If your
+     * service secret has different names for the secrets, you can use `.originalPropertyKey()` to
+     * rename your secret properties (see server/aws/file_processor_service_secrets_schema.ts).
      */
     readonly secret: ISecret;
 
@@ -50,6 +54,13 @@ export class AwsHttpLambda extends AwsLambdaBase {
             environment: {
                 ...options.environment,
                 SECRET_ARN: options.secret.secretArn,
+                // NOTE(ifitzsimmons, 2025-09-07): Expose Honeycomb API key as environment variable
+                // to enable tracing from Lambda startup. This allows us to trace Lambda
+                // initialization and async resource allocation (secrets, tokens) instead of
+                // waiting until after secrets are retrieved from AWS Secrets Manager.
+                HONEYCOMB_API_KEY: options.secret
+                    .secretValueFromJson("honeycombApiKey")
+                    .unsafeUnwrap(),
             },
         });
 

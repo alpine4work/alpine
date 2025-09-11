@@ -31,7 +31,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-type LambdaActionContextOptions = ServiceOptions<typeof lambdaActionContextOptions>;
+export type LambdaActionContextOptions = ServiceOptions<typeof lambdaActionContextOptions>;
 
 export const lambdaActionContextOptions = {
     temporaryDirectoryPath: {type: "string"},
@@ -107,19 +107,12 @@ export function createLambdaActionContext({
     });
 }
 
-const secretsManagerClient = new SecretsManagerClient({
-    region: process.env.AWS_REGION,
-});
-
 async function getServiceSecretsFromArn(
+    secretArn: string,
     serviceSecretsSchema: Schema<ServerSecrets>,
 ): Promise<ServerSecrets> {
-    const secretArn = assertExists(
-        process.env.SECRET_ARN,
-        "Missing SECRET_ARN environment variable",
-    );
-
-    const response = await secretsManagerClient.send(
+    const client = new SecretsManagerClient({});
+    const response = await client.send(
         new GetSecretValueCommand({
             SecretId: secretArn,
         }),
@@ -133,9 +126,18 @@ async function getServiceSecretsFromArn(
 
 export async function getLambdaActionContextOptions(
     serviceSecretsSchema: Schema<ServerSecrets>,
+    span: TracerSpan,
 ): Promise<LambdaActionContextOptions> {
+    // Get the secret ARN from environment variables
+    const secretArn = assertExists(
+        process.env.SECRET_ARN,
+        "Missing SECRET_ARN environment variable",
+    );
+
     // Fetch all secrets from AWS Secrets Manager
-    const secret = await getServiceSecretsFromArn(serviceSecretsSchema);
+    const secret = await span.withSpan("Fetch secrets from AWS Secrets Manager", async () => {
+        return await getServiceSecretsFromArn(secretArn, serviceSecretsSchema);
+    });
 
     // Parse all environment variables and secrets into options
     return {
