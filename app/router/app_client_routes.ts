@@ -227,6 +227,17 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                 if (error instanceof ErrorBase || getErrorCode(error) !== ErrorCode.Unknown)
                     throw error;
 
+                // NOTE(ifitzsimmons, #ignore-aborted-requests): We want to allow browser-created
+                // abort errors to pass through so that we can make the distinction between a
+                // request that was aborted by the browser vs. a request that failed due to a
+                // process that was aborted by the server while serving the request (i.e. a
+                // process times out and we send an Abort signal to cancel ongoing processes).
+                // If the client (browser) sent the Abort, we should never show an error on the
+                // client.
+                if (error instanceof Error && error.name === "AbortError") {
+                    throw error;
+                }
+
                 // Classify network errors as the `Unavailable` status code.
                 //
                 // If the user is offline then we use a `FailedPreconditionError` since it's a
@@ -456,7 +467,7 @@ function makeSpaceDataRouteReuseInflightRequest(
             new URL(args[0].request.url).search,
         ]);
 
-        return getOrSetDefaultMapValue(inflightResponsePromiseByRequestKey, requestKey, () => {
+        const getLoaderDataForRoute = () => {
             const responsePromise = Promise.resolve(originalRouteLoader(...args))
                 // We need to process the loader result so if we reuse this request we don't
                 // end up parsing the `Response` body twice.
@@ -465,7 +476,36 @@ function makeSpaceDataRouteReuseInflightRequest(
             return responsePromise.finally(() =>
                 inflightResponsePromiseByRequestKey.delete(requestKey),
             );
-        });
+        };
+
+        const maybeReusedRoutePromise = inflightResponsePromiseByRequestKey.get(requestKey);
+        if (maybeReusedRoutePromise) {
+            return maybeReusedRoutePromise.catch(error => {
+                // NOTE(ifitzsimmons, #ignore-aborted-requests): An error name of "AbortError"
+                // indicates that this error was created by the browser (we use "Aborted" for our
+                // AbortedError class). We want to listen specifically for AbortErrors from the
+                // browser, since that indicates the client cancelled a request.
+                //
+                // For instance, if you double click on a search entity, the application
+                // will send two routing requests (realistically, you should avoid this up front by
+                // not sending the second request if the first request is pending). Remix will
+                // abort the first request. Since the second request re-uses the first one, we need
+                // to allow the second request to proceed.
+                if (error instanceof Error && error.name === "AbortError") {
+                    const requestPromise = getLoaderDataForRoute();
+                    inflightResponsePromiseByRequestKey.set(requestKey, requestPromise);
+                    return requestPromise;
+                } else {
+                    throw error;
+                }
+            });
+        }
+
+        return getOrSetDefaultMapValue(
+            inflightResponsePromiseByRequestKey,
+            requestKey,
+            getLoaderDataForRoute,
+        );
     };
 }
 
