@@ -1143,7 +1143,16 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     <div
                         className={sprinkles({
                             position: "relative",
-                            zIndex: "0",
+                            zIndex:
+                                // NOTE(calebmer): If the user is editing a message we render
+                                // `<MessageViewEditor>` which renders `<InlineEditorToolbar>` which needs to
+                                // render on top of `<MessageViewParent>`.
+                                //
+                                // Fixes:
+                                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cwvja89b8vmbajqytsa3926h00
+                                message.payload.type === "Content" && messageEditingForThisMessage
+                                    ? "20"
+                                    : "0",
                             display: "flex",
                             gap: messageViewRailGap,
                         })}
