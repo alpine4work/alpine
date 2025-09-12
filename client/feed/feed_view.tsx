@@ -7,6 +7,7 @@ import {PostListView} from "~/client/forum/post_list_view.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -39,6 +40,7 @@ export function FeedView({
     const context = useAppContext();
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
+    const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const {space} = useSpaceContext();
 
@@ -89,6 +91,13 @@ export function FeedView({
         // button. It wouldn't work.
         withoutMobileBackButton: true,
     });
+
+    // On mobile, the comment button doesn't expand/collapse. Instead it opens the
+    // post in a new route. `<PostListView>` will throw if you pass in `posts` with
+    // expanded comments on mobile. So make sure to close them all.
+    if (platform === "mobile" && feed.hasOpenPostComments()) {
+        setFeed(feed.closeAllPostComments());
+    }
 
     return (
         <Box ref={resizeRef} width="full" height="full" overflow="hidden">
