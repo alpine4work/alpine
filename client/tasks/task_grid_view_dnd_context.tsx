@@ -21,6 +21,7 @@ import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
+import {isTouchEvent} from "~/client/helpers/events/is_touch_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -400,12 +401,12 @@ function TaskRowViewDragPortals() {
         active &&
         (activatorEvent instanceof PointerEvent ||
             activatorEvent instanceof MouseEvent ||
-            activatorEvent instanceof TouchEvent);
+            (activatorEvent && isTouchEvent(activatorEvent)));
 
     const getActivatorTouchOffset = () => {
         if (!activeNodeRect) return null;
         if (!activatorEvent) return null;
-        if (!(activatorEvent instanceof TouchEvent)) return null;
+        if (!isTouchEvent(activatorEvent)) return null;
         if (!activatorEvent.touches[0]) return null;
 
         const activatorTouch = activatorEvent.touches[0];
