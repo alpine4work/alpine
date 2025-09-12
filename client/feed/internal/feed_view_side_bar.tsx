@@ -250,10 +250,14 @@ function FeedSearchAffinityView({
     const activeContextMenuActions = useContextMenuActions();
     const peekStackContext = usePeekStackContext();
 
+    const [isPendingNavigation, setIsPendingNavigation] = useState(false);
+
     const hasMarkedAffinityInteractionRef = useRef(false);
 
     const {isPressed, pressProps} = usePress({
         onPress: event => {
+            if (isPendingNavigation) return;
+
             const path = getSearchEntityPath({
                 spaceId: space.id,
                 entityId: result.id,
@@ -261,6 +265,8 @@ function FeedSearchAffinityView({
                 currentTime: new Date(),
                 routeLayout: "wide",
             });
+
+            setIsPendingNavigation(true);
 
             void navigate(path, {
                 // When clicking on a path from the feed sidebar, fully navigate the app to
