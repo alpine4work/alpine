@@ -43,6 +43,7 @@ function TaskDetailNotesField(
         notesEditorStateStore,
         onNotesEditorStateChange,
         reconnectNotesClient,
+        ensureCreateTask,
     }: {
         taskId: TaskId;
         isReadOnly: boolean;
@@ -54,6 +55,7 @@ function TaskDetailNotesField(
             (state: ContentEditorState<TaskNotesContentWithReferences>) => void
         >;
         reconnectNotesClient: Memo<() => void>;
+        ensureCreateTask: Memo<() => Promise<void>>;
     },
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
@@ -161,6 +163,7 @@ function TaskDetailNotesField(
                                     release: noop,
                                 });
                             }}
+                            onEnsureFileAttachmentTarget={ensureCreateTask}
                         />
                     </Box>
                 )}

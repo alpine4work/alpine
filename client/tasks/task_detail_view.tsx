@@ -987,6 +987,9 @@ export function TaskDetailView({
                                             onNotesEditorStateChange={onNotesEditorStateChange}
                                             reconnectNotesClient={reconnectNotesClient}
                                             commitActionTransaction={commitActionTransaction}
+                                            commitActionTransactionAndCreateIfNeeded={
+                                                commitActionTransactionAndCreateIfNeeded
+                                            }
                                         />
                                     ),
                                 };
@@ -1018,6 +1021,7 @@ export function TaskDetailView({
                             onNotesEditorStateChange,
                             reconnectNotesClient,
                             commitActionTransaction,
+                            commitActionTransactionAndCreateIfNeeded,
                         ],
                     )}
                     onRenderedRangeChange={range => {
@@ -1121,6 +1125,7 @@ function TaskDetailViewMain(
         onNotesEditorStateChange,
         reconnectNotesClient,
         commitActionTransaction,
+        commitActionTransactionAndCreateIfNeeded,
     }: {
         possiblyGhostTaskId: TaskId;
         store: TaskClientStore;
@@ -1154,6 +1159,17 @@ function TaskDetailViewMain(
         commitActionTransaction: Memo<
             (getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>) => {
                 finally(listener: () => void): void;
+            }
+        >;
+        commitActionTransactionAndCreateIfNeeded: Memo<
+            (
+                getActions: () => Iterable<TaskActionModel>,
+                options: {
+                    undoManager: TaskClientStoreUndoManager | null;
+                    affinityManager: TaskClientStoreSearchAffinityManager;
+                },
+            ) => {
+                finally: (callback: () => void) => void;
             }
         >;
     },
@@ -1319,6 +1335,18 @@ function TaskDetailViewMain(
         }),
         [focusDueDateInput, focusPriorityInput, statusButtonRef, titleInputRef],
     );
+
+    const ensureCreateTask = useCallback(async () => {
+        // If the user tries to enter content into this task, create it if needed.
+        if (!taskSubscription) {
+            await new Promise<void>(resolve =>
+                commitActionTransactionAndCreateIfNeeded(() => [], {
+                    undoManager,
+                    affinityManager,
+                }).finally(resolve),
+            );
+        }
+    }, [taskSubscription, undoManager, affinityManager, commitActionTransactionAndCreateIfNeeded]);
 
     return (
         <>
@@ -1573,6 +1601,7 @@ function TaskDetailViewMain(
                     notesEditorStateStore={notesEditorStateStore}
                     onNotesEditorStateChange={onNotesEditorStateChange}
                     reconnectNotesClient={reconnectNotesClient}
+                    ensureCreateTask={ensureCreateTask}
                 />
                 {showSubtasks ? (
                     <>
