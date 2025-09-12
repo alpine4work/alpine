@@ -4953,6 +4953,59 @@ function handlePasteAfterResolvingReferences(
         return;
     }
 
+    // If you're pasting a list item (source list item) into another list item
+    // (target list item) then we want to keep the target list item's type and
+    // indentation level instead of overriding it with the source.
+    //
+    // We accomplish this by "unwrapping" the source list item's contents if we're
+    // pasting into a target list item. ProseMirror will do the right thing
+    // from there.
+    if (slice.openStart > 0 && slice.content.firstChild?.type.isInGroup("listItem")) {
+        // Non-null if we're pasting into a list item.
+        let indentForTargetListItem: number | null = null;
+
+        for (let depth = selection.$from.depth; depth >= 0; depth--) {
+            const node = selection.$from.node(depth);
+            if (node.type.isInGroup("listItem")) {
+                indentForTargetListItem = node.attrs.indent;
+                break;
+            }
+        }
+
+        if (indentForTargetListItem !== null) {
+            const content: Array<Node> = [];
+
+            for (const childNode of slice.content.firstChild.content.content) {
+                content.push(childNode);
+            }
+
+            let isWithinAdjacentListItems = true;
+
+            for (const node of slice.content.content.slice(1)) {
+                // If there's another list item in the slice we're pasting then increase its
+                // indentation so it sits under the target list item's indentation.
+                if (!isWithinAdjacentListItems || !node.type.isInGroup("listItem")) {
+                    isWithinAdjacentListItems = false;
+                    content.push(node);
+                } else {
+                    content.push(
+                        node.type.create(
+                            {...node.attrs, indent: indentForTargetListItem + node.attrs.indent},
+                            node.content,
+                            node.marks,
+                        ),
+                    );
+                }
+            }
+
+            slice = new Slice(
+                Fragment.from(content),
+                Math.max(0, slice.openStart - 1),
+                slice.openEnd,
+            );
+        }
+    }
+
     // Implement the same logic as ProseMirror's `doPaste` function:
     // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
     const transaction = createTransaction();

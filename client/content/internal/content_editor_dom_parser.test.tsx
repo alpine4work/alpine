@@ -50,7 +50,7 @@ function TestContentEditor({
         <ContentEditor
             aria-label="Test"
             state={state}
-            onChange={setState}
+            onChange={state => act(() => setState(state))}
             fileAttachmentTarget={fileAttachmentTarget}
             commentFileAttachmentTarget={commentFileAttachmentTarget}
         />
@@ -739,4 +739,727 @@ test("will paste markdown with content after code block from web browser", () =>
     expect(getDoc().toString()).toEqual(
         'doc(title, paragraph("This is some text before the code block."), codeBlock(codeBlockLine("function example() {"), codeBlockLine("    console.log(\\"Hello World\\");"), codeBlockLine("}")), paragraph("This text should appear after the code block but doesn\'t get pasted."), paragraph("Neither does this paragraph."))',
     );
+});
+
+test("pasting list item in list item with different indentation uses the target list item’s indentation", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="1 1 [&quot;unorderedListItem&quot;,{&quot;indent&quot;:0}]">qux</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting list item in list item with different indentation uses the new list item’s indentation (with slice open start of 0)", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="0 1 [&quot;unorderedListItem&quot;,{&quot;indent&quot;:0}]">qux</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting list item in list item with different indentation and type (ordered list) uses the target list item’s indentation and type", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="1 1 [&quot;orderedListItem&quot;,{&quot;indent&quot;:0}]">qux</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting list item in list item with different indentation and type (unordered list) uses the target list item’s indentation and type", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="1 1 [&quot;unorderedListItem&quot;,{&quot;indent&quot;:0}]">qux</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "orderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "orderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting list item in list item with different indentation and type (check list) uses the target list item’s indentation and type", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="1 1 [&quot;checkListItem&quot;,{&quot;indent&quot;:0,&quot;checked&quot;:false}]">qux</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting block quote in list item with different indentation uses the target list item’s indentation", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="1 1 [&quot;quoteBlock&quot;,null]">qux</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting multiple list items in list item with different indentation uses the target list item’s indentation", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><ul data-pm-slice="2 1 []"><li><p>item 1</p></li><ul><li><p>item 2</p></li><li><p>item 3</p></li></ul></ul>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "orderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "orderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting multiple paragraphs in list item puts both paragraphs in the list item", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><p data-pm-slice="1 1 []">paragraph 1</p><p>paragraph 2</p>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "paragraph 1"}],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "paragraph 2"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("pasting multiple paragraphs from a list item into another list item puts both paragraphs in the list item", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><ul data-pm-slice="2 2 []"><li><p>paragraph 1</p><p>paragraph 2</p></li></ul>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "paragraph 1"}],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "paragraph 2"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("pasting multiple paragraphs from a list item followed by more list items into another list item puts both paragraphs in the list item", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><ul data-pm-slice="2 2 []"><li><p>paragraph 1</p><p>paragraph 2</p></li><ul><li><p>item 2</p></li><li><p>item 3</p></li></ul></ul>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 1},
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "paragraph 1"}],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [{type: "text", text: "paragraph 2"}],
+                    },
+                ],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+            },
+        ],
+    });
+});
+
+test("pasting multiple list items in list item with different indentation uses the target list item’s indentation until a non-list item node", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title"},
+                    {
+                        type: "unorderedListItem",
+                        attrs: {indent: 0},
+                        content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+                    },
+                    {
+                        type: "orderedListItem",
+                        attrs: {indent: 1},
+                        content: [{type: "paragraph", content: []}],
+                    },
+                ],
+            })}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<meta charset='utf-8'><ul data-pm-slice="2 2 []"><li><p>item 1</p></li><ul><li><p>item 2</p></li><li><p>item 3</p></li></ul></ul><p>paragraph</p><ul><li><p>item 4</p></li></ul>`,
+        ),
+    );
+
+    expect(getDoc().toJSON()).toEqual({
+        type: "doc",
+        attrs: expect.any(Object),
+        content: [
+            {type: "title"},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "foo"}]}],
+            },
+            {
+                type: "orderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
+            },
+            {
+                type: "orderedListItem",
+                attrs: {indent: 1},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 2"}]}],
+            },
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 2},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 3"}]}],
+            },
+            {type: "paragraph", content: [{type: "text", text: "paragraph"}]},
+            {
+                type: "unorderedListItem",
+                attrs: {indent: 0},
+                content: [{type: "paragraph", content: [{type: "text", text: "item 4"}]}],
+            },
+        ],
+    });
 });
