@@ -1,23 +1,29 @@
 import {useMemo} from "react";
 import {
+    AvatarData,
+    AvatarImageData,
+    AvatarInitialsData,
     accountAvatarClassName,
     accountAvatarInitialsClassName,
     getAccountAvatarInitials,
+    getAvatarData,
 } from "~/client/accounts/account_avatar_html.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {RemovedAccountAvatar} from "~/client/accounts/removed_account_avatar.js";
 import {AvatarImage} from "~/client/avatar/avatar_image.js";
 import {backgroundColorVar} from "~/client/styles/styles.js";
-import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
-import {SpaceAccountStateType} from "~/shared/spaces/space_account_state.js";
 
 // This component is rendered in hot paths (like `<TaskRowView>`) avoid using
 // `<Box>` until we implement a transform that automatically inlines `<Box>`.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
+// IMPORTANT: If you update the HTML in this component you should also update
+// `renderAccountAvatar()` for code that needs to render avatars in
+// `<ContentEditor>`.
 /**
  * A circular image representing the account.
  */
@@ -37,56 +43,57 @@ export function AccountAvatar({
     const sprinkles = null;
 
     const accountData = useAccountModel(account);
+    const avatarData = getAvatarData(accountData);
 
-    // IMPORTANT: If you update the HTML here you should also update
-    // `renderAccountAvatar()` for code that needs to render avatars in
-    // `<ContentEditor>`.
-    if (!accountData.avatar?.content) {
-        return (
-            <DefaultAccountAvatar
-                account={accountData}
-                size={size}
-                backgroundBorderWidth={backgroundBorderWidth}
-            />
-        );
-    }
-
-    if (
-        accountData.space.state.type === "InvitePending" &&
-        !accountData.space.state.wasPreviouslyRemoved
-    ) {
-        // TODO(ifitzsimmons, #account-avatar-override): We should never get here. If the account
-        // was never in the space and they've been invited, they should not have an avatar.
-        // We should log a warning here to notify us of data loss / corruption
-        return (
-            <DefaultAccountAvatar
-                account={accountData}
-                size={size}
-                backgroundBorderWidth={backgroundBorderWidth}
-            />
-        );
-    }
     return (
-        <AccountAvatarWithImage
-            accountStateType={accountData.space.state.type}
-            content={accountData.avatar.content}
-            size={size}
-            backgroundBorderWidth={backgroundBorderWidth}
-        />
+        <span
+            className={accountAvatarClassName}
+            style={{
+                width: spacing[size],
+                height: spacing[size],
+                backgroundColor:
+                    avatarData.type === "Initials" ? avatarData.backgroundColor : undefined,
+                boxShadow:
+                    backgroundBorderWidth !== undefined
+                        ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
+                        : undefined,
+            }}
+        >
+            <AccountAvatarInner accountData={accountData} size={size} avatarData={avatarData} />
+        </span>
     );
+}
+
+function AccountAvatarInner({
+    accountData,
+    size,
+    avatarData,
+}: {
+    accountData: AccountModelData;
+    size: Spacing;
+    avatarData: AvatarData;
+}) {
+    switch (avatarData.type) {
+        case "Image":
+            return <AccountAvatarWithImage size={size} avatarData={avatarData} />;
+        case "Initials":
+            return (
+                <DefaultAccountAvatar account={accountData} size={size} avatarData={avatarData} />
+            );
+        default:
+            throw exhaustive(avatarData);
+    }
 }
 
 function DefaultAccountAvatar({
     account,
     size,
-    backgroundBorderWidth,
+    avatarData,
 }: {
     account: AccountModelData;
     size: Spacing;
-    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
+    avatarData: AvatarInitialsData;
 }) {
-    const avatarColors = getAvatarThemeColors(account.id);
-
     const {firstInitial, lastInitial} = useMemo(() => getAccountAvatarInitials(account), [account]);
     const initialsText = useMemo(
         () => `${firstInitial}${lastInitial ?? ""}`,
@@ -98,7 +105,7 @@ function DefaultAccountAvatar({
             className={accountAvatarInitialsClassName}
             style={{
                 transform: `scale(${parseInt(size, 10) / 8})`,
-                color: avatarColors.textColor,
+                color: avatarData.textColor,
             }}
             aria-hidden="true"
         >
@@ -106,67 +113,18 @@ function DefaultAccountAvatar({
         </span>
     );
 
-    const accountState = account.space.state;
-
-    // If the account is pending an invite and it was never a member of the space, we should render
-    // the default account avatar (their initials with a themed background) WITHOUT the removed
-    // account UX – they should appear active until they reject the invite.
-    const shouldRenderRemovedAccountAvatar =
-        accountState.type === "Removed" ||
-        (accountState.type === "InvitePending" && accountState.wasPreviouslyRemoved);
-
-    return (
-        <span
-            className={accountAvatarClassName}
-            style={{
-                width: spacing[size],
-                height: spacing[size],
-                backgroundColor: avatarColors.backgroundColor,
-                boxShadow:
-                    backgroundBorderWidth !== undefined
-                        ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
-                        : undefined,
-            }}
-        >
-            {shouldRenderRemovedAccountAvatar ? (
-                <RemovedAccountAvatar size={size}>{avatarWithInitials}</RemovedAccountAvatar>
-            ) : (
-                avatarWithInitials
-            )}
-        </span>
+    return avatarData.shouldShowRemovedAvatar ? (
+        <RemovedAccountAvatar size={size}>{avatarWithInitials}</RemovedAccountAvatar>
+    ) : (
+        avatarWithInitials
     );
 }
 
-function AccountAvatarWithImage({
-    content,
-    size,
-    backgroundBorderWidth,
-    accountStateType,
-}: {
-    content: Uint8Array;
-    size: Spacing;
-    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
-    accountStateType: SpaceAccountStateType;
-}) {
-    const avatarImage = <AvatarImage content={content} borderRadius="full" />;
-    return (
-        <span
-            className={accountAvatarClassName}
-            style={{
-                width: spacing[size],
-                height: spacing[size],
-                position: "relative",
-                boxShadow:
-                    backgroundBorderWidth !== undefined
-                        ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
-                        : undefined,
-            }}
-        >
-            {accountStateType !== "Active" ? (
-                <RemovedAccountAvatar size={size}>{avatarImage}</RemovedAccountAvatar>
-            ) : (
-                avatarImage
-            )}
-        </span>
+function AccountAvatarWithImage({size, avatarData}: {size: Spacing; avatarData: AvatarImageData}) {
+    const avatarImage = <AvatarImage content={avatarData.content} borderRadius="full" />;
+    return avatarData.shouldShowRemovedAvatar ? (
+        <RemovedAccountAvatar size={size}>{avatarImage}</RemovedAccountAvatar>
+    ) : (
+        avatarImage
     );
 }
