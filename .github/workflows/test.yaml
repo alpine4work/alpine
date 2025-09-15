@@ -21,15 +21,15 @@ jobs:
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-playwright,-macos --nofetch
 
     integration-tests:
-        name: Integration tests
+        name: Integration tests (${{ matrix.category }})
         runs-on: [self-hosted, aws-test]
         strategy:
             matrix:
-                test_category:
-                    - { name: "Tasks", tag_filter: "playwright_tasks" }
-                    - { name: "Documents", tag_filter: "playwright_documents" }
-                    - { name: "Forum", tag_filter: "playwright_forum" }
-                    - { name: "Miscellaneous", tag_filter: "playwright,-playwright_forum,-playwright_documents,-playwright_tasks" }
+                category:
+                    - tasks
+                    - documents
+                    - forum
+                    - miscellaneous
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
@@ -46,7 +46,13 @@ jobs:
             # developers.
             - name: Integration tests
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=${{ matrix.test_category.tag_filter }},-macos --nofetch --nokeep_going --notest_keep_going
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test \
+                      //... \
+                      --config=github-runner \
+                      --test_tag_filters=${{ matrix.category == 'tasks' && 'playwright_tasks' || matrix.category == 'documents' && 'playwright_documents' || matrix.category == 'forum' && 'playwright_forum' || 'playwright,-playwright_forum,-playwright_documents,-playwright_tasks' }},-macos \
+                      --nofetch \
+                      --nokeep_going \
+                      --notest_keep_going
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
@@ -66,23 +72,23 @@ jobs:
     # Single job to check all required commit checks
     # This is used for GitHub's required job status checks
     commit-test-results:
-      if: ${{ always() }}
-      runs-on: ubuntu-latest
-      name: Commit test results
-      needs: [unit-tests, integration-tests]
-      steps:
-        - run: |
-            integration_tests_result="${{ needs.integration-tests.result }}"
-            if [[ $integration_tests_result == "success" || $integration_tests_result == "skipped" ]]; then
-              unit_tests_result="${{ needs.unit-tests.result }}"
-              if [[ $unit_tests_result == "success" || $unit_tests_result == "skipped" ]]; then
-                exit 0
-              else
-                exit 1
-              fi
-            else
-              exit 1
-            fi
+        if: ${{ always() }}
+        runs-on: ubuntu-latest
+        name: Commit test results
+        needs: [unit-tests, integration-tests]
+        steps:
+            - run: |
+                  integration_tests_result="${{ needs.integration-tests.result }}"
+                  if [[ $integration_tests_result == "success" || $integration_tests_result == "skipped" ]]; then
+                      unit_tests_result="${{ needs.unit-tests.result }}"
+                      if [[ $unit_tests_result == "success" || $unit_tests_result == "skipped" ]]; then
+                          exit 0
+                      else
+                          exit 1
+                      fi
+                  else
+                      exit 1
+                  fi
 
     schedule-deploy:
         name: Schedule deploy
@@ -98,10 +104,9 @@ jobs:
         steps:
             - name: Schedule deploy
               run: |
-                aws lambda invoke \
-                  --function-name ${{ secrets.SCHEDULE_DEPLOY_AWS_LAMBDA_FUNCTION_NAME }} \
-                  --payload "{ \"commitSha\": \"${{ github.sha }}\" }" \
-                  --cli-binary-format raw-in-base64-out \
-                  --region us-east-1 \
-                  response.json
-
+                  aws lambda invoke \
+                      --function-name ${{ secrets.SCHEDULE_DEPLOY_AWS_LAMBDA_FUNCTION_NAME }} \
+                      --payload "{ \"commitSha\": \"${{ github.sha }}\" }" \
+                      --cli-binary-format raw-in-base64-out \
+                      --region us-east-1 \
+                      response.json
