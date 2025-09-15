@@ -1,20 +1,26 @@
-import {renderRemovedAccountAvatarHtml} from "~/client/accounts/removed_account_avatar_html.js";
+import {renderAvatarIconOverlay} from "~/client/accounts/internal/avatar_icon_overlay_html.js";
+import {
+    AvatarData,
+    AvatarImageData,
+    AvatarInitialsData,
+    getAvatarData,
+} from "~/client/accounts/internal/get_avatar_data.js";
 import {
     backgroundColorVar,
     borderRadius as borderRadiusValues,
+    colorSchemeVars,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
-import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {AccountModelData, AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
+import {AccountModelData} from "~/shared/spaces/account_model.js";
 
 export const accountAvatarClassName = sprinkles({
     flexShrink: "0",
@@ -36,20 +42,8 @@ export const accountAvatarInitialsClassName = sprinkles({
     userSelect: "none",
 });
 
-type AvatarDataBase = {
-    shouldShowRemovedAvatar: boolean;
-};
-export type AvatarImageData = AvatarDataBase & {
-    type: "Image";
-    content: Uint8Array;
-};
-export type AvatarInitialsData = AvatarDataBase & {
-    type: "Initials";
-    textColor: string;
-    backgroundColor: string;
-};
-export type AvatarData = AvatarImageData | AvatarInitialsData;
-
+// IMPORTANT: If you update the HTML here you should also update
+// `<AccountAvatar>` for code that render avatars in React.
 /**
  * Renders an account avatar to an `HtmlElementGenerator` object. For rendering
  * avatars in `<ContentEditor>` where we can't render React UI.
@@ -65,9 +59,9 @@ export function renderAccountAvatar({
     backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
     spacingScale: SpacingScale;
 }): HtmlElementGenerator {
-    // IMPORTANT: If you update the HTML here you should also update
-    // `<AccountAvatar>` for code that render avatars in React.
     const avatarData = getAvatarData(accountData);
+    const avatarPx = convertRemLengthToPx(size, spacingScale);
+
     const outerHtml = new HtmlElementGenerator("span");
     outerHtml.setAttribute("class", accountAvatarClassName);
 
@@ -87,37 +81,57 @@ export function renderAccountAvatar({
 
     outerHtml.setAttribute("style", outerStyleString);
 
-    return renderAccountAvatarInner({accountData, size, avatarData, spacingScale, outerHtml});
+    outerHtml.appendChild(
+        renderAccountAvatarInner({
+            accountData,
+            size,
+            avatarData,
+        }),
+    );
+
+    if (avatarData.shouldShowRemovedAvatar) {
+        // All removed avatar will have a "greyed-out" effect applied.
+        const avatarContentFilter = outerHtml.appendChild(new HtmlElementGenerator("span"));
+        const avatarContentFilterStyleString = [
+            "position: absolute",
+            "overflow: hidden",
+            `width: ${avatarPx}px`,
+            `height: ${avatarPx}px`,
+            `background-color: ${colorSchemeVars["grey-0"]}`,
+            "opacity: 0.6",
+            "pointer-events: none",
+        ].join(";");
+        avatarContentFilter.setAttribute("style", avatarContentFilterStyleString);
+    }
+
+    if (avatarData.iconOverlayType) {
+        const {iconCutoutSpan, iconOverlay} = renderAvatarIconOverlay({
+            avatarPixelSize: avatarPx,
+            iconType: avatarData.iconOverlayType,
+        });
+        outerHtml.appendChildren(iconCutoutSpan, iconOverlay);
+    }
+
+    return outerHtml;
 }
 
 function renderAccountAvatarInner({
     accountData,
     size,
     avatarData,
-    spacingScale,
-    outerHtml,
 }: {
     accountData: AccountModelData;
     size: Spacing;
     avatarData: AvatarData;
-    spacingScale: SpacingScale;
-    outerHtml: HtmlElementGenerator;
 }) {
     switch (avatarData.type) {
         case "Image":
-            return renderAccountAvatarWithImage({
-                avatarData,
-                size,
-                spacingScale,
-                outerHtml,
-            });
+            return renderAccountAvatarWithImage(avatarData);
         case "Initials":
             return renderAccountAvatarWithInitials({
                 accountData,
                 size,
-                spacingScale,
                 avatarData,
-                outerHtml,
             });
         default:
             throw exhaustive(avatarData);
@@ -126,25 +140,15 @@ function renderAccountAvatarInner({
 
 const imageUrlCache = new WeakMap<Uint8Array, string>();
 
-function renderAccountAvatarWithImage({
-    size,
-    spacingScale,
-    avatarData,
-    outerHtml,
-}: {
-    avatarData: AvatarImageData;
-    size: Spacing;
-    spacingScale: SpacingScale;
-    outerHtml: HtmlElementGenerator;
-}) {
+function renderAccountAvatarWithImage(avatarData: AvatarImageData) {
     const imageUrl = getOrSetDefaultMapValue(
         imageUrlCache,
         avatarData.content,
         () => `data:${avatarContentType};base64,${encodeBase64(avatarData.content)}`,
     );
 
-    const innerHtml = outerHtml.appendChild(new HtmlElementGenerator("img"));
-    innerHtml.setAttribute("src", imageUrl);
+    const avatarHtml = new HtmlElementGenerator("img");
+    avatarHtml.setAttribute("src", imageUrl);
     const innerHtmlStyleString = [
         "width: 100%",
         "height: 100%",
@@ -152,57 +156,37 @@ function renderAccountAvatarWithImage({
         "overflow: hidden",
         `border-radius: ${borderRadiusValues["full"]}`,
     ].join(";");
-    innerHtml.setAttribute("style", innerHtmlStyleString);
-    innerHtml.setAttribute("aria-hidden", "true");
+    avatarHtml.setAttribute("style", innerHtmlStyleString);
+    avatarHtml.setAttribute("aria-hidden", "true");
 
-    if (avatarData.shouldShowRemovedAvatar) {
-        renderRemovedAccountAvatarHtml({
-            size,
-            spacingScale,
-            outerHtml,
-        });
-    }
-
-    return outerHtml;
+    return avatarHtml;
 }
 
 function renderAccountAvatarWithInitials({
     accountData,
     size,
-    spacingScale,
-    outerHtml,
     avatarData,
 }: {
     accountData: AccountModelData;
     size: Spacing;
-    spacingScale: SpacingScale;
-    outerHtml: HtmlElementGenerator;
     avatarData: AvatarInitialsData;
 }) {
     const {firstInitial, lastInitial} = getAccountAvatarInitials(accountData);
 
-    const innerHtml = outerHtml.appendChild(new HtmlElementGenerator("span"));
+    const avatarHtml = new HtmlElementGenerator("span");
 
-    innerHtml.setAttribute("class", accountAvatarInitialsClassName);
-    innerHtml.setAttribute(
+    avatarHtml.setAttribute("class", accountAvatarInitialsClassName);
+    avatarHtml.setAttribute(
         "style",
         `transform: scale(${parseInt(size, 10) / 8}); color: ${avatarData.textColor}`,
     );
-    innerHtml.setAttribute("aria-hidden", "true");
+    avatarHtml.setAttribute("aria-hidden", "true");
 
-    innerHtml.appendChild(
+    avatarHtml.appendChild(
         new HtmlTextGenerator(`${firstInitial.toUpperCase()}${lastInitial?.toUpperCase() ?? ""}`),
     );
 
-    if (avatarData.shouldShowRemovedAvatar) {
-        renderRemovedAccountAvatarHtml({
-            size,
-            spacingScale,
-            outerHtml,
-        });
-    }
-
-    return outerHtml;
+    return avatarHtml;
 }
 
 export function getAccountAvatarInitials(accountData: AccountModelData) {
@@ -222,40 +206,4 @@ export function getAccountAvatarInitials(accountData: AccountModelData) {
         : null;
 
     return {firstInitial, lastInitial};
-}
-
-export function getAvatarData(accountData: AccountModelData): AvatarData {
-    const imageContent = getImageContent(accountData);
-    const shouldShowRemovedAvatar = wasAccountRemoved(accountData.space.state);
-    return imageContent
-        ? {type: "Image", content: imageContent, shouldShowRemovedAvatar}
-        : {type: "Initials", shouldShowRemovedAvatar, ...getAvatarThemeColors(accountData.id)};
-}
-
-function getImageContent(accountData: AccountModelData) {
-    if (!accountData.avatar?.content) {
-        return null;
-    }
-
-    if (
-        accountData.space.state.type === "InvitePending" &&
-        !accountData.space.state.wasPreviouslyRemoved
-    ) {
-        // TODO(ifitzsimmons, #account-avatar-override): We should never get here. If the account
-        // was never in the space and they've been invited, they should not have an avatar.
-        // We should log a warning here to notify us of data loss / corruption
-        return null;
-    }
-
-    return accountData.avatar.content;
-}
-
-function wasAccountRemoved(accountState: AccountModelDataSpaceState) {
-    // If the account is pending an invite and it was never a member of the space, we should render
-    // the default account avatar (their initials with a themed background) WITHOUT the removed
-    // account UX – they should appear active until they reject the invite.
-    return (
-        accountState.type === "Removed" ||
-        (accountState.type === "InvitePending" && accountState.wasPreviouslyRemoved)
-    );
 }

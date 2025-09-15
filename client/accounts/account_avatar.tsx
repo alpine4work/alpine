@@ -1,18 +1,21 @@
 import {useMemo} from "react";
 import {
-    AvatarData,
-    AvatarImageData,
-    AvatarInitialsData,
     accountAvatarClassName,
     accountAvatarInitialsClassName,
     getAccountAvatarInitials,
-    getAvatarData,
 } from "~/client/accounts/account_avatar_html.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
-import {RemovedAccountAvatar} from "~/client/accounts/removed_account_avatar.js";
+import {AvatarIconOverlay} from "~/client/accounts/internal/avatar_icon_overlay.js";
+import {
+    AvatarData,
+    AvatarImageData,
+    AvatarInitialsData,
+    getAvatarData,
+} from "~/client/accounts/internal/get_avatar_data.js";
 import {AvatarImage} from "~/client/avatar/avatar_image.js";
-import {backgroundColorVar} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {backgroundColorVar, colorSchemeVars} from "~/client/styles/styles.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
@@ -43,6 +46,9 @@ export function AccountAvatar({
     const sprinkles = null;
 
     const accountData = useAccountModel(account);
+    const spacingScale = useSpacingScale();
+
+    const avatarPx = convertRemLengthToPx(size, spacingScale);
     const avatarData = getAvatarData(accountData);
 
     return (
@@ -60,6 +66,25 @@ export function AccountAvatar({
             }}
         >
             <AccountAvatarInner accountData={accountData} size={size} avatarData={avatarData} />
+            {avatarData.shouldShowRemovedAvatar && (
+                <span
+                    style={{
+                        position: "absolute",
+                        overflow: "hidden",
+                        width: avatarPx,
+                        height: avatarPx,
+                        backgroundColor: colorSchemeVars["grey-0"],
+                        opacity: 0.6,
+                        pointerEvents: "none",
+                    }}
+                />
+            )}
+            {avatarData.iconOverlayType && (
+                <AvatarIconOverlay
+                    avatarPixelSize={avatarPx}
+                    iconType={avatarData.iconOverlayType}
+                />
+            )}
         </span>
     );
 }
@@ -75,7 +100,7 @@ function AccountAvatarInner({
 }) {
     switch (avatarData.type) {
         case "Image":
-            return <AccountAvatarWithImage size={size} avatarData={avatarData} />;
+            return <AccountAvatarWithImage avatarData={avatarData} />;
         case "Initials":
             return (
                 <DefaultAccountAvatar account={accountData} size={size} avatarData={avatarData} />
@@ -100,7 +125,7 @@ function DefaultAccountAvatar({
         [firstInitial, lastInitial],
     );
 
-    const avatarWithInitials = (
+    return (
         <span
             className={accountAvatarInitialsClassName}
             style={{
@@ -112,19 +137,8 @@ function DefaultAccountAvatar({
             {initialsText.toUpperCase()}
         </span>
     );
-
-    return avatarData.shouldShowRemovedAvatar ? (
-        <RemovedAccountAvatar size={size}>{avatarWithInitials}</RemovedAccountAvatar>
-    ) : (
-        avatarWithInitials
-    );
 }
 
-function AccountAvatarWithImage({size, avatarData}: {size: Spacing; avatarData: AvatarImageData}) {
-    const avatarImage = <AvatarImage content={avatarData.content} borderRadius="full" />;
-    return avatarData.shouldShowRemovedAvatar ? (
-        <RemovedAccountAvatar size={size}>{avatarImage}</RemovedAccountAvatar>
-    ) : (
-        avatarImage
-    );
+function AccountAvatarWithImage({avatarData}: {avatarData: AvatarImageData}) {
+    return <AvatarImage content={avatarData.content} borderRadius="full" />;
 }

@@ -110,6 +110,16 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
         return node;
     }
 
+    public appendChildren<const Nodes extends ReadonlyArray<HtmlGenerator>>(
+        ...nodes: Nodes
+    ): Nodes {
+        for (const node of nodes) {
+            this._children.push(node);
+        }
+
+        return nodes;
+    }
+
     public insertBefore(newNode: HtmlGenerator, referenceNode: HtmlGenerator) {
         const index = this._children.indexOf(referenceNode);
         assert(index !== -1, "Couldn’t find reference node");
