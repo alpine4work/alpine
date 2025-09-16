@@ -1,3 +1,4 @@
+import {availableParallelism} from "os";
 import {join as joinPath} from "path";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
@@ -27,7 +28,7 @@ export const ffmpegImagePreviewContentOutputContentType: FileContentType = "imag
  * resource contention. In unit tests we only use 1 thread since we'll be
  * running many tests in parallel.
  */
-export const ffmpegThreadCount = import.meta.jest ? 1 : 2;
+export const ffmpegThreadCount = import.meta.jest ? 1 : availableParallelism();
 
 /**
  * What FFmpeg video codecs supported by MP4 files are web safe? We don't have

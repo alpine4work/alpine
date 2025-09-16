@@ -397,7 +397,13 @@ export async function resizeFile(
                         //
                         // https://trac.ffmpeg.org/wiki/Encode/AV1#ControllingSpeedQuality
                         "-cpu-used",
-                        "6",
+                        "8",
+                        // According to the documentation, -cpu-used can only be set to values > 5
+                        // when -deadline is set to realtime.
+                        //
+                        // https://trac.ffmpeg.org/wiki/Encode/VP9#DeadlineQuality
+                        "-deadline",
+                        "realtime",
                         // We must output to a file. We can't output to stdout when taking a screenshot
                         // or else we get the error "[avif] muxer does not support non seekable
                         // output".
