@@ -39,10 +39,6 @@ export interface AwsHttpLambdaOptions extends Omit<AwsLambdaBaseOptions, "deploy
  * Your Lambda function MUST be built using `createHttpLambdaHandler()` from
  * server/lambda helpers. This ensures proper integration with the secrets management
  * and HTTP request handling.
- *
- * Secrets Extension Behavior:
- * - Secrets are cached within the Lambda execution environment
- * - Cache reduces API calls to Secrets Manager (cost optimization)
  */
 export class AwsHttpLambda extends AwsLambdaBase {
     private readonly _lambdaFunctionAlias: Alias;

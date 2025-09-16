@@ -22,20 +22,19 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-const honeycombApiKey = assertExists(
-    process.env.HONEYCOMB_API_KEY,
-    "HONEYCOMB_API_KEY is required",
-);
+const honeycombApiKey =
+    process.env.NODE_ENV !== "production"
+        ? process.env.HONEYCOMB_API_KEY
+        : assertExists(process.env.HONEYCOMB_API_KEY, "HONEYCOMB_API_KEY is required");
 
 export function createHttpLambdaHandler({
     handleRequest,
     serviceSecretsSchema,
     route,
     serviceName,
-    tokenServiceName,
 }: {
     handleRequest: (
         processContext: LambdaActionContext,
@@ -55,8 +54,7 @@ export function createHttpLambdaHandler({
     ) => Promise<Response>;
     serviceSecretsSchema: Schema<ServerSecrets>;
     route: string;
-    serviceName: TracerServiceName;
-    tokenServiceName: TokenServiceName;
+    serviceName: TokenServiceName;
 }): APIGatewayProxyHandler {
     const awsSigner = new AwsRequestSigner();
     let tokenAgentAndOptionsPromise: Promise<{
@@ -102,7 +100,7 @@ export function createHttpLambdaHandler({
                                 "Creating token agent",
                                 async () =>
                                     await createServiceTokenAgent({
-                                        serviceName: tokenServiceName,
+                                        serviceName,
                                         options,
                                     }),
                             );

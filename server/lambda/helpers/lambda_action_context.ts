@@ -41,7 +41,7 @@ export const lambdaActionContextOptions = {
     honeycombApiKey: {type: "string", optional: true},
 } as const;
 
-export type LambdaActionContext = Context<{
+export type LambdaActionContextModules = {
     process: ProcessContextModule;
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
@@ -51,7 +51,8 @@ export type LambdaActionContext = Context<{
     files: FilesContextModule;
     cache: CacheContextModule;
     batch: BatchContextModule;
-}>;
+};
+export type LambdaActionContext = Context<LambdaActionContextModules>;
 
 export function createLambdaActionContext({
     awsSigner,

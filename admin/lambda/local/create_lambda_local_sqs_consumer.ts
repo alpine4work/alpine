@@ -5,6 +5,7 @@ import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -80,15 +81,15 @@ export function createLambdaLocalSqsConsumer(
         maxFiberMessageCount: 1,
 
         processJob: async (actionContext, job, jobStartTime, span) => {
-            let timeout: NodeJS.Timeout;
+            let clearTimeout: () => void;
             const timeoutPromise = new Promise<never>((_, reject) => {
-                timeout = setTimeout(() => {
+                clearTimeout = createTimeout(() => {
                     reject(
                         new DeadlineExceededError(
                             quote`Lambda function ${functionName} timed out after ${timeoutMs}ms`,
                         ),
                     );
-                }, timeoutMs);
+                }, timeoutMs).clear;
             });
 
             // Call the Lambda handler with timeout
@@ -100,7 +101,7 @@ export function createLambdaLocalSqsConsumer(
                     sqsMessageId: randomUUID(),
                 }),
                 timeoutPromise,
-            ]).finally(() => clearTimeout(timeout));
+            ]).finally(() => clearTimeout());
         },
     });
 
