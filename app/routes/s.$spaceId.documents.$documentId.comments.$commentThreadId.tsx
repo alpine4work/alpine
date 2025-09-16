@@ -1,4 +1,8 @@
 import {useMemo} from "react";
+import {
+    deserializeDocumentIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
@@ -31,7 +35,7 @@ import {
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -46,8 +50,8 @@ const LoaderSchema = Schema.object({
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const documentId = deserializeDocumentIdForLoader(params.documentId);
     const commentThreadId = Schema.id<DocumentCommentThreadId>().deserialize(
         params.commentThreadId ?? null,
     );

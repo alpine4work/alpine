@@ -1,4 +1,8 @@
 import {useSearchParams} from "@remix-run/react";
+import {
+    deserializeChatIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {ChatView} from "~/client/chat/chat_view.js";
 import {Box} from "~/client/design/box.js";
@@ -21,7 +25,6 @@ import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_gene
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -36,8 +39,8 @@ const LoaderSchema = Schema.object({
 
 export async function loader({context: unauthenticatedContext, request, params}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const chatId = Schema.id<ChatId>().deserialize(params.chatId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
+    const chatId = deserializeChatIdForLoader(params.chatId ?? null);
 
     const url = new URL(request.url);
 

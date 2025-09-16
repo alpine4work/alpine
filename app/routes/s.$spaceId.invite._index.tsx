@@ -1,5 +1,6 @@
 import {redirect} from "@remix-run/node";
 import {useMemo, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -17,14 +18,13 @@ import {getOwnAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {acceptSpaceAccountInvite} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({});
 
 export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const currentAccount = await getOwnAccountIfExists(

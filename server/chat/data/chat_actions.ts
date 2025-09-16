@@ -45,6 +45,7 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     DataLossError,
@@ -54,7 +55,6 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -1026,13 +1026,6 @@ async function getChatItemForAuthorization(
     const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
     if (!chatItem) throw createChatNotFoundError(chatId);
     return chatItem;
-}
-
-export function createChatNotFoundError(chatId: ChatId) {
-    return new NotFoundError("Chat not found", {
-        aggregateDedupeKey: chatId,
-        displayMessage: errorDisplayMessage`This chat doesn’t exist. Try searching “my chats” to see chats you’re in.`,
-    });
 }
 
 /**

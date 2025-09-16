@@ -1,10 +1,7 @@
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {
-    createAuthorizeSpaceAccessPermissionDeniedError,
-    isAccountMemberOfSpaceWithoutAuthorization,
-} from "~/server/spaces/spaces_table.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -14,6 +11,7 @@ import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 
 /**
  * If `evaluateAccessPolicy()` returns `false` then call this function to

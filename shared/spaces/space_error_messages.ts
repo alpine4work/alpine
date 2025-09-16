@@ -1,5 +1,8 @@
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 /**
@@ -21,3 +24,32 @@ export const spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole: Recor
     Admin: errorDisplayMessage`You aren’t an admin for this space. Ask an admin in this space to give you admin access too.`,
     Owner: errorDisplayMessage`This action is restricted to the owner. You aren’t an owner for this space.`,
 };
+
+/**
+ * When a space isn't found, we treat it as permission denied.
+ */
+export function createSpaceNotFoundError(spaceId?: string) {
+    return new PermissionDeniedError("Account doesn’t have access to space", {
+        aggregateDedupeKey: spaceId,
+        displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+    });
+}
+
+export function createAuthorizeSpaceAccessPermissionDeniedError(
+    spaceId: SpaceId,
+    accountId: AccountId,
+    expectedRole: SpaceRole = "Member",
+) {
+    const displayMessage =
+        spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole[expectedRole];
+
+    return new PermissionDeniedError(
+        expectedRole === "Member"
+            ? "Account doesn’t have access to space"
+            : quote`Account doesn’t have ${expectedRole} access to space`,
+        {
+            aggregateDedupeKey: `${spaceId}:${accountId}`,
+            displayMessage,
+        },
+    );
+}

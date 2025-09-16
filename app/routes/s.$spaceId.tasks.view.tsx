@@ -1,5 +1,6 @@
 import {useState} from "react";
 import {useSearchParams} from "react-router-dom";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -17,7 +18,7 @@ import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_f
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -54,7 +55,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const filtersString = url.searchParams.get("filter");
     const filters = filtersString ? deserializeTaskQueryFiltersSearchParam(filtersString) : [];
     const sortsString = url.searchParams.get("sort");

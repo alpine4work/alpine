@@ -1,4 +1,5 @@
 import {useId, useRef, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
@@ -20,7 +21,6 @@ import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateOurAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
@@ -29,7 +29,7 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 const LoaderSchema = Schema.object({});
 
 export async function loader({params}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     if (!hasProfileSettingsFeature(spaceId)) {
         throw new UnimplementedError("Profile settings is not available");

@@ -1,4 +1,5 @@
 import {useId, useRef, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -21,7 +22,6 @@ import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
@@ -30,7 +30,7 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 const LoaderSchema = Schema.object({});
 
 export async function loader({params}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     if (!hasSpaceSettingsFeature(spaceId)) {
         throw new UnimplementedError("Space settings is not available");

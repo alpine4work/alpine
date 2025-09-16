@@ -1,6 +1,7 @@
 import {compareAsc, compareDesc} from "date-fns";
 import {CaretDown} from "phosphor-react";
 import {useMemo, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel, useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -20,7 +21,6 @@ import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
     moveSpaceOwner,
@@ -44,7 +44,7 @@ const LoaderSchema = Schema.object({
 });
 
 export async function loader({context, params}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     if (!hasSpaceSettingsFeature(spaceId)) {
         throw new UnimplementedError("Space settings is not available");

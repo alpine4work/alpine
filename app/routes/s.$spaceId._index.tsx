@@ -1,4 +1,5 @@
 import {ShouldRevalidateFunction} from "react-router";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {FeedView} from "~/client/feed/feed_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -14,7 +15,6 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FeedEntryCursorSchema} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModelSchema} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -41,7 +41,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
 
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 

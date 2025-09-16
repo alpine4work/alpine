@@ -1,5 +1,6 @@
 import {CaretLeft, CaretRight} from "phosphor-react";
 import {MutableRefObject, useMemo, useRef, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -50,7 +51,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -74,7 +75,7 @@ export async function loader({params, request, context: unauthenticatedContext}:
 
     const url = new URL(request.url);
 
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const documentIdAndBucketGeneration = assertExists(params.documentIdAndBucketGeneration);
     const [documentId, bucketGenerationString, ...otherParts] =
         documentIdAndBucketGeneration.split("-");

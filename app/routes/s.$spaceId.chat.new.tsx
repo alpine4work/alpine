@@ -5,6 +5,10 @@ import {
     useNavigation,
     useSearchParams,
 } from "react-router-dom";
+import {
+    deserializeAccountIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
@@ -32,7 +36,6 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -53,10 +56,10 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     const context = await _context.actor.authenticate();
 
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     const selectedAccountIds = (url.searchParams.get("accounts")?.split(" ") ?? []).map(accountId =>
-        Schema.id<AccountId>().deserialize(accountId),
+        deserializeAccountIdForLoader(accountId),
     );
 
     const [selectedAccounts, selectedChatResult] = await runAllPromises([

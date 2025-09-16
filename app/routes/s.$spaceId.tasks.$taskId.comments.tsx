@@ -1,6 +1,10 @@
 import {useParams, useSearchParams} from "@remix-run/react";
 import {useCallback, useEffect} from "react";
 import {usePress} from "react-aria";
+import {
+    deserializeSpaceIdForLoader,
+    deserializeTaskIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {Box} from "~/client/design/box.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
@@ -41,8 +45,8 @@ const LoaderSchema = Schema.object({
 
 export async function loader({context: unauthenticatedContext, params, request}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const taskId = deserializeTaskIdForLoader(params.taskId);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     const url = new URL(request.url);
 

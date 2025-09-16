@@ -1,4 +1,5 @@
 import {useSearchParams} from "react-router-dom";
+import {deserializeChannelIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {ChannelFilesView} from "~/client/forum/channel_files_view.js";
 import {getInitialChannelFilesViewFileLoadCount} from "~/client/forum/get_initial_channel_files_view_load_count.js";
 import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeholder.js";
@@ -10,7 +11,6 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -21,7 +21,7 @@ const LoaderSchema = Schema.object({
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
 
-    const channelId = Schema.id<ChannelId>().deserialize(params.channelId ?? null);
+    const channelId = deserializeChannelIdForLoader(params.channelId ?? null);
 
     const channelResult = await getChannelAndMetadata(context, {
         channelId,

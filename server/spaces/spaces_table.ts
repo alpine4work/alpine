@@ -92,7 +92,7 @@ import {
     SpaceAccountSettingsSchema,
 } from "~/shared/spaces/space_account_settings.js";
 import {SpaceAccountState, spaceAccountStateDefault} from "~/shared/spaces/space_account_state.js";
-import {spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole} from "~/shared/spaces/space_error_messages.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel, SpaceRole, SpaceRoleSchema, hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -2059,25 +2059,6 @@ export async function authorizeSpaceAccess(
         default:
             throw exhaustive(context.actor);
     }
-}
-
-export function createAuthorizeSpaceAccessPermissionDeniedError(
-    spaceId: SpaceId,
-    accountId: AccountId,
-    expectedRole: SpaceRole = "Member",
-) {
-    const displayMessage =
-        spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole[expectedRole];
-
-    return new PermissionDeniedError(
-        expectedRole === "Member"
-            ? "Account doesn’t have access to space"
-            : quote`Account doesn’t have ${expectedRole} access to space`,
-        {
-            aggregateDedupeKey: `${spaceId}:${accountId}`,
-            displayMessage,
-        },
-    );
 }
 
 /**

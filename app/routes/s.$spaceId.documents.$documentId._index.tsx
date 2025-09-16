@@ -1,5 +1,9 @@
 import {ShouldRevalidateFunction, useParams, useSearchParams} from "@remix-run/react";
 import {useEffect, useState} from "react";
+import {
+    deserializeDocumentIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditor,
@@ -30,7 +34,7 @@ import {
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -48,8 +52,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const documentId = deserializeDocumentIdForLoader(params.documentId);
     const commentThreadId = Schema.id<DocumentCommentThreadId>()
         .nullable()
         .deserialize(url.searchParams.get("comments"));
@@ -139,7 +143,7 @@ export default function DocumentRoute() {
     const context = useAppContext();
     const {space} = useSpaceContext();
 
-    const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
+    const documentId = deserializeDocumentIdForLoader(params.documentId);
 
     const [shouldInitiallyFocus] = useState(searchParams.get("focus") === "");
 

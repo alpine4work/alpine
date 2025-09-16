@@ -1,4 +1,5 @@
 import {ReactElement, useCallback, useMemo, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
@@ -32,7 +33,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
@@ -60,7 +61,7 @@ const LoaderSchema = Schema.object({
 export async function loader({params, request, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
     const channelIdAndBucketGeneration = assertExists(params.channelIdAndBucketGeneration);
     const [channelId, bucketGenerationString, ...otherParts] =
         channelIdAndBucketGeneration.split("-");

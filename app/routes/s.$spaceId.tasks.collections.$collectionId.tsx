@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -34,7 +35,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {BrowserId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {BrowserId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -89,7 +90,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const collectionId = Schema.id<TaskCollectionId>().deserialize(params.collectionId ?? null);
 
     const createSearchParam = url.searchParams.get("create");

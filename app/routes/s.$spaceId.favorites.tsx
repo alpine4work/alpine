@@ -1,3 +1,4 @@
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SearchFavoritesView} from "~/client/search/search_favorites_view.js";
@@ -6,7 +7,6 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAllSearchFavoriteEntities} from "~/server/search/data/index/search_entity_index.js";
 import {getSpaceAccountSettings} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
@@ -17,7 +17,7 @@ const LoaderSchema = Schema.object({
 
 export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? "");
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
 
     const [settings, results] = await runAllPromises([
         getSpaceAccountSettings(context, spaceId),

@@ -2,7 +2,6 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
 export const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
@@ -14,14 +13,14 @@ export const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Re
     Manage: errorDisplayMessage`You aren’t allowed to share this channel. Ask someone who can share the channel to give you share access.`,
 };
 
-export function createChannelNotFoundError(channelId: ChannelId) {
+export function createChannelNotFoundError(channelId?: string) {
     return new NotFoundError("Channel not found", {
         aggregateDedupeKey: channelId,
         displayMessage: errorDisplayMessage`This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.`,
     });
 }
 
-export function createPostNotFoundError(postId: PostId) {
+export function createPostNotFoundError(postId?: string) {
     return new NotFoundError("Post not found", {
         aggregateDedupeKey: postId,
         displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,

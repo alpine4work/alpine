@@ -14,6 +14,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext, To, useParams} from "react-router";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
@@ -72,7 +73,6 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {
     authorizeSpaceAccessIfPossible,
-    createAuthorizeSpaceAccessPermissionDeniedError,
     getOwnAccountIfExists,
     getSpace,
 } from "~/server/spaces/spaces_table.js";
@@ -115,6 +115,7 @@ import {
 } from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
+import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -183,7 +184,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export async function loader({context: loaderContext, params, request}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const context = await loaderContext.actor.authenticate();
 
     switch (context.actor.type) {

@@ -1,8 +1,10 @@
 import {redirect} from "@remix-run/node";
+import {
+    deserializeAccountIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InternalError} from "~/shared/error/error.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * This is route that automatically redirects from
@@ -16,7 +18,7 @@ export async function loader({params}: LoaderArgs) {
             "Development only warning: If you’re linking to an account then instead of navigating to `/s/:spaceId/accounts/:accountId` you should navigate directly to `/s/:spaceId/chat/with/:accountId`. It’s a slight optimization since we don’t need to perform a `redirect()` network roundtrip on the client",
         );
     }
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const accountId = Schema.id<AccountId>().deserialize(params.accountId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
+    const accountId = deserializeAccountIdForLoader(params.accountId ?? null);
     return redirect(`/s/${spaceId}/chat/with/${accountId}`);
 }

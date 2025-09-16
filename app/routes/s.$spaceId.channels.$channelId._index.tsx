@@ -1,6 +1,10 @@
 import {useEffect} from "react";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {
+    deserializeChannelIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {Box} from "~/client/design/box.js";
 import {ChannelView} from "~/client/forum/channel_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -48,7 +52,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {isId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -69,8 +73,8 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const channelId = Schema.id<ChannelId>().deserialize(params.channelId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
+    const channelId = deserializeChannelIdForLoader(params.channelId ?? null);
 
     const createSearchParam = url.searchParams.get("create");
 

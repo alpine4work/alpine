@@ -1,8 +1,10 @@
+import {
+    deserializeAccountIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {loader as actualLoader} from "~/app/routes/s.$spaceId.chat.$chatId.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * This route allows you to specify the `AccountId` you want to chat with in
@@ -19,8 +21,8 @@ import {Schema} from "~/shared/schema/schema.js";
 // `with/$accountId` URL is shareable with other users but the `$chatId` URL is
 // not.
 export async function loader({context, params, ...loaderArgs}: LoaderArgs) {
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const otherAccountId = Schema.id<AccountId>().deserialize(params.accountId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    const otherAccountId = deserializeAccountIdForLoader(params.accountId);
 
     const chatId = await getOrCreateChatForAccounts(
         (await context.actor.authenticate()).actor.authorizeSession(),

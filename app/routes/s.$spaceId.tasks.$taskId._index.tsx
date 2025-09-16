@@ -3,6 +3,10 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {flushSync} from "react-dom";
 import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {
+    deserializeSpaceIdForLoader,
+    deserializeTaskIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -104,8 +108,8 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleTe
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
-    const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const taskId = deserializeTaskIdForLoader(params.taskId);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     const url = new URL(request.url);
 

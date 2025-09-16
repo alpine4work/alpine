@@ -1,5 +1,6 @@
 import {fromDate, toCalendarDate} from "@internationalized/date";
 import {ShouldRevalidateFunction} from "react-router";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -13,7 +14,7 @@ import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_t
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -39,7 +40,7 @@ export const meta = createMetaFunction(LoaderSchema, () => [{title: "My tasks"}]
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
     const currentTime = new Date();
     const currentZonedDateTime = fromDate(currentTime, context.loader.getClientInfo().timeZone);

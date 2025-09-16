@@ -7,6 +7,7 @@ import {HydrationState, createPath} from "@remix-run/router";
 import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
 import {resolvePath} from "react-router";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {Box} from "~/client/design/box.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {InboxMobileView} from "~/client/inbox/inbox_mobile_view.js";
@@ -27,7 +28,6 @@ import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -48,7 +48,7 @@ export const meta = createMetaFunction(LoaderSchema, ({}) => [{title: "Inbox"}])
 
 export async function loader({params, context, request, serverRoutes: routes}: LoaderArgs) {
     const url = new URL(request.url);
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const selectedParam = url.searchParams.get("selected");
     const filter = url.searchParams.get("tab") === "old" ? "Archive" : "New";
 

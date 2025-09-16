@@ -1,4 +1,8 @@
 import {useSearchParams} from "react-router-dom";
+import {
+    deserializePostIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {PostView, PostViewInitialScroll} from "~/client/forum/post_view.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
@@ -17,7 +21,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
-import {FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -32,8 +36,8 @@ const LoaderSchema = Schema.object({
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-    const postId = Schema.id<PostId>().deserialize(params.postId ?? null);
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
+    const postId = deserializePostIdForLoader(params.postId ?? null);
 
     const commentLimit = getInitialLoadMessageCount(context.loader.getClientInfo());
 
