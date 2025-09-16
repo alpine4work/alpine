@@ -63,7 +63,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//server/edge",
     "//server/files/processor/test_helpers",
     "//server/messaging/realtime/test_helpers",
-    "//server/notifications/data:notifications_table_forum_test",
+    "//server/notifications/data:notifications_actions_forum_test",
     "//server/tasks/realtime:task_realtime_connection_test",
     "//shared/spaces/test_helpers",
 ]

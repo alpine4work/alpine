@@ -35,7 +35,7 @@ import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_sc
 import {
     getInboxDocumentNewCommentThreadsEntryCommentThreads,
     getInboxEntry,
-} from "~/server/notifications/data/notifications_table.js";
+} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";

@@ -14,7 +14,7 @@ import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_actions.js";
-import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
+import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";

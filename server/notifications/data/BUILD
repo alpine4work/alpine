@@ -12,8 +12,8 @@ ts_project(
     ],
     tests = {
         # Large test suites that run three times each.
-        "notifications_table_chat_test": {"size": "medium"},
-        "notifications_table_forum_test": {"size": "medium"},
+        "notifications_actions_chat_test": {"size": "medium"},
+        "notifications_actions_forum_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

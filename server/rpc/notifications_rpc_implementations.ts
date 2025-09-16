@@ -7,7 +7,7 @@ import {
     getInboxEntry,
     observeInbox,
     unarchiveInboxEntry,
-} from "~/server/notifications/data/notifications_table.js";
+} from "~/server/notifications/data/notifications_actions.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/notifications_rpc_definitions.js";
 

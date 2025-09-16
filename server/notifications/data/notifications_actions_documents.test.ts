@@ -7,7 +7,7 @@ import {
     notificationEventBeforeProcessingTestCheckpoint,
     notificationEventProcessingTestCounter,
     processNotificationEvent,
-} from "~/server/notifications/data/notifications_table.js";
+} from "~/server/notifications/data/notifications_actions.js";
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,

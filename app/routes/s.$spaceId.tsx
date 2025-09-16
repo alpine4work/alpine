@@ -68,7 +68,7 @@ import {
     clientLoaderTaskStoreLoaderData,
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {DynamoSessionActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
-import {getInbox} from "~/server/notifications/data/notifications_table.js";
+import {getInbox} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {
