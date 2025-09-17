@@ -15,7 +15,8 @@ def aws_lambda(
         name,
         srcs = [],
         entry_point = None,
-        visibility = []):
+        visibility = [],
+        base_image = "lambda_node22_base"):
     """
     Defines an AWS Lambda that can also be executed locally.
 
@@ -25,6 +26,10 @@ def aws_lambda(
         entry_point: The entry point into the lambda. Should export a `handler()`
         function.
         visibility: Controls who may depend on your lambda.
+        base_image: The base image to use for the lambda. Valid values
+          - "lambda_node22_base" (default) - AWS Lambda runtime + Node.js 22
+          - "lambda_node22_libreoffice" - AWS Lambda runtime + Node.js 22 + LibreOffice. Currently
+                                          used for FileProcessorService
     """
     esbuild(
         name = "{}_bundle".format(name),
@@ -118,7 +123,7 @@ def aws_lambda(
     # - Fast uploads: Smaller layers upload faster to ECR, and unchanged layers are not pushed
     oci_image(
         name = "{}_lambda_image".format(name),
-        base = "@lambda_node22_base",
+        base = "@{}".format(base_image),
         tars = [
             ":{}_image_layer_without_node".format(name),
         ],
