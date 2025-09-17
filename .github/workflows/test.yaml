@@ -69,27 +69,6 @@ jobs:
                   path: bazel-testlogs
                   retention-days: 7
 
-    # Single job to check all required commit checks
-    # This is used for GitHub's required job status checks
-    commit-test-results:
-        if: ${{ always() }}
-        runs-on: ubuntu-latest
-        name: Commit test results
-        needs: [unit-tests, integration-tests]
-        steps:
-            - run: |
-                  integration_tests_result="${{ needs.integration-tests.result }}"
-                  if [[ $integration_tests_result == "success" || $integration_tests_result == "skipped" ]]; then
-                      unit_tests_result="${{ needs.unit-tests.result }}"
-                      if [[ $unit_tests_result == "success" || $unit_tests_result == "skipped" ]]; then
-                          exit 0
-                      else
-                          exit 1
-                      fi
-                  else
-                      exit 1
-                  fi
-
     schedule-deploy:
         name: Schedule deploy
         runs-on: ubuntu-latest
@@ -100,7 +79,7 @@ jobs:
         # a message to our job queue via lambda. This will make sure our commit is eventually
         # deployed.
         if: github.ref == 'refs/heads/main'
-        needs: [commit-test-results]
+        needs: [integration-tests, unit-tests]
         steps:
             - name: Schedule deploy
               run: |
