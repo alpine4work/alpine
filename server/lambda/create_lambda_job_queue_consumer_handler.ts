@@ -33,23 +33,17 @@ const honeycombApiKey =
         ? process.env.HONEYCOMB_API_KEY
         : assertExists(process.env.HONEYCOMB_API_KEY, "HONEYCOMB_API_KEY is required");
 
-export type JobTypes = JobDescription["type"];
-export type JobDescriptionByJobType<JobType extends JobTypes> = Extract<
-    JobDescription,
-    {type: JobType}
->;
-
 export type LambdaSystemActionContext = Context<
     LambdaActionContextModules & {actor: DynamoSystemActorContextModule}
 >;
-export function createLambdaJobQueueConsumerHandler<JobType extends JobTypes>({
+export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobDescription>({
     processJob,
     serviceName,
     serviceSecretsSchema,
 }: {
     processJob: (
         context: LambdaSystemActionContext,
-        job: JobDescriptionByJobType<JobType>,
+        job: TJobDescription,
         jobStartTime: Date,
         span: TracerSpan,
     ) => Promise<void>;
@@ -147,11 +141,11 @@ export function createLambdaJobQueueConsumerHandler<JobType extends JobTypes>({
     };
 }
 
-async function _processJob<JobType extends JobTypes>(
+async function _processJob<TJobDescription extends JobDescription>(
     actionContext: LambdaActionContext,
     processJob: (
         context: LambdaSystemActionContext,
-        job: JobDescriptionByJobType<JobType>,
+        job: TJobDescription,
         jobStartTime: Date,
         span: TracerSpan,
     ) => Promise<void>,
@@ -241,12 +235,7 @@ async function _processJob<JobType extends JobTypes>(
                 withLambdaTimeout(lambdaContext, new AbortController(), async () =>
                     // TODO(ifitzsimmons, 2025-09-16): Update processJob signature to include the
                     // abort controller.
-                    processJob(
-                        context,
-                        messageBody.job as JobDescriptionByJobType<JobType>,
-                        jobStartTime,
-                        span!,
-                    ),
+                    processJob(context, messageBody.job as TJobDescription, jobStartTime, span!),
                 ),
         );
         finishSpan();

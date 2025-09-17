@@ -4,8 +4,8 @@ import {
 } from "~/admin/lambda/local/create_lambda_local_http_server.js";
 import {
     LambdaLocalSqsConsumerOptions,
-    createLambdaLocalSqsConsumer,
-} from "~/admin/lambda/local/create_lambda_local_sqs_consumer.js";
+    createLambdaLocalJobQueueConsumer,
+} from "~/admin/lambda/local/create_lambda_local_job_queue_consumer.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -41,7 +41,7 @@ export function startLambdaLocal(
         tokenAgent,
     });
     const sqsConsumers = subscribers.map(subscriber =>
-        createLambdaLocalSqsConsumer(processContext, shutdownManager, subscriber),
+        createLambdaLocalJobQueueConsumer(processContext, shutdownManager, subscriber),
     );
 
     return {

@@ -1,7 +1,7 @@
-import {randomUUID} from "crypto";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {JobQueueName, JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
+import {JobQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
+import {LambdaSystemActionContext} from "~/server/lambda/create_lambda_job_queue_consumer_handler.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
@@ -13,19 +13,11 @@ export type LambdaLocalSqsConsumerOptions = {
     /**
      * The Lambda handler function to wrap
      */
-    handler: <T extends JobDescription & {type: JobTypeByQueueName[JobQueueName]}>(
-        processContext: LambdaActionContext,
-        {
-            job,
-            jobStartTime,
-            span,
-            sqsMessageId,
-        }: {
-            job: T;
-            jobStartTime: Date;
-            span: TracerSpan;
-            sqsMessageId: string;
-        },
+    handler: <TJobDescription extends JobDescription>(
+        actionContext: LambdaSystemActionContext,
+        job: TJobDescription,
+        jobStartTime: Date,
+        span: TracerSpan,
     ) => Promise<void>;
 
     /**
@@ -68,7 +60,7 @@ export type LambdaLocalSqsConsumerOptions = {
  * Generic SQS consumer wrapper for AWS Lambda functions that expect SQSEvent.
  * Polls local SQS for messages and invokes the Lambda handler.
  */
-export function createLambdaLocalSqsConsumer(
+export function createLambdaLocalJobQueueConsumer(
     context: LambdaActionContext,
     shutdownManager: ShutdownManager,
     {handler, sqs, timeoutMs = 30000, functionName}: LambdaLocalSqsConsumerOptions,
@@ -94,12 +86,7 @@ export function createLambdaLocalSqsConsumer(
 
             // Call the Lambda handler with timeout
             await Promise.race([
-                handler(actionContext, {
-                    job,
-                    jobStartTime,
-                    span,
-                    sqsMessageId: randomUUID(),
-                }),
+                handler(actionContext, job, jobStartTime, span),
                 timeoutPromise,
             ]).finally(() => clearTimeout());
         },

@@ -39,6 +39,7 @@ ts_project(
     },
     visibility = [
         "//admin/lambda/local/file_processor_service:__pkg__",
+        "//server/files/processor/process_file:__pkg__",
         "//server/files/processor/resize_file:__pkg__",
         "//server/files/processor/test_helpers:__pkg__",
     ],

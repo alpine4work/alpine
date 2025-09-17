@@ -157,6 +157,17 @@ messages-storage {
             client.send(new CreateQueueCommand({QueueName: "FileProcessorJobDeadLetterQueue"})),
         ]);
 
+        // TODO(ifitzsimmons, #file-processor-service-migration) Remove when we migrate
+        await client.send(
+            new CreateQueueCommand({
+                QueueName: "FileProcessorJobQueue",
+                Attributes: {
+                    // eslint-disable-next-line string-quotes
+                    RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobDeadLetterQueue","maxReceiveCount":"5"}`,
+                },
+            }),
+        );
+
         await runAllPromises([
             client.send(
                 new CreateQueueCommand({
@@ -167,12 +178,25 @@ messages-storage {
                     },
                 }),
             ),
+            // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): setup dedicated
+            // DLQ for Heavy processor
             client.send(
                 new CreateQueueCommand({
-                    QueueName: "FileProcessorJobQueue",
+                    QueueName: "FileProcessorHeavyJobQueue",
                     Attributes: {
                         // eslint-disable-next-line string-quotes
-                        RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobDeadLetterQueue","maxReceiveCount":"5"}`,
+                        RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobQueue","maxReceiveCount":"5"}`,
+                    },
+                }),
+            ),
+            // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): setup dedicated
+            // DLQ for Light processor
+            client.send(
+                new CreateQueueCommand({
+                    QueueName: "FileProcessorLightJobQueue",
+                    Attributes: {
+                        // eslint-disable-next-line string-quotes
+                        RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobQueue","maxReceiveCount":"5"}`,
                     },
                 }),
             ),

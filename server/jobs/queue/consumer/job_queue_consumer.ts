@@ -238,6 +238,18 @@ export class JobQueueConsumer<
                 this._serviceName = "FileProcessorService";
                 this._sqsQueueName = "FileProcessorJobQueue";
                 break;
+            case "FileProcessorLight":
+                // NOTE(ifitzsimmons, 07-24-2025) Only used in Dev Environment
+                assert(process.env.NODE_ENV !== "production");
+                this._serviceName = "FileProcessorService";
+                this._sqsQueueName = "FileProcessorLightJobQueue";
+                break;
+            case "FileProcessorHeavy":
+                // NOTE(ifitzsimmons, 07-24-2025) Only used in Dev Environment
+                assert(process.env.NODE_ENV !== "production");
+                this._serviceName = "FileProcessorService";
+                this._sqsQueueName = "FileProcessorHeavyJobQueue";
+                break;
             default:
                 throw exhaustive(this._queueName);
         }
@@ -803,7 +815,9 @@ export class JobQueueConsumer<
                     handleSpanName += ` (${messageBody.job.entityId.split(":", 2)[0]})`;
                     break;
                 }
-                case "ProcessFile": {
+                case "ProcessFile":
+                case "ProcessFileHeavy":
+                case "ProcessFileLight": {
                     handleSpanName += ` (${messageBody.job.contentType})`;
                     break;
                 }

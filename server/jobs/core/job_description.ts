@@ -75,11 +75,29 @@ const TestJobDescriptionSchema = Schema.object({
     shouldThrow: Schema.boolean.optional(),
 });
 
+// TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue
 const ProcessFileJobDescriptionSchema = Schema.object({
     type: Schema.value("ProcessFile"),
     spaceId: Schema.id<SpaceId>(),
     fileId: Schema.id<FileId>(),
     contentType: FileContentTypeSchema,
+    reason: Schema.string,
+});
+
+const ProcessFileHeavyJobDescriptionSchema = Schema.object({
+    type: Schema.value("ProcessFileHeavy"),
+    spaceId: Schema.id<SpaceId>(),
+    fileId: Schema.id<FileId>(),
+    contentType: FileContentTypeSchema,
+    reason: Schema.string,
+});
+
+const ProcessFileLightJobDescriptionSchema = Schema.object({
+    type: Schema.value("ProcessFileLight"),
+    spaceId: Schema.id<SpaceId>(),
+    fileId: Schema.id<FileId>(),
+    contentType: FileContentTypeSchema,
+    reason: Schema.string,
 });
 
 const SendShareNotificationJobDescriptionSchema = Schema.object({
@@ -108,6 +126,16 @@ const AddFeedAccountCandidateEntryJobDescriptionSchema = Schema.object({
 
 export type CallBotWebhookJobDescription = SchemaType<typeof CallBotWebhookJobDescriptionSchema>;
 
+export type ProcessFileLightJobDescription = SchemaType<
+    typeof ProcessFileLightJobDescriptionSchema
+>;
+
+export type ProcessFileHeavyJobDescription = SchemaType<
+    typeof ProcessFileHeavyJobDescriptionSchema
+>;
+
+export type ProcessFileJobDescription = SchemaType<typeof ProcessFileJobDescriptionSchema>;
+
 const CallBotWebhookJobDescriptionSchema = Schema.object({
     type: Schema.value("CallBotWebhook"),
     spaceId: Schema.id<SpaceId>(),
@@ -124,6 +152,8 @@ export const JobDescriptionSchema = Schema.union({
     IndexSearchEntityEmbeddingChunks: IndexSearchEntityEmbeddingChunksJobDescriptionSchema,
     NotificationEvent: NotificationEventJobDescriptionSchema,
     ProcessFile: ProcessFileJobDescriptionSchema,
+    ProcessFileHeavy: ProcessFileHeavyJobDescriptionSchema,
+    ProcessFileLight: ProcessFileLightJobDescriptionSchema,
     SendShareNotification: SendShareNotificationJobDescriptionSchema,
     AddFeedCandidateEntry: AddFeedCandidateEntryJobDescriptionSchema,
     AddFeedAccountCandidateEntry: AddFeedAccountCandidateEntryJobDescriptionSchema,

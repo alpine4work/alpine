@@ -1,12 +1,12 @@
 import {startLambdaLocal} from "~/admin/lambda/local/start_lambda_local.js";
-import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {handleInternalMiniflareGetObject} from "~/server/files/processor/file_processor_service_server.js";
+import {processFileJob} from "~/server/files/processor/process_file/process_file_lambda.js";
 import {processFile} from "~/server/files/processor/process_file.js";
 import {handleResizeAvatarRequest} from "~/server/files/processor/resize_avatar/handle_resize_avatar_request.js";
 import {handleResizeFileRequest} from "~/server/files/processor/resize_file/handle_resize_file_request.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
+import {ProcessFileJobDescription} from "~/server/jobs/core/job_description.js";
+import {LambdaSystemActionContext} from "~/server/lambda/create_lambda_job_queue_consumer_handler.js";
 import {
     createLambdaActionContext,
     lambdaActionContextOptions,
@@ -27,10 +27,6 @@ export const options = {
     honeycombApiKey: {type: "string", optional: true},
     sqsLocalPort: {type: "string"},
 } as const;
-
-type FileProcessorJob = JobDescription & {
-    type: JobTypeByQueueName["FileProcessor"];
-};
 
 export async function run({
     options,
@@ -104,6 +100,7 @@ export async function run({
             },
         ],
         subscribers: [
+            // TODO(ifitzsimmons, #file-processor-service-migration) Remove when we migrate
             {
                 sqs: {
                     endpoint: `http://localhost:${sqsLocalPort}`,
@@ -111,40 +108,53 @@ export async function run({
                     queueUrl: assertExists(options.fileProcessorJobQueueUrl),
                     queueName: "FileProcessor",
                 },
-                // NOTE(ifitzsimmons, 09-03-2025) The `handler` function is generic and the
+                // NOTE(ifitzsimmons, 09-16-2025) The `handler` function is generic and the
                 // typing should work here. For whatever reason, TS is having a hard time
                 // understanding that the FileProcessorJob correctly extends our valid job types.
                 // @ts-expect-error
                 handler: (
-                    processContext,
-                    {
-                        job,
-                        span,
-                    }: {
-                        job: FileProcessorJob;
-                        jobStartTime: Date;
-                        span: TracerSpan;
-                        sqsMessageId: string;
-                    },
+                    processContext: LambdaSystemActionContext,
+                    job: ProcessFileJobDescription,
+                    jobStartTime: Date,
+                    span: TracerSpan,
                 ) =>
-                    processContext.with(
-                        {
-                            actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                "FileProcessorService",
-                                job.spaceId,
-                            ),
-                        },
-                        actionContext =>
-                            processFile(actionContext, span, {
-                                spaceId: job.spaceId,
-                                fileId: job.fileId,
-                                contentType: job.contentType,
-                                temporaryDirectoryPath: assertExists(
-                                    options.temporaryDirectoryPath,
-                                ),
-                            }),
-                    ),
+                    processFile(processContext, span, {
+                        spaceId: job.spaceId,
+                        fileId: job.fileId,
+                        contentType: job.contentType,
+                        temporaryDirectoryPath: assertExists(options.temporaryDirectoryPath),
+                    }),
                 functionName: "FileProcessor",
+                timeoutMs: 1000 * 60 * 5, // 5 minutes
+            },
+            {
+                sqs: {
+                    endpoint: `http://localhost:${sqsLocalPort}`,
+                    region: "us-east-1",
+                    queueUrl: assertExists(options.fileProcessorHeavyJobQueueUrl),
+                    queueName: "FileProcessorHeavy",
+                },
+                // NOTE(ifitzsimmons, 09-03-2025) The `handler` function is generic and the
+                // typing should work here. For whatever reason, TS is having a hard time
+                // understanding that the FileProcessorJob correctly extends our valid job types.
+                // @ts-expect-error
+                handler: processFileJob,
+                functionName: "FileProcessorHeavy",
+                timeoutMs: 1000 * 60 * 5, // 5 minutes
+            },
+            {
+                sqs: {
+                    endpoint: `http://localhost:${sqsLocalPort}`,
+                    region: "us-east-1",
+                    queueUrl: assertExists(options.fileProcessorLightJobQueueUrl),
+                    queueName: "FileProcessorLight",
+                },
+                // NOTE(ifitzsimmons, 09-03-2025) The `handler` function is generic and the
+                // typing should work here. For whatever reason, TS is having a hard time
+                // understanding that the FileProcessorJob correctly extends our valid job types.
+                // @ts-expect-error
+                handler: processFileJob,
+                functionName: "FileProcessorLight",
                 timeoutMs: 1000 * 60 * 5, // 5 minutes
             },
         ],

@@ -149,6 +149,8 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     getSqsLocalPort(): number;
     getSqsLocalJobQueueUrl(): string;
     getSqsLocalFileProcessorJobQueueUrl(): string;
+    getSqsLocalFileProcessorLightJobQueueUrl(): string;
+    getSqsLocalFileProcessorHeavyJobQueueUrl(): string;
     restartSqsLocal(): Promise<void>;
 
     /**
@@ -392,6 +394,14 @@ export function createTestContext(
         return `http://localhost:${getSqsLocalPort()}/local/FileProcessorJobQueue`;
     };
 
+    const getSqsLocalFileProcessorLightJobQueueUrl = () => {
+        return `http://localhost:${getSqsLocalPort()}/local/FileProcessorLightJobQueue`;
+    };
+
+    const getSqsLocalFileProcessorHeavyJobQueueUrl = () => {
+        return `http://localhost:${getSqsLocalPort()}/local/FileProcessorHeavyJobQueue`;
+    };
+
     const restartSqsLocal = async () => {
         assert(sqsLocal, "SQS local must have been started before");
 
@@ -614,6 +624,8 @@ export function createTestContext(
         getSqsLocalPort,
         getSqsLocalJobQueueUrl,
         getSqsLocalFileProcessorJobQueueUrl,
+        getSqsLocalFileProcessorLightJobQueueUrl,
+        getSqsLocalFileProcessorHeavyJobQueueUrl,
         restartSqsLocal,
         action: createSessionContext,
         systemAction: createSystemContext,
@@ -715,6 +727,8 @@ export function createTestContext(
                     region: "us-east-1",
                     queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`,
                     fileProcessorQueueUrl: `http://localhost:${sqsLocal.port}/local/FileProcessorJobQueue`,
+                    fileProcessorHeavyQueueUrl: `http://localhost:${sqsLocal.port}/local/FileProcessorHeavyJobQueue`,
+                    fileProcessorLightQueueUrl: `http://localhost:${sqsLocal.port}/local/FileProcessorLightJobQueue`,
                 }),
             );
         }

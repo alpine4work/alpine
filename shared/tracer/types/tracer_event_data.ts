@@ -1390,6 +1390,12 @@ export type TracerEventData = {
         /** What type of processor are we using for this content? */
         readonly processorType?: string;
 
+        /** What type of job are we using for this content, heavy or light? */
+        readonly jobType?: string;
+
+        /** The reason the job was sent to the job type. */
+        readonly jobReason?: string;
+
         readonly alternative?: {
             /** The content type of the file's alternative. */
             readonly contentType?: string;

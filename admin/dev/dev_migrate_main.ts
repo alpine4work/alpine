@@ -41,7 +41,10 @@ const subprocess = spawn(
         `--dynamoLocalPort=${dynamoLocalPort}`,
         `--opensearchLocalPort=${opensearchLocalPort}`,
         `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+        // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
         `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
+        `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
+        `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
         `--edgeServiceUrl=${edgeServiceUrl}`,
         ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
     ],

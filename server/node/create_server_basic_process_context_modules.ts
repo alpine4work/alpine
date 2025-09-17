@@ -16,6 +16,9 @@ export const serverBasicProcessContextOptions = {
     jobQueueUrl: {type: "string"},
     fileProcessorJobQueueUrl: {type: "string"},
     edgeServiceUrl: {type: "string"},
+    // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues): These should not be optional
+    fileProcessorHeavyJobQueueUrl: {type: "string", optional: true},
+    fileProcessorLightJobQueueUrl: {type: "string", optional: true},
 } as const;
 
 export type ServerBasicProcessContextOptions = {
@@ -23,7 +26,11 @@ export type ServerBasicProcessContextOptions = {
     readonly ensureLocalCachePath?: string;
     readonly dynamoLocalPort?: string;
     readonly jobQueueUrl?: string;
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue
+    // url
     readonly fileProcessorJobQueueUrl?: string;
+    readonly fileProcessorHeavyJobQueueUrl?: string;
+    readonly fileProcessorLightJobQueueUrl?: string;
 };
 
 /**
@@ -112,6 +119,8 @@ export function createServerBasicProcessContextModulesWithoutShutdownManager({
                     options.fileProcessorJobQueueUrl,
                     "`fileProcessorJobQueueUrl` option is required",
                 ),
+                fileProcessorHeavyQueueUrl: options.fileProcessorHeavyJobQueueUrl,
+                fileProcessorLightQueueUrl: options.fileProcessorLightJobQueueUrl,
             }),
         ),
         constants: new ServerConstantsContextModule({

@@ -257,7 +257,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
+                `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
+                `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
@@ -335,7 +338,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
+                `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
+                `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
             ],
             {
                 env: process.env,
@@ -364,7 +370,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
+                `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
+                `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
@@ -399,7 +408,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
+                `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
+                `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
             ],

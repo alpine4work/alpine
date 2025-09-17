@@ -445,6 +445,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     file: {
         contentType: Schema.string,
         contentLength: Schema.integer,
+        jobType: Schema.string,
+        jobReason: Schema.string,
         processorType: IdentifierStringSchema,
         alternative: {
             contentType: Schema.string,

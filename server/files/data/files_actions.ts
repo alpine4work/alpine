@@ -22,6 +22,7 @@ import {
     FilesTable,
     PostDraftFileAttachmentsIndex,
 } from "~/server/files/data/internal/files_table.js";
+import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {
@@ -421,11 +422,16 @@ export async function finishUploadingAndStartProcessingFile(
             // Now that the file has finished uploading we can start processing it. Wait
             // for the message to be added to our queue. If sending the process file
             // message fails we want to fail the entire upload.
+
+            // Determine the appropriate processing tier based on content type and file size
+            const {jobType, reason} = routeFileToProcessor();
+
             await context.jobs.sendAndWait({
-                type: "ProcessFile",
+                type: jobType,
                 spaceId,
                 fileId,
                 contentType: item.contentType,
+                reason,
             });
         }
 

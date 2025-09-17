@@ -1,6 +1,6 @@
 import {SQSClient, SendMessageBatchCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
 import {JobDescription, JobDescriptionSchema} from "~/server/jobs/core/job_description.js";
-import {JobQueueName} from "~/server/jobs/core/job_queue_name.js";
+import {JobQueueName, jobQueueNameByType} from "~/server/jobs/core/job_queue_name.js";
 import {
     MaintenanceJobDescription,
     MaintenanceJobDescriptionSchema,
@@ -132,8 +132,16 @@ export interface JobSenderBase {
 export class JobSender implements JobSenderBase {
     private readonly _defaultQueueUrl: string;
     private readonly _defaultSqsClient: SQSClient;
+
+    // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
     private readonly _fileProcessorQueueUrl: string;
     private readonly _fileProcessorSqsClient: SQSClient;
+
+    private readonly _fileProcessorHeavyQueueUrl: string;
+    private readonly _fileProcessorHeavySqsClient: SQSClient;
+
+    private readonly _fileProcessorLightQueueUrl: string;
+    private readonly _fileProcessorLightSqsClient: SQSClient;
 
     private readonly _messageBatchByQueueName = new Map<JobQueueName, JobSenderMessageBatch>();
 
@@ -141,10 +149,15 @@ export class JobSender implements JobSenderBase {
         region,
         queueUrl: defaultQueueUrl,
         fileProcessorQueueUrl,
+        fileProcessorHeavyQueueUrl,
+        fileProcessorLightQueueUrl,
     }: {
         region: string;
         queueUrl: string;
         fileProcessorQueueUrl: string;
+        // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues): These should not be optional
+        fileProcessorHeavyQueueUrl?: string;
+        fileProcessorLightQueueUrl?: string;
     }) {
         const defaultEndpoint = new URL("/", defaultQueueUrl).toString();
         const fileProcessorEndpoint = new URL("/", fileProcessorQueueUrl).toString();
@@ -163,6 +176,38 @@ export class JobSender implements JobSenderBase {
                       region,
                       endpoint: fileProcessorEndpoint,
                   });
+
+        // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues): Remove conditional logic
+        // once queues are not optional.
+        if (process.env.NODE_ENV !== "production") {
+            assert(
+                fileProcessorHeavyQueueUrl,
+                "`fileProcessorHeavyQueueUrl` is required in development",
+            );
+            assert(
+                fileProcessorLightQueueUrl,
+                "`fileProcessorLightQueueUrl` is required in development",
+            );
+            const fileProcessorHeavyEndpoint = new URL("/", fileProcessorHeavyQueueUrl).toString();
+            this._fileProcessorHeavyQueueUrl = fileProcessorHeavyQueueUrl;
+            this._fileProcessorHeavySqsClient = new SQSClient({
+                region,
+                endpoint: fileProcessorHeavyEndpoint,
+            });
+
+            const fileProcessorLightEndpoint = new URL("/", fileProcessorLightQueueUrl).toString();
+            this._fileProcessorLightQueueUrl = fileProcessorLightQueueUrl;
+            this._fileProcessorLightSqsClient = new SQSClient({
+                region,
+                endpoint: fileProcessorLightEndpoint,
+            });
+        } else {
+            this._fileProcessorHeavyQueueUrl = this._fileProcessorQueueUrl;
+            this._fileProcessorHeavySqsClient = this._fileProcessorSqsClient;
+
+            this._fileProcessorLightQueueUrl = this._fileProcessorQueueUrl;
+            this._fileProcessorLightSqsClient = this._fileProcessorSqsClient;
+        }
     }
 
     public send(
@@ -195,7 +240,7 @@ export class JobSender implements JobSenderBase {
         const tracer = context.tracer.getTracer();
         const promiseResolver = createPromiseResolver();
 
-        const queueName: JobQueueName = job.type === "ProcessFile" ? "FileProcessor" : "Default";
+        const queueName = jobQueueNameByType[job.type];
 
         const messageBatch = getOrSetDefaultMapValue(
             this._messageBatchByQueueName,
@@ -286,6 +331,16 @@ export class JobSender implements JobSenderBase {
                 case "FileProcessor": {
                     sqsClient = this._fileProcessorSqsClient;
                     queueUrl = this._fileProcessorQueueUrl;
+                    break;
+                }
+                case "FileProcessorHeavy": {
+                    sqsClient = this._fileProcessorHeavySqsClient;
+                    queueUrl = this._fileProcessorHeavyQueueUrl;
+                    break;
+                }
+                case "FileProcessorLight": {
+                    sqsClient = this._fileProcessorLightSqsClient;
+                    queueUrl = this._fileProcessorLightQueueUrl;
                     break;
                 }
                 default:
