@@ -4,6 +4,7 @@ import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     getFilePreviewImageResizeWidth,
     isFilePreviewImageResizeWidth,
@@ -11,6 +12,7 @@ import {
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
+    fetchWithTracer,
     getHeadersTracerData,
     obfuscateCookieHeader,
     obfuscateSetCookieHeaders,
@@ -178,8 +180,40 @@ export async function fetchFile(
         // We use the resize request as a cache key regardless of whether we actually
         // need to execute the resize.
         if (width !== null) {
-            // eslint-disable-next-line no-global-fetch
-            response = await fetch(subrequest);
+            response = await fetchWithTracer(
+                span,
+                subrequestUrl,
+                {
+                    serviceName: subrequestServiceName,
+                    route: subrequestRoute,
+                    headers: subrequest.headers,
+                    method: subrequest.method,
+                },
+                async response => {
+                    const contentType = response.headers.get("content-type");
+
+                    if (!contentType) {
+                        throw new InternalError("Missing `Content-Type` header");
+                    } else if (contentType === "application/json") {
+                        // NOTE(ifitzsimmons, 2025-09-15): We expect the file processor to return
+                        // either `image/avif` or `text/plain` for most responses. However, if
+                        // the infra fails (ie, the lambda times out), we return a JSON response
+                        // with the serialized error. This is necessary for cases where we want to
+                        // add displayMessages to errors on the backend.
+                        const body = await response.json();
+                        let responseError;
+                        try {
+                            responseError = ErrorSchema.deserialize(body.error);
+                        } catch (error) {
+                            throw new InternalError("Unexpected JSON response from file processor");
+                        }
+
+                        throw responseError;
+                    } else {
+                        return response;
+                    }
+                },
+            );
         } else {
             const objectKey = `${route.spaceId}/${route.fileId}${
                 variant !== null ? `-${variant}` : ""
