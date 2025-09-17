@@ -30,7 +30,6 @@
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {dispatchContentEditorFileRowTableParentUpdatedEvent} from "~/client/content/internal/content_editor_file_row_like_node_view.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {subscribeToOptimisticContentEditableTableLayoutEvent} from "~/client/content/state/table/content_editor_table_plugin.js";
 import {
     isInContentTable,
@@ -56,11 +55,7 @@ import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
 import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
 import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
 import {RowsPlusTopIcon} from "~/client/icons/rows_plus_top_icon.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {
-    getPlatformWithoutListening,
-    subscribeToPlatformChange,
-} from "~/client/remix/platform_context.js";
+import {subscribeToPlatformChange} from "~/client/remix/platform_context.js";
 import {
     getSpacingScaleWithoutListening,
     subscribeToSpacingScaleChange,
@@ -76,16 +71,15 @@ import {
 } from "~/shared/content/content_styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 
 export function createContentEditorTableNodeView({
-    getRouteLayout,
+    getBlockWidth,
     getAccessLevel,
 }: {
-    getRouteLayout: () => RouteLayout;
+    getBlockWidth: () => number;
     getAccessLevel: () => AccessLevel;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
@@ -262,15 +256,9 @@ export function createContentEditorTableNodeView({
 
         function updateTableLayout(): void {
             const spacingScale = getSpacingScaleWithoutListening();
-            const platform = getPlatformWithoutListening();
             const {devicePixelRatio} = window;
 
-            const blockWidthPx = getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout: getRouteLayout(),
-                clientInfo: getClientInfo(),
-            });
+            const blockWidthPx = getBlockWidth();
 
             const tableWrapper3Element = tableElement.parentElement!;
 

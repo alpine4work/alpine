@@ -3,7 +3,7 @@
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
-import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
+import {renderContentToHtmlStoreForTest} from "~/client/content/render_content_to_html.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/content/content_styles.js";
@@ -71,7 +71,7 @@ function getContext(): never {
 test("will properly number list items", () => {
     expect(
         stripHtml(
-            renderContentToHtmlStore(
+            renderContentToHtmlStoreForTest(
                 {
                     doc: schema.node("doc", {}, [
                         schema.node("paragraph", {}, [schema.text("test1")]),
@@ -123,7 +123,7 @@ test("will properly number list items", () => {
 test("will properly number list items with indentation", () => {
     expect(
         stripHtml(
-            renderContentToHtmlStore(
+            renderContentToHtmlStoreForTest(
                 {
                     doc: schema.node("doc", {}, [
                         schema.node("orderedListItem", {indent: 0}, [
@@ -220,7 +220,7 @@ test("will properly number list items with indentation", () => {
 test("will properly number list items in quote blocks", () => {
     expect(
         stripHtml(
-            renderContentToHtmlStore(
+            renderContentToHtmlStoreForTest(
                 {
                     doc: schema.node("doc", {}, [
                         schema.node("quoteBlock", {}, [
@@ -275,7 +275,7 @@ test("will properly number list items in quote blocks", () => {
 test("will render code block", () => {
     expect(
         stripHtml(
-            renderContentToHtmlStore(
+            renderContentToHtmlStoreForTest(
                 {
                     doc: schema.node("doc", {}, [
                         schema.nodeFromJSON({

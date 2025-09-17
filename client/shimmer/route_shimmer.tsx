@@ -38,7 +38,6 @@ import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_sha
 import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderPaddingY,
-    documentCommentThreadListViewMaxWidth,
     documentCommentThreadPreviewHeight,
 } from "~/client/styles/document_shared_styles.js";
 import {
@@ -205,7 +204,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.dev.empty": false,
     "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
-        inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
+        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
     "routes/s.$spaceId.favorites": {component: SearchFavoritesRouteShimmer},
@@ -220,7 +219,7 @@ const shimmerOptionsByRouteId: Record<
         component: ChannelPostsNotificationRouteShimmer,
     },
     "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration": {
-        inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
+        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
     "routes/s.$spaceId.posts.$postId": {
@@ -1273,7 +1272,7 @@ function DocumentCommentThreadRouteShimmer() {
                         <MobileBackButtonSpacer />
                     </Box>
                 )}
-                <Box width="full" maxWidth={documentCommentThreadListViewMaxWidth} marginX="center">
+                <Box width="full" maxWidth={contentStyles.contentMaxWidth} marginX="center">
                     <Box
                         height={platform === "mobile" ? "3" : documentCommentThreadHeaderPaddingY}
                     />

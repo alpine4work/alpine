@@ -1,4 +1,5 @@
 import {Memo, ReactNode, useLayoutEffect, useMemo} from "react";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -138,73 +139,77 @@ export function DocumentPresentationSlideView({
             overflowX="hidden"
             overflowY="auto"
         >
-            <Box style={{padding: margin}} className={documentPresentationStyles.slideClassName}>
-                {contentCover}
-                {headingContent && (
+            <ContentBlockWidthContextProvider
+                withoutAssumedPadding={true}
+                width={size.width - margin * 2}
+            >
+                <Box
+                    style={{padding: margin}}
+                    className={documentPresentationStyles.slideClassName}
+                >
+                    {contentCover}
+                    {headingContent && (
+                        <Box
+                            style={{
+                                // Container `<div>` with the actual height. Because our child `<div>` will
+                                // have the height before scaling up with our CSS `transform: scale()`.
+                                height: headingSize ? headingSize.height * headingScale : undefined,
+                                marginBottom: headingMarginBottom,
+                            }}
+                        >
+                            <Box
+                                ref={headingSizeRef}
+                                style={{
+                                    width: (size.width - margin * 2) / headingScale,
+                                    transformOrigin: "top left",
+                                    transform: `scale(${headingScale})`,
+                                }}
+                            >
+                                <ContentView
+                                    content={headingContent}
+                                    fileAttachmentTarget={fileAttachmentTarget}
+                                    // Let content flow the entire width of the fullscreen slide.
+                                    withoutBlockMaxWidth={true}
+                                    // We need to set the scale factor to make sure we use larger `<img>` srcs on
+                                    // slides so the full resolution image can be displayed.
+                                    transformScale={headingScale}
+                                />
+                            </Box>
+                        </Box>
+                    )}
                     <Box
                         style={{
                             // Container `<div>` with the actual height. Because our child `<div>` will
                             // have the height before scaling up with our CSS `transform: scale()`.
-                            height: headingSize ? headingSize.height * headingScale : undefined,
-                            marginBottom: headingMarginBottom,
+                            height: bodySize ? bodySize.height * bodyScale : undefined,
                         }}
                     >
                         <Box
-                            ref={headingSizeRef}
+                            ref={bodySizeRef}
                             style={{
-                                width: (size.width - margin * 2) / headingScale,
+                                width: (size.width - margin * 2) / bodyScale,
                                 transformOrigin: "top left",
-                                transform: `scale(${headingScale})`,
+                                transform: `scale(${bodyScale})`,
                             }}
                         >
                             <ContentView
-                                content={headingContent}
+                                // TODO(calebmer): Disable image loading while we're resizing the slide so we
+                                // don't make multiple image network requests.
+                                //
+                                // TODO(calebmer): Preload images in the next slide so we don't show a blurred
+                                // image when the user goes to the next slide.
+                                content={bodyContent}
                                 fileAttachmentTarget={fileAttachmentTarget}
                                 // Let content flow the entire width of the fullscreen slide.
                                 withoutBlockMaxWidth={true}
-                                // Constrain available width to slide size.
-                                availableWidth={size.width - margin * 2}
                                 // We need to set the scale factor to make sure we use larger `<img>` srcs on
                                 // slides so the full resolution image can be displayed.
                                 transformScale={bodyScale}
                             />
                         </Box>
                     </Box>
-                )}
-                <Box
-                    style={{
-                        // Container `<div>` with the actual height. Because our child `<div>` will
-                        // have the height before scaling up with our CSS `transform: scale()`.
-                        height: bodySize ? bodySize.height * bodyScale : undefined,
-                    }}
-                >
-                    <Box
-                        ref={bodySizeRef}
-                        style={{
-                            width: (size.width - margin * 2) / bodyScale,
-                            transformOrigin: "top left",
-                            transform: `scale(${bodyScale})`,
-                        }}
-                    >
-                        <ContentView
-                            // TODO(calebmer): Disable image loading while we're resizing the slide so we
-                            // don't make multiple image network requests.
-                            //
-                            // TODO(calebmer): Preload images in the next slide so we don't show a blurred
-                            // image when the user goes to the next slide.
-                            content={bodyContent}
-                            fileAttachmentTarget={fileAttachmentTarget}
-                            // Let content flow the entire width of the fullscreen slide.
-                            withoutBlockMaxWidth={true}
-                            // Constrain available width to slide size.
-                            availableWidth={size.width - margin * 2}
-                            // We need to set the scale factor to make sure we use larger `<img>` srcs on
-                            // slides so the full resolution image can be displayed.
-                            transformScale={bodyScale}
-                        />
-                    </Box>
                 </Box>
-            </Box>
+            </ContentBlockWidthContextProvider>
         </Box>
     );
 }

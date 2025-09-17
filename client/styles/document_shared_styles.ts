@@ -9,7 +9,6 @@ import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_k
 
 export const documentCommentThreadPreviewHeight = "48";
 
-export const documentCommentThreadListViewMaxWidth = "160";
 export const documentCommentThreadActionsHeight = "7";
 export const documentCommentThreadHeaderPaddingY = "5";
 

@@ -14,6 +14,10 @@ import {
     useRef,
     useState,
 } from "react";
+import {
+    ContentBlockWidthContextProvider,
+    useContentBlockAvailableWidth,
+} from "~/client/content/content_block_width.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -163,7 +167,6 @@ function PostListView(
         onLoadMorePosts,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
-        availableWidth,
         aside,
         sideBarLeftSize,
         sideBarRightSize,
@@ -241,23 +244,6 @@ function PostListView(
                 eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
             }) => void
         >;
-
-        /**
-         * The width available to our `<PostListView>` component. If set then we'll
-         * pass `availableWidth` props down to our child components like
-         * `<PostContentView>` and `<MessageView>`. If undefined then we don't pass
-         * down the prop.
-         *
-         * Knowing the available width is important when rendering some content nodes.
-         * Particularly tables, files, and file entities. Since their layout adjusts
-         * based on the available space. By default these components use
-         * `clientInfo.screenWidth` as the available width.
-         *
-         * Pass in the width available to `<PostListView>`. We'll subtract width used
-         * by any sidebars defined by `sideBarLeftSize` and `sideBarRightSize` when
-         * figuring out the available width for any child components.
-         */
-        availableWidth?: number;
 
         /**
          * An element we render to the side of the post list but still within the
@@ -381,9 +367,9 @@ function PostListView(
         );
     }
 
-    const availablePostWidth = useMemo(() => {
-        if (availableWidth === undefined) return undefined;
+    const originalContentBlockAvailableWidth = useContentBlockAvailableWidth();
 
+    const contentBlockAvailableWidth = useMemo(() => {
         const sizes: Array<{maxSize: number; flex: number}> = [];
 
         if (sideBarLeftSize) {
@@ -412,10 +398,16 @@ function PostListView(
             });
         }
 
-        const resolvedSizes = resolveFlexSizes(availableWidth, sizes);
+        const resolvedSizes = resolveFlexSizes(originalContentBlockAvailableWidth, sizes);
 
         return assertExists(sideBarLeftSize ? resolvedSizes[1] : resolvedSizes[0]);
-    }, [availableWidth, hasAside, sideBarLeftSize, sideBarRightSize, spacingScale]);
+    }, [
+        hasAside,
+        originalContentBlockAvailableWidth,
+        sideBarLeftSize,
+        sideBarRightSize,
+        spacingScale,
+    ]);
 
     const isLoadingRef = useRef(false);
     const setErrorState = useErrorState();
@@ -1194,7 +1186,6 @@ function PostListView(
                                             shouldNotShowChannelId !== item.post.channel.id
                                         }
                                         isPostView={isPostView}
-                                        availableWidth={availablePostWidth}
                                         initialScroll={
                                             index === 0 || (hasHeader && index === 1)
                                                 ? initialScrollForFirstPost ?? null
@@ -1354,7 +1345,6 @@ function PostListView(
                                                 );
                                             }}
                                             roomDisplayedCreatedTime={item.post.createdTime}
-                                            availableWidth={availablePostWidth}
                                             // You shouldn't be able to edit, delete, or reply to comments if you don't
                                             // have `Comment` access on the post.
                                             //
@@ -1719,10 +1709,7 @@ function PostListView(
                                         // `header`.
                                         topBorder}
                                     {bottomBorder}
-                                    <FeedEntryView
-                                        entry={item.entry}
-                                        availableWidth={availablePostWidth}
-                                    />
+                                    <FeedEntryView entry={item.entry} />
                                 </div>
                                 {asideSpacer}
                                 {sideBarRightSpacer}
@@ -1750,7 +1737,6 @@ function PostListView(
             bottomBorder,
             postEditing,
             shouldNotShowChannelId,
-            availablePostWidth,
             initialScrollForFirstPost,
             idBase,
             isShowingAllContentByPostId,
@@ -1833,229 +1819,233 @@ function PostListView(
                         })}
                     />
                 )}
-                <VirtualizedScrollView
-                    ref={viewRef}
-                    elementRef={navigationBar?.scrollViewRef}
-                    scrollbarInsetTop={
-                        navigationBar?.scrollbarInsetTop ??
-                        (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
-                    }
-                    bufferedItemHeight={postContentViewMinHeightPx[spacingScale]}
-                    itemCount={itemCount}
-                    renderItem={renderItem}
-                    // Always render the post content if we're in a single post with pinned comment
-                    // input layout.
-                    alwaysRenderAdditionalItemIndexes={useMemo(
-                        () => (isPostView ? [0] : []),
-                        [isPostView],
-                    )}
-                    onRenderedRangeChange={tryLoadingMoreData}
-                    onScroll={handleScroll}
-                    // Make sure content height is an integer. This guarantees we properly position
-                    // our aside given scroll offset is always an integer. We see some rendering
-                    // bugs in Chrome if content height isn't rounded. For example:
-                    //
-                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/xdcahs0wp7zwv27gbj4tt11dq8
-                    withRoundedContentHeight={true}
-                    // If the aside is larger than our virtualized list's content then we need to
-                    // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
-                    // some measurements. Otherwise the navigation bar among other things start to
-                    // break down.
-                    extraChildrenContentHeight={asideSize?.height ?? 0}
-                    extraChildren={
-                        <>
-                            {navigationBar?.navigationBar}
-                            {hasAside && (
-                                <>
-                                    <div
-                                        style={{
-                                            height: scrollDirectionState.asideBufferedHeight,
-                                        }}
-                                    />
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            zIndex: "30",
-                                            pointerEvents: "none",
-                                            display: "flex",
-                                            justifyContent: "center",
-                                        })}
-                                        style={{
-                                            position: "sticky",
-                                            ...(scrollDirectionState.scrollDirection === "Down"
-                                                ? {
-                                                      top:
-                                                          viewSize && asideSize
-                                                              ? viewSize.height - asideSize.height
-                                                              : 0,
-                                                  }
-                                                : {
-                                                      bottom:
-                                                          viewSize && asideSize
-                                                              ? viewSize.height - asideSize.height
-                                                              : 0,
-                                                  }),
-                                            left: 0,
-                                            right: 0,
-                                        }}
-                                    >
+                <ContentBlockWidthContextProvider width={contentBlockAvailableWidth}>
+                    <VirtualizedScrollView
+                        ref={viewRef}
+                        elementRef={navigationBar?.scrollViewRef}
+                        scrollbarInsetTop={
+                            navigationBar?.scrollbarInsetTop ??
+                            (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
+                        }
+                        bufferedItemHeight={postContentViewMinHeightPx[spacingScale]}
+                        itemCount={itemCount}
+                        renderItem={renderItem}
+                        // Always render the post content if we're in a single post with pinned comment
+                        // input layout.
+                        alwaysRenderAdditionalItemIndexes={useMemo(
+                            () => (isPostView ? [0] : []),
+                            [isPostView],
+                        )}
+                        onRenderedRangeChange={tryLoadingMoreData}
+                        onScroll={handleScroll}
+                        // Make sure content height is an integer. This guarantees we properly position
+                        // our aside given scroll offset is always an integer. We see some rendering
+                        // bugs in Chrome if content height isn't rounded. For example:
+                        //
+                        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/xdcahs0wp7zwv27gbj4tt11dq8
+                        withRoundedContentHeight={true}
+                        // If the aside is larger than our virtualized list's content then we need to
+                        // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
+                        // some measurements. Otherwise the navigation bar among other things start to
+                        // break down.
+                        extraChildrenContentHeight={asideSize?.height ?? 0}
+                        extraChildren={
+                            <>
+                                {navigationBar?.navigationBar}
+                                {hasAside && (
+                                    <>
                                         <div
-                                            className={sprinkles({
-                                                width: "full",
-                                                maxWidth: contentStyles.contentMaxWidth,
-                                                overflow: "hidden",
-                                            })}
                                             style={{
-                                                flex: postViewFlex,
+                                                height: scrollDirectionState.asideBufferedHeight,
                                             }}
                                         />
                                         <div
                                             className={sprinkles({
                                                 width: "full",
-                                                maxWidth: postListViewAsideMaxWidth,
+                                                zIndex: "30",
+                                                pointerEvents: "none",
+                                                display: "flex",
+                                                justifyContent: "center",
                                             })}
                                             style={{
-                                                flex: postListViewAsideFlex,
+                                                position: "sticky",
+                                                ...(scrollDirectionState.scrollDirection === "Down"
+                                                    ? {
+                                                          top:
+                                                              viewSize && asideSize
+                                                                  ? viewSize.height -
+                                                                    asideSize.height
+                                                                  : 0,
+                                                      }
+                                                    : {
+                                                          bottom:
+                                                              viewSize && asideSize
+                                                                  ? viewSize.height -
+                                                                    asideSize.height
+                                                                  : 0,
+                                                      }),
+                                                left: 0,
+                                                right: 0,
                                             }}
                                         >
-                                            <aside
-                                                ref={asideRef}
+                                            <div
                                                 className={sprinkles({
-                                                    pointerEvents: "auto",
-                                                    paddingTop: navigationBarHeight,
+                                                    width: "full",
+                                                    maxWidth: contentStyles.contentMaxWidth,
+                                                    overflow: "hidden",
                                                 })}
                                                 style={{
-                                                    minHeight: viewSize ? viewSize.height : 0,
+                                                    flex: postViewFlex,
+                                                }}
+                                            />
+                                            <div
+                                                className={sprinkles({
+                                                    width: "full",
+                                                    maxWidth: postListViewAsideMaxWidth,
+                                                })}
+                                                style={{
+                                                    flex: postListViewAsideFlex,
                                                 }}
                                             >
-                                                {aside}
-                                            </aside>
+                                                <aside
+                                                    ref={asideRef}
+                                                    className={sprinkles({
+                                                        pointerEvents: "auto",
+                                                        paddingTop: navigationBarHeight,
+                                                    })}
+                                                    style={{
+                                                        minHeight: viewSize ? viewSize.height : 0,
+                                                    }}
+                                                >
+                                                    {aside}
+                                                </aside>
+                                            </div>
                                         </div>
-                                    </div>
-                                </>
-                            )}
-                            {extraChildren}
-                        </>
-                    }
-                    extraChildrenOutsideContentElement={({contentHeight}) =>
-                        // Our items all have a bottom border. This is good when there's less content
-                        // than room to scroll since it creates a clear shape for the last item in the
-                        // list.
-                        //
-                        // However, if there are enough items to scroll then when the user has fully
-                        // scrolled we want the last item to *not* have a border bottom since the
-                        // bottom of the screen creates that boundary. We don't need to render an extra
-                        // line in the margins.
-                        //
-                        // This div covers the bottom border of the last item but only when there's
-                        // enough content to scroll. Otherwise the bottom border needs to be visible to
-                        // visually contain the last item. To debug this it's helpful to switch the
-                        // `backgroundColor` to `red-30` or something similar.
-                        //
-                        // NOTE(calebmer): Don't cover the bottom border if we're in a post view. Since
-                        // the only item may be a `<PostContentView>` with a sticky
-                        // `<PostCommentInput>`. We want to make sure the `grey-5` border renders above
-                        // the `<PostCommentInput>` when we're scrolled to the bottom.
-                        !isPostView && (
-                            <div
-                                className={sprinkles({
-                                    position: "absolute",
-                                    left: "0",
-                                    right: "0",
-                                    top: "0",
-                                })}
-                                style={{height: `max(100%, ${contentHeight}px)`}}
-                            >
+                                    </>
+                                )}
+                                {extraChildren}
+                            </>
+                        }
+                        extraChildrenOutsideContentElement={({contentHeight}) =>
+                            // Our items all have a bottom border. This is good when there's less content
+                            // than room to scroll since it creates a clear shape for the last item in the
+                            // list.
+                            //
+                            // However, if there are enough items to scroll then when the user has fully
+                            // scrolled we want the last item to *not* have a border bottom since the
+                            // bottom of the screen creates that boundary. We don't need to render an extra
+                            // line in the margins.
+                            //
+                            // This div covers the bottom border of the last item but only when there's
+                            // enough content to scroll. Otherwise the bottom border needs to be visible to
+                            // visually contain the last item. To debug this it's helpful to switch the
+                            // `backgroundColor` to `red-30` or something similar.
+                            //
+                            // NOTE(calebmer): Don't cover the bottom border if we're in a post view. Since
+                            // the only item may be a `<PostContentView>` with a sticky
+                            // `<PostCommentInput>`. We want to make sure the `grey-5` border renders above
+                            // the `<PostCommentInput>` when we're scrolled to the bottom.
+                            !isPostView && (
                                 <div
                                     className={sprinkles({
                                         position: "absolute",
                                         left: "0",
                                         right: "0",
-                                        bottom: "0",
-                                        height: "1",
-                                        backgroundColor: "grey-0",
+                                        top: "0",
                                     })}
-                                />
-                            </div>
-                        )
-                    }
-                />
-                {isPostView &&
-                    (() => {
-                        const lastPostContentItem = assertExists(
-                            posts.getPostContentItemIfExists(header ? 1 : 0),
-                        );
+                                    style={{height: `max(100%, ${contentHeight}px)`}}
+                                >
+                                    <div
+                                        className={sprinkles({
+                                            position: "absolute",
+                                            left: "0",
+                                            right: "0",
+                                            bottom: "0",
+                                            height: "1",
+                                            backgroundColor: "grey-0",
+                                        })}
+                                    />
+                                </div>
+                            )
+                        }
+                    />
+                    {isPostView &&
+                        (() => {
+                            const lastPostContentItem = assertExists(
+                                posts.getPostContentItemIfExists(header ? 1 : 0),
+                            );
 
-                        const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
-                            lastPostContentItem.post.id,
-                        );
-                        const replyingToPostComment =
-                            replyingToPostCommentIndex !== undefined
-                                ? lastPostContentItem.postComments.getLoadedMessageIfExists(
-                                      replyingToPostCommentIndex,
-                                  )
-                                : null;
+                            const replyingToPostCommentIndex =
+                                replyingToPostCommentIndexByPostId.get(lastPostContentItem.post.id);
+                            const replyingToPostComment =
+                                replyingToPostCommentIndex !== undefined
+                                    ? lastPostContentItem.postComments.getLoadedMessageIfExists(
+                                          replyingToPostCommentIndex,
+                                      )
+                                    : null;
 
-                        return (
-                            <PostCommentInput
-                                isStickyPositioned={false}
-                                inputRef={inputRefByPostId.get(lastPostContentItem.post.id)}
-                                header={header}
-                                post={lastPostContentItem.post}
-                                viewRef={viewRef}
-                                proceduresRef={procedures => {
-                                    if (procedures) {
-                                        proceduresByPostIdRef.current.set(
-                                            lastPostContentItem.post.id,
-                                            procedures,
-                                        );
-                                    } else {
-                                        proceduresByPostIdRef.current.delete(
-                                            lastPostContentItem.post.id,
-                                        );
-                                    }
-                                }}
-                                postCommentEditing={messageEditing}
-                                postComments={lastPostContentItem.postComments}
-                                fileAttachmentTarget={fileAttachmentTargetByPostId.get(
-                                    lastPostContentItem.post.id,
-                                )}
-                                onUpdatePostComments={update =>
-                                    onUpdatePostComments(lastPostContentItem.post.id, update)
-                                }
-                                replyingToPostComment={replyingToPostComment}
-                                onClearReplyingToPostComment={() => {
-                                    setReplyingToPostCommentIndexByPostId(
-                                        replyingToPostCommentIndexByPostId => {
-                                            const newReplyingToPostCommentIndexByPostId = new Map(
-                                                replyingToPostCommentIndexByPostId,
+                            return (
+                                <PostCommentInput
+                                    isStickyPositioned={false}
+                                    inputRef={inputRefByPostId.get(lastPostContentItem.post.id)}
+                                    header={header}
+                                    post={lastPostContentItem.post}
+                                    viewRef={viewRef}
+                                    proceduresRef={procedures => {
+                                        if (procedures) {
+                                            proceduresByPostIdRef.current.set(
+                                                lastPostContentItem.post.id,
+                                                procedures,
                                             );
-                                            newReplyingToPostCommentIndexByPostId.delete(
+                                        } else {
+                                            proceduresByPostIdRef.current.delete(
                                                 lastPostContentItem.post.id,
                                             );
-                                            return newReplyingToPostCommentIndexByPostId;
-                                        },
-                                    );
-                                }}
-                                onJumpToPostComment={handleJumpToPostComment}
-                                onDeletePostComment={async postCommentIndex => {
-                                    const procedures = proceduresByPostIdRef.current.get(
+                                        }
+                                    }}
+                                    postCommentEditing={messageEditing}
+                                    postComments={lastPostContentItem.postComments}
+                                    fileAttachmentTarget={fileAttachmentTargetByPostId.get(
                                         lastPostContentItem.post.id,
-                                    );
-                                    if (!procedures)
-                                        throw new InternalError("Post comment input isn’t mounted");
+                                    )}
+                                    onUpdatePostComments={update =>
+                                        onUpdatePostComments(lastPostContentItem.post.id, update)
+                                    }
+                                    replyingToPostComment={replyingToPostComment}
+                                    onClearReplyingToPostComment={() => {
+                                        setReplyingToPostCommentIndexByPostId(
+                                            replyingToPostCommentIndexByPostId => {
+                                                const newReplyingToPostCommentIndexByPostId =
+                                                    new Map(replyingToPostCommentIndexByPostId);
+                                                newReplyingToPostCommentIndexByPostId.delete(
+                                                    lastPostContentItem.post.id,
+                                                );
+                                                return newReplyingToPostCommentIndexByPostId;
+                                            },
+                                        );
+                                    }}
+                                    onJumpToPostComment={handleJumpToPostComment}
+                                    onDeletePostComment={async postCommentIndex => {
+                                        const procedures = proceduresByPostIdRef.current.get(
+                                            lastPostContentItem.post.id,
+                                        );
+                                        if (!procedures)
+                                            throw new InternalError(
+                                                "Post comment input isn’t mounted",
+                                            );
 
-                                    await procedures.deleteComment({
-                                        commentIndex: postCommentIndex,
-                                    });
-                                }}
-                                shouldBeConnectedToChannelRealtime={
-                                    shouldBeConnectedToChannelRealtime
-                                }
-                                onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
-                            />
-                        );
-                    })()}
+                                        await procedures.deleteComment({
+                                            commentIndex: postCommentIndex,
+                                        });
+                                    }}
+                                    shouldBeConnectedToChannelRealtime={
+                                        shouldBeConnectedToChannelRealtime
+                                    }
+                                    onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                                />
+                            );
+                        })()}
+                </ContentBlockWidthContextProvider>
             </div>
         </>
     );

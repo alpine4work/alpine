@@ -21,6 +21,7 @@ import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {
@@ -88,6 +89,7 @@ import {
     messageInputMinHeightPx,
     messageInputPaddingY,
     messageViewAccountAvatarSize,
+    messageViewMarginLeft,
     messageViewParentAccountAvatarSize,
     messageViewParentAvatarOffsetYRem,
     messageViewParentFontSize,
@@ -1117,57 +1119,68 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 ],
                                         }}
                                     >
-                                        <ContentEditor
-                                            ref={editorRef}
-                                            state={state}
-                                            onChange={(state, transaction) => {
-                                                onChange(state);
-                                                if (transaction.docChanged) showTypingIndicator();
-                                            }}
-                                            onFocus={handleFocus}
-                                            onFocusCapture={onFocusCapture}
-                                            onBlur={handleBlur}
-                                            aria-label={
-                                                isEditingMessage
-                                                    ? messageStartOfSentenceNoun
-                                                    : `New ${messageNoun}`
-                                            }
-                                            placeholder={placeholder}
-                                            style={{
-                                                paddingTop:
-                                                    messageInputEditorPaddingYPx[platform][
-                                                        spacingScale
-                                                    ],
-                                                paddingBottom:
-                                                    messageInputEditorPaddingYPx[platform][
-                                                        spacingScale
-                                                    ],
-                                                paddingLeft: messageInputEditorPaddingX[platform],
-                                                paddingRight: messageInputEditorPaddingX[platform],
-                                                borderRadius:
-                                                    messageInputEditorBorderRadiusPx[platform][
-                                                        spacingScale
-                                                    ],
-                                            }}
-                                            onEnterKeyDownFromPhysicalKeyboard={event => {
-                                                event.preventDefault();
-                                                event.stopPropagation();
-                                                onSend();
-                                            }}
-                                            onArrowUpKeyDown={onArrowUpKeyDown}
-                                            onPasteOrDropFiles={fileInfos => {
-                                                events.addFiles(
-                                                    "<MessageInput> paste files",
-                                                    fileInfos,
-                                                );
-                                            }}
-                                            // Don't render the default content editor mobile keyboard toolbar. We render
-                                            // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
-                                            withoutMobileKeyboardToolbar={true}
-                                            // Message input is always editable, never interactive on mobile. So you can't
-                                            // click links among other things.
-                                            withoutMobileDualModality={true}
-                                        />
+                                        <ContentBlockWidthContextProvider
+                                            maxWidth={contentStyles.contentMaxWidth}
+                                            paddingX={addRemLengths(
+                                                screenPaddingX[platform],
+                                                messageViewMarginLeft,
+                                            )}
+                                        >
+                                            <ContentEditor
+                                                ref={editorRef}
+                                                state={state}
+                                                onChange={(state, transaction) => {
+                                                    onChange(state);
+                                                    if (transaction.docChanged)
+                                                        showTypingIndicator();
+                                                }}
+                                                onFocus={handleFocus}
+                                                onFocusCapture={onFocusCapture}
+                                                onBlur={handleBlur}
+                                                aria-label={
+                                                    isEditingMessage
+                                                        ? messageStartOfSentenceNoun
+                                                        : `New ${messageNoun}`
+                                                }
+                                                placeholder={placeholder}
+                                                style={{
+                                                    paddingTop:
+                                                        messageInputEditorPaddingYPx[platform][
+                                                            spacingScale
+                                                        ],
+                                                    paddingBottom:
+                                                        messageInputEditorPaddingYPx[platform][
+                                                            spacingScale
+                                                        ],
+                                                    paddingLeft:
+                                                        messageInputEditorPaddingX[platform],
+                                                    paddingRight:
+                                                        messageInputEditorPaddingX[platform],
+                                                    borderRadius:
+                                                        messageInputEditorBorderRadiusPx[platform][
+                                                            spacingScale
+                                                        ],
+                                                }}
+                                                onEnterKeyDownFromPhysicalKeyboard={event => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    onSend();
+                                                }}
+                                                onArrowUpKeyDown={onArrowUpKeyDown}
+                                                onPasteOrDropFiles={fileInfos => {
+                                                    events.addFiles(
+                                                        "<MessageInput> paste files",
+                                                        fileInfos,
+                                                    );
+                                                }}
+                                                // Don't render the default content editor mobile keyboard toolbar. We render
+                                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                                withoutMobileKeyboardToolbar={true}
+                                                // Message input is always editable, never interactive on mobile. So you can't
+                                                // click links among other things.
+                                                withoutMobileDualModality={true}
+                                            />
+                                        </ContentBlockWidthContextProvider>
                                     </Box>
                                 </FocusRing>
                                 <Box

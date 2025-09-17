@@ -5,8 +5,6 @@ import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/inte
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
     subscribeToPlatformChange,
@@ -17,7 +15,6 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -29,12 +26,12 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
 export function createContentEditorFileFloatNodeViewConstructor({
-    getRouteLayout,
     getSpaceId,
+    getBlockWidth,
     subscribeToReferencesUpdate,
 }: {
-    getRouteLayout: () => RouteLayout;
     getSpaceId: () => SpaceId;
+    getBlockWidth: () => number;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
     return (node, view): NodeView => {
@@ -64,13 +61,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
-
-            const blockWidth = getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout: getRouteLayout(),
-                clientInfo: getClientInfo(),
-            });
+            const blockWidth = getBlockWidth();
 
             const {references} = getContentEditorReferences(view.state);
 

@@ -19,6 +19,7 @@ import {
 } from "react";
 import {usePress} from "react-aria";
 import {To, createPath} from "react-router";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -1239,19 +1240,21 @@ function SearchModalPeekContent({
                     </IconButton>
                 </Box>
             </Box>
-            <PeekRemixEmbed
-                peekId={peek.id}
-                layout="narrow"
-                // Don't record view interactions when looking at a search entity in the search
-                // modal. The user is discovering an entity to open so may have pretty low
-                // intent when looking at an entity.
-                //
-                // This also means the "last opened" time we show for affinitive search entities
-                // won't change.
-                withoutSearchAffinityViewEntityInteraction={true}
-                router={router}
-                onGoBackOverflow={onClose}
-            />
+            <ContentBlockWidthContextProvider width={peekNarrowLayoutWidth}>
+                <PeekRemixEmbed
+                    peekId={peek.id}
+                    layout="narrow"
+                    // Don't record view interactions when looking at a search entity in the search
+                    // modal. The user is discovering an entity to open so may have pretty low
+                    // intent when looking at an entity.
+                    //
+                    // This also means the "last opened" time we show for affinitive search entities
+                    // won't change.
+                    withoutSearchAffinityViewEntityInteraction={true}
+                    router={router}
+                    onGoBackOverflow={onClose}
+                />
+            </ContentBlockWidthContextProvider>
         </Box>
     );
 }

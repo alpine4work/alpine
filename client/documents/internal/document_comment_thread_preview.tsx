@@ -1,6 +1,10 @@
 import {Node} from "prosemirror-model";
 import {useCallback, useMemo, useRef, useState} from "react";
 import {useButton} from "react-aria";
+import {
+    ContentBlockWidthContextProvider,
+    useContentBlockWidth,
+} from "~/client/content/content_block_width.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -9,10 +13,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
-    colorSchemeVars,
+    contentStyles,
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
+import {fileClassName} from "~/shared/content/content_styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
@@ -33,7 +38,6 @@ export function DocumentCommentThreadPreview({
     contentReferences,
     onCommentThreadSnippetPress,
     isResolveButtonPending,
-    availableWidth,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -41,7 +45,6 @@ export function DocumentCommentThreadPreview({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
     isResolveButtonPending: boolean;
-    availableWidth: number | undefined;
 }) {
     const spacingScale = useSpacingScale();
     const previewRef = useRef<HTMLDivElement>(null);
@@ -158,6 +161,8 @@ export function DocumentCommentThreadPreview({
         [commentThread.documentId],
     );
 
+    const contentBlockWidth = useContentBlockWidth();
+
     return (
         <FocusRing offset="border">
             <Box
@@ -166,26 +171,12 @@ export function DocumentCommentThreadPreview({
                 display="block"
                 position="relative"
                 zIndex="0"
-                // Use pointer cursor because otherwise the preview has a weak clickable
-                // affordance. It's not clear that the preview is clickable unlike a button.
-                cursor="pointer"
-                boxShadow="elevation-5-without-border"
-                borderRadius="1.5"
-                overflow="hidden"
+                // Use `fileClassName` to mimic the CSS for file entities. Mostly we want it
+                // here since it sets `pointer-events: none` in a way that's not overridden by
+                // child CSS like tables.
+                className={`${fileClassName} ${contentStyles.fileEntityClassName}`}
                 {...(buttonProps as any)}
             >
-                <Box
-                    // Render a border using an absolutely positioned `<div>` instead of using
-                    // `elevation-5-with-grey-10-border` because we need the border to render on top
-                    // of UI in the `<ContentView>` with a `background-color` (e.g. code block line
-                    // numbers) and `box-shadow` won't render over child `background-color`s.
-                    position="absolute"
-                    inset="0"
-                    zIndex="40"
-                    pointerEvents="none"
-                    borderRadius="1.5"
-                    style={{border: `solid 1px ${colorSchemeVars["grey-10-translucent"]}`}}
-                />
                 {isPressed && (
                     <Box
                         position="absolute"
@@ -209,38 +200,37 @@ export function DocumentCommentThreadPreview({
                         Selected text has been removed from the document
                     </Box>
                 )}
-                <Box
-                    ref={previewRef}
-                    overflow="hidden"
-                    height={documentCommentThreadPreviewHeight}
-                    borderRadius="1.5"
-                >
+                <Box ref={previewRef} overflow="hidden" height={documentCommentThreadPreviewHeight}>
                     <Box
                         ref={previewContentRef}
-                        pointerEvents="none"
-                        paddingX="1.5"
+                        paddingX="5"
                         style={{
                             width: `${(1 / documentCommentThreadPreviewScale) * 100}%`,
                             transformOrigin: "0 0",
                             transform: `scale(${documentCommentThreadPreviewScale})`,
                         }}
                     >
-                        {content && (
-                            // Don't render the snippet on initial app render because we need a layout
-                            // effect to correctly position the content. Flashing content from invisible
-                            // to visible is better than flashing content with the wrong scroll position
-                            // to the right scroll position.
-                            <ContentView
-                                content={content}
-                                // Don't allow interacting with the content at all. (Like clicking links.)
-                                // Clicking on the preview opens it in the document.
-                                isInert={true}
-                                shouldHighlightComment={shouldHighlightComment}
-                                fileAttachmentTarget={fileAttachmentTarget}
-                                availableWidth={availableWidth}
-                                transformScale={documentCommentThreadPreviewScale}
-                            />
-                        )}
+                        <ContentBlockWidthContextProvider
+                            withoutAssumedPadding={true}
+                            width={contentBlockWidth}
+                            paddingX="5"
+                        >
+                            {content && (
+                                // Don't render the snippet on initial app render because we need a layout
+                                // effect to correctly position the content. Flashing content from invisible
+                                // to visible is better than flashing content with the wrong scroll position
+                                // to the right scroll position.
+                                <ContentView
+                                    content={content}
+                                    // Don't allow interacting with the content at all. (Like clicking links.)
+                                    // Clicking on the preview opens it in the document.
+                                    isInert={true}
+                                    shouldHighlightComment={shouldHighlightComment}
+                                    fileAttachmentTarget={fileAttachmentTarget}
+                                    transformScale={documentCommentThreadPreviewScale}
+                                />
+                            )}
+                        </ContentBlockWidthContextProvider>
                     </Box>
                     <ScriptBeforeAppInitialRender
                         /* eslint-disable string-quotes */

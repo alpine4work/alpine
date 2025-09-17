@@ -26,6 +26,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
@@ -1915,50 +1916,59 @@ export function DocumentContentEditor({
                                     : 0,
                         }}
                     >
-                        <Box
-                            ref={sidebarRef}
-                            width="full"
-                            height="full"
-                            borderLeft={routeLayout !== "narrow" ? "grey-5" : undefined}
-                            backgroundColor="grey-0"
-                            borderTopRadius={routeLayout !== "narrow" ? undefined : "3"}
-                            boxShadow={
-                                routeLayout !== "narrow" ? undefined : "elevation-40-from-bottom"
-                            }
-                            overflow="hidden"
-                            style={{
-                                // Let the browser know we'll be basically immediately animating in the sidebar
-                                // so it can prepare a compositing layer.
-                                willChange: "transform",
-                            }}
+                        <ContentBlockWidthContextProvider
+                            isDisabled={routeLayout === "narrow"}
+                            width={documentContentEditorSidebarWidth}
                         >
-                            <DocumentContentEditorSidebar
-                                pinnedCommentInputRef={pinnedCommentInputRef}
-                                documentId={documentId}
-                                content={content}
-                                platform={platform}
-                                routeLayout={routeLayout}
-                                mobileState={sidebarState.mobileState}
-                                onSidebarMobileFullScreenExpand={onSidebarMobileFullScreenExpand}
-                                onSidebarMobileFullScreenContract={
-                                    onSidebarMobileFullScreenContract
+                            <Box
+                                ref={sidebarRef}
+                                width="full"
+                                height="full"
+                                borderLeft={routeLayout !== "narrow" ? "grey-5" : undefined}
+                                backgroundColor="grey-0"
+                                borderTopRadius={routeLayout !== "narrow" ? undefined : "3"}
+                                boxShadow={
+                                    routeLayout !== "narrow"
+                                        ? undefined
+                                        : "elevation-40-from-bottom"
                                 }
-                                commentThreadId={sidebarState.commentThreadId}
-                                onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
-                                initialDataPromise={sidebarState.dataPromise}
-                                isConnected={isConnected}
-                                procedures={procedures}
-                                subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                                unpersistedResolutionStateByCommentThreadId={
-                                    unpersistedResolutionStateByCommentThreadId
-                                }
-                                totalDecoratedCommentThreads={totalDecoratedCommentThreads}
-                                decorations={decorations}
-                                commentThreadListViewRef={commentThreadListViewRef}
-                                onClose={onSidebarClose}
-                                openCommentThread={openCommentThread}
-                            />
-                        </Box>
+                                overflow="hidden"
+                                style={{
+                                    // Let the browser know we'll be basically immediately animating in the sidebar
+                                    // so it can prepare a compositing layer.
+                                    willChange: "transform",
+                                }}
+                            >
+                                <DocumentContentEditorSidebar
+                                    pinnedCommentInputRef={pinnedCommentInputRef}
+                                    documentId={documentId}
+                                    content={content}
+                                    platform={platform}
+                                    routeLayout={routeLayout}
+                                    mobileState={sidebarState.mobileState}
+                                    onSidebarMobileFullScreenExpand={
+                                        onSidebarMobileFullScreenExpand
+                                    }
+                                    onSidebarMobileFullScreenContract={
+                                        onSidebarMobileFullScreenContract
+                                    }
+                                    commentThreadId={sidebarState.commentThreadId}
+                                    onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
+                                    initialDataPromise={sidebarState.dataPromise}
+                                    isConnected={isConnected}
+                                    procedures={procedures}
+                                    subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                    unpersistedResolutionStateByCommentThreadId={
+                                        unpersistedResolutionStateByCommentThreadId
+                                    }
+                                    totalDecoratedCommentThreads={totalDecoratedCommentThreads}
+                                    decorations={decorations}
+                                    commentThreadListViewRef={commentThreadListViewRef}
+                                    onClose={onSidebarClose}
+                                    openCommentThread={openCommentThread}
+                                />
+                            </Box>
+                        </ContentBlockWidthContextProvider>
                     </Box>
                     {platform === "mobile" &&
                         (!sidebarState.mobileState.isFullScreen ||
@@ -2607,12 +2617,6 @@ function DocumentContentEditorSidebar({
                                     (!mobileState.isFullScreen ||
                                         mobileState.animationState === "Expanding")
                                         ? spacing[documentContentEditorMobileSidebarInsetTop]
-                                        : undefined
-                                }
-                                // Provide the sidebar width for better layout results when previewing files.
-                                availableWidth={
-                                    routeLayout !== "narrow"
-                                        ? documentContentEditorSidebarWidth
                                         : undefined
                                 }
                                 // If we're focusing the pinned comment input because the user swiped to reply

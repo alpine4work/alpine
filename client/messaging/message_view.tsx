@@ -22,6 +22,7 @@ import {
     useAccountRegistry,
 } from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
@@ -101,10 +102,8 @@ import {
     addRemLengths,
     parseRemLength,
     screenPaddingX,
-    screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
@@ -183,7 +182,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
-    availableWidth: availableWidthProp,
     readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel,
 }: {
     messageNoun?: string;
@@ -203,13 +201,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
-    availableWidth?: number;
     readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel?: AccessPolicy;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
-    const {timeZone, locale} = useClientInfo();
+    const clientInfo = useClientInfo();
     const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
@@ -226,13 +223,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ),
         [currentAccount?.id, readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel],
     );
-
-    const availableWidth =
-        availableWidthProp !== undefined
-            ? availableWidthProp -
-              (parseRemLength(messageViewMarginLeft) + screenPaddingXRem[platform] * 2) *
-                  remPxBySpacingScale[spacingScale]
-            : undefined;
 
     const messageAuthor = useAccountModel(message.author);
 
@@ -945,11 +935,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 contentUpdatedTime={message.payload.contentUpdatedTime}
                 withUserSelectNone={!canPrimaryInputHover}
                 getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
-                availableWidth={availableWidth}
             />
         );
     }, [
-        availableWidth,
         canPrimaryInputHover,
         events.getClipboardSerializerPrefix,
         message.payload,
@@ -1016,8 +1004,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         const formattedDate = formatMessageViewTimestampDividerDate(message.createdTime, {
             currentTime,
-            locale,
-            timeZone,
+            locale: clientInfo.locale,
+            timeZone: clientInfo.timeZone,
         });
 
         return (
@@ -1041,12 +1029,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             </div>
         );
     }, [
+        clientInfo.locale,
+        clientInfo.timeZone,
         currentTime,
         isFirstMessage,
-        locale,
         message.createdTime,
         shouldShowTimestampBeforeMessage,
-        timeZone,
     ]);
 
     const id = useId();
@@ -1139,247 +1127,256 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             : undefined
                     }
                 >
-                    {parentMessageNode}
-                    <div
-                        className={sprinkles({
-                            position: "relative",
-                            zIndex:
-                                // NOTE(calebmer): If the user is editing a message we render
-                                // `<MessageViewEditor>` which renders `<InlineEditorToolbar>` which needs to
-                                // render on top of `<MessageViewParent>`.
-                                //
-                                // Fixes:
-                                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cwvja89b8vmbajqytsa3926h00
-                                message.payload.type === "Content" && messageEditingForThisMessage
-                                    ? "20"
-                                    : "0",
-                            display: "flex",
-                            gap: messageViewRailGap,
-                        })}
+                    <ContentBlockWidthContextProvider
+                        maxWidth={contentStyles.contentMaxWidth}
+                        paddingLeft={addRemLengths(screenPaddingX[platform], messageViewMarginLeft)}
+                        paddingRight={screenPaddingX[platform]}
                     >
-                        {useMemo(
-                            () => (
-                                <div
-                                    ref={accountAvatarContainerRef}
-                                    className={sprinkles({
-                                        flexShrink: "0",
-                                        width: messageViewAccountAvatarSize,
-                                    })}
-                                >
-                                    {!shouldMergeWithPreviousMessage && (
-                                        <div
-                                            className={sprinkles({position: "relative"})}
-                                            style={{
-                                                top: messageViewAvatarOffsetYPx[spacingScale],
-                                            }}
-                                        >
-                                            <AccountAvatar
-                                                account={messageAuthor}
-                                                size={messageViewAccountAvatarSize}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            ),
-                            [messageAuthor, shouldMergeWithPreviousMessage, spacingScale],
-                        )}
+                        {parentMessageNode}
                         <div
-                            ref={contentContainerRef}
-                            data-testid={
-                                process.env.NODE_ENV !== "production"
-                                    ? "MessageViewContent"
-                                    : undefined
-                            }
-                            className={sprinkles({flexGrow: "1"})}
-                            style={{
-                                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                // have `min-width: auto` which extends with content.
-                                // https://stackoverflow.com/a/66689926/1568890
-                                minWidth: 0,
-                                ...(isMessageHighlighted
-                                    ? assignInlineVars({
-                                          [backgroundColorVar]: colorSchemeVars["grey-5"],
-                                      })
-                                    : null),
-                            }}
+                            className={sprinkles({
+                                position: "relative",
+                                zIndex:
+                                    // NOTE(calebmer): If the user is editing a message we render
+                                    // `<MessageViewEditor>` which renders `<InlineEditorToolbar>` which needs to
+                                    // render on top of `<MessageViewParent>`.
+                                    //
+                                    // Fixes:
+                                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cwvja89b8vmbajqytsa3926h00
+                                    message.payload.type === "Content" &&
+                                    messageEditingForThisMessage
+                                        ? "20"
+                                        : "0",
+                                display: "flex",
+                                gap: messageViewRailGap,
+                            })}
                         >
-                            {!shouldMergeWithPreviousMessage && (
-                                <div
-                                    className={sprinkles({
-                                        maxWidth: "full",
-                                        // Make sure the `z-index` is higher than our content so the `<IconButton>`
-                                        // can but clicked even where it overlaps with content.
-                                        zIndex: "10",
-                                        position: "relative",
-                                        height: messageViewAccountNameHeight,
-                                        display: "flex",
-                                        alignItems: "center",
-                                    })}
-                                >
+                            {useMemo(
+                                () => (
                                     <div
+                                        ref={accountAvatarContainerRef}
                                         className={sprinkles({
-                                            fontSize: messageViewAccountNameFontSize,
-                                            fontStyle: "truncate",
-                                            color: "grey-60",
+                                            flexShrink: "0",
+                                            width: messageViewAccountAvatarSize,
                                         })}
-                                        style={{
-                                            lineHeight: spacing[messageViewAccountNameHeight],
-                                        }}
                                     >
-                                        {message.payload.type === "Content" &&
-                                        message.payload.clerical?.type === "ShareNotification" ? (
-                                            <>
-                                                <AccountShortName account={messageAuthor} /> shared
-                                                a{" "}
-                                                {getFileEntityNoun(
-                                                    message.payload.clerical.entityType,
-                                                )}{" "}
-                                                with you
-                                            </>
-                                        ) : (
-                                            messageAuthor.name
+                                        {!shouldMergeWithPreviousMessage && (
+                                            <div
+                                                className={sprinkles({position: "relative"})}
+                                                style={{
+                                                    top: messageViewAvatarOffsetYPx[spacingScale],
+                                                }}
+                                            >
+                                                <AccountAvatar
+                                                    account={messageAuthor}
+                                                    size={messageViewAccountAvatarSize}
+                                                />
+                                            </div>
                                         )}
                                     </div>
-                                    {message.isOptimistic &&
-                                        message.optimisticRequestErrorState.hasError && (
-                                            <>
-                                                <div className={sprinkles({flexShrink: "0"})}>
-                                                    &nbsp;
-                                                </div>
-                                                <IconButton
-                                                    // NOTE(calebmer): I think we can use "click" in copy here since the
-                                                    // description is part of a tooltip which is fundamentally a mouse/pointer
-                                                    // thing. On mobile we need to pop open a modal or alert or something.
-                                                    description={`Couldn’t ${
-                                                        messageNoun === "message"
-                                                            ? "send"
-                                                            : "create"
-                                                    } ${messageNoun}. Click to try again.`}
-                                                    size="sm"
-                                                    onPress={
-                                                        message.optimisticRequestErrorState.retry
-                                                    }
-                                                >
-                                                    <ErrorIcon />
-                                                </IconButton>
-                                            </>
-                                        )}
-                                </div>
+                                ),
+                                [messageAuthor, shouldMergeWithPreviousMessage, spacingScale],
                             )}
-                            {message.payload.type === "Content" ? (
-                                !messageEditingForThisMessage ? (
-                                    contentPayloadNode
-                                ) : (
-                                    <MessageViewEditor
-                                        ref={messageEditorRef}
-                                        messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                        isLastMessage={isLastMessage}
-                                        shouldMergeWithPreviousMessage={
-                                            shouldMergeWithPreviousMessage
-                                        }
-                                        messageEditing={messageEditing}
-                                    />
-                                )
-                            ) : (
-                                deletedPayloadNode
-                            )}
-                            {message.payload.type === "Content" &&
-                                message.payload.files.length > 0 && (
-                                    <MessageViewFiles
-                                        attachmentTarget={fileAttachmentTarget}
-                                        files={message.payload.files}
-                                        paddingTop={
-                                            contentPayloadNode !== null
-                                                ? // It feels like too much space when we have a single line of text over a file.
-                                                  // So special case a single non-standalone margin node above a file and in this
-                                                  // case use paragraph margins instead of standalone block margins.
-                                                  message.payload.content.doc.childCount === 1 &&
-                                                  !hasStandaloneMarginByContentBlockNodeTypeName[
-                                                      message.payload.content.doc.firstChild!.type
-                                                          .name
-                                                  ]
-                                                    ? contentStyles.paragraphMargin
-                                                    : contentStyles.standaloneBlockMargin
-                                                : undefined
-                                        }
-                                        availableWidth={availableWidth}
-                                    />
-                                )}
-                        </div>
-                        {isMessageHighlighted && (
                             <div
-                                className={sprinkles({
-                                    position: "absolute",
-                                    top: `-${messageViewOutlineMargin}`,
-                                    height: "full",
-                                    left: `-${messageViewOutlineMargin}`,
-                                    right: `-${messageViewOutlineMargin}`,
-                                    zIndex: "-10",
-                                    backgroundColor: "grey-5",
-                                    borderRadius: messageViewOutlineBorderRadius,
-                                })}
+                                ref={contentContainerRef}
+                                data-testid={
+                                    process.env.NODE_ENV !== "production"
+                                        ? "MessageViewContent"
+                                        : undefined
+                                }
+                                className={sprinkles({flexGrow: "1"})}
                                 style={{
-                                    height: `calc(100% + ${addRemLengths(
-                                        messageViewOutlineMargin,
-                                        messageViewOutlineMargin,
-                                    )})`,
-                                    // If this is one line of text then the background should extend below
-                                    // the avatar.
-                                    minHeight: !shouldMergeWithPreviousMessage
-                                        ? messageViewNotMergedOutlineMinHeightPx[spacingScale]
-                                        : undefined,
-                                }}
-                            />
-                        )}
-                        {showTouchReplyIcon && (
-                            <div
-                                ref={touchReplyIconRef}
-                                className={sprinkles({
-                                    zIndex: "-10",
-                                    position: "absolute",
-                                    left: "0.5",
-                                    width: "5",
-                                    height: "5",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    color: "grey-70",
-                                    backgroundColor: "grey-5",
-                                    borderRadius: "full",
-                                    pointerEvents: "none",
-                                    // Start at opacity 0 and our animation will make it visible.
-                                    opacity: "0",
-                                })}
-                                style={{
-                                    top: !shouldMergeWithPreviousMessage
-                                        ? `calc(${spacing[messageViewAccountNameHeight]} + (100% - ${spacing[messageViewAccountNameHeight]}) / 2 - ${spacing["2.5"]})`
-                                        : `calc(50% - ${spacing["2.5"]})`,
+                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                    // have `min-width: auto` which extends with content.
+                                    // https://stackoverflow.com/a/66689926/1568890
+                                    minWidth: 0,
+                                    ...(isMessageHighlighted
+                                        ? assignInlineVars({
+                                              [backgroundColorVar]: colorSchemeVars["grey-5"],
+                                          })
+                                        : null),
                                 }}
                             >
-                                <ArrowArcLeft size={spacing["3"]} />
+                                {!shouldMergeWithPreviousMessage && (
+                                    <div
+                                        className={sprinkles({
+                                            maxWidth: "full",
+                                            // Make sure the `z-index` is higher than our content so the `<IconButton>`
+                                            // can but clicked even where it overlaps with content.
+                                            zIndex: "10",
+                                            position: "relative",
+                                            height: messageViewAccountNameHeight,
+                                            display: "flex",
+                                            alignItems: "center",
+                                        })}
+                                    >
+                                        <div
+                                            className={sprinkles({
+                                                fontSize: messageViewAccountNameFontSize,
+                                                fontStyle: "truncate",
+                                                color: "grey-60",
+                                            })}
+                                            style={{
+                                                lineHeight: spacing[messageViewAccountNameHeight],
+                                            }}
+                                        >
+                                            {message.payload.type === "Content" &&
+                                            message.payload.clerical?.type ===
+                                                "ShareNotification" ? (
+                                                <>
+                                                    <AccountShortName account={messageAuthor} />{" "}
+                                                    shared a{" "}
+                                                    {getFileEntityNoun(
+                                                        message.payload.clerical.entityType,
+                                                    )}{" "}
+                                                    with you
+                                                </>
+                                            ) : (
+                                                messageAuthor.name
+                                            )}
+                                        </div>
+                                        {message.isOptimistic &&
+                                            message.optimisticRequestErrorState.hasError && (
+                                                <>
+                                                    <div className={sprinkles({flexShrink: "0"})}>
+                                                        &nbsp;
+                                                    </div>
+                                                    <IconButton
+                                                        // NOTE(calebmer): I think we can use "click" in copy here since the
+                                                        // description is part of a tooltip which is fundamentally a mouse/pointer
+                                                        // thing. On mobile we need to pop open a modal or alert or something.
+                                                        description={`Couldn’t ${
+                                                            messageNoun === "message"
+                                                                ? "send"
+                                                                : "create"
+                                                        } ${messageNoun}. Click to try again.`}
+                                                        size="sm"
+                                                        onPress={
+                                                            message.optimisticRequestErrorState
+                                                                .retry
+                                                        }
+                                                    >
+                                                        <ErrorIcon />
+                                                    </IconButton>
+                                                </>
+                                            )}
+                                    </div>
+                                )}
+                                {message.payload.type === "Content" ? (
+                                    !messageEditingForThisMessage ? (
+                                        contentPayloadNode
+                                    ) : (
+                                        <MessageViewEditor
+                                            ref={messageEditorRef}
+                                            messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                                            isLastMessage={isLastMessage}
+                                            shouldMergeWithPreviousMessage={
+                                                shouldMergeWithPreviousMessage
+                                            }
+                                            messageEditing={messageEditing}
+                                        />
+                                    )
+                                ) : (
+                                    deletedPayloadNode
+                                )}
+                                {message.payload.type === "Content" &&
+                                    message.payload.files.length > 0 && (
+                                        <MessageViewFiles
+                                            attachmentTarget={fileAttachmentTarget}
+                                            files={message.payload.files}
+                                            paddingTop={
+                                                contentPayloadNode !== null
+                                                    ? // It feels like too much space when we have a single line of text over a file.
+                                                      // So special case a single non-standalone margin node above a file and in this
+                                                      // case use paragraph margins instead of standalone block margins.
+                                                      message.payload.content.doc.childCount ===
+                                                          1 &&
+                                                      !hasStandaloneMarginByContentBlockNodeTypeName[
+                                                          message.payload.content.doc.firstChild!
+                                                              .type.name
+                                                      ]
+                                                        ? contentStyles.paragraphMargin
+                                                        : contentStyles.standaloneBlockMargin
+                                                    : undefined
+                                            }
+                                        />
+                                    )}
                             </div>
+                            {isMessageHighlighted && (
+                                <div
+                                    className={sprinkles({
+                                        position: "absolute",
+                                        top: `-${messageViewOutlineMargin}`,
+                                        height: "full",
+                                        left: `-${messageViewOutlineMargin}`,
+                                        right: `-${messageViewOutlineMargin}`,
+                                        zIndex: "-10",
+                                        backgroundColor: "grey-5",
+                                        borderRadius: messageViewOutlineBorderRadius,
+                                    })}
+                                    style={{
+                                        height: `calc(100% + ${addRemLengths(
+                                            messageViewOutlineMargin,
+                                            messageViewOutlineMargin,
+                                        )})`,
+                                        // If this is one line of text then the background should extend below
+                                        // the avatar.
+                                        minHeight: !shouldMergeWithPreviousMessage
+                                            ? messageViewNotMergedOutlineMinHeightPx[spacingScale]
+                                            : undefined,
+                                    }}
+                                />
+                            )}
+                            {showTouchReplyIcon && (
+                                <div
+                                    ref={touchReplyIconRef}
+                                    className={sprinkles({
+                                        zIndex: "-10",
+                                        position: "absolute",
+                                        left: "0.5",
+                                        width: "5",
+                                        height: "5",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        color: "grey-70",
+                                        backgroundColor: "grey-5",
+                                        borderRadius: "full",
+                                        pointerEvents: "none",
+                                        // Start at opacity 0 and our animation will make it visible.
+                                        opacity: "0",
+                                    })}
+                                    style={{
+                                        top: !shouldMergeWithPreviousMessage
+                                            ? `calc(${spacing[messageViewAccountNameHeight]} + (100% - ${spacing[messageViewAccountNameHeight]}) / 2 - ${spacing["2.5"]})`
+                                            : `calc(50% - ${spacing["2.5"]})`,
+                                    }}
+                                >
+                                    <ArrowArcLeft size={spacing["3"]} />
+                                </div>
+                            )}
+                        </div>
+                        {touchMenuState && (
+                            <MessageViewTouchMenu
+                                messageNoun={messageNoun}
+                                message={message}
+                                isReadOnly={isReadOnly}
+                                top={touchMenuState.top}
+                                left={touchMenuState.left}
+                                messageEditing={messageEditing}
+                                getMessageUrl={getMessageUrl}
+                                onReplyToMessage={events.onReplyToMessage}
+                                onShowDeleteConfirmationDialog={() =>
+                                    setShowDeleteConfirmationDialog(true)
+                                }
+                                isAnimatingOut={touchMenuState.isAnimatingOut}
+                                onCloseWithoutAnimation={() => setTouchMenuState(null)}
+                                onCloseWithAnimation={() =>
+                                    setTouchMenuState({...touchMenuState, isAnimatingOut: true})
+                                }
+                            />
                         )}
-                    </div>
-                    {touchMenuState && (
-                        <MessageViewTouchMenu
-                            messageNoun={messageNoun}
-                            message={message}
-                            isReadOnly={isReadOnly}
-                            top={touchMenuState.top}
-                            left={touchMenuState.left}
-                            messageEditing={messageEditing}
-                            getMessageUrl={getMessageUrl}
-                            onReplyToMessage={events.onReplyToMessage}
-                            onShowDeleteConfirmationDialog={() =>
-                                setShowDeleteConfirmationDialog(true)
-                            }
-                            isAnimatingOut={touchMenuState.isAnimatingOut}
-                            onCloseWithoutAnimation={() => setTouchMenuState(null)}
-                            onCloseWithAnimation={() =>
-                                setTouchMenuState({...touchMenuState, isAnimatingOut: true})
-                            }
-                        />
-                    )}
+                    </ContentBlockWidthContextProvider>
                 </div>
             </ContextMenuActions>
             {showDeleteConfirmationDialog && (

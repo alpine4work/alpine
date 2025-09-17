@@ -26,11 +26,9 @@ import {
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {
-    documentCommentThreadCountAgainstLimit,
-    documentCommentThreadListViewMaxWidth,
-} from "~/client/styles/document_shared_styles.js";
+import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_shared_styles.js";
 import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     getInboxDocumentNewCommentThreadsEntryCommentThreads,
@@ -394,7 +392,7 @@ function DocumentNewCommentThreadsRouteInner() {
                         <Box
                             position="relative"
                             width="full"
-                            maxWidth={documentCommentThreadListViewMaxWidth}
+                            maxWidth={contentStyles.contentMaxWidth}
                             paddingTop="safe-area-inset"
                             marginX="center"
                         >
@@ -409,7 +407,7 @@ function DocumentNewCommentThreadsRouteInner() {
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            maxWidth: documentCommentThreadListViewMaxWidth,
+            maxWidth: contentStyles.contentMaxWidth,
         },
         node,
     );

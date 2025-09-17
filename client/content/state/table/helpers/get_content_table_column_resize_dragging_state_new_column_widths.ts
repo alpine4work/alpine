@@ -1,10 +1,6 @@
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
@@ -47,14 +43,14 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
     currentX: number,
     {
         startX,
-        routeLayout,
+        blockWidthPx,
         tableWrapperWidthPx,
         oldScrollLeftPx,
         isSnapping,
         state: {columnIndex: column1Index, oldTableMap},
     }: {
         startX: number;
-        routeLayout: RouteLayout;
+        blockWidthPx: number;
         tableWrapperWidthPx: number;
         oldScrollLeftPx: number;
         isSnapping: boolean;
@@ -81,18 +77,10 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 
     const offsetPx = currentX - startX;
 
-    const platform = getPlatformWithoutListening();
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
     const columnMinWidthPx = contentStyles.tableColumnMinWidthRem * remPx;
     const columnMaxWidthPx = contentStyles.tableColumnMaxWidthRem * remPx;
-
-    const blockWidthPx = getContentBlockWidth({
-        spacingScale,
-        platform,
-        routeLayout,
-        clientInfo: getClientInfo(),
-    });
 
     const minTotalColumnWidthPx = Math.max(
         columnMinWidthPx * oldColumnWidths.length,

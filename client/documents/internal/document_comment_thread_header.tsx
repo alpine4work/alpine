@@ -26,7 +26,6 @@ export function DocumentCommentThreadHeader({
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
-    availableWidth,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -36,7 +35,6 @@ export function DocumentCommentThreadHeader({
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
-    availableWidth: number | undefined;
 }) {
     const reporter = useReporter();
 
@@ -119,7 +117,6 @@ export function DocumentCommentThreadHeader({
                         contentReferences={contentReferences}
                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                         isResolveButtonPending={isPending}
-                        availableWidth={availableWidth}
                     />
                 </>
             )}

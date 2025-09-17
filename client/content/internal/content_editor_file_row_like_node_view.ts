@@ -5,13 +5,11 @@ import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/inte
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
 } from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
     subscribeToPlatformChange,
@@ -22,7 +20,6 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -51,12 +48,12 @@ export function dispatchContentEditorFileRowTableParentUpdatedEvent(
 }
 
 export function createContentEditorFileRowLikeNodeViewConstructor({
-    getRouteLayout,
     getSpaceId,
+    getBlockWidth,
     subscribeToReferencesUpdate,
 }: {
-    getRouteLayout: () => RouteLayout;
     getSpaceId: () => SpaceId;
+    getBlockWidth: () => number;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
     return (node, view, getPos): NodeView => {
@@ -88,12 +85,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
-            let blockWidthPx = getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout: getRouteLayout(),
-                clientInfo: getClientInfo(),
-            });
+            let blockWidthPx = getBlockWidth();
 
             const pos = getPos()!;
             const $pos = view.state.doc.resolve(pos);

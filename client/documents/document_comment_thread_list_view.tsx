@@ -40,7 +40,6 @@ import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
     documentCommentThreadHeaderPaddingY,
-    documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
 import {
     messageInputMinHeightPx,
@@ -48,6 +47,7 @@ import {
     messagingViewMarginBottomCalcExpression,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
+    contentStyles,
     documentCommentThreadsStyles,
     inputPlaceholderStyles,
     sprinkles,
@@ -59,16 +59,12 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {
-    ParsableRemLength,
     RemLength,
     Spacing,
     addRemLengths,
-    convertRemLengthToPx,
     screenPaddingX,
-    screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -237,7 +233,6 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
-        availableWidth: availableWidthProp,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -333,33 +328,11 @@ function DocumentCommentThreadListView(
          * fullscreen size but when collapsed we have offscreen slop.
          */
         backgroundSlopBottomIfPinnedCommentInput?: RemLength;
-
-        /**
-         * By default, `<MessageView>` assumes it's rendering at 100% screen width (or
-         * peek width if `routeLayout` is narrow). If `<MessageView>` is rendered in a
-         * container (e.g. a sidebar) then you should provide this prop.
-         *
-         * This is used by `<ContentView>` for rendering components whose layout is
-         * based on the `<ContentView>`'s block width. For example files and tables. If
-         * you don't set this when in a narrow sidebar then `<ContentView>` will assume
-         * it's rendering at the max block width which will be incorrect.
-         */
-        availableWidth?: ParsableRemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-
-    const availableWidth =
-        availableWidthProp !== undefined
-            ? convertRemLengthToPx(availableWidthProp, spacingScale)
-            : undefined;
-
-    const availableWidthWithoutScreenPaddingX =
-        availableWidth !== undefined
-            ? availableWidth - screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2
-            : undefined;
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -886,7 +859,7 @@ function DocumentCommentThreadListView(
                                             position: "relative",
                                             width: "full",
                                             height: documentCommentThreadListViewMarginY,
-                                            maxWidth: documentCommentThreadListViewMaxWidth,
+                                            maxWidth: contentStyles.contentMaxWidth,
                                             paddingX: screenPaddingX,
                                             display: "flex",
                                             flexDirection: "column",
@@ -923,7 +896,7 @@ function DocumentCommentThreadListView(
                                     className={sprinkles({
                                         position: "relative",
                                         width: "full",
-                                        maxWidth: documentCommentThreadListViewMaxWidth,
+                                        maxWidth: contentStyles.contentMaxWidth,
                                         paddingX: screenPaddingX,
                                         paddingTop: index !== 0 ? "0" : paddingTop,
                                         paddingBottom: documentCommentThreadHeaderPaddingY,
@@ -955,7 +928,6 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                                        availableWidth={availableWidthWithoutScreenPaddingX}
                                     />
                                 </div>
                             </div>
@@ -1029,7 +1001,6 @@ function DocumentCommentThreadListView(
                                     ? `calc(${messagingViewMarginBottomCalcExpression} + ${backgroundSlopBottomIfPinnedCommentInput})`
                                     : messagingViewMarginBottom
                                 : undefined,
-                        availableWidth,
                         render: node => (
                             <div
                                 className={sprinkles({
@@ -1040,7 +1011,7 @@ function DocumentCommentThreadListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        maxWidth: documentCommentThreadListViewMaxWidth,
+                                        maxWidth: contentStyles.contentMaxWidth,
                                     })}
                                 >
                                     {node}
@@ -1206,7 +1177,7 @@ function DocumentCommentThreadListView(
                                         <div
                                             className={sprinkles({
                                                 width: "full",
-                                                maxWidth: documentCommentThreadListViewMaxWidth,
+                                                maxWidth: contentStyles.contentMaxWidth,
                                                 position: "relative",
                                                 pointerEvents: "auto",
                                             })}
@@ -1235,7 +1206,6 @@ function DocumentCommentThreadListView(
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
-            availableWidthWithoutScreenPaddingX,
             procedures,
             spacingScale,
             fileAttachmentTarget,
@@ -1244,7 +1214,6 @@ function DocumentCommentThreadListView(
             handleJumpToComment,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
-            availableWidth,
             space.id,
             replyingToCommentIndexByCommentThreadId,
             inputRefByCommentThreadId,

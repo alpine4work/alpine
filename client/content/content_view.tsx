@@ -19,6 +19,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {useContentBlockWidth} from "~/client/content/content_block_width.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
@@ -32,7 +33,6 @@ import {handleContentLinkClick} from "~/client/content/internal/handle_content_l
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     dispatchParentScrollWhenPointerDownAndOverEvent,
@@ -77,7 +77,6 @@ import {
 } from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -212,13 +211,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     onSeeLessContent?: (targetElement: HTMLDivElement) => void;
 
     /**
-     * The width available for our `<ContentView>`. If we're in an element that's
-     * smaller than the block max width you should set this prop to make sure
-     * tables and files have the right layout and aren't squished.
-     */
-    availableWidth?: ParsableRemLength | number | null;
-
-    /**
      * Disable the block maximum width. Letting content flow all the way to the
      * edges of the container. Used in document presentation mode for rendering
      * slides. Defaults to false.
@@ -264,7 +256,6 @@ export function ContentView<Content extends ContentWithReferences>({
     withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
-    availableWidth = null,
     withoutBlockMaxWidth = false,
     transformScale = 1,
     getClipboardSerializerPrefix,
@@ -296,26 +287,10 @@ export function ContentView<Content extends ContentWithReferences>({
     const spaceContext = useSpaceContextIfExists();
     const spaceId = spaceContext?.space.id ?? null;
 
-    const blockWidth = useMemo(
-        () =>
-            getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout,
-                clientInfo,
-                availableWidth,
-                withoutBlockMaxWidth,
-                transformScale,
-            }),
-        [
-            availableWidth,
-            clientInfo,
-            platform,
-            routeLayout,
-            spacingScale,
-            transformScale,
-            withoutBlockMaxWidth,
-        ],
+    const blockWidth = useContentBlockWidth(
+        withoutBlockMaxWidth || transformScale !== 1
+            ? {withoutMaxWidth: withoutBlockMaxWidth, transformScale}
+            : undefined,
     );
 
     const id = useId();

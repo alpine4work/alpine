@@ -76,7 +76,6 @@ import {
     inSameContentTable,
     pointsAtContentTableCell,
 } from "~/shared/content/table/content_table_shared_util.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -263,7 +262,7 @@ type ContentEditorTablePluginAction =
           readonly type: "SetHoveringColumnResizeHandleDragging";
           readonly dragging: {
               readonly startX: number;
-              readonly routeLayout: RouteLayout;
+              readonly blockWidthPx: number;
               readonly tableWrapperWidthPx: number;
               readonly oldScrollLeftPx: number;
               readonly isSnapping: boolean;
@@ -329,7 +328,7 @@ type ContentEditorTablePluginHoveringState =
           readonly cellPos: number;
           readonly dragging: {
               readonly startX: number;
-              readonly routeLayout: RouteLayout;
+              readonly blockWidthPx: number;
               readonly tableWrapperWidthPx: number;
               readonly oldScrollLeftPx: number;
               readonly isSnapping: boolean;
@@ -1303,7 +1302,7 @@ function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null
 }
 
 function handleColumnResizeHandleMouseDown(
-    view: EditorView & {getRouteLayout?: () => RouteLayout; getAccessLevel?: () => AccessLevel},
+    view: EditorView & {getBlockWidth?: () => number; getAccessLevel?: () => AccessLevel},
     event: MouseEvent,
 ): boolean {
     {
@@ -1331,7 +1330,7 @@ function handleColumnResizeHandleMouseDown(
             dragging: {
                 startX: event.clientX,
                 // This property is added to `EditorView` in `<ContentEditor>`.
-                routeLayout: assertExists(view.getRouteLayout)(),
+                blockWidthPx: assertExists(view.getBlockWidth)(),
                 tableWrapperWidthPx: tableWrapperElement.clientWidth,
                 oldScrollLeftPx: tableWrapper2Element.scrollLeft,
                 isSnapping: !event.altKey,

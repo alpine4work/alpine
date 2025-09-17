@@ -2432,10 +2432,6 @@ globalStyle(tableWrapperClassName, {
     // element.
     paddingTop: 1,
     paddingBottom: 1,
-    paddingLeft: tableOverflowGradientWidth,
-    paddingRight: tableOverflowGradientWidth,
-    marginLeft: `-${tableOverflowGradientWidth}`,
-    marginRight: `-${tableOverflowGradientWidth}`,
 });
 
 globalStyle(tableWrapper2ClassName, {
@@ -2447,32 +2443,33 @@ globalStyle(tableWrapper2ClassName, {
     width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
     marginTop: `-${tableWrapper2MarginTop}`,
     marginBottom: `-${tableWrapper2MarginBottom}`,
-    maskImage: `linear-gradient(to right, transparent 0%, black ${spacing["3"]}, black calc(100% - ${spacing["3"]}), transparent 100%)`,
-});
-
-// Remove the maskImage gradient on mobile, as well as the necessary padding.
-globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}`, {
-    paddingLeft: 0,
-    paddingRight: 0,
-    marginLeft: 0,
-    marginRight: 0,
-});
-
-globalStyle(`${mobilePlatformSelector} ${tableWrapper2ClassName}`, {
-    maskImage: "none",
     marginLeft: `-${tableOverflowGradientWidth}`,
     marginRight: `-${tableOverflowGradientWidth}`,
+    maskImage: `linear-gradient(${[
+        "to right",
+        "transparent 0%",
+        `black ${spacing[screenPaddingX.mobile]}`,
+        `black calc(100% - ${spacing[screenPaddingX.mobile]})`,
+        "transparent 100%",
+    ].join(", ")})`,
 });
 
-// In narrow desktop layouts, make sure the table width fits the whole content width
-globalStyle(
-    `${desktopPlatformSelector} ${narrowRouteLayoutDocClassName} ${tableWrapper2ClassName}`,
-    {
-        marginLeft: `-${tableOverflowGradientWidth}`,
-        marginRight: `-${tableOverflowGradientWidth}`,
-        width: `calc(100% + (${tableOverflowGradientWidth} * 4))`,
-    },
-);
+// We don't care about rendering row grips on hover for mobile so render the
+// mask entirely within mobile `screenPaddingX`.
+globalStyle(`${mobilePlatformSelector} ${tableWrapper2ClassName}`, {
+    maskImage: `linear-gradient(${[
+        "to right",
+        "transparent 0%",
+        `transparent ${subtractRemLengths(tableOverflowGradientWidth, screenPaddingX.mobile)}`,
+        `black ${tableOverflowGradientWidth}`,
+        `black calc(100% - ${tableOverflowGradientWidth})`,
+        `transparent calc(100% - ${subtractRemLengths(
+            tableOverflowGradientWidth,
+            screenPaddingX.mobile,
+        )})`,
+        "transparent 100%",
+    ].join(", ")})`,
+});
 
 globalStyle(tableWrapper3ClassName, {
     width: "100%",
@@ -2495,6 +2492,12 @@ globalStyle(`${tableWrapperClassName} table`, {
     width: "100%",
     borderCollapse: "collapse",
     tableLayout: "fixed",
+});
+
+// `${fileClassName} > *` sets `pointer-events: none` which we don't want our
+// `pointer-events: auto` above to override.
+globalStyle(`${fileClassName} ${tableWrapperClassName} table`, {
+    pointerEvents: "none",
 });
 
 globalStyle(`${tableWrapperClassName} tbody`, {

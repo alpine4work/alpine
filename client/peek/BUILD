@@ -16,6 +16,7 @@ ts_project(
         "//:node_modules/react-dom",
         "//:node_modules/react-router",
         "//:node_modules/react-router-dom",
+        "//client/content",
         "//client/design",
         "//client/helpers",
         "//client/remix",

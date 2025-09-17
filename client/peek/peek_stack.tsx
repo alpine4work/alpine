@@ -37,6 +37,7 @@ import {
     useNavigation,
     useNavigationType,
 } from "react-router";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {Box} from "~/client/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
@@ -1664,13 +1665,15 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                     // peek content.
                     () =>
                         !routerResult.isPending && (
-                            <PeekRemixEmbed
-                                peekId={entry.id}
-                                layout="narrow"
-                                withinStack={true}
-                                router={routerResult.value}
-                                onGoBackOverflow={() => dispatch({type: "Pop"})}
-                            />
+                            <ContentBlockWidthContextProvider width={peekNarrowLayoutWidth}>
+                                <PeekRemixEmbed
+                                    peekId={entry.id}
+                                    layout="narrow"
+                                    withinStack={true}
+                                    router={routerResult.value}
+                                    onGoBackOverflow={() => dispatch({type: "Pop"})}
+                                />
+                            </ContentBlockWidthContextProvider>
                         ),
                     [dispatch, entry.id, routerResult.isPending, routerResult.value],
                 )}

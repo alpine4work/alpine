@@ -15,6 +15,7 @@ import {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
@@ -63,6 +64,7 @@ import {
     messageInputEditorPaddingX,
     messageInputEditorPaddingYPx,
     messageInputFilesOverflowGradientWidth,
+    messageViewMarginLeft,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -73,7 +75,13 @@ import {
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
-import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     getFileAudioContentTypes,
@@ -631,38 +639,46 @@ function ContentEditorCommentInput({
                                         : undefined,
                             }}
                         >
-                            <ContentEditor
-                                ref={editorRef}
-                                state={commentState}
-                                onChange={setCommentState}
-                                aria-label="New comment"
-                                placeholder="Add a comment"
-                                style={{
-                                    paddingLeft: messageInputEditorPaddingX[platform],
-                                    paddingRight: messageInputEditorPaddingX[platform],
-                                    paddingTop:
-                                        messageInputEditorPaddingYPx[platform][spacingScale],
-                                    paddingBottom:
-                                        messageInputEditorPaddingYPx[platform][spacingScale],
-                                }}
-                                onEnterKeyDownFromPhysicalKeyboard={event => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    assertExists(sendButtonRef.current).press();
-                                }}
-                                onPasteOrDropFiles={fileInfos => {
-                                    addFiles(
-                                        "<ContentEditorCommentInputFloater> paste files",
-                                        fileInfos,
-                                    );
-                                }}
-                                // Don't render the default content editor mobile keyboard toolbar. We render
-                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
-                                withoutMobileKeyboardToolbar={true}
-                                // Message input is always editable, never interactive on mobile. So you can't
-                                // click links among other things.
-                                withoutMobileDualModality={true}
-                            />
+                            <ContentBlockWidthContextProvider
+                                width="96"
+                                paddingX={addRemLengths(
+                                    screenPaddingX[platform],
+                                    messageViewMarginLeft,
+                                )}
+                            >
+                                <ContentEditor
+                                    ref={editorRef}
+                                    state={commentState}
+                                    onChange={setCommentState}
+                                    aria-label="New comment"
+                                    placeholder="Add a comment"
+                                    style={{
+                                        paddingLeft: messageInputEditorPaddingX[platform],
+                                        paddingRight: messageInputEditorPaddingX[platform],
+                                        paddingTop:
+                                            messageInputEditorPaddingYPx[platform][spacingScale],
+                                        paddingBottom:
+                                            messageInputEditorPaddingYPx[platform][spacingScale],
+                                    }}
+                                    onEnterKeyDownFromPhysicalKeyboard={event => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        assertExists(sendButtonRef.current).press();
+                                    }}
+                                    onPasteOrDropFiles={fileInfos => {
+                                        addFiles(
+                                            "<ContentEditorCommentInputFloater> paste files",
+                                            fileInfos,
+                                        );
+                                    }}
+                                    // Don't render the default content editor mobile keyboard toolbar. We render
+                                    // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                    withoutMobileKeyboardToolbar={true}
+                                    // Message input is always editable, never interactive on mobile. So you can't
+                                    // click links among other things.
+                                    withoutMobileDualModality={true}
+                                />
+                            </ContentBlockWidthContextProvider>
                         </Box>
                     </FocusRing>
                     <Box

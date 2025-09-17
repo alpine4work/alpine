@@ -3,6 +3,7 @@ import {Node} from "prosemirror-model";
 import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
 import {Memo, useContext, useMemo, useRef, useState} from "react";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {useContentBlockWidth} from "~/client/content/content_block_width.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
@@ -24,7 +25,6 @@ import {
     ContentFileLayout,
     computeContentFileRowLikeLayout,
 } from "~/client/content/state/content_file_layout_computations.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -38,10 +38,9 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {messageViewMarginLeft} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResult} from "~/shared/files/file_entity_model.js";
@@ -63,12 +62,10 @@ export function MessageViewFiles({
     attachmentTarget,
     files,
     paddingTop,
-    availableWidth,
 }: {
     attachmentTarget: Memo<FileAttachmentTarget>;
     files: ReadonlyArray<MessageContentPayloadModelFile>;
     paddingTop?: Spacing;
-    availableWidth?: number;
 }) {
     assert(files.length > 0);
 
@@ -87,6 +84,7 @@ export function MessageViewFiles({
     const fileRegistry = useFileRegistry();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const currentDate = useCurrentDate();
+    const blockWidth = useContentBlockWidth();
 
     const [nodeByFileId] = useState(
         () =>
@@ -103,15 +101,6 @@ export function MessageViewFiles({
         suppressHydrationWarning,
     } = useStore(
         useMemo(() => {
-            const blockWidth =
-                getContentBlockWidth({
-                    spacingScale,
-                    platform,
-                    routeLayout,
-                    clientInfo,
-                    availableWidth,
-                }) - convertRemLengthToPx(messageViewMarginLeft, spacingScale);
-
             return computeStore(get => {
                 let suppressHydrationWarning = false;
 
@@ -250,7 +239,7 @@ export function MessageViewFiles({
             });
         }, [
             accountRegistry,
-            availableWidth,
+            blockWidth,
             clientInfo,
             context,
             currentAccount,

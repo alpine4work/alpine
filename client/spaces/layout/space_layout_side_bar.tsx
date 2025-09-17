@@ -1,8 +1,9 @@
 import {Action} from "@remix-run/router";
 import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut} from "phosphor-react";
-import {useEffect, useState} from "react";
+import {ReactNode, useEffect, useState} from "react";
 import {useLocation, useNavigationType} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
@@ -117,6 +118,28 @@ export function SpaceLayoutSideBar({
                 </Box>
             </Box>
         </Box>
+    );
+}
+
+export function SpaceLayoutSideBarContentBlockWidthContextProvider({
+    isDisabled,
+    children,
+}: {
+    isDisabled: boolean;
+    children: ReactNode;
+}) {
+    const spaceSideBarSpacing = useSpaceSideBarSpacing();
+
+    return (
+        <ContentBlockWidthContextProvider
+            isDisabled={isDisabled}
+            keepAssumedPadding={true}
+            // TODO(calebmer): Should handle a `Sometimes` value for `spaceSideBarSpacing`.
+            // Adding some padding left when the screen is small.
+            paddingLeft={spaceSideBarSpacing === "Always" ? spaceLayoutStyles.sideBarWidth : 0}
+        >
+            {children}
+        </ContentBlockWidthContextProvider>
     );
 }
 

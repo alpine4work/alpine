@@ -37,6 +37,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
+import {useContentBlockWidth} from "~/client/content/content_block_width.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
@@ -876,6 +877,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const blockWidth = useContentBlockWidth();
 
     // We choose our interaction mode based on whether the device's primary input
     // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
@@ -927,6 +929,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
     const spaceContextRef = useRef(spaceContext);
     const fileEntityRenderersRef = useRef(fileEntityRenderers);
+    const blockWidthRef = useRef(blockWidth);
     useInsertionEffect(() => {
         propsRef.current = props;
         routeLayoutRef.current = routeLayout;
@@ -939,6 +942,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
         spaceContextRef.current = spaceContext;
         fileEntityRenderersRef.current = fileEntityRenderers;
+        blockWidthRef.current = blockWidth;
     });
 
     /* ========================================================================== *\
@@ -1245,24 +1249,24 @@ function ContentEditor<Content extends ContentWithReferences>(
                 onNavigate: to => navigateRef.current(to),
             }),
             fileRow: createContentEditorFileRowLikeNodeViewConstructor({
-                getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getBlockWidth: () => blockWidthRef.current,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
             }),
             fileRowTable: createContentEditorFileRowLikeNodeViewConstructor({
-                getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getBlockWidth: () => blockWidthRef.current,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
             }),
             fileFloat: createContentEditorFileFloatNodeViewConstructor({
-                getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getBlockWidth: () => blockWidthRef.current,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -1276,6 +1280,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getCurrentAccount: () => assertExists(spaceContextRef.current).currentAccount,
+                getBlockWidth: () => blockWidthRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
                 getFileEntityRenderers: () => fileEntityRenderersRef.current,
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
@@ -1286,7 +1291,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 draggingFileRef,
             }),
             table: createContentEditorTableNodeView({
-                getRouteLayout: () => routeLayoutRef.current,
+                getBlockWidth: () => blockWidthRef.current,
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
             }),
         };
@@ -3387,7 +3392,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         viewRef.current = Object.assign(view, {
             insertFiles,
-            getRouteLayout: () => routeLayoutRef.current,
+            getBlockWidth: () => blockWidthRef.current,
             getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
         });
 

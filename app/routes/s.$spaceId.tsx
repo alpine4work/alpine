@@ -57,7 +57,10 @@ import {
 } from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
-import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
+import {
+    SpaceLayoutSideBar,
+    SpaceLayoutSideBarContentBlockWidthContextProvider,
+} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {SpaceLayoutWebMobileTabBar} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context_provider.js";
@@ -905,6 +908,8 @@ function SpaceLayoutRouteOutlet({
         const nodes = [];
 
         if (!nativeMobileRouterState) {
+            const hasSpaceLayoutSideBar = loaderData.type === "WithAccess" && platform !== "mobile";
+
             nodes.push(
                 <div
                     // We need a key since we're in an array but the key doesn't matter.
@@ -954,7 +959,7 @@ function SpaceLayoutRouteOutlet({
                             // Make sure inert content is not in the accessibility tree.
                             aria-hidden={isInert ? "true" : undefined}
                         >
-                            {loaderData.type === "WithAccess" && platform !== "mobile" && (
+                            {hasSpaceLayoutSideBar && (
                                 <SpaceLayoutSideBar
                                     space={space}
                                     currentAccount={loaderData.currentAccount}
@@ -966,7 +971,11 @@ function SpaceLayoutRouteOutlet({
                                 routeId="routes/s.$spaceId"
                                 hasSpaceLayoutSidebar={platform !== "mobile"}
                             >
-                                <Outlet />
+                                <SpaceLayoutSideBarContentBlockWidthContextProvider
+                                    isDisabled={!hasSpaceLayoutSideBar}
+                                >
+                                    <Outlet />
+                                </SpaceLayoutSideBarContentBlockWidthContextProvider>
                             </LoadingIndicatorSpaceOutletContainer>
                             {globalLoadingIndicatorForMobile && (
                                 <Box

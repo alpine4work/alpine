@@ -39,7 +39,6 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {ParsableRemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -206,7 +205,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef,
         extraChildren,
         scrollbarInsetTop,
-        availableWidth: availableWidthProp,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -399,18 +397,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
-
-        /**
-         * By default, `<MessageView>` assumes it's rendering at 100% screen width (or
-         * peek width if `routeLayout` is narrow). If `<MessageView>` is rendered in a
-         * container (e.g. a sidebar) then you should provide this prop.
-         *
-         * This is used by `<ContentView>` for rendering components whose layout is
-         * based on the `<ContentView>`'s block width. For example files and tables. If
-         * you don't set this when in a narrow sidebar then `<ContentView>` will assume
-         * it's rendering at the max block width which will be incorrect.
-         */
-        availableWidth?: ParsableRemLength;
     },
     ref: Ref<MessagingViewRef>,
 ) {
@@ -419,11 +405,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
-
-    const availableWidth =
-        availableWidthProp !== undefined
-            ? convertRemLengthToPx(availableWidthProp, spacingScale)
-            : undefined;
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
@@ -680,13 +661,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
-                        availableWidth,
                     });
                 }
             }
         },
         [
-            availableWidth,
             deleteMessage,
             fileAttachmentTarget,
             getMessageUrl,

@@ -1,10 +1,14 @@
 import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/state/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+
+const blockWidthPx = contentStyles.blockMaxWidthRem["desktop"] * remPxBySpacingScale["small"];
 
 test("making last column in 4-column table larger increases table width", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(942, {
             startX: 860,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -25,7 +29,7 @@ test("making last column in 4-column table smaller decreases table width", () =>
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(891, {
             startX: 935,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -46,7 +50,7 @@ test("can make first column larger in a two column table when columns start at s
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(750, {
             startX: 706,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -67,7 +71,7 @@ test("can make first column larger in a two column table when columns start at d
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1510, {
             startX: 795,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -92,7 +96,7 @@ test("can make first column smaller in a two column table when columns start at 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(650, {
             startX: 709,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -117,7 +121,7 @@ test("can make second column in a two column table smaller when table width is l
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(901, {
             startX: 1018,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -142,7 +146,7 @@ test("can’t make second column in a two column table smaller when table width 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(697, {
             startX: 1043,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -163,7 +167,7 @@ test("can’t make first column in a two column table smaller if it means the se
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(431, {
             startX: 499,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1090,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -189,7 +193,7 @@ test("can resize second interior column in 3-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(860, {
             startX: 817,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -214,7 +218,7 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(920, {
             startX: 873,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -239,7 +243,7 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(949, {
             startX: 926,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -265,7 +269,7 @@ test("can resize interior column in 5-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(610, {
             startX: 566,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -292,7 +296,7 @@ test("can resize interior column in large table with many columns", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(810, {
             startX: 760,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -325,7 +329,7 @@ test("cannot resize column below minimum width in a 4-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(400, {
             startX: 818,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -351,7 +355,7 @@ test("cannot resize above maximum width in a 4-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1200, {
             startX: 818,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -376,7 +380,7 @@ test("cannot resize column above maximum width in a 5-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1341, {
             startX: 804,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -401,7 +405,7 @@ test("cannot resize column below minimum width in a 5-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(-54, {
             startX: 808,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -426,7 +430,7 @@ test("making last column in 4-column table larger increases table width (without
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(942, {
             startX: 860,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -451,7 +455,7 @@ test("making last column in 4-column table smaller decreases table width (withou
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(891, {
             startX: 935,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -476,7 +480,7 @@ test("can make first column larger in a two column table when columns start at s
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(750, {
             startX: 706,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -501,7 +505,7 @@ test("can make first column larger in a two column table when columns start at d
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1510, {
             startX: 795,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -526,7 +530,7 @@ test("can make first column smaller in a two column table when columns start at 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(650, {
             startX: 709,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -551,7 +555,7 @@ test("can make second column in a two column table smaller when table width is l
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(901, {
             startX: 1018,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -576,7 +580,7 @@ test("can’t make second column in a two column table smaller when table width 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(697, {
             startX: 1043,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -601,7 +605,7 @@ test("can’t make first column in a two column table smaller if it means the se
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(431, {
             startX: 499,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1090,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -627,7 +631,7 @@ test("can resize second interior column in 3-column table (without snapping)", (
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(860, {
             startX: 817,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -652,7 +656,7 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(920, {
             startX: 873,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -677,7 +681,7 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(949, {
             startX: 926,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -703,7 +707,7 @@ test("can resize interior column in 5-column table (without snapping)", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(610, {
             startX: 566,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -730,7 +734,7 @@ test("can resize interior column in large table with many columns (without snapp
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(810, {
             startX: 760,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -763,7 +767,7 @@ test("cannot resize column below minimum width in a 4-column table (without snap
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(400, {
             startX: 818,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -789,7 +793,7 @@ test("cannot resize above maximum width in a 4-column table (without snapping)",
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1200, {
             startX: 818,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -814,7 +818,7 @@ test("cannot resize column above maximum width in a 5-column table (without snap
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1341, {
             startX: 804,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -839,7 +843,7 @@ test("cannot resize column below minimum width in a 5-column table (without snap
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(-54, {
             startX: 808,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: false,
@@ -866,7 +870,7 @@ test("updates scroll left when resizing causes scrolling", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1417, {
             startX: 977,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1120,
             oldScrollLeftPx: 0,
             isSnapping: true,
@@ -900,7 +904,7 @@ test("maintains minimum table width of 1", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(568, {
             startX: 939,
-            routeLayout: "wide",
+            blockWidthPx,
             tableWrapperWidthPx: 1120,
             oldScrollLeftPx: 0,
             isSnapping: false,

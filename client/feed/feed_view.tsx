@@ -9,7 +9,6 @@ import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     feedViewSideBarLeftFlex,
@@ -18,8 +17,7 @@ import {
 } from "~/client/styles/feed_shared_styles.js";
 import {postViewFlex} from "~/client/styles/forum_shared_styles.js";
 import {searchEntitySideBarWidth} from "~/client/styles/search_shared_styles.js";
-import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {getFeedEntries} from "~/shared/rpc/feed_rpc_definitions.js";
@@ -38,7 +36,6 @@ export function FeedView({
     };
 }) {
     const context = useAppContext();
-    const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -63,23 +60,13 @@ export function FeedView({
     // visual whitespace to the left of the post content.
     const sideBarRightSize = useMemo(
         () =>
-            routeLayout !== "narrow" && spacingScale !== "small"
+            routeLayout !== "narrow"
                 ? ({
                       maxWidth: feedViewSideBarRightMaxWidth,
                       flex: feedViewSideBarRightFlex,
                   } as const)
                 : undefined,
-        [routeLayout, spacingScale],
-    );
-
-    const availableWidth = useMemo(
-        () =>
-            routeLayout !== "narrow"
-                ? size?.width ??
-                  clientInfo.screenWidth -
-                      convertRemLengthToPx(spaceLayoutStyles.sideBarWidth, spacingScale)
-                : undefined,
-        [clientInfo.screenWidth, routeLayout, size?.width, spacingScale],
+        [routeLayout],
     );
 
     const navigationBar = useNavigationBar({
@@ -129,10 +116,6 @@ export function FeedView({
                 onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
                     setFeed(feed => feed.handleEventTransaction(eventTransaction));
                 }, [])}
-                // On narrower screens we need to set `availableWidth` to correctly calculate
-                // the block width of posts. Having an accurate block width is important for
-                // correctly rendering tables, files, and file entities.
-                availableWidth={availableWidth}
                 // The amount of space to reserve for our left sidebar. We render the sidebar
                 // using `extraChildren`. We also reserve some right sidebar space on large
                 // screens to visually center our post content.

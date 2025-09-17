@@ -1,6 +1,7 @@
 import {HydrationState} from "@remix-run/router";
 import {SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useMemo, useRef} from "react";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
@@ -616,7 +617,12 @@ function InboxViewPeekContent({
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            <PeekRemixEmbed peekId={peekId} layout="wide" router={router} />
+            <ContentBlockWidthContextProvider
+                keepAssumedPadding={true}
+                paddingLeft={inboxEntryWidth}
+            >
+                <PeekRemixEmbed peekId={peekId} layout="wide" router={router} />
+            </ContentBlockWidthContextProvider>
         </Box>
     );
 }

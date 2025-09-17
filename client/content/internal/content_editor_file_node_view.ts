@@ -20,7 +20,6 @@ import {
     rememberContentEditorPosWhileLoading,
 } from "~/client/content/state/content_editor_state.js";
 import {layoutContentFile} from "~/client/content/state/content_file_layout.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
@@ -83,6 +82,7 @@ export function createContentEditorFileNodeViewConstructor({
     getRouteLayout,
     getSpaceId,
     getCurrentAccount,
+    getBlockWidth,
     getAttachmentTarget,
     getFileEntityRenderers,
     getAccessLevel,
@@ -96,6 +96,7 @@ export function createContentEditorFileNodeViewConstructor({
     getRouteLayout: () => RouteLayout;
     getSpaceId: () => SpaceId;
     getCurrentAccount: () => AccountModel | null;
+    getBlockWidth: () => number;
     getAttachmentTarget: () => FileAttachmentTarget;
     getFileEntityRenderers: () => ContentFileEntityRenderers | null;
     getAccessLevel: () => AccessLevel;
@@ -121,12 +122,7 @@ export function createContentEditorFileNodeViewConstructor({
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
-            let blockWidthPx = getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout: getRouteLayout(),
-                clientInfo: getClientInfo(),
-            });
+            let blockWidthPx = getBlockWidth();
 
             const pos = assertExists(getPos());
             const $pos = view.state.doc.resolve(pos);

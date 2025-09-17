@@ -11,7 +11,6 @@ import {
     layoutContentFile,
     layoutContentFileParent,
 } from "~/client/content/state/content_file_layout.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
@@ -66,7 +65,7 @@ import {Store} from "~/shared/store/store.js";
  * custom node renderers as `<ContentEditor>` so you get the same HTML as you
  * saw in the editor.
  */
-export function renderContentToHtmlStore(
+export function renderContentToHtmlStoreForTest(
     content: ContentWithReferences,
     {
         getContext,
@@ -102,6 +101,8 @@ export function renderContentToHtmlStore(
         placeholder?: string;
     },
 ): Store<string> {
+    assert(import.meta.jest);
+
     return computeStore(get => {
         const fragmentHtmlGenerator = renderContentFragmentToHtmlGeneratorStore(get, content, {
             getContext,
@@ -111,12 +112,7 @@ export function renderContentToHtmlStore(
             searchEntityRegistry,
             fileRegistry,
             currentAccount,
-            blockWidth: getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout,
-                clientInfo,
-            }),
+            blockWidth: convertRemLengthToPx(contentStyles.blockMaxWidth[platform], spacingScale),
             transformScale: 1,
             platform,
             spacingScale,
@@ -145,8 +141,9 @@ export function renderContentToHtmlStore(
  * saw in the editor.
  *
  * Does not render the wrapping `<div>` for the entire doc. Only the inner
- * content. Generally you want `renderContentToHtmlStore()`. This is useful if
- * you want to add other attributes to the wrapping `<div>`.
+ * content. This behavior is useful if you want to add other attributes to the
+ * wrapping `<div>`. See `renderContentToHtmlStoreForTest()` for an example of rendering
+ * the wrapping `<div>`.
  *
  * If `isInert` is set to true then elements which were interactive, like
  * links, are made non clickable or focusable. But visually the stay the same.

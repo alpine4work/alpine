@@ -5,7 +5,11 @@ import {
     fileImagePreviewContentClassName,
     titleFontSize,
 } from "~/client/styles/other/internal/content.css.js";
-import {linkClassName, titleClassName} from "~/shared/content/content_styles.js";
+import {
+    linkClassName,
+    tableWrapperClassName,
+    titleClassName,
+} from "~/shared/content/content_styles.js";
 
 export const slideClassName = style({
     pointerEvents: "none",
@@ -30,6 +34,19 @@ globalStyle(
 // `ignorePressFromElement()` function).
 globalStyle(`${slideClassName} ${linkClassName}`, {
     pointerEvents: "auto",
+});
+
+// `${slideClassName}` sets `pointer-events: none` but
+// `${tableWrapperClassName} table` sets `pointer-events: auto` which overrides
+// `pointer-events: none`. We want the table to be scrollable so allow
+// `pointer-events: auto` on the `table` element but for all its direct
+// children set `pointer-events: none` (see the CSS below).
+globalStyle(`${slideClassName} ${tableWrapperClassName} table`, {
+    pointerEvents: "auto",
+});
+
+globalStyle(`${slideClassName} ${tableWrapperClassName} table > *`, {
+    pointerEvents: "none",
 });
 
 // Increase specificity by listing `slideClassName` 3 times so we can beat

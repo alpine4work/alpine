@@ -1,14 +1,11 @@
 import {useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
+import {useContentBlockWidth} from "~/client/content/content_block_width.js";
 import {ContentFileEntityPreview} from "~/client/content/content_file_entity_preview_component.js";
-import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
@@ -35,32 +32,15 @@ import {FileTaskCollectionEntityModelSchema} from "~/shared/tasks/file_task_coll
 
 export function FeedFileEntityEntryView({
     entry,
-    availableWidth,
 }: {
     entry: Exclude<FeedEntryModel, FeedWelcomeEntryModel | FeedPostEntryModel>;
-    availableWidth?: number;
 }) {
     const spacingScale = useSpacingScale();
-    const platform = usePlatform();
-    const clientInfo = useClientInfo();
-    const routeLayout = useRouteLayout();
 
-    const {height, blockWidth} = useMemo(
-        () => ({
-            height: convertRemLengthToPx(documentCommentThreadPreviewHeight, spacingScale),
-            blockWidth: getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout,
-                clientInfo,
-                availableWidth:
-                    availableWidth !== undefined
-                        ? availableWidth -
-                          convertRemLengthToPx(screenPaddingX[platform], spacingScale) * 2
-                        : undefined,
-            }),
-        }),
-        [availableWidth, clientInfo, platform, routeLayout, spacingScale],
+    const blockWidth = useContentBlockWidth();
+    const height = useMemo(
+        () => convertRemLengthToPx(documentCommentThreadPreviewHeight, spacingScale),
+        [spacingScale],
     );
 
     const {fileEntityId, fileEntityType, fileEntityResult} = useMemo(() => {

@@ -1,5 +1,6 @@
 import {animate, spring, timeline} from "motion";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -406,20 +407,20 @@ export function TaskDetailAndCommentsView({
                     height="full"
                     overflow="hidden"
                 >
-                    <TaskCommentsView
-                        taskId={taskId}
-                        initialComments={!hasUsedInitialComments ? initialComments : null}
-                        initialScrollToCommentIndex={
-                            !hasUsedInitialComments ? initialScrollToCommentIndex : null
-                        }
-                        onInitialCommentsAvailable={handleInitialCommentsAvailable}
-                        getCommentUrl={getCommentUrl}
-                        isConnected={isConnected}
-                        procedures={notesProcedures}
-                        subscribeToEvents={subscribeToCommentsEvents}
-                        // Provide the sidebar width for better layout results when previewing files.
-                        availableWidth={taskDetailViewCommentSidebarWidth}
-                    />
+                    <ContentBlockWidthContextProvider width={taskDetailViewCommentSidebarWidth}>
+                        <TaskCommentsView
+                            taskId={taskId}
+                            initialComments={!hasUsedInitialComments ? initialComments : null}
+                            initialScrollToCommentIndex={
+                                !hasUsedInitialComments ? initialScrollToCommentIndex : null
+                            }
+                            onInitialCommentsAvailable={handleInitialCommentsAvailable}
+                            getCommentUrl={getCommentUrl}
+                            isConnected={isConnected}
+                            procedures={notesProcedures}
+                            subscribeToEvents={subscribeToCommentsEvents}
+                        />
+                    </ContentBlockWidthContextProvider>
                 </Box>
             )}
         </Box>

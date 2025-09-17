@@ -17,10 +17,8 @@ import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_cont
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {
-    documentCommentThreadCountAgainstLimit,
-    documentCommentThreadListViewMaxWidth,
-} from "~/client/styles/document_shared_styles.js";
+import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_actions.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -187,7 +185,7 @@ export default function DocumentCommentThreadRoute() {
                         <Box
                             position="relative"
                             width="full"
-                            maxWidth={documentCommentThreadListViewMaxWidth}
+                            maxWidth={contentStyles.contentMaxWidth}
                             paddingTop="safe-area-inset"
                             marginX="center"
                         >
@@ -202,7 +200,7 @@ export default function DocumentCommentThreadRoute() {
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            maxWidth: documentCommentThreadListViewMaxWidth,
+            maxWidth: contentStyles.contentMaxWidth,
         },
         node,
     );
