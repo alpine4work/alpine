@@ -25,6 +25,7 @@ ts_project(
         "//:node_modules/murmurhash",
         "//server/emails",
         "//server/helpers/node",
+        "//server/notifications/core",
         "//server/tracer",
         "//shared/context",
         "//shared/design",

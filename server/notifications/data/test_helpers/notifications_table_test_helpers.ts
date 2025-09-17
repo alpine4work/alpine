@@ -5,11 +5,14 @@ import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_gene
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
+import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
+import {ModelPartialDataType} from "~/shared/schema/model/model.js";
 
 // Notification table test helpers can only be used in Jest.
 assert(import.meta.jest);
@@ -114,4 +117,24 @@ export function massageInboxEntriesQuery(
     entriesQuery: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>,
 ): Array<InboxEntryModel> {
     return entriesQuery.items.map(({model}) => model);
+}
+
+export function createTestInboxModel({
+    accountId,
+    spaceId,
+    ...inboxModelOptions
+}: ModelPartialDataType<InboxModel> & {
+    accountId: AccountId;
+    spaceId: SpaceId;
+}) {
+    return new InboxModel({
+        accountId,
+        spaceId,
+        loudNotificationCount: 0,
+        entryCount: 0,
+        lastZeroEntryCountTime: null,
+        digestNotificationsOptedOutTime: null,
+        digestNotificationsSchedule: defaultDigestNotificationSchedule,
+        ...inboxModelOptions,
+    });
 }

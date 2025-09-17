@@ -1,4 +1,5 @@
 import {
+    AccountModelWithoutSpace,
     AccountModelWithoutSpaceAndAvatarData,
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
@@ -19,6 +20,19 @@ export function createTestAccountModel(accountModelDataOptions: Partial<AccountM
             role: "Member",
             addedTime: new Date("2025-01-01T00:00:00Z"),
         },
+        avatar: null,
+        ...accountModelDataOptions,
+    });
+}
+
+export function createTestAccountModelWithoutSpace(
+    accountModelDataOptions: Partial<AccountModelData>,
+) {
+    return new AccountModelWithoutSpace({
+        id: accountModelDataOptions.id ?? generateId<AccountId>(),
+        name: accountModelDataOptions.name ?? "Test Account",
+        version: 0,
+        nameVersion: 0,
         avatar: null,
         ...accountModelDataOptions,
     });

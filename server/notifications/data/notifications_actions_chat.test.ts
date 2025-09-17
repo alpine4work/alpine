@@ -18,6 +18,7 @@ import {
 } from "~/server/notifications/data/notifications_actions.js";
 import {
     createNotificationsScenario,
+    createTestInboxModel,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -37,7 +38,7 @@ import {
     emptyMessageContent,
     MessageContentProsemirrorSchema as schema,
 } from "~/shared/messaging/message_content_schema.js";
-import {InboxChatEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
+import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -4775,7 +4776,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxModel({
+                                        model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session2.account.id,
                                             loudNotificationCount: 1,
@@ -4821,7 +4822,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxModel({
+                                        model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session3.account.id,
                                             loudNotificationCount: 1,

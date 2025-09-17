@@ -14,7 +14,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     authorizeNotBotSpaceAccount,
-    authorizeOwnAccountAccess,
+    authorizeOwnSpaceAccountAccess,
     authorizeSpaceAccess,
     expensiveScanEverySpaceAccountForMigration,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -1306,7 +1306,7 @@ async function addSearchAffinityEntityPoints(
 
     const [, , isBot] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
-        authorizeOwnAccountAccess(context, accountId),
+        authorizeOwnSpaceAccountAccess(context, accountId),
         isBotSpaceAccount(context, spaceId, accountId),
     ]);
 

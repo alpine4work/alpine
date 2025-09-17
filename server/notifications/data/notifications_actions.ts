@@ -1,6 +1,8 @@
+import {ZonedDateTime, fromDate, minDate, parseTime} from "@internationalized/date";
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_actions.js";
+import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_timezone_actions.js";
 import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
@@ -56,8 +58,13 @@ import {
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
 import {
+    ScheduleDateTime,
+    assertScheduleDateTime,
+} from "~/server/notifications/core/schedule_date_time.js";
+import {
     InboxEntriesIndex,
     InboxTable,
+    NotificationDigestEntriesIndex,
     internalInboxEntryItemTypes,
     internalInitialInboxGeneration,
 } from "~/server/notifications/data/internal/notifications_realtime_table.js";
@@ -65,6 +72,7 @@ import {
     authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     getAccount,
+    getOurAccountSpaceIds,
     getRegisteredAccountDevices,
     getSpaceAccountBotIdIfExists,
     impersonateAccountAsSystemContext,
@@ -103,7 +111,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -115,6 +125,7 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {
     generateChronologicalId,
     getDecodedChronologicalIdTime,
@@ -141,7 +152,12 @@ import {
     getInboxEntryKeyPath,
 } from "~/shared/notifications/inbox_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+import {
+    DigestNotificationsScheduleSchema,
+    defaultDigestNotificationSchedule,
+} from "~/shared/notifications/notifications_schedule_schema.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
+import {SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
@@ -168,6 +184,194 @@ type InboxEntryItemKey = MergeObjectIntersection<
 export function getInboxEntriesIndexForTest() {
     assert(process.env.NODE_ENV === "test");
     return InboxEntriesIndex;
+}
+export function getNotificationDigestEntriesIndexForTest() {
+    assert(process.env.NODE_ENV === "test");
+    return NotificationDigestEntriesIndex;
+}
+
+/**
+ * Determines if an inbox is potentially eligible to receive a digest notification.
+ */
+export async function isInboxEligibleForDigestNotification(
+    context: ServerActionContext,
+    {
+        spaceId,
+        accountId,
+        entryCount,
+        lastEntryUpdatedTime,
+        digestNotificationsOptedOutTime,
+        digestNotificationsSchedule,
+        digestNotificationsLastSentTime,
+    }: PartialBy<
+        Pick<
+            InboxAttributesItem,
+            | "spaceId"
+            | "accountId"
+            | "entryCount"
+            | "lastEntryUpdatedTime"
+            | "digestNotificationsOptedOutTime"
+            | "digestNotificationsLastSentTime"
+            | "digestNotificationsSchedule"
+        >,
+        "digestNotificationsSchedule"
+    >,
+) {
+    if (digestNotificationsOptedOutTime) {
+        return false;
+    }
+    if (!digestNotificationsSchedule || digestNotificationsSchedule.size === 0) {
+        return false;
+    }
+    // If this inbox has no unarchived entries, it should not receive a digest
+    if (entryCount === 0) {
+        return false;
+    }
+    if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
+        return false;
+    }
+    // If we've already sent a digest notification since the latest entry update, they've already received
+    // a digest from this inbox so we don't need to send another one. This allows us to ensure stale
+    // retries don't cause us to send out of date digests. Uses a 50ms uncertainty window to account
+    // for clock skew.
+    if (
+        digestNotificationsLastSentTime &&
+        lastEntryUpdatedTime &&
+        isDateDefinitelyLessThanWithUncertaintyWindow(
+            lastEntryUpdatedTime,
+            digestNotificationsLastSentTime,
+            50,
+        )
+    ) {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Computes the next date and time when we should send a digest notification to an account.
+ *
+ * To determine when an account's next digest should be sent, we look for the closest future
+ * time within their schedule from the perspective of the account's current local time.
+ * Scheduled times that are earlier than the current local time are treated as tomorrow
+ * (e.g. at 15:00 local, a schedule time of 08:00 is treated as 08:00 local tomorrow).
+ *
+ * Optionally, you can provide a `lagTimeInMinutes` which acts as if the current time is ahead by
+ * that amount. This is useful if you'd like to ensure you don't receive a schedule time that is
+ * too close to the current time and could cause downstream systems to receive a time that has
+ * already passed.
+ */
+export function computeDigestNotificationsNextScheduledDateTime(
+    currentTime: Date,
+    timeZone: TimeZone | null,
+    digestNotificationsSchedule: SchemaType<typeof DigestNotificationsScheduleSchema>,
+    options: {lagTimeInMinutes: number} = {lagTimeInMinutes: 0},
+): ScheduleDateTime | null {
+    // If we receive no time zone, use our default so the user will still get digests, even if
+    // they are at the wrong time(s). The default is 'America/New_York', so digests will be at
+    // least roughly correct for most US users.
+    const actualTimeZone = timeZone ?? defaultTimeZone;
+
+    const currentAccountDateTime = fromDate(currentTime, actualTimeZone);
+
+    const adjustedCurrentTime = options.lagTimeInMinutes
+        ? currentAccountDateTime.add({minutes: options.lagTimeInMinutes})
+        : currentAccountDateTime;
+
+    let closestZonedDateTime: ZonedDateTime | null = null;
+    for (const scheduledHour of digestNotificationsSchedule) {
+        const time = parseTime(scheduledHour);
+        const scheduledDateTime = adjustedCurrentTime.set({
+            hour: time.hour,
+            minute: time.minute,
+            second: 0,
+            millisecond: 0,
+        });
+        if (scheduledDateTime.compare(adjustedCurrentTime) >= 0) {
+            closestZonedDateTime ??= scheduledDateTime;
+            closestZonedDateTime = minDate(closestZonedDateTime, scheduledDateTime);
+        } else {
+            const nextDayScheduledDateTime = scheduledDateTime.add({days: 1});
+            closestZonedDateTime ??= nextDayScheduledDateTime;
+            closestZonedDateTime = minDate(closestZonedDateTime, nextDayScheduledDateTime);
+        }
+    }
+
+    return closestZonedDateTime ? assertScheduleDateTime(closestZonedDateTime.toDate()) : null;
+}
+
+/**
+ * Computes the next date and time when we should send a digest notification to an account or
+ * returns null if they are not eligible to receive one.
+ *
+ * See `computeDigestNotificationsNextScheduledDateTime` for the time computation logic and
+ * `isInboxEligibleForDigestNotification` for the eligibility logic.
+ */
+export async function computeDigestNotificationsNextScheduledDateTimeIfEligible(
+    context: ServerActionContext,
+    {
+        currentTime,
+        timeZone,
+        inboxItem,
+        options = {lagTimeInMinutes: 0},
+    }: {
+        currentTime: Date;
+        timeZone: TimeZone | null;
+        inboxItem: InboxAttributesItem;
+        options: {lagTimeInMinutes: number};
+    },
+): Promise<ScheduleDateTime | null> {
+    return (await isInboxEligibleForDigestNotification(context, inboxItem))
+        ? computeDigestNotificationsNextScheduledDateTime(
+              currentTime,
+              timeZone,
+              inboxItem.digestNotificationsSchedule,
+              options,
+          )
+        : null;
+}
+
+export async function notifyInboxOfTimeZoneChange(
+    context: ServerSessionActionContext,
+    newTimeZone: TimeZone,
+) {
+    const spaceIds = await getOurAccountSpaceIds(context);
+    const inboxItems = await getOurAccountInboxItems(context, spaceIds.spaceIds, {
+        consistency: "Strong",
+    });
+    const currentTime = new Date();
+
+    await runAllPromises(
+        inboxItems.map(async inboxItem => {
+            const newScheduledDigest =
+                await computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+                    currentTime,
+                    timeZone: newTimeZone,
+                    inboxItem,
+                    options: {lagTimeInMinutes: 60},
+                });
+
+            if (newScheduledDigest !== inboxItem.digestNotificationsNextScheduledDateTime) {
+                await InboxTable.updateItem(
+                    context,
+                    {
+                        partitionType: "Account",
+                        sortRangeType: "InboxAttributes",
+                        spaceId: inboxItem.spaceId,
+                        accountId: inboxItem.accountId,
+                    },
+                    item => {
+                        assert(item, "Can’t update time zone for inbox that no longer exists");
+                        return {
+                            ...item,
+                            digestNotificationsNextScheduledDateTime: newScheduledDigest,
+                        };
+                    },
+                    {initialItem: inboxItem},
+                );
+            }
+        }),
+    );
 }
 
 /**
@@ -213,7 +417,12 @@ function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttri
         generation: internalInitialInboxGeneration,
         loudNotificationCount: 0,
         entryCount: 0,
+        lastEntryUpdatedTime: null,
         lastZeroEntryCountTime: null,
+        digestNotificationsOptedOutTime: null,
+        digestNotificationsSchedule: defaultDigestNotificationSchedule,
+        digestNotificationsNextScheduledDateTime: null,
+        digestNotificationsLastSentTime: null,
     };
 }
 
@@ -260,6 +469,36 @@ export async function getInbox(
 }
 
 /**
+ * Get the session account's inbox item in the provided space.
+ * If you need an inbox model for the client, use `getInbox` instead.
+ */
+export async function getInboxItemIfExists(
+    context: ServerSessionActionContext,
+    {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
+): Promise<InboxAttributesItem | null> {
+    const accountId = context.actor.getAccountId();
+
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+
+        // Bots don't have an inbox.
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
+
+    const inbox = await InboxTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId,
+            accountId,
+        },
+        {consistency},
+    );
+    return inbox;
+}
+
+/**
  * Get all of the session actor's inboxes for all the spaces they're in.
  * Inboxes are stored in the same DynamoDB partition so it's one DynamoDB query
  * to load them all.
@@ -270,6 +509,7 @@ export async function getInbox(
 export async function getOurAccountInboxes(
     context: ServerSessionActionContext,
     spaceIds: ReadonlySet<SpaceId>,
+    options: {consistency?: DynamoReadConsistency} = {consistency: "Eventual"},
 ): Promise<ReadonlyArray<DynamoGeneralRealtimeItem<InboxModel>>> {
     const inboxes = await parallelMapAsyncIterableToArray(
         InboxTable.query(context, {
@@ -283,6 +523,7 @@ export async function getOurAccountInboxes(
                 spaceId: DynamoKeyAttributeSchema.id.getMaxValue<SpaceId>(),
             },
             limit: "All",
+            consistency: options.consistency,
         }),
         async item => {
             // Confirm the account is still a member of this space. If an account is
@@ -291,6 +532,47 @@ export async function getOurAccountInboxes(
             if (!spaceIds.has(item.spaceId)) return null;
 
             return InboxTable.buildRealtimeItem(context, item);
+        },
+    );
+
+    return inboxes.filter(isNonNullable);
+}
+
+/**
+ * Get all of the session actor's raw inbox items for all the spaces they're in.
+ * This acts just like `getOurAccountInboxes` but returns the inbox items instead of
+ * constructing inbox models. These inbox items should be converted to inbox models using
+ * `InboxTable.buildRealtimeItem` before being sent to the client.
+ *
+ * You must provide a list of the account's `SpaceId`s so we can filter out
+ * inboxes for spaces the actor has lost access to.
+ */
+export async function getOurAccountInboxItems(
+    context: ServerSessionActionContext,
+    spaceIds: ReadonlySet<SpaceId>,
+    options: {consistency?: DynamoReadConsistency} = {consistency: "Eventual"},
+): Promise<ReadonlyArray<InboxAttributesItem>> {
+    const inboxes = await parallelMapAsyncIterableToArray(
+        InboxTable.query(context, {
+            partitionKey: {partitionType: "Account", accountId: context.actor.getAccountId()},
+            startSortKey: {
+                sortRangeType: "InboxAttributes",
+                spaceId: DynamoKeyAttributeSchema.id.getMinValue<SpaceId>(),
+            },
+            endSortKey: {
+                sortRangeType: "InboxAttributes",
+                spaceId: DynamoKeyAttributeSchema.id.getMaxValue<SpaceId>(),
+            },
+            limit: "All",
+            consistency: options.consistency,
+        }),
+        async item => {
+            // Confirm the account is still a member of this space. If an account is
+            // removed from a space we don't clean up their inbox item in case they're
+            // re-added.
+            if (!spaceIds.has(item.spaceId)) return null;
+
+            return item;
         },
     );
 
@@ -486,6 +768,7 @@ function observeInboxItem(item: InboxAttributesItem) {
     return {
         ...item,
         generation: item.generation + observeInboxGenerationIncrement,
+        digestNotificationsNextScheduledDateTime: null,
     };
 }
 
@@ -649,6 +932,8 @@ export function unarchiveInboxEntry(
     );
 }
 
+// TODO(#NOTIFICATIONS): Test archiving an inbox entry updates the digest notifications next
+// scheduled time
 async function archiveInboxEntryItemKey(
     context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
@@ -662,7 +947,9 @@ async function archiveInboxEntryItemKey(
 
     const {archiveTime, newInboxEntryItem, loudNotificationCountDifference} =
         await context.dynamo.retryTransaction(async context => {
-            const [inboxItem, inboxEntryItem] = await runAllPromises([
+            const currentTime = new Date();
+
+            const [inboxItem, inboxEntryItem, accountTimeZone] = await runAllPromises([
                 InboxTable.getItemIfExists(context, {
                     partitionType: "Account",
                     sortRangeType: "InboxAttributes",
@@ -670,6 +957,7 @@ async function archiveInboxEntryItemKey(
                     accountId: itemKey.accountId,
                 }),
                 InboxTable.getItemIfExists(context, itemKey),
+                getAccountTimeZoneIfExists(context, itemKey.accountId),
             ]);
 
             if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
@@ -689,8 +977,6 @@ async function archiveInboxEntryItemKey(
                 };
             }
 
-            const archiveTime = new Date();
-
             let newInboxEntryItem = {
                 ...inboxEntryItem,
                 isArchived: true,
@@ -700,7 +986,7 @@ async function archiveInboxEntryItemKey(
                 // it's unarchived it doesn't go back into the loud notification generation.
                 generation: inboxItem.generation,
                 // When we archive an item, it goes to the top of the archive.
-                enteredTime: archiveTime,
+                enteredTime: currentTime,
             };
 
             // Clear out the `isStickyMention` property for messaging entries.
@@ -735,15 +1021,27 @@ async function archiveInboxEntryItemKey(
             // entries at some point.
             const newEntryCount = Math.max(0, inboxItem.entryCount - 1);
 
-            const newInboxItem: InboxAttributesItem = {
+            let newInboxItem: InboxAttributesItem = {
                 ...inboxItem,
                 loudNotificationCount:
                     inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
                 entryCount: newEntryCount,
                 lastZeroEntryCountTime:
                     newEntryCount === 0 && inboxItem.entryCount !== 0
-                        ? archiveTime
+                        ? currentTime
                         : inboxItem.lastZeroEntryCountTime,
+                lastEntryUpdatedTime: currentTime,
+            };
+
+            newInboxItem = {
+                ...newInboxItem,
+                digestNotificationsNextScheduledDateTime:
+                    await computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+                        currentTime,
+                        timeZone: accountTimeZone,
+                        inboxItem: newInboxItem,
+                        options: {lagTimeInMinutes: 60},
+                    }),
             };
 
             await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
@@ -752,7 +1050,7 @@ async function archiveInboxEntryItemKey(
             ]);
 
             return {
-                archiveTime,
+                archiveTime: currentTime,
                 newInboxItem,
                 newInboxEntryItem,
                 loudNotificationCountDifference: -inboxEntryItem.loudNotificationCount,
@@ -811,20 +1109,27 @@ async function unarchiveInboxEntryItemKey(
         // If the inbox entry item is already unarchived, do nothing.
         if (!inboxEntryItem.isArchived) return;
 
+        const currentTime = new Date();
+
+        const newInboxEntryItem = {
+            ...inboxEntryItem,
+            isArchived: false,
+            // When unarchiving, move the unarchived entry to the top of the inbox so it's
+            // easier to find. Unarchiving is a clear signal from the user that they care
+            // about this entry.
+            generation: inboxItem.generation + unarchivedInboxEntryGenerationIncrement,
+            enteredTime: currentTime,
+        };
+
+        const newInboxItem: InboxAttributesItem = {
+            ...inboxItem,
+            entryCount: inboxItem.entryCount + 1,
+            lastEntryUpdatedTime: currentTime,
+        };
+
         await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-            InboxTable.transactionDirectlyUpdateItem({
-                ...inboxItem,
-                entryCount: inboxItem.entryCount + 1,
-            }),
-            InboxTable.transactionDirectlyUpdateItem({
-                ...inboxEntryItem,
-                isArchived: false,
-                // When unarchiving, move the unarchived entry to the top of the inbox so it's
-                // easier to find. Unarchiving is a clear signal from the user that they care
-                // about this entry.
-                generation: inboxItem.generation + unarchivedInboxEntryGenerationIncrement,
-                enteredTime: new Date(),
-            }),
+            InboxTable.transactionDirectlyUpdateItem(newInboxItem),
+            InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
         ]);
     });
 }
@@ -1463,44 +1768,6 @@ function getApnsNotificationThreadId(item: InboxEntryItem): string | undefined {
     }
 }
 
-/**
- * Is the key of a given inbox entry item constructed idempotently from a
- * `NotificationEvent` object? In other words, do we _only_ need a
- * `NotificationEvent` object to create the sort key (return true) or do we
- * need to load some data from the database to create the sort key (return
- * false).
- *
- * If the sort key is constructed idempotently we can skip sending a
- * `TransactWriteItems` DynamoDB action with a `ClientRequestToken` if the
- * inbox entry item was updated idempotently. Since the update itself is
- * idempotent so we don't need DynamoDB idempotent transaction protection.
- *
- * For instance the key for `PostCommentsEntry` is constructed idempotently
- * since all we need is a `PostId` and the `PostId` comes from the
- * `NotificationEvent` object. However `ChannelPostsEntry` is not idempotent
- * since while it has a `ChannelId` coming from the `NotificationEvent` object
- * it _also_ has a `bucketGeneration` property which is loaded from the
- * database. If we were to process a `NotificationEvent` which updates a
- * `ChannelPostsEntry` twice without `ClientRequestToken` protection and the
- * inbox generation updated you'd get two inbox entries!
- */
-function isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
-    sortRangeType: InboxEntryItem["sortRangeType"],
-): boolean {
-    switch (sortRangeType) {
-        case "ChatEntry":
-        case "PostCommentsEntry":
-        case "TaskEntry":
-        case "DocumentCommentThreadEntry":
-            return true;
-        case "ChannelPostsEntry":
-        case "DocumentNewCommentThreadsEntry":
-            return false;
-        default:
-            throw exhaustive(sortRangeType);
-    }
-}
-
 type UpdateInboxEntryResult = {
     readonly newInboxEntryItem: InboxEntryItem;
     readonly loudNotificationCountDifference: number;
@@ -1516,7 +1783,7 @@ type UpdateInboxEntryResult = {
  * `isArchived` or `loudNotificationCount`). Make sure you update properties
  * (besides `isArchived` or `loudNotificationCount`) idempotently!
  *
- * This function could be idempotent irregardless of how `update` is
+ * This function could be idempotent regardless of how `update` is
  * implemented if we perform every write in a DynamoDB write transaction with a
  * `clientRequestToken` but as an optimization we try to avoid transactions
  * when possible which means we need `update` to be idempotent.
@@ -1549,7 +1816,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
-        const [inboxItem, oldInboxEntryItem] = await runAllPromises([
+        const [inboxItem, oldInboxEntryItem, accountTimeZone] = await runAllPromises([
             isInitialAttempt && initialInboxItemIfExists !== undefined
                 ? initialInboxItemIfExists
                 : InboxTable.getItemIfExists(context, {
@@ -1559,6 +1826,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                       accountId: itemKey.accountId,
                   }),
             InboxTable.getItemIfExists(context, itemKey),
+            getAccountTimeZoneIfExists(context, accountId),
         ]);
 
         const newInboxEntryItemPartial1 = await update(oldInboxEntryItem);
@@ -1674,86 +1942,77 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
         assert(clientRequestToken.length <= dynamoClientRequestTokenMaxLength);
 
+        const oldEntryCount = inboxItem?.entryCount ?? 0;
+
+        // `Math.max` to protect against in case we under-counted the number of inbox
+        // entries at some point.
+        const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
+
+        let newInboxItem: InboxAttributesItem = {
+            ...inboxItem,
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: itemKey.spaceId,
+            accountId: itemKey.accountId,
+            generation: inboxGeneration,
+            loudNotificationCount:
+                (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
+            entryCount: newEntryCount,
+            lastEntryUpdatedTime: currentTime,
+            lastZeroEntryCountTime:
+                newEntryCount === 0 && oldEntryCount !== 0
+                    ? currentTime
+                    : inboxItem?.lastZeroEntryCountTime ?? null,
+            digestNotificationsOptedOutTime: inboxItem?.digestNotificationsOptedOutTime ?? null,
+            digestNotificationsSchedule:
+                inboxItem?.digestNotificationsSchedule ?? defaultDigestNotificationSchedule,
+            digestNotificationsNextScheduledDateTime:
+                inboxItem?.digestNotificationsNextScheduledDateTime ?? null,
+            digestNotificationsLastSentTime: inboxItem?.digestNotificationsLastSentTime ?? null,
+        };
+
+        newInboxItem = {
+            ...newInboxItem,
+            digestNotificationsNextScheduledDateTime:
+                await computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+                    currentTime,
+                    timeZone: accountTimeZone,
+                    inboxItem: newInboxItem,
+                    options: {lagTimeInMinutes: 60},
+                }),
+        };
+
         try {
-            // Optimization: If the inbox item isn't changing don't run a transaction.
-            if (inboxItem && loudNotificationCountDifference === 0 && entryCountDifference === 0) {
-                if (
-                    isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
-                        newInboxEntryItem.sortRangeType,
-                    )
-                ) {
-                    // Optimization: Don't write to the database (and so update `updateVersionLock`)
-                    // if the item didn't actually update.
-                    if (oldInboxEntryItem && isDeepEqual(oldInboxEntryItem, newInboxEntryItem)) {
-                        // Even though we don't actually write a new inbox item, we still want to
-                        // return an update result. If we return null we won't send push notifications
-                        // for this event!
-                        //
-                        // It's important to still send push notifications in this case. If there's a
-                        // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry
-                        // won't update (it continues to show the sticky mention) but we still want to
-                        // send push notifications for any messages sent after the sticky mention.
-                        return {
-                            newInboxEntryItem: oldInboxEntryItem,
-                            loudNotificationCountDifference,
-                        };
-                    } else {
-                        await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
-
-                        return {
-                            newInboxEntryItem,
-                            loudNotificationCountDifference,
-                        };
-                    }
-                } else {
-                    await DynamoGeneralRealtimeTableSchema.executeTransaction(
-                        context,
-                        [InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem)],
-                        {clientRequestToken},
-                    );
-
-                    return {
-                        newInboxEntryItem,
-                        loudNotificationCountDifference,
-                    };
-                }
-            } else {
-                const oldEntryCount = inboxItem?.entryCount ?? 0;
-
-                // `Math.max` to protect against in case we under-counted the number of inbox
-                // entries at some point.
-                const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
-
-                const newInboxItem: InboxAttributesItem = {
-                    ...inboxItem,
-                    partitionType: "Account",
-                    sortRangeType: "InboxAttributes",
-                    spaceId: itemKey.spaceId,
-                    accountId: itemKey.accountId,
-                    generation: inboxGeneration,
-                    loudNotificationCount:
-                        (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
-                    entryCount: newEntryCount,
-                    lastZeroEntryCountTime:
-                        newEntryCount === 0 && oldEntryCount !== 0
-                            ? currentTime
-                            : inboxItem?.lastZeroEntryCountTime ?? null,
-                };
-
-                await DynamoGeneralRealtimeTableSchema.executeTransaction(
-                    context,
-                    [
-                        InboxTable.transactionDirectlyUpdateItem(newInboxItem),
-                        InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
-                    ],
-                    {clientRequestToken},
-                );
-
+            // Optimization: Don't write to the database (and so update `updateVersionLock`)
+            // if the item didn't actually update.
+            if (oldInboxEntryItem && isDeepEqual(oldInboxEntryItem, newInboxEntryItem)) {
+                // Even though we don't actually write a new inbox item, we still want to
+                // return an update result. If we return null we won't send push notifications
+                // for this event!
+                //
+                // It's important to still send push notifications in this case. If there's a
+                // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry
+                // won't update (it continues to show the sticky mention) but we still want to
+                // send push notifications for any messages sent after the sticky mention.
                 return {
-                    newInboxEntryItem,
+                    newInboxEntryItem: oldInboxEntryItem,
                     loudNotificationCountDifference,
                 };
             }
+
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(
+                context,
+                [
+                    InboxTable.transactionDirectlyUpdateItem(newInboxItem),
+                    InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+                ],
+                {clientRequestToken},
+            );
+
+            return {
+                newInboxEntryItem,
+                loudNotificationCountDifference,
+            };
         } catch (error) {
             // If DynamoDB has committed a transaction with this `clientRequestToken` in the
             // last 10min then we can return peacefully to make sure this function is

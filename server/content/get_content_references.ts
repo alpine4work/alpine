@@ -106,7 +106,7 @@ export async function getContentReferences(
     // IMPORTANT: This function may be called multiple times on the same content in
     // an action. So all data loading functions are cached.
     //
-    // For example, in `notifications_table.ts` `processNotificationEvent()`
+    // For example, in `notifications_realtime_table.ts` `processNotificationEvent()`
     // function we may load content references once when we build an inbox entry
     // model and again in `printNotificationEventAlertContentBody()` when we print
     // for push notifications.

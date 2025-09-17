@@ -5,6 +5,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    NotificationsInjectionContextModule,
     SearchInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
@@ -128,6 +129,7 @@ export type ServerProcessContextModules = {
     // package's dependency graph for either performance reasons or to avoid
     // cyclic dependencies.
     chatInjection: ChatInjectionContextModule;
+    notificationsInjection: NotificationsInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
     searchInjection: SearchInjectionContextModule;

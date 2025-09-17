@@ -54,6 +54,7 @@ import {ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -174,6 +175,22 @@ export type ForumInjection = {
         context: ServerMinimalBotActionContext,
         postId: PostId,
     ): Promise<AccessPolicy>;
+};
+
+export type NotificationsInjectionContextModule = InstanceType<
+    typeof NotificationsInjectionContextModule
+>;
+
+export const NotificationsInjectionContextModule =
+    createInjectionContextModule<NotificationsInjection>({
+        notifyInboxOfTimeZoneChange: true,
+    });
+
+export type NotificationsInjection = {
+    notifyInboxOfTimeZoneChange(
+        context: ServerSessionActionContext,
+        timeZone: TimeZone,
+    ): Promise<void>;
 };
 
 export type SearchInjectionContextModule = InstanceType<typeof SearchInjectionContextModule>;

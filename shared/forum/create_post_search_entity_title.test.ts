@@ -8,6 +8,7 @@ import {
 import {cast} from "~/shared/helpers/control/cast.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
+import {createTestAccountModelWithoutSpace} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 test("creates title for document with file that doesn’t exist", () => {
     expect(
@@ -232,14 +233,8 @@ test("creates title with mentions", () => {
             {
                 getAccountIfExists: otherAccountId => {
                     if (otherAccountId !== accountId) return null;
-
-                    return {
-                        id: accountId,
-                        version: 0,
-                        name: "John Doe",
-                        nameVersion: 0,
-                        avatar: null,
-                    };
+                    return createTestAccountModelWithoutSpace({id: accountId, name: "John Doe"})
+                        .initialData;
                 },
                 getSearchEntityIfExists: () => null,
                 getFileIfExists: () => null,

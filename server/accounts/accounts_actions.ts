@@ -1,5 +1,11 @@
 import {differenceInHours, differenceInMinutes, subHours} from "date-fns";
-import {AccountDevicesIndex, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {
+    AccountAvatarItem,
+    AccountDevicesIndex,
+    AccountEmailAddressItem,
+    AccountItem,
+    AccountsTable,
+} from "~/server/accounts/internal/accounts_table.js";
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
@@ -12,7 +18,7 @@ import {
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
@@ -37,6 +43,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -69,19 +76,6 @@ export function getAppleReviewerAccountPasswordForTest() {
     assert(import.meta.jest);
     return appleReviewerAccountPassword;
 }
-
-type AccountEmailAddressItem = DynamoTableItemType<
-    typeof AccountsTable,
-    "AccountEmailAddress",
-    "Attributes"
->;
-
-type AccountAttributesItem = DynamoTableItemType<typeof AccountsTable, "Account", "Attributes">;
-type AccountAvatarItem = DynamoTableItemType<typeof AccountsTable, "Account", "Avatar">;
-type AccountItem = AccountAttributesItem & {
-    readonly avatar: AccountAvatarItem | null;
-};
-export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
 
 async function getAccountItem(
     context: DynamoContext,
@@ -141,11 +135,13 @@ export async function createAccountForTest(
         name,
         hasInternalAccess = false,
         createdTime = new Date(),
+        observedTimeZone = defaultTimeZone,
     }: {
         id?: AccountId;
         name: string;
         hasInternalAccess?: boolean;
         createdTime?: Date;
+        observedTimeZone?: TimeZone;
     },
 ) {
     assert(process.env.NODE_ENV === "test");
@@ -158,6 +154,7 @@ export async function createAccountForTest(
         nameVersion: 0,
         createdTime,
         hasInternalAccess,
+        observedTimeZone,
     });
 
     return {createdTime};
@@ -246,6 +243,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         nameVersion: 0,
         createdTime: new Date(),
         hasInternalAccess: true,
+        observedTimeZone: defaultTimeZone,
     });
 
     await AccountsTable.createItemIfNoneExists(context, {
@@ -352,6 +350,7 @@ export function createAccountTransactionEntry({
         name,
         nameVersion: 0,
         createdTime: currentTime,
+        observedTimeZone: null,
         bot: dangerouslyInstantiateBot,
     });
 }
@@ -1154,6 +1153,8 @@ export async function updateOurLastOpenedSpaceId(
             sortRangeType: "Settings",
             accountId: context.actor.getAccountId(),
             lastOpenedSpaceId: spaceId,
+            // TODO(rmtobin, #TIMEZONE): We should attempt to set the account's timezone here?
+            observedTimeZone: null,
         } as const;
 
         await AccountsTable.createItem(context, newAccountSettingsItem);

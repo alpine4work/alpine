@@ -14,6 +14,7 @@ import {
     getChannelPreviewIfPossible,
     getPostAuthorAndChannelPreviewIfPossible,
 } from "~/server/forum/data/forum_actions.js";
+import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
 import {getAccount, impersonateAccountAsSystemContext} from "~/server/spaces/spaces_table.js";
 import {getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -51,6 +52,7 @@ import {
     InboxTaskEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -122,6 +124,48 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          *   indicator for a while to give the user some peace
                          */
                         lastZeroEntryCountTime: Schema.date.nullable().default(null),
+
+                        /**
+                         * This tracks the time when we last updated an entry in the inbox.
+                         *
+                         * Any kind of update to this inbox's entries will update this value, and
+                         * we use it to determine if the contents of the inbox have changed since
+                         * we last sent a digest notification.
+                         */
+                        lastEntryUpdatedTime: Schema.date.nullable().default(null),
+
+                        // NOTE(rmtobin): The following fields are used to track digest notifications.
+                        // Ideally they would be grouped into an object, but we don't currently
+                        // have a way to index nested objects. If we ever add support for that, we
+                        // should revisit this.
+                        /**
+                         * Tracks when an account opted out of receiving digest notifications.
+                         * If the account has not opted out, it will be null.
+                         */
+                        digestNotificationsOptedOutTime: Schema.date.nullable().default(null),
+
+                        /**
+                         * Tracks the relative times this account has scheduled to receive digest
+                         * notifications.
+                         */
+                        digestNotificationsSchedule: DigestNotificationsScheduleSchema,
+
+                        /**
+                         * Tracks when this account should next receive a digest email in UTC.
+                         * This value is derived from `digestNotificationsSchedule` and the user's
+                         * time zone at the time this was calculated. If they are not scheduled to
+                         * receive a digest, this value will be null.
+                         *
+                         * Dates stored in this field have seconds and milliseconds set to 0, in
+                         * the format "YYYY-MM-DDTHH:mm:00.000Z".
+                         */
+                        digestNotificationsNextScheduledDateTime:
+                            ScheduleDateTimeSchema.nullable().default(null),
+
+                        /**
+                         * Tracks the time we last sent a digest email for this inbox.
+                         */
+                        digestNotificationsLastSentTime: Schema.date.nullable().default(null),
                     }),
                 },
             ],
@@ -594,6 +638,8 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         loudNotificationCount: item.loudNotificationCount,
                         entryCount: item.entryCount,
                         lastZeroEntryCountTime: item.lastZeroEntryCountTime,
+                        digestNotificationsOptedOutTime: item.digestNotificationsOptedOutTime,
+                        digestNotificationsSchedule: item.digestNotificationsSchedule,
                     });
                 },
             },
@@ -1145,6 +1191,31 @@ export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
          */
         enteredTime: DynamoKeyAttributeSchema.date.reverse(),
     },
+});
+
+/**
+ * This is a sparse index for tracking space accounts that are eligible to receive a digest
+ * notification.
+ *
+ * The time of their next scheduled digest notification is the partition key, which
+ * allows us to query for all of the accounts that need to receive a digest notification at a given time.
+ * Note that `digestNotificationsNextScheduledDateTime` is in UTC time.
+ */
+export const NotificationDigestEntriesIndex = InboxTable.addIndexWithoutRealtime({
+    name: "NotificationDigestEntries",
+    itemTypes: [{partitionType: "Account", sortRangeType: "InboxAttributes"}],
+    partitionKeyAttributes: {
+        digestNotificationsNextScheduledDateTime:
+            DynamoKeyAttributeSchema.ScheduleDateTime.nullable(),
+    },
+    sortKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+        digestNotificationsOptedOutTime: DynamoKeyAttributeSchema.date.nullable(),
+    },
+    filter: item =>
+        item.digestNotificationsNextScheduledDateTime !== null &&
+        item.digestNotificationsOptedOutTime === null,
 });
 
 /**

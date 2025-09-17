@@ -1,0 +1,361 @@
+import {
+    ScheduleDateTimeSchema,
+    ScheduleDateTimeString,
+    assertScheduleDateTime,
+    assertScheduleDateTimeString,
+    deserializeScheduleDateTime,
+    deserializeScheduleDateTimeString,
+    isScheduleDateTime,
+    isScheduleDateTimeString,
+    serializeScheduleDateTime,
+    serializeScheduleDateTimeString,
+} from "~/server/notifications/core/schedule_date_time.js";
+import {SchemaDeserializationError} from "~/shared/schema/schema.js";
+
+describe("isScheduleDateTime", () => {
+    test("returns true for valid date", () => {
+        const validDate = new Date("2023-12-25T15:30:00.000Z");
+        expect(isScheduleDateTime(validDate)).toBe(true);
+    });
+
+    test("returns true for New Year’s Day at midnight", () => {
+        const validDate = new Date("2024-01-01T00:00:00.000Z");
+        expect(isScheduleDateTime(validDate)).toBe(true);
+    });
+
+    test("returns false for date with non-zero seconds", () => {
+        const dateWithSeconds = new Date("2023-12-25T15:30:45.000Z");
+        expect(isScheduleDateTime(dateWithSeconds)).toBe(false);
+    });
+
+    test("returns false for date with non-zero milliseconds", () => {
+        const dateWithMilliseconds = new Date("2023-12-25T15:30:00.123Z");
+        expect(isScheduleDateTime(dateWithMilliseconds)).toBe(false);
+    });
+
+    test("returns false for date with non-zero seconds and milliseconds", () => {
+        const dateWithSecondsAndMilliseconds = new Date("2023-12-25T15:30:42.123Z");
+        expect(isScheduleDateTime(dateWithSecondsAndMilliseconds)).toBe(false);
+    });
+
+    test("returns false for completely invalid date object", () => {
+        const invalidDate = new Date("invalid");
+        expect(isScheduleDateTime(invalidDate)).toBe(false);
+    });
+
+    test("returns true for EST date that converts to valid UTC format", () => {
+        const dateWithOffset = new Date("2023-12-25T10:30:00-05:00");
+        expect(isScheduleDateTime(dateWithOffset)).toBe(true);
+    });
+});
+
+describe("assertScheduleDateTime", () => {
+    test("returns date with equal value for valid ScheduleDateTime", () => {
+        const validDate = new Date("2023-12-25T15:30:00.000Z");
+        const result = assertScheduleDateTime(validDate);
+        expect(result).toEqual(validDate);
+    });
+
+    test("throws error for date with seconds precision", () => {
+        const invalidDate = new Date("2023-12-25T15:30:45.000Z");
+        expect(() => assertScheduleDateTime(invalidDate)).toThrow();
+    });
+
+    test("throws error for completely invalid date object", () => {
+        const invalidDate = new Date("invalid");
+        expect(() => assertScheduleDateTime(invalidDate)).toThrow();
+    });
+});
+
+describe("serializeScheduleDateTime", () => {
+    test("truncates seconds to zero seconds", () => {
+        const dateWithSeconds = new Date("2023-12-25T15:30:45.123Z");
+        const result = serializeScheduleDateTime(dateWithSeconds);
+        expect(result.toISOString()).toBe("2023-12-25T15:30:00.000Z");
+    });
+
+    test("returns valid ScheduleDateTime after truncating seconds", () => {
+        const dateWithSeconds = new Date("2023-12-25T15:30:45.123Z");
+        const result = serializeScheduleDateTime(dateWithSeconds);
+        expect(isScheduleDateTime(result)).toBe(true);
+    });
+
+    test("preserves already correctly formatted date unchanged", () => {
+        const validDate = new Date("2023-12-25T15:30:00.000Z");
+        const result = serializeScheduleDateTime(validDate);
+        expect(result.toISOString()).toBe("2023-12-25T15:30:00.000Z");
+    });
+
+    test("converts EST timezone offset to UTC correctly", () => {
+        const dateWithOffset = new Date("2023-12-25T10:30:00-05:00"); // EST
+        const result = serializeScheduleDateTime(dateWithOffset);
+        expect(result.toISOString()).toBe("2023-12-25T15:30:00.000Z");
+    });
+
+    test("returns valid ScheduleDateTime for daylight saving time date", () => {
+        const springDate = new Date("2023-03-12T07:30:00.000Z");
+        const result = serializeScheduleDateTime(springDate);
+        expect(isScheduleDateTime(result)).toBe(true);
+    });
+
+    test("throws error for invalid date object", () => {
+        const invalidDate = new Date("invalid");
+        expect(() => serializeScheduleDateTime(invalidDate)).toThrow();
+    });
+});
+
+describe("deserializeScheduleDateTime", () => {
+    test("preserves ISO string format after deserialization", () => {
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2023-12-25T15:30:00.000Z"));
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.toISOString()).toBe("2023-12-25T15:30:00.000Z");
+    });
+
+    test("preserves year from original date", () => {
+        const originalDate = new Date("2024-06-15T09:45:00.000Z");
+        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.getFullYear()).toBe(2024);
+    });
+
+    test("preserves month from original date (0-based)", () => {
+        const originalDate = new Date("2024-06-15T09:45:00.000Z");
+        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.getMonth()).toBe(5); // 0-based months
+    });
+
+    test("preserves day of month from original date", () => {
+        const originalDate = new Date("2024-06-15T09:45:00.000Z");
+        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.getDate()).toBe(15);
+    });
+
+    test("preserves hours from original date", () => {
+        const originalDate = new Date("2024-06-15T09:45:00.000Z");
+        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.getUTCHours()).toBe(9);
+    });
+
+    test("preserves minutes from original date", () => {
+        const originalDate = new Date("2024-06-15T09:45:00.000Z");
+        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.getUTCMinutes()).toBe(45);
+    });
+
+    test("ensures seconds are zero after deserialization", () => {
+        const originalDate = new Date("2024-06-15T09:45:00.000Z");
+        const ScheduleDateTime = serializeScheduleDateTime(originalDate);
+        const result = deserializeScheduleDateTime(ScheduleDateTime);
+        expect(result.getUTCSeconds()).toBe(0);
+    });
+});
+
+describe("isScheduleDateTimeString", () => {
+    test("returns true for valid string", () => {
+        expect(isScheduleDateTimeString("2023-08-21T15:30:00.000Z")).toBe(true);
+    });
+
+    test("returns true for New Year’s Day midnight string", () => {
+        expect(isScheduleDateTimeString("2024-01-01T00:00:00.000Z")).toBe(true);
+    });
+
+    test("returns true for date at 11:59 PM string", () => {
+        expect(isScheduleDateTimeString("2024-08-21T23:59:00.000Z")).toBe(true);
+    });
+
+    test("returns false for string with non-zero seconds precision", () => {
+        expect(isScheduleDateTimeString("2023-12-25T15:30:45.000Z")).toBe(false);
+    });
+
+    test("returns false for string with non-zero milliseconds precision", () => {
+        expect(isScheduleDateTimeString("2023-12-25T15:30:00.500Z")).toBe(false);
+    });
+
+    test("returns false for string with space instead of T", () => {
+        expect(isScheduleDateTimeString("2023-12-25 15:30:00.000Z")).toBe(false);
+    });
+
+    test("returns false for string with slash date separators", () => {
+        expect(isScheduleDateTimeString("2023/12/25T15:30:00.000Z")).toBe(false);
+    });
+
+    test("returns false for string missing Z timezone indicator", () => {
+        expect(isScheduleDateTimeString("2023-12-25T15:30:00.000")).toBe(false);
+    });
+
+    test("returns false for completely invalid date string", () => {
+        expect(isScheduleDateTimeString("invalid-date")).toBe(false);
+    });
+
+    test("returns false for empty string", () => {
+        expect(isScheduleDateTimeString("")).toBe(false);
+    });
+
+    test("returns false for string with invalid hour 25", () => {
+        expect(isScheduleDateTimeString("2023-12-25T25:30:00.000Z")).toBe(false);
+    });
+
+    test("returns false for string with invalid month 13", () => {
+        expect(isScheduleDateTimeString("2023-13-25T15:30:00.000Z")).toBe(false);
+    });
+
+    test("returns false for string with invalid leap day 29th of February", () => {
+        expect(isScheduleDateTimeString("2023-02-29T15:30:00.000Z")).toBe(false);
+    });
+
+    test("returns false for number input", () => {
+        expect(isScheduleDateTimeString(123 as any)).toBe(false);
+    });
+
+    test("returns false for null input", () => {
+        expect(isScheduleDateTimeString(null as any)).toBe(false);
+    });
+
+    test("returns false for undefined input", () => {
+        expect(isScheduleDateTimeString(undefined as any)).toBe(false);
+    });
+
+    test("returns false for Date object input", () => {
+        expect(isScheduleDateTimeString(new Date() as any)).toBe(false);
+    });
+
+    test("returns true for Unix epoch start date", () => {
+        expect(isScheduleDateTimeString("1970-01-01T00:00:00.000Z")).toBe(true);
+    });
+
+    test("returns true for far future date 2099", () => {
+        expect(isScheduleDateTimeString("2099-12-31T23:59:00.000Z")).toBe(true);
+    });
+});
+
+describe("assertScheduleDateTimeString", () => {
+    test("returns equal string for valid date string", () => {
+        const validString = "2023-08-21T15:30:00.000Z";
+        const result = assertScheduleDateTimeString(validString);
+        expect(result).toEqual(validString);
+    });
+
+    test("throws error for string with seconds precision", () => {
+        expect(() => assertScheduleDateTimeString("2023-12-25T15:30:45.000Z")).toThrow();
+    });
+
+    test("throws error for completely invalid date string", () => {
+        expect(() => assertScheduleDateTimeString("invalid-date")).toThrow();
+    });
+
+    test("throws error for empty string", () => {
+        expect(() => assertScheduleDateTimeString("")).toThrow();
+    });
+});
+
+describe("serializeScheduleDateTimeString", () => {
+    test("converts ScheduleDateTime to expected format", () => {
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2023-08-21T15:30:45.123Z"));
+        const result = serializeScheduleDateTimeString(ScheduleDateTime);
+        expect(result).toEqual("2023-08-21T15:30:00.000Z");
+    });
+
+    test("returns valid ScheduleDateTimeString after conversion", () => {
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2023-12-25T15:30:45.123Z"));
+        const result = serializeScheduleDateTimeString(ScheduleDateTime);
+        expect(isScheduleDateTimeString(result)).toBe(true);
+    });
+
+    test("truncates seconds", () => {
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:59:30.500Z"));
+        const result = serializeScheduleDateTimeString(ScheduleDateTime);
+        expect(result).toBe("2024-06-15T23:59:00.000Z");
+    });
+    test("truncates milliseconds", () => {
+        const ScheduleDateTime = serializeScheduleDateTime(new Date("2024-06-15T23:59:00.500Z"));
+        const result = serializeScheduleDateTimeString(ScheduleDateTime);
+        expect(result).toBe("2024-06-15T23:59:00.000Z");
+    });
+});
+
+describe("deserializeScheduleDateTimeString", () => {
+    test("returns valid ScheduleDateTime from valid string", () => {
+        const dateString = "2023-08-21T15:30:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(isScheduleDateTime(result)).toBe(true);
+    });
+
+    test("converts valid string to full ISO format", () => {
+        const dateString = "2023-08-21T15:30:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.toISOString()).toBe("2023-08-21T15:30:00.000Z");
+    });
+
+    test("returns valid ScheduleDateTime from New Year’s Day string", () => {
+        const dateString = "2024-01-01T00:00:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(isScheduleDateTime(result)).toBe(true);
+    });
+
+    test("preserves years from original date", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getFullYear()).toBe(2024);
+    });
+
+    test("preserves month from original date", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getMonth()).toBe(2); // 0-based months
+    });
+
+    test("preserves day of month from original date", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getDate()).toBe(15);
+    });
+
+    test("preserves hours from original date", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getUTCHours()).toBe(14);
+    });
+
+    test("preserves minutes from original date", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getUTCMinutes()).toBe(25);
+    });
+
+    test("seconds are zero after deserialization", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getUTCSeconds()).toBe(0);
+    });
+
+    test("milliseconds are zero after deserialization", () => {
+        const dateString = "2024-03-15T14:25:00.000Z" as ScheduleDateTimeString;
+        const result = deserializeScheduleDateTimeString(dateString);
+        expect(result.getUTCMilliseconds()).toBe(0);
+    });
+});
+
+describe("ScheduleDateTimeSchema", () => {
+    test("deserializes ISO string to valid ScheduleDateTime", () => {
+        const isoString = "2023-12-25T15:30:45.123Z";
+        const result = ScheduleDateTimeSchema.deserialize(isoString);
+        expect(isScheduleDateTime(result)).toBe(true);
+    });
+
+    test("seconds and milliseconds are zero after deserialization", () => {
+        const isoString = "2023-12-25T15:30:45.123Z";
+        const result = ScheduleDateTimeSchema.deserialize(isoString);
+        expect(result.toISOString()).toBe("2023-12-25T15:30:00.000Z");
+    });
+
+    test("throws SchemaDeserializationError for invalid ISO string", () => {
+        const invalidString = "invalid-date";
+        expect(() => ScheduleDateTimeSchema.deserialize(invalidString)).toThrow(
+            SchemaDeserializationError,
+        );
+    });
+});

@@ -13,6 +13,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
+import {createTestAccountModelWithoutSpace} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 export type TestSessionItem = {
     readonly sessionId: SessionId;
@@ -50,12 +51,9 @@ export function createTestSession(
 
     const createdTime = new Date();
 
-    const account = new AccountModelWithoutSpace({
+    const account = createTestAccountModelWithoutSpace({
         id: accountId,
-        version: 0,
-        name,
-        nameVersion: 0,
-        avatar: null,
+        name: name,
     });
 
     let sessionCreatedTime: Date | null = null;

@@ -135,6 +135,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "observedTimeZone": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -7877,6 +7886,77 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "lastEntryUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "digestNotificationsOptedOutTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "digestNotificationsSchedule": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Enum",
+                                                "values": [
+                                                    "00:00",
+                                                    "01:00",
+                                                    "02:00",
+                                                    "03:00",
+                                                    "04:00",
+                                                    "05:00",
+                                                    "06:00",
+                                                    "07:00",
+                                                    "08:00",
+                                                    "09:00",
+                                                    "10:00",
+                                                    "11:00",
+                                                    "12:00",
+                                                    "13:00",
+                                                    "14:00",
+                                                    "15:00",
+                                                    "16:00",
+                                                    "17:00",
+                                                    "18:00",
+                                                    "19:00",
+                                                    "20:00",
+                                                    "21:00",
+                                                    "22:00",
+                                                    "23:00"
+                                                ]
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "digestNotificationsNextScheduledDateTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "digestNotificationsLastSentTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -8685,6 +8765,46 @@ export const dynamoGeneratedSchemaDescription: {
                                 },
                                 "enteredTime": {
                                     "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
+                    "overloadByName": {
+                        "NotificationDigestEntries": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Account",
+                                    "sortRangeType": "InboxAttributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "digestNotificationsNextScheduledDateTime": {
+                                    "type": "Nullable",
+                                    "nullsOrder": "First",
+                                    "schema": {
+                                        "type": "ScheduleDateTime"
+                                    }
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                },
+                                "accountId": {
+                                    "type": "Id"
+                                },
+                                "digestNotificationsOptedOutTime": {
+                                    "type": "Nullable",
+                                    "nullsOrder": "First",
                                     "schema": {
                                         "type": "Date"
                                     }

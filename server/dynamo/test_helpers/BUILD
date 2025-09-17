@@ -34,6 +34,7 @@ ts_project(
         "//shared/id",
         "//shared/schema",
         "//shared/spaces",
+        "//shared/spaces/test_helpers",
         "//shared/tracer",
         "//shared/tracer/dev",
     ],

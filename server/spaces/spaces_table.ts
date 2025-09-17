@@ -2166,7 +2166,7 @@ export async function authorizeSpaceAccessIfPossible(
  * to authenticated session. If the actor is a system actor then the
  * `AccountId` must be a member of the system actor's space.
  */
-export async function authorizeOwnAccountAccess(
+export async function authorizeOwnSpaceAccountAccess(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -2179,7 +2179,7 @@ export async function authorizeOwnAccountAccess(
 ) {
     switch (context.actor.type) {
         case "System": {
-            // System actors can see devices for any account in their space.
+            // System actors can access any account in their space.
             if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
                 throw new PermissionDeniedError(
                     "Can’t access account that’s not in the system actor’s space",
@@ -2541,7 +2541,7 @@ export async function getOwnAccountIfExists(
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ) {
-    await authorizeOwnAccountAccess(context, accountId);
+    await authorizeOwnSpaceAccountAccess(context, accountId);
     return getAccountIfExistsWithoutAuthorization(context, spaceId, accountId, options);
 }
 
@@ -3304,7 +3304,7 @@ export async function getRegisteredAccountDevices(
     context: ServerActionContext,
     accountId: AccountId,
 ): Promise<ReadonlyArray<AccountDevice>> {
-    await authorizeOwnAccountAccess(context, accountId);
+    await authorizeOwnSpaceAccountAccess(context, accountId);
     return internalGetRegisteredAccountDevicesWithoutAuthorization(context, accountId);
 }
 
@@ -3568,7 +3568,7 @@ async function updateSpaceAccountWithInviteDecision(
 ): Promise<AccountModel> {
     context.actor.authorizeSession();
     const accountId = context.actor.getAccountId();
-    await authorizeOwnAccountAccess(context, accountId);
+    await authorizeOwnSpaceAccountAccess(context, accountId);
 
     return context.dynamo.retryTransaction(async context => {
         const [spaceAccountItem, account, accountSpacesItem] = await runAllPromises([

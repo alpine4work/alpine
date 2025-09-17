@@ -1,5 +1,12 @@
 import {DynamoEmailAddressSchema} from "~/server/dynamo/core/internal/dynamo_email_address_schema.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
+import {
+    ScheduleDateTime,
+    deserializeScheduleDateTimeString,
+    isScheduleDateTimeString,
+    serializeScheduleDateTime,
+    serializeScheduleDateTimeString,
+} from "~/server/notifications/core/schedule_date_time.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -155,6 +162,7 @@ export type DynamoKeyAttributeSchemaType<Schema extends DynamoKeyAttributeSchema
 export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "Id"}
     | {readonly type: "Date"}
+    | {readonly type: "ScheduleDateTime"}
     | {readonly type: "Boolean"}
     | {readonly type: "BooleanReversed"}
     | {readonly type: "Integer"}
@@ -258,6 +266,55 @@ export class DynamoKeyAttributeSchema<Value> {
                 const view = new DataView(clonedBytes.buffer);
                 const bigintValue = view.getBigInt64(0, false);
                 return new Date(Number(bigintValue));
+            },
+        },
+    });
+
+    /**
+     * ScheduleDateTime acts just like Date, but enforces that the time is truncated to the nearest
+     * minute and its string representation is in the format "YYYY-MM-DDTHH:mm:ss.SSSZ".
+     */
+    public static ScheduleDateTime = new DynamoKeyAttributeSchema<ScheduleDateTime>({
+        description: {type: "ScheduleDateTime"},
+
+        minValue: minIsoLexicographicallySortableDate as ScheduleDateTime,
+        maxValue: maxIsoLexicographicallySortableDate as ScheduleDateTime,
+
+        serialize: serializeScheduleDateTimeString,
+        deserialize: keyAttribute => {
+            assert(isScheduleDateTimeString(keyAttribute));
+            return deserializeScheduleDateTimeString(keyAttribute);
+        },
+
+        binary: {
+            getByteCount: () => 8,
+            serializeBytes: (value, bytes, byteOffset) => {
+                const view = new DataView(bytes.buffer);
+                view.setBigInt64(
+                    byteOffset,
+                    // We use a bigint since safe JavaScript integers can go up to 2^53.
+
+                    BigInt(serializeScheduleDateTime(value).getTime()),
+                    // It is important that we store in big endian format so that when comparing
+                    // bytes without knowledge of the type we get the correct order.
+                    false,
+                );
+
+                // Flip the first bit so the negative sign is 0 instead of 1 putting negative
+                // numbers first.
+                bytes[byteOffset] ^= 0b10000000;
+            },
+            deserializeBytes: (bytes, byteOffset) => {
+                // Clone the bytes before manipulating them so we don't mess up the bytes we
+                // are deserializing from...
+                const clonedBuffer = new ArrayBuffer(8);
+                const clonedBytes = new Uint8Array(clonedBuffer);
+                clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
+                clonedBytes[0] ^= 0b10000000;
+
+                const view = new DataView(clonedBytes.buffer);
+                const bigintValue = view.getBigInt64(0, false);
+                return serializeScheduleDateTime(new Date(Number(bigintValue)));
             },
         },
     });

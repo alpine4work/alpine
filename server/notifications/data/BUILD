@@ -18,13 +18,13 @@ ts_project(
     visibility = [
         "//admin/crawl:__pkg__",
         "//app:__pkg__",
-        "//server/jobs/queue:__pkg__",
-        "//server/migration:__pkg__",
-        "//server/rpc:__pkg__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//:node_modules/date-fns",
         "//server/api/specification",
+        "//server/accounts",
+        "//server/accounts/with_spaces",
         "//server/apns",
         "//server/chat/data",
         "//server/content",

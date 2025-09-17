@@ -13,6 +13,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_model.js";
+import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -25,6 +26,8 @@ export class InboxModel extends Model(
         loudNotificationCount: Schema.integer.min(0),
         entryCount: Schema.integer.min(0),
         lastZeroEntryCountTime: Schema.date.nullable(),
+        digestNotificationsOptedOutTime: Schema.date.nullable(),
+        digestNotificationsSchedule: DigestNotificationsScheduleSchema,
     }),
 ) {}
 

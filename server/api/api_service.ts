@@ -14,6 +14,7 @@ import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
+    NotificationsInjectionContextModule,
     SearchInjectionContextModule,
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
@@ -36,6 +37,7 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
@@ -154,6 +156,7 @@ export async function run({
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
+        notificationsInjection: new NotificationsInjectionContextModule(notificationsInjection),
         searchInjection: new SearchInjectionContextModule(searchInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),

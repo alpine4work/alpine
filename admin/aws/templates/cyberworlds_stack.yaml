@@ -1254,6 +1254,10 @@ Resources:
                   AttributeType: S
                 - AttributeName: index1SortKey
                   AttributeType: S
+                - AttributeName: index2PartitionKey
+                  AttributeType: S
+                - AttributeName: index2SortKey
+                  AttributeType: S
             BillingMode: PAY_PER_REQUEST
             DeletionProtectionEnabled: true
             GlobalSecondaryIndexes:
@@ -1265,6 +1269,14 @@ Resources:
                         KeyType: RANGE
                   Projection:
                       ProjectionType: ALL
+                - IndexName: Index2
+                  KeySchema:
+                      - AttributeName: index2PartitionKey
+                        KeyType: HASH
+                      - AttributeName: index2SortKey
+                        KeyType: RANGE
+                  Projection:
+                      ProjectionType: KEYS_ONLY
             KeySchema:
                 - AttributeName: partitionKey
                   KeyType: HASH

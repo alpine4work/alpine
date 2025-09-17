@@ -1386,7 +1386,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
             Object.entries(config).map(([key, schema]) => {
                 assert(
                     isIdentifier(key),
-                    `ObjectSchema key \`${key}\` is not a valid ASCII identifier`,
+                    quote`Object schema key ${key} is not a valid ASCII identifier`,
                 );
                 return [key, schema instanceof Schema ? ObjectPropertySchema.wrap(schema) : schema];
             }),

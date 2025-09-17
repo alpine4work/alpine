@@ -26,6 +26,7 @@ import {
 } from "~/server/notifications/data/notifications_actions.js";
 import {
     createNotificationsScenario,
+    createTestInboxModel,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {
@@ -56,7 +57,6 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {
     InboxChannelPostsEntryModel,
-    InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
@@ -5419,12 +5419,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    entryCount: 0,
-                    lastZeroEntryCountTime: null,
                 }),
             );
         });
@@ -5436,12 +5433,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    entryCount: 0,
-                    lastZeroEntryCountTime: null,
                 }),
             );
 
@@ -5449,12 +5444,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    entryCount: 0,
-                    lastZeroEntryCountTime: null,
                 }),
             );
 
@@ -5462,12 +5455,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    entryCount: 0,
-                    lastZeroEntryCountTime: null,
                 }),
             );
 
@@ -5490,7 +5481,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5503,7 +5494,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -5516,7 +5507,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5533,7 +5524,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5546,7 +5537,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -5559,7 +5550,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5576,7 +5567,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5589,7 +5580,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -5602,7 +5593,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5627,7 +5618,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5640,7 +5631,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -5653,7 +5644,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5670,7 +5661,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5683,7 +5674,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 1,
@@ -5696,7 +5687,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5713,7 +5704,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5726,7 +5717,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 2,
@@ -5739,7 +5730,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5768,7 +5759,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5781,7 +5772,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 2,
@@ -5794,7 +5785,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5815,7 +5806,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5828,7 +5819,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 1,
@@ -5841,7 +5832,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5862,7 +5853,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5875,7 +5866,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 1,
@@ -5888,7 +5879,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5909,7 +5900,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5922,7 +5913,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 1,
@@ -5935,7 +5926,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5956,7 +5947,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -5969,7 +5960,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 1,
@@ -5982,7 +5973,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -6003,7 +5994,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -6016,7 +6007,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 1,
@@ -6029,7 +6020,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id}))
                     .model,
             ).toEqual(
-                new InboxModel({
+                createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -11909,7 +11900,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxModel({
+                                        model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session2.account.id,
                                             loudNotificationCount: 0,
@@ -11959,7 +11950,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxModel({
+                                        model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session3.account.id,
                                             loudNotificationCount: 0,
@@ -12094,36 +12085,48 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
             ]);
+            const expected = new Map(
+                filterMapArray(
+                    TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts(),
+                    ({url, body = {}}) => {
+                        const match = url.match(
+                            /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
+                        );
+                        if (!match) return;
 
-            expect(
-                new Map(
-                    filterMapArray(
-                        TestLocalEdgeServiceContextModule.takeDurableObjectBroadcasts(),
-                        ({url, body = {}}) => {
-                            const match = url.match(
-                                /^\/api\/durable-objects\/my-account\/([^/]+)\/broadcast-inbox-realtime-event-transaction$/,
-                            );
-                            if (!match) return;
+                        // Ignore any realtime updates `session1` received.
+                        if (match[1] === session1.account.id) return;
 
-                            // Ignore any realtime updates `session1` received.
-                            if (match[1] === session1.account.id) return;
-
-                            return [
-                                match[1],
-                                MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
-                                    body,
-                                ),
-                            ];
-                        },
-                    ),
+                        return [
+                            match[1],
+                            MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(body),
+                        ];
+                    },
                 ),
-            ).toEqual(
+            );
+
+            expect(expected).toEqual(
                 new Map([
                     [
                         session2.account.id,
                         {
                             readTime: expect.any(Date),
                             eventTransaction: [
+                                {
+                                    type: "PutItem",
+                                    indexes: expect.any(Map),
+                                    item: {
+                                        key: expect.any(String),
+                                        version: expect.any(Number),
+                                        model: createTestInboxModel({
+                                            spaceId: space.id,
+                                            accountId: session2.account.id,
+                                            loudNotificationCount: 0,
+                                            entryCount: 1,
+                                            lastZeroEntryCountTime: null,
+                                        }),
+                                    },
+                                },
                                 {
                                     type: "PutItem",
                                     indexes: expect.any(Map),
@@ -12167,7 +12170,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxModel({
+                                        model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session3.account.id,
                                             loudNotificationCount: 0,

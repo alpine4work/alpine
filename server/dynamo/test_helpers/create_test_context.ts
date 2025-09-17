@@ -28,6 +28,8 @@ import {
     DocumentsInjectionContextModule,
     ForumInjection,
     ForumInjectionContextModule,
+    NotificationsInjection,
+    NotificationsInjectionContextModule,
     SearchInjection,
     SearchInjectionContextModule,
     SpacesInjection,
@@ -273,6 +275,7 @@ export function createTestContext(
         chatInjection?: Partial<ChatInjection>;
         documentsInjection?: Partial<DocumentsInjection>;
         forumInjection?: Partial<ForumInjection>;
+        notificationsInjection?: Partial<NotificationsInjection>;
         searchInjection?: Partial<SearchInjection>;
         spacesInjection?: Partial<SpacesInjection>;
         tasksInjection?: Partial<TasksInjection>;
@@ -608,6 +611,9 @@ export function createTestContext(
         chatInjection: ChatInjectionContextModule.test(options.chatInjection),
         documentsInjection: DocumentsInjectionContextModule.test(options.documentsInjection),
         forumInjection: ForumInjectionContextModule.test(options.forumInjection),
+        notificationsInjection: NotificationsInjectionContextModule.test(
+            options.notificationsInjection,
+        ),
         searchInjection: SearchInjectionContextModule.test(searchInjection),
         spacesInjection: SpacesInjectionContextModule.test(options.spacesInjection),
         tasksInjection: TasksInjectionContextModule.test(tasksInjection),

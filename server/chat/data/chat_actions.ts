@@ -36,7 +36,7 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messagin
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
-    authorizeOwnAccountAccess,
+    authorizeOwnSpaceAccountAccess,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
     getAccount,
@@ -434,7 +434,7 @@ function actuallyGetOrCreateChatForAccounts(
 ): Promise<ChatForAccountsResult> {
     return context.tracer.withSpan("Get or create chat", async context => {
         // Make sure we're either a system actor or a session actor for this account.
-        await authorizeOwnAccountAccess(context, actorAccountId);
+        await authorizeOwnSpaceAccountAccess(context, actorAccountId);
 
         let hasAlreadyAttempted = false;
 
@@ -674,7 +674,7 @@ function sendChatMessageForAccount(
 }> {
     return context.dynamo.retryTransaction(async context => {
         // Make sure we're either a system actor or a session actor for this account.
-        await authorizeOwnAccountAccess(context, authorId);
+        await authorizeOwnSpaceAccountAccess(context, authorId);
 
         const [{chatAttributesItem, chatAccountItem}] = await runAllPromises([
             (async () => {
@@ -1316,7 +1316,7 @@ function getSharedChats(
 > {
     return context.tracer.withSpan("Get shared chats", async context => {
         // Make sure we're either a system actor or a session actor for this account.
-        await authorizeOwnAccountAccess(context, actorAccountId);
+        await authorizeOwnSpaceAccountAccess(context, actorAccountId);
 
         // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.

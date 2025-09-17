@@ -32,6 +32,7 @@ ts_project(
         "//server/forum/data",
         "//server/helpers",
         "//server/node",
+        "//server/notifications/data",
         "//server/search/data/index",
         "//server/spaces",
         "//server/tasks/data",

@@ -1,5 +1,6 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {AccountsSettingsSchema} from "~/shared/accounts/accounts_settings_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -81,14 +82,7 @@ export const AccountsTable = DynamoTableSchema.new({
                      */
                     name: "Settings",
                     sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        /**
-                         * The ID of the space this account last opened.
-                         * Used for determining which default space to open to
-                         * when needing to route home.
-                         */
-                        lastOpenedSpaceId: Schema.id<SpaceId>().optional(),
-                    }),
+                    attributes: AccountsSettingsSchema,
                 },
             ],
         },
@@ -278,3 +272,21 @@ export const AccountDevicesIndex = AccountsTable.addIndex({
     },
     sortKeyAttributes: {},
 });
+
+export type AccountEmailAddressItem = DynamoTableItemType<
+    typeof AccountsTable,
+    "AccountEmailAddress",
+    "Attributes"
+>;
+
+export type AccountAttributesItem = DynamoTableItemType<
+    typeof AccountsTable,
+    "Account",
+    "Attributes"
+>;
+export type AccountSettingsItem = DynamoTableItemType<typeof AccountsTable, "Account", "Settings">;
+export type AccountAvatarItem = DynamoTableItemType<typeof AccountsTable, "Account", "Avatar">;
+export type AccountItem = AccountAttributesItem & {
+    readonly avatar: AccountAvatarItem | null;
+};
+export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;
