@@ -17,9 +17,11 @@ import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
+import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -282,10 +284,24 @@ function getHandleSpanName(messageBody: JobQueueMessageBody) {
             handleSpanName += ` (${messageBody.job.entityId.split(":", 2)[0]})`;
             break;
         }
-        // TODO(ifitzsimmons, 2025-09-16): Add other file processors here
+        case "ProcessFileLight":
+        case "ProcessFileHeavy":
         case "ProcessFile": {
             handleSpanName += ` (${messageBody.job.contentType})`;
             break;
+        }
+        case "AddFeedCandidateEntry":
+        case "AddFeedAccountCandidateEntry":
+        case "CallBotWebhook":
+        case "RetryUnprocessedTaskActionTransactions":
+        case "SendShareNotification":
+        case "ScheduleDeploy":
+        case "SendEmail":
+        case "Test": {
+            throw new InternalError(`Job ${messageBody.job.type} is not supported`);
+        }
+        default: {
+            throw exhaustive(messageBody.job);
         }
     }
 
