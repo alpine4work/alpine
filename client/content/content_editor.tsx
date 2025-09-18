@@ -92,6 +92,8 @@ import {createContentEditorTableNodeView} from "~/client/content/internal/table/
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {ContentSpellCheckSuggestion} from "~/client/content/state/content_editor_spell_checker_configuration.js";
+import {getContentEditorSpellCheckerLints} from "~/client/content/state/content_editor_spell_checker_plugin.js";
 import {
     ContentEditorReferencesSharedAction,
     ContentEditorState,
@@ -115,7 +117,7 @@ import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js
 import {Box} from "~/client/design/box.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {MenuAction} from "~/client/design/menu.js";
+import {MenuActionsSection} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
     dispatchTriggeredOverlayCloseEvent,
@@ -4449,42 +4451,210 @@ function ContentEditor<Content extends ContentWithReferences>(
     const canUndo = state.undoDepth() > 0;
     const canRedo = state.redoDepth() > 0;
 
-    const getContextMenuActions = useCallback((): ReadonlyArray<ReadonlyArray<MenuAction>> => {
-        // You can't undo, redo, or insert if you don't have edit access to the
-        // document.
-        if (!hasEditAccessLevel) return emptyArray;
+    const getContextMenuActions = useCallback(
+        (
+            event: MouseEvent,
+        ): {
+            actions: ReadonlyArray<MenuActionsSection>;
+            withoutDefaultActions?: boolean;
+            withSelectionAlignment?: boolean;
+        } => {
+            // You can't undo, redo, or insert if you don't have edit access to the
+            // document.
+            if (!hasEditAccessLevel) return {actions: emptyArray};
 
-        return [
-            [
-                {
-                    label: "Undo",
-                    isDisabled: !canUndo,
-                    keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                    onPress: () => {
-                        const view = assertExists(viewRef.current);
-                        undo(view.state, view.dispatch, view);
-                    },
-                },
-                {
-                    label: "Redo",
-                    isDisabled: !canRedo,
-                    keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                    onPress: () => {
-                        const view = assertExists(viewRef.current);
-                        redo(view.state, view.dispatch, view);
-                    },
-                },
-            ],
-            [
-                {
-                    hasChildren: true,
-                    key: "insert",
-                    label: "Insert",
-                    actions: getContentEditorInsertMenuActions({schema, viewRef}),
-                },
-            ],
-        ];
-    }, [canRedo, canUndo, clientInfo.isAppleDevice, hasEditAccessLevel, schema]);
+            const view = assertExists(viewRef.current);
+            const {state} = view;
+
+            const lints = getContentEditorSpellCheckerLints(state);
+            if (lints.length > 0) {
+                const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+
+                // If the user right clicked into a lint then we want to show suggestions for
+                // that lint.
+                const selectedLint = posResult
+                    ? lints.find(lint => {
+                          if (lint.from <= posResult.pos && posResult.pos <= lint.to) {
+                              return true;
+                          }
+                          return false;
+                      })
+                    : null;
+
+                if (selectedLint) {
+                    // Select the entire lint instead of doing the browser default of only selecting
+                    // the word the user right clicked on.
+                    view.dispatch(
+                        state.tr.setSelection(
+                            TextSelection.between(
+                                state.doc.resolve(selectedLint.from),
+                                state.doc.resolve(selectedLint.to),
+                            ),
+                        ),
+                    );
+
+                    const lintMenuActions: Array<MenuActionsSection> = [];
+
+                    // TODO(#spell-check): Immediately hide lint after press so it doesn't disappear
+                    // asynchronously?
+                    const createLintActionOnPress = (suggestion: ContentSpellCheckSuggestion) => {
+                        switch (suggestion.kind) {
+                            case "replace": {
+                                return () => {
+                                    const fragment = Fragment.from(schema.text(suggestion.text));
+
+                                    const transaction = state.tr.replace(
+                                        selectedLint.from,
+                                        selectedLint.to,
+                                        new Slice(fragment, 0, 0),
+                                    );
+
+                                    // Make sure we're selecting the replaced text.
+                                    transaction.setSelection(
+                                        TextSelection.between(
+                                            transaction.doc.resolve(selectedLint.from),
+                                            transaction.doc.resolve(
+                                                selectedLint.from + suggestion.text.length,
+                                            ),
+                                        ),
+                                    );
+
+                                    view.dispatch(transaction);
+                                };
+                            }
+                            case "remove": {
+                                return () => {
+                                    const transaction = state.tr.replace(
+                                        selectedLint.from,
+                                        selectedLint.to,
+                                        Slice.empty,
+                                    );
+
+                                    // Make sure our selection is at the location of the removed text.
+                                    transaction.setSelection(
+                                        TextSelection.near(
+                                            transaction.doc.resolve(selectedLint.from),
+                                        ),
+                                    );
+
+                                    view.dispatch(transaction);
+                                };
+                            }
+                            case "insertafter": {
+                                return () => {
+                                    const transaction = state.tr.insert(
+                                        selectedLint.to,
+                                        schema.text(suggestion.text),
+                                    );
+
+                                    // Make sure we're selecting the replaced text.
+                                    transaction.setSelection(
+                                        TextSelection.between(
+                                            transaction.doc.resolve(selectedLint.from),
+                                            transaction.doc.resolve(
+                                                selectedLint.to + suggestion.text.length,
+                                            ),
+                                        ),
+                                    );
+
+                                    view.dispatch(transaction);
+                                };
+                            }
+                            default:
+                                throw exhaustive(suggestion.kind);
+                        }
+                    };
+
+                    const createLintActionLabel = (
+                        selectedText: string,
+                        suggestion: ContentSpellCheckSuggestion,
+                    ) => {
+                        switch (suggestion.kind) {
+                            case "replace":
+                                return `Replace “${selectedText}” with “${suggestion.text}”`;
+                            case "remove":
+                                return `Remove “${selectedText}”`;
+                            case "insertafter":
+                                return `Add “${suggestion.text}” after “${selectedText}”`;
+                        }
+                    };
+
+                    const heading =
+                        selectedLint.suggestions.length === 0
+                            ? "No Suggestions"
+                            : selectedLint.suggestions.length === 1
+                            ? "Suggestion"
+                            : "Suggestions";
+
+                    if (selectedLint.category === "spelling") {
+                        lintMenuActions.push({
+                            heading,
+                            actions: selectedLint.suggestions.map(suggestion => ({
+                                // For spelling issues, just show the suggested word in line
+                                label: suggestion.text,
+                                onPress: createLintActionOnPress(suggestion),
+                            })),
+                        });
+                    } else {
+                        const selectedLintText = state.doc.textBetween(
+                            selectedLint.from,
+                            selectedLint.to,
+                        );
+
+                        lintMenuActions.push({
+                            heading,
+                            actions: selectedLint.suggestions.map(suggestion => ({
+                                label: createLintActionLabel(selectedLintText, suggestion),
+                                onPress: createLintActionOnPress(suggestion),
+                            })),
+                        });
+                    }
+
+                    return {
+                        actions: lintMenuActions,
+                        // Don't show standard text input copy/paste actions.
+                        withoutDefaultActions: true,
+                        // Align the context menu next to the selection, not precisely next to the
+                        // cursor. The user should be able to read the content and interpret the
+                        // suggestion relative to the content.
+                        withSelectionAlignment: true,
+                    };
+                }
+            }
+
+            return {
+                actions: [
+                    [
+                        {
+                            label: "Undo",
+                            isDisabled: !canUndo,
+                            keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                            onPress: () => {
+                                undo(view.state, view.dispatch, view);
+                            },
+                        },
+                        {
+                            label: "Redo",
+                            isDisabled: !canRedo,
+                            keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                            onPress: () => {
+                                redo(view.state, view.dispatch, view);
+                            },
+                        },
+                    ],
+                    [
+                        {
+                            hasChildren: true,
+                            key: "insert",
+                            label: "Insert",
+                            actions: getContentEditorInsertMenuActions({schema, viewRef}),
+                        },
+                    ],
+                ],
+            };
+        },
+        [canRedo, canUndo, clientInfo.isAppleDevice, hasEditAccessLevel, schema],
+    );
 
     // Manually add context menu actions on `contextmenu` event since we can't
     // render a `<ContextMenu>` component which would break our
@@ -4493,7 +4663,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         const view = assertExists(viewRef.current);
 
         const handleContextMenu = (event: MouseEvent) => {
-            addContextMenuActions(event, getContextMenuActions());
+            const newMenuActions = getContextMenuActions(event);
+            addContextMenuActions(event, newMenuActions.actions, newMenuActions);
         };
 
         view.dom.addEventListener("contextmenu", handleContextMenu);

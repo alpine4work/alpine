@@ -732,8 +732,10 @@ function SearchFavoritesViewItem({
 
     const hasActiveContextMenu = useMemo(
         () =>
-            activeContextMenuActions?.some(actions =>
-                actions.some(action => !action.withCustomLayout && action.key === id),
+            activeContextMenuActions?.some(section =>
+                ("actions" in section ? section.actions : section).some(
+                    action => !action.withCustomLayout && action.key === id,
+                ),
             ) ?? false,
         [activeContextMenuActions, id],
     );

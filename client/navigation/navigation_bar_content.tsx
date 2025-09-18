@@ -684,6 +684,23 @@ function NavigationBarContentMoreButton({
     );
 }
 
+function isCopyLinkAction(action: MenuAction | undefined): boolean {
+    return (
+        action !== undefined &&
+        "label" in action &&
+        !("withCustomLayout" in action && action.withCustomLayout) &&
+        action.label === "Copy link"
+    );
+}
+
+function mergeCopyLinkSection(
+    shareMenuItem: MenuAction,
+    copyLinkActions: ReadonlyArray<MenuAction>,
+    remainingActions: MenuActions,
+): MenuActions {
+    return [[shareMenuItem, ...copyLinkActions], ...remainingActions];
+}
+
 function addShareMenuItem({
     platform,
     shareButton,
@@ -700,19 +717,22 @@ function addShareMenuItem({
     // Merge with the "Copy link" section on mobile. But on desktop where the
     // switch is a part of the menu item, the share menu item needs a divider
     // to make it feel separate.
-    if (platform !== "desktop") {
-        if (
-            !isReadonlyArray(actions[0]) &&
-            !actions[0]?.withCustomLayout &&
-            actions[0]?.label === "Copy link"
-        ) {
-            return [[shareMenuItem, actions[0]], ...actions.slice(1)];
-        } else if (
-            isReadonlyArray(actions[0]) &&
-            !actions[0][0]?.withCustomLayout &&
-            actions[0][0]?.label === "Copy link"
-        ) {
-            return [[shareMenuItem, ...actions[0]], ...actions.slice(1)];
+    const firstSection = actions[0];
+    if (platform !== "desktop" && firstSection) {
+        // Check if the first section is a readonly array (MenuAction[])
+        if (isReadonlyArray(firstSection)) {
+            if (isCopyLinkAction(firstSection[0])) {
+                return mergeCopyLinkSection(shareMenuItem, firstSection, actions.slice(1));
+            }
+        } else if ("actions" in firstSection) {
+            // This is a subsection, extract the actions and check the first one
+            const sectionActions = firstSection.actions;
+            if (Array.isArray(sectionActions) && isCopyLinkAction(sectionActions[0])) {
+                return mergeCopyLinkSection(shareMenuItem, sectionActions, actions.slice(1));
+            }
+        } else if (isCopyLinkAction(firstSection)) {
+            // Otherwise it's a single MenuAction
+            return mergeCopyLinkSection(shareMenuItem, [firstSection], actions.slice(1));
         }
     }
 

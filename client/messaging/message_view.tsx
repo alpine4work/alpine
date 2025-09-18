@@ -1043,7 +1043,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         () =>
             !!touchMenuState ||
             (openContextMenuActions ?? []).some(subActions =>
-                subActions.some(action => !action.withCustomLayout && action.key === id),
+                ("actions" in subActions ? subActions.actions : subActions).some(
+                    action => !action.withCustomLayout && action.key === id,
+                ),
             ),
         [touchMenuState, openContextMenuActions, id],
     );
@@ -1064,7 +1066,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 // Merge the text copy action into the "Copy link" section.
                 mergeReadonlyCopyAction={(actionSections, copyTextAction) => {
                     const copyLinkActionSectionIndex = actionSections.findIndex(actionSection =>
-                        actionSection.some(
+                        ("actions" in actionSection ? actionSection.actions : actionSection).some(
                             action => !action.withCustomLayout && action.label === "Copy link",
                         ),
                     );
@@ -1074,10 +1076,15 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     }
 
                     const newActionSections = [...actionSections];
+                    const copyLinkActionSection = assertExists(
+                        newActionSections[copyLinkActionSectionIndex],
+                    );
 
                     newActionSections[copyLinkActionSectionIndex] = [
                         {...copyTextAction, label: "Copy text"},
-                        ...newActionSections[copyLinkActionSectionIndex]!,
+                        ...("actions" in copyLinkActionSection
+                            ? copyLinkActionSection.actions
+                            : copyLinkActionSection),
                     ];
 
                     return newActionSections;

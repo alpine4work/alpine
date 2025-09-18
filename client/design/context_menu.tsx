@@ -20,7 +20,13 @@ import {createPortal, flushSync} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {Menu, MenuAction, MenuItem, MenuStandardAction} from "~/client/design/menu.js";
+import {
+    Menu,
+    MenuAction,
+    MenuActionsSection,
+    MenuItem,
+    MenuStandardAction,
+} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
@@ -31,23 +37,28 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 const contextMenuEventExtensionSymbol = Symbol("contextMenuEventExtension");
 
 type ContextMenuEventExtension = {
-    actions?: Array<ReadonlyArray<MenuAction>>;
+    actions?: Array<MenuActionsSection>;
     mergeReadonlyCopyAction?: (
-        actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+        actions: ReadonlyArray<MenuActionsSection>,
         action: MenuStandardAction,
-    ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+    ) => ReadonlyArray<MenuActionsSection>;
     extraOverlayBottom?: ReactNode;
+    withoutDefaultActions?: boolean;
+    withSelectionAlignment?: boolean;
 };
 
 /**
@@ -71,18 +82,21 @@ type ContextMenuEventExtension = {
 // eslint-disable-next-line react-refresh/only-export-components
 export function addContextMenuActions(
     event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
-    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+    actions: ReadonlyArray<MenuActionsSection>,
+    options?: {withoutDefaultActions?: boolean; withSelectionAlignment?: boolean},
 ) {
     const extension = (event[contextMenuEventExtensionSymbol] ??= {});
     (extension.actions ??= []).push(...actions);
+    if (options?.withoutDefaultActions) extension.withoutDefaultActions = true;
+    if (options?.withSelectionAlignment) extension.withSelectionAlignment = true;
 }
 
 function setContextMenuMergeReadonlyCopyAction(
     event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
     mergeReadonlyCopyActionSymbol: (
-        actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+        actions: ReadonlyArray<MenuActionsSection>,
         action: MenuStandardAction,
-    ) => ReadonlyArray<ReadonlyArray<MenuAction>>,
+    ) => ReadonlyArray<MenuActionsSection>,
 ) {
     const extension = (event[contextMenuEventExtensionSymbol] ??= {});
     extension.mergeReadonlyCopyAction = mergeReadonlyCopyActionSymbol;
@@ -117,13 +131,13 @@ function setContextMenuExtraOverlayBottom(
 // eslint-disable-next-line react-refresh/only-export-components
 export function useContextMenuActionsRef(
     actionsOrOptions:
-        | MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>
+        | MaybeThunk<ReadonlyArray<MenuActionsSection>, [MouseEvent]>
         | {
-              actions: MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>;
+              actions: MaybeThunk<ReadonlyArray<MenuActionsSection>, [MouseEvent]>;
               mergeReadonlyCopyAction?: (
-                  actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+                  actions: ReadonlyArray<MenuActionsSection>,
                   action: MenuStandardAction,
-              ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+              ) => ReadonlyArray<MenuActionsSection>;
               extraOverlayBottom?: ReactNode;
           }
         | null,
@@ -209,11 +223,11 @@ export function ContextMenuActions({
     children,
 }: {
     isDisabled?: boolean;
-    actions: MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>;
+    actions: MaybeThunk<ReadonlyArray<MenuActionsSection>, [MouseEvent]>;
     mergeReadonlyCopyAction?: (
-        actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+        actions: ReadonlyArray<MenuActionsSection>,
         action: MenuStandardAction,
-    ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+    ) => ReadonlyArray<MenuActionsSection>;
     extraOverlayBottom?: ReactNode;
     children: ReactElement;
 }) {
@@ -229,9 +243,7 @@ export function ContextMenuActions({
     );
 }
 
-const ContextMenuActionsContext = createContext<ReadonlyArray<ReadonlyArray<MenuAction>> | null>(
-    null,
-);
+const ContextMenuActionsContext = createContext<ReadonlyArray<MenuActionsSection> | null>(null);
 
 /**
  * Returns true if the context menu is open.
@@ -246,14 +258,14 @@ export function useIsContextMenuOpen(): boolean {
  * menu isn't open.
  */
 // eslint-disable-next-line react-refresh/only-export-components
-export function useContextMenuActions(): ReadonlyArray<ReadonlyArray<MenuAction>> | null {
+export function useContextMenuActions(): ReadonlyArray<MenuActionsSection> | null {
     return useContext(ContextMenuActionsContext);
 }
 
 type ContextMenuInstanceState = {
     readonly x: number;
     readonly y: number;
-    readonly actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+    readonly actions: ReadonlyArray<MenuActionsSection>;
     readonly extraOverlayBottom: ReactNode;
     readonly focusedMenuItemIndex: number | null;
     readonly targetElement: Element;
@@ -309,8 +321,13 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             event.preventDefault();
 
             const extension = event[contextMenuEventExtensionSymbol] ?? {};
-            let actions: Array<ReadonlyArray<MenuAction>> = extension.actions ?? [];
-            const {mergeReadonlyCopyAction, extraOverlayBottom} = extension;
+            let actions: Array<MenuActionsSection> = extension.actions ?? [];
+            const {
+                mergeReadonlyCopyAction,
+                extraOverlayBottom,
+                withoutDefaultActions = false,
+                withSelectionAlignment = false,
+            } = extension;
 
             // Emulate default browser behavior of selecting word the user right clicked.
             selectWordIfSelectionEmpty(event.target);
@@ -395,7 +412,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         throw exhaustive(target);
                 }
 
-                if (!isDisabled) {
+                if (!isDisabled && !withoutDefaultActions) {
                     if (!isEditable) {
                         if (!isEmpty) {
                             const action: MenuStandardAction = {
@@ -448,14 +465,34 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             if (actions.length > 0 && event.target instanceof Element) {
                 const targetElement = event.target;
 
+                const spacingScale = getSpacingScaleWithoutListening();
+
+                let x = event.clientX;
+                let y = event.clientY;
+
+                if (withSelectionAlignment) {
+                    const selectionRange = selection?.getRangeAt(0);
+                    if (selectionRange) {
+                        for (const actualRect of selectionRange.getClientRects()) {
+                            const rect = Rectangle.from(actualRect);
+
+                            if (rect.containsPoint({x, y})) {
+                                x = rect.left;
+                                y = rect.bottom + convertRemLengthToPx("1.5", spacingScale);
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
                 flushSync(() => {
                     setContextMenuState({
                         isOpen: true,
                         instance: {
-                            x: event.clientX,
-                            y: event.clientY,
+                            x,
+                            y,
                             actions,
                             extraOverlayBottom,
                             focusedMenuItemIndex: null,
@@ -591,7 +628,7 @@ const ContextMenu = forwardRef(function ContextMenu(
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
-        actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+        actions: ReadonlyArray<MenuActionsSection>;
         extraBottom: ReactNode;
         focusedMenuItemIndex: number | null;
         onFocusedMenuItemIndexChange: (focusedMenuItemIndex: number | null) => void;
@@ -603,15 +640,24 @@ const ContextMenu = forwardRef(function ContextMenu(
     const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
     const flattenedActions = useMemo(() => {
-        const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
-            [];
+        const flattenedActions: Array<
+            | {type: "Action"; action: MenuAction}
+            | {type: "Divider"}
+            | {type: "Heading"; heading: string}
+        > = [];
 
         for (const nestedAction of nestedActions) {
             if (flattenedActions.length > 0) {
                 flattenedActions.push({type: "Divider"});
             }
 
-            for (const action of nestedAction) {
+            if (!isReadonlyArray(nestedAction)) {
+                flattenedActions.push({type: "Heading", heading: nestedAction.heading});
+            }
+
+            for (const action of isReadonlyArray(nestedAction)
+                ? nestedAction
+                : nestedAction.actions) {
                 flattenedActions.push({type: "Action", action});
             }
         }
@@ -888,6 +934,20 @@ const ContextMenu = forwardRef(function ContextMenu(
                             return (
                                 <Box key={index} paddingX="1" paddingY="1">
                                     <Box width="full" borderBottom="grey-5" />
+                                </Box>
+                            );
+                        }
+                        case "Heading": {
+                            return (
+                                <Box
+                                    key={index}
+                                    paddingTop="1.5"
+                                    paddingBottom="1"
+                                    paddingX="2"
+                                    color="grey-50"
+                                    fontSize="50"
+                                >
+                                    {action.heading}
                                 </Box>
                             );
                         }

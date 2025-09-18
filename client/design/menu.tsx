@@ -48,6 +48,20 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+
+/**
+ * A list of actions or action sections. In between each section is a divider
+ * and optionally a header.
+ */
+export type MenuActions = ReadonlyArray<MenuAction | MenuActionsSection>;
+
+/**
+ * An section of actions in a menu which might or might not have a header.
+ */
+export type MenuActionsSection =
+    | ReadonlyArray<MenuAction>
+    | {readonly heading: string; readonly actions: ReadonlyArray<MenuAction>};
 
 /**
  * A single action in a menu.
@@ -150,6 +164,7 @@ export type MenuStandardAction = {
 
     readonly withCustomLayout?: undefined;
     readonly hasChildren?: undefined;
+    readonly heading?: undefined;
 };
 
 export type MenuCustomAction = {
@@ -168,6 +183,7 @@ export type MenuCustomAction = {
      */
     readonly withCustomLayout: true;
     readonly hasChildren?: undefined;
+    readonly heading?: undefined;
 
     /**
      * Called when this action is activated either by mouse or by keyboard.
@@ -213,6 +229,7 @@ export type MenuChildrenAction = {
      */
     readonly hasChildren: true;
     readonly withCustomLayout?: undefined;
+    readonly heading?: undefined;
 
     /**
      * We need a unique key for menu items with children so we can make sure the
@@ -293,8 +310,6 @@ const menuSizeConstants: {
     },
 };
 
-export type MenuActions = ReadonlyArray<MenuAction | ReadonlyArray<MenuAction>>;
-
 /**
  * A menu offers a list of actions to a user. A menu is rendered as an overlay
  * on top of the application.
@@ -335,7 +350,7 @@ const Menu = forwardRef(function Menu(
          * If you have nested arrays then each sub-array will form a section with a
          * divider between sections.
          */
-        actions: MenuActions | (() => MenuActions);
+        actions: MaybeThunk<MenuActions>;
 
         /**
          * Where should the menu overlay be placed relative to the target element?
@@ -415,13 +430,16 @@ const Menu = forwardRef(function Menu(
         let keys: Set<Key> | undefined;
         let hasSiblingSelectedAction = false;
 
-        const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
-            [];
+        const flattenedActions: Array<
+            | {type: "Action"; action: MenuAction}
+            | {type: "Divider"}
+            | {type: "Heading"; heading: string}
+        > = [];
 
         for (const nestedAction of typeof nestedActions === "function"
             ? nestedActions()
             : nestedActions) {
-            if (!isReadonlyArray(nestedAction)) {
+            if (!isReadonlyArray(nestedAction) && nestedAction.heading === undefined) {
                 // Make sure all children actions have a unique `key`.
                 if (nestedAction.hasChildren) {
                     assert(!keys?.has(nestedAction.key));
@@ -444,7 +462,13 @@ const Menu = forwardRef(function Menu(
                 flattenedActions.push({type: "Divider"});
             }
 
-            for (const action of nestedAction) {
+            if (!isReadonlyArray(nestedAction)) {
+                flattenedActions.push({type: "Heading", heading: nestedAction.heading});
+            }
+
+            for (const action of isReadonlyArray(nestedAction)
+                ? nestedAction
+                : nestedAction.actions) {
                 // Make sure all children actions have a unique `key`.
                 if (action.hasChildren) {
                     assert(!keys?.has(action.key));
@@ -759,6 +783,20 @@ const Menu = forwardRef(function Menu(
                         return (
                             <Box key={index} paddingX="1" paddingY="1">
                                 <Box width="full" borderBottom="grey-5" />
+                            </Box>
+                        );
+                    }
+                    case "Heading": {
+                        return (
+                            <Box
+                                key={index}
+                                paddingTop="1.5"
+                                paddingBottom="1"
+                                paddingX="2"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                {action.heading}
                             </Box>
                         );
                     }
@@ -1092,7 +1130,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         ? "1.5"
                         : "2"
                 }
-                paddingRight="1.5"
+                paddingRight={action.icon && action.iconPlacement === "end" ? "1.5" : "2"}
                 paddingY="1.5"
                 borderRadius="1"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
