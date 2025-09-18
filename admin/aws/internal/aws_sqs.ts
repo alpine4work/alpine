@@ -218,12 +218,12 @@ export class AwsSqs {
 
         new CfnOutput(this._jobQueue.stack, "FileProcessorLightJobQueueArnExport", {
             value: this._fileProcessorLightJobQueue.queueArn,
-            exportName: `${this._jobQueue.stack.stackName}:FileProcessorLightJobQueueArn`,
+            exportName: `${this._fileProcessorLightJobQueue.stack.stackName}:FileProcessorLightJobQueueArn`,
         });
 
         new CfnOutput(this._jobQueue.stack, "FileProcessorHeavyJobQueueArnExport", {
             value: this._fileProcessorHeavyJobQueue.queueArn,
-            exportName: `${this._jobQueue.stack.stackName}:FileProcessorHeavyJobQueueArn`,
+            exportName: `${this._fileProcessorHeavyJobQueue.stack.stackName}:FileProcessorHeavyJobQueueArn`,
         });
 
         return (importStack: Stack) =>
@@ -241,16 +241,12 @@ export class AwsSqs {
                 Queue.fromQueueArn(
                     importStack,
                     "FileProcessorLightJobQueueImport",
-                    Fn.importValue(
-                        `${this._jobQueue.stack.stackName}:FileProcessorLightJobQueueArn`,
-                    ),
+                    Fn.importValue(`${this._jobQueue.stack.stackName}:FileProcessorJobQueueArn`),
                 ),
                 Queue.fromQueueArn(
                     importStack,
                     "FileProcessorHeavyJobQueueImport",
-                    Fn.importValue(
-                        `${this._jobQueue.stack.stackName}:FileProcessorHeavyJobQueueArn`,
-                    ),
+                    Fn.importValue(`${this._jobQueue.stack.stackName}:FileProcessorJobQueueArn`),
                 ),
             );
     }
