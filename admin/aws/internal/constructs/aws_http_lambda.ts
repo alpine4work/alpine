@@ -6,7 +6,8 @@ import {
     AwsLambdaBaseOptions,
 } from "~/admin/aws/internal/constructs/internal/aws_lambda_base.js";
 
-export interface AwsHttpLambdaOptions extends Omit<AwsLambdaBaseOptions, "deploymentType"> {
+export interface AwsHttpLambdaOptions
+    extends Omit<AwsLambdaBaseOptions, "deploymentType" | "honeycombApiKey"> {
     /**
      * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
      * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.
@@ -50,14 +51,8 @@ export class AwsHttpLambda extends AwsLambdaBase {
             environment: {
                 ...options.environment,
                 SECRET_ARN: options.secret.secretArn,
-                // NOTE(ifitzsimmons, 2025-09-07): Expose Honeycomb API key as environment variable
-                // to enable tracing from Lambda startup. This allows us to trace Lambda
-                // initialization and async resource allocation (secrets, tokens) instead of
-                // waiting until after secrets are retrieved from AWS Secrets Manager.
-                HONEYCOMB_API_KEY: options.secret
-                    .secretValueFromJson("honeycombApiKey")
-                    .unsafeUnwrap(),
             },
+            honeycombApiKey: options.secret.secretValueFromJson("honeycombApiKey").unsafeUnwrap(),
         });
 
         // Grant the Lambda function permission to read the secret

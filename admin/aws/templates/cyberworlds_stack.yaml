@@ -4631,8 +4631,12 @@ Resources:
                 Variables:
                     CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
                     EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
                     HONEYCOMB_API_KEY:
                         Fn::Join:
                             - ""
@@ -4816,8 +4820,12 @@ Resources:
                 Variables:
                     CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
                     EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
                     HONEYCOMB_API_KEY:
                         Fn::Join:
                             - ""
@@ -5026,7 +5034,17 @@ Resources:
                         Ref: SqsJobQueue62388F96
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
                     EDGE_SERVICE_URL: https://alpine.inc
+                    HONEYCOMB_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
             MemorySize: 4096
             PackageType: Image
@@ -5194,7 +5212,17 @@ Resources:
                         Ref: SqsJobQueue62388F96
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
                     EDGE_SERVICE_URL: https://alpine.inc
+                    HONEYCOMB_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
                     RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
             MemorySize: 10240
             PackageType: Image
@@ -5838,6 +5866,10 @@ Resources:
                         Ref: SqsJobQueue62388F96
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorLightJobQueueDC9222EF
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
                     EDGE_SERVICE_URL: https://alpine.inc
                     RUNFILES: /var/task/admin/lambda/schedule_deploy/schedule_deploy_lambda_binary.runfiles
             PackageType: Image

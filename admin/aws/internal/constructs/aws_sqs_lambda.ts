@@ -15,7 +15,7 @@ const defaultEventSourceOptions: SqsEventSourceProps = {
 };
 
 export interface AwsSqsLambdaSubscriberOptions
-    extends Omit<AwsLambdaBaseOptions, "deploymentType"> {
+    extends Omit<AwsLambdaBaseOptions, "deploymentType" | "honeycombApiKey"> {
     /**
      * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
      * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.
@@ -58,6 +58,7 @@ export class AwsSqsLambdaSubscriber extends AwsLambdaBase {
                 ...options.environment,
                 SECRET_ARN: options.secret.secretArn,
             },
+            honeycombApiKey: options.secret.secretValueFromJson("honeycombApiKey").unsafeUnwrap(),
         });
 
         const eventHandler = options.provisionedConcurrentExecutions

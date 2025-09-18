@@ -79,6 +79,8 @@ export interface AwsLambdaBaseOptions
      * For zip deployments, use `aws_lambda_deprecated`.
      */
     readonly deploymentType?: "zip" | "container";
+
+    readonly honeycombApiKey: string;
 }
 
 /**
@@ -186,7 +188,14 @@ export class AwsLambdaBase extends Construct {
             CLOUDFLARE_ACCOUNT_ID: options.cloudflareAccountId,
             JOB_QUEUE_URL: options.sqs.getJobQueueUrl(),
             FILE_PROCESSOR_JOB_QUEUE_URL: options.sqs.getFileProcessorJobQueueUrl(),
+            FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL: options.sqs.getFileProcessorLightJobQueueUrl(),
+            FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL: options.sqs.getFileProcessorHeavyJobQueueUrl(),
             EDGE_SERVICE_URL: "https://alpine.inc",
+            // NOTE(ifitzsimmons, 2025-09-07): Expose Honeycomb API key as environment variable
+            // to enable tracing from Lambda startup. This allows us to trace Lambda
+            // initialization and async resource allocation (secrets, tokens) instead of
+            // waiting until after secrets are retrieved from AWS Secrets Manager.
+            HONEYCOMB_API_KEY: options.honeycombApiKey,
         };
     }
 
