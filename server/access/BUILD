@@ -8,6 +8,9 @@ ts_project(
         "//server/forum/data:data_testonly",
         "//server/forum/test_helpers",
     ],
+    tests = {
+        "evaluate_access_policy_test": {"size": "medium"},
+    },
     visibility = ["//server:__subpackages__"],
     deps = [
         "//server/spaces",
