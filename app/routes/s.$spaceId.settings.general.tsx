@@ -12,7 +12,7 @@ import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
 } from "~/client/messaging/inline_editor_toolbar.js";
-import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
+import {SpaceAvatarWithThemeOverride} from "~/client/spaces/space_avatar_with_theme_avatar_override.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
@@ -192,7 +192,11 @@ export default function SpaceGeneralSettingsRoute() {
                         borderRadius={spaceAvatarBorderRadius}
                         onUploadAvatar={getHandleUploadAvatar("light")}
                     >
-                        <SpaceAvatar space={originalSpace} size="12" theme="light" />
+                        <SpaceAvatarWithThemeOverride
+                            space={originalSpace}
+                            size="12"
+                            theme="light"
+                        />
                     </AvatarUploader>
                 </Box>
                 <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
@@ -221,7 +225,11 @@ export default function SpaceGeneralSettingsRoute() {
                         borderRadius={spaceAvatarBorderRadius}
                         onUploadAvatar={getHandleUploadAvatar("dark")}
                     >
-                        <SpaceAvatar space={originalSpace} size="12" theme="dark" />
+                        <SpaceAvatarWithThemeOverride
+                            space={originalSpace}
+                            size="12"
+                            theme="dark"
+                        />
                     </AvatarUploader>
                 </Box>
             </Box>

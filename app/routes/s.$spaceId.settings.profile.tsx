@@ -182,7 +182,7 @@ export default function SpaceProfileSettingsRoute() {
                             Recommended size is 256x256px
                         </Box>
                     </Box>
-                    <AvatarUploader onUploadAvatar={handleUploadAvatar}>
+                    <AvatarUploader onUploadAvatar={handleUploadAvatar} borderRadius="full">
                         <AccountAvatar account={account} size="12" />
                     </AvatarUploader>
                 </Box>
