@@ -176,6 +176,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": true
+                                    },
                                     "isVerified": {
                                         "valueSchema": {
                                             "type": "Boolean"
@@ -325,6 +331,27 @@ export const dynamoGeneratedSchemaDescription: {
                         "type": "Separate"
                     },
                     "overloadByName": {
+                        "AccountEmailAddresses": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "AccountEmailAddress",
+                                    "sortRangeType": "Attributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "createdTime": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
+                                }
+                            }
+                        },
                         "AccountDevices": {
                             "itemTypes": [
                                 {

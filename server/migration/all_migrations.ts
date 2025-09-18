@@ -1,3 +1,4 @@
+import {runBackfillAccountEmailCreationTimeMigration} from "~/server/accounts/migrations/backfill_account_email_creation_time.js";
 import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
@@ -49,4 +50,5 @@ export const allMigrations: {
     FavoriteTaskPersonalSearchEntity: runFavoriteTaskPersonalSearchEntityMigration,
     IndexEveryTaskActionStep1Of2: runIndexEveryTaskActionStep1Of2,
     IndexEveryTaskActionStep2Of2: runIndexEveryTaskActionStep2Of2,
+    BackfillAccountEmailCreationTime: runBackfillAccountEmailCreationTimeMigration,
 };

@@ -2,6 +2,7 @@ import {differenceInHours, differenceInMinutes, subHours} from "date-fns";
 import {
     AccountAvatarItem,
     AccountDevicesIndex,
+    AccountEmailAddressIndex,
     AccountEmailAddressItem,
     AccountItem,
     AccountsTable,
@@ -126,6 +127,25 @@ async function getAccountItemIfExists(
 }
 
 /**
+ * Get the email address added most recently to an account.
+ *
+ * You should use `getLatestEmailAddress()` in `spaces_table.ts` instead since it
+ * authorizes that the actor is allowed to read the account's email addresses.
+ */
+export async function internalGetLatestEmailAddressByAccountIdWithoutAuthorization(
+    context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
+    accountId: AccountId,
+) {
+    const emailAddressItems = await arrayFromAsyncIterable(
+        AccountEmailAddressIndex.query(context, {
+            partitionKey: {accountId},
+            limit: 1,
+        }),
+    );
+    return emailAddressItems[0]?.emailAddress ?? null;
+}
+
+/**
  * Create an account but only in test environments.
  */
 export async function createAccountForTest(
@@ -186,6 +206,7 @@ export async function createAccountEmailAddressForTest(
         emailAddress,
         accountId,
         isVerified: isEmailAddressVerified,
+        createdTime: new Date(),
     });
 }
 
@@ -252,6 +273,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         emailAddress: adminEmailAddress,
         accountId: adminAccountId,
         isVerified: true,
+        createdTime: new Date(),
     });
 }
 
@@ -312,6 +334,7 @@ export function createAccountWithEmailAddressTransactionEntries({
             emailAddress,
             accountId: id,
             isVerified: false,
+            createdTime: currentTime,
         }),
     ];
 }

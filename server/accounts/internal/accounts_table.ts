@@ -114,6 +114,14 @@ export const AccountsTable = DynamoTableSchema.new({
                          */
                         accountId: Schema.id<AccountId>(),
 
+                        // NOTE(rmtobin): The default value is an arbitrary date for backwards
+                        // compatibility with existing data that did not have this attribute. New
+                        // entries should always set this to the current time.
+                        /**
+                         * When was this email address added to the account?
+                         */
+                        createdTime: Schema.date.default(new Date("2025-09-05T11:11:00.000Z")),
+
                         /**
                          * Have we successfully delivered an email to this address and has someone
                          * opened that email and taken action on it?
@@ -253,6 +261,18 @@ export const AccountsTable = DynamoTableSchema.new({
             ],
         },
     ],
+});
+
+/**
+ * Index containing all of an account's email addresses. Allows email address lookups by accountId.
+ */
+export const AccountEmailAddressIndex = AccountsTable.addIndex({
+    name: "AccountEmailAddresses",
+    itemTypes: [{partitionType: "AccountEmailAddress", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+    },
+    sortKeyAttributes: {createdTime: DynamoKeyAttributeSchema.date.reverse()},
 });
 
 /**

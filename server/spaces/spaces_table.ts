@@ -7,6 +7,7 @@ import {
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
     getAccountIdByEmailAddressIfExists,
+    internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
 import {getBot} from "~/server/bots/bots_table.js";
@@ -3306,6 +3307,25 @@ export async function getRegisteredAccountDevices(
 ): Promise<ReadonlyArray<AccountDevice>> {
     await authorizeOwnSpaceAccountAccess(context, accountId);
     return internalGetRegisteredAccountDevicesWithoutAuthorization(context, accountId);
+}
+
+/**
+ * Get the most recently added email address for the provided `AccountId`.
+ * System actors can see the most recently added email address for any account in their space.
+ */
+export async function getLatestEmailAddress(
+    context: ServerActionContext,
+    accountId: AccountId,
+): Promise<EmailAddress> {
+    await authorizeOwnSpaceAccountAccess(context, accountId);
+    const emailAddress = await internalGetLatestEmailAddressByAccountIdWithoutAuthorization(
+        context,
+        accountId,
+    );
+    if (!emailAddress) {
+        throw new NotFoundError("No email address found for `accountId`");
+    }
+    return emailAddress;
 }
 
 /**

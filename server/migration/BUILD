@@ -6,6 +6,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "migration_lib",
     deps = [
+        "//server/accounts",
         "//server/chat/data",
         "//server/documents/data",
         "//server/forum/data",
