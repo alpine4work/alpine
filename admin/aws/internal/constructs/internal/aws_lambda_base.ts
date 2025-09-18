@@ -80,7 +80,13 @@ export interface AwsLambdaBaseOptions
      */
     readonly deploymentType?: "zip" | "container";
 
-    readonly honeycombApiKey: string;
+    // NOTE(ifitzsimmons, 2025-09-07): Expose Honeycomb API key as environment variable
+    // to enable tracing from Lambda startup. This allows us to trace Lambda
+    // initialization and async resource allocation (secrets, tokens) instead of
+    // waiting until after secrets are retrieved from AWS Secrets Manager.
+    //
+    // You can set this to `null` if you don't need tracing from Lambda startup.
+    readonly honeycombApiKey: string | null;
 }
 
 /**
@@ -191,11 +197,7 @@ export class AwsLambdaBase extends Construct {
             FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL: options.sqs.getFileProcessorLightJobQueueUrl(),
             FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL: options.sqs.getFileProcessorHeavyJobQueueUrl(),
             EDGE_SERVICE_URL: "https://alpine.inc",
-            // NOTE(ifitzsimmons, 2025-09-07): Expose Honeycomb API key as environment variable
-            // to enable tracing from Lambda startup. This allows us to trace Lambda
-            // initialization and async resource allocation (secrets, tokens) instead of
-            // waiting until after secrets are retrieved from AWS Secrets Manager.
-            HONEYCOMB_API_KEY: options.honeycombApiKey,
+            ...(options.honeycombApiKey ? {HONEYCOMB_API_KEY: options.honeycombApiKey} : {}),
         };
     }
 

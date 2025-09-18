@@ -115,6 +115,7 @@ async function addAwsResources(
         cloudflareAccountId,
         vpc: null,
         timeout: Duration.seconds(30),
+        honeycombApiKey: null,
     });
 
     sqs.grantSendJobQueueMessages(scheduleDeployLambda.executionRole);
