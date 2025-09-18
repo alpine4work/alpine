@@ -3,7 +3,6 @@ import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
 import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
-import {jobQueueNameByType} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {createLambdaTracerAndHoneycombClient} from "~/server/lambda/helpers/create_lambda_tracer_and_honeycomb_client.js";
 import {
@@ -18,7 +17,6 @@ import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -219,14 +217,6 @@ async function _processJob<TJobDescription extends JobDescription>(
 
         span.addPropagatedData({context: {spaceId}});
 
-        const actualJobQueueNameForMessage = getQueueNameForRecord(record);
-        const expectedJobQueueNameForMessage = jobQueueNameByType[messageBody.job.type];
-        if (expectedJobQueueNameForMessage !== actualJobQueueNameForMessage) {
-            throw new InternalError(
-                quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${expectedJobQueueNameForMessage} but we’re consuming the queue ${actualJobQueueNameForMessage}`,
-            );
-        }
-
         await actionContext.with(
             {
                 actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
@@ -271,10 +261,6 @@ async function finishSpanAndFlushHoneycombEvents(
 ) {
     finishSpan?.();
     await promiseWaiter.wait();
-}
-
-function getQueueNameForRecord(record: SQSRecord) {
-    return record.eventSourceARN.split(":").pop()!;
 }
 
 function getHandleSpanName(messageBody: JobQueueMessageBody) {
