@@ -870,6 +870,7 @@ Resources:
                         - SqsFileProcessorJobQueue551DBCF8
                         - Arn
                 maxReceiveCount: 5
+            VisibilityTimeout: 300
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
@@ -883,6 +884,7 @@ Resources:
                         - SqsFileProcessorJobQueue551DBCF8
                         - Arn
                 maxReceiveCount: 5
+            VisibilityTimeout: 300
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:

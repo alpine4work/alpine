@@ -1,8 +1,9 @@
-import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
+import {CfnOutput, Duration, Fn, Stack} from "aws-cdk-lib";
 import {SqsQueue, SqsQueueProps} from "aws-cdk-lib/aws-events-targets";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {IQueue, Queue} from "aws-cdk-lib/aws-sqs";
 import {Construct} from "constructs";
+import {fileProcessorTimeoutMs} from "~/shared/files/file_constants.js";
 
 export class AwsSqs {
     private readonly _jobQueue: IQueue;
@@ -58,6 +59,7 @@ export class AwsSqs {
                 queue: fileProcessorJobQueue,
                 maxReceiveCount: 5,
             },
+            visibilityTimeout: Duration.millis(fileProcessorTimeoutMs),
         });
 
         // TODO(ifitzsimmons, #file-processor-service-migration): When the record is dropped from
@@ -72,6 +74,7 @@ export class AwsSqs {
                 queue: fileProcessorJobQueue,
                 maxReceiveCount: 5,
             },
+            visibilityTimeout: Duration.millis(fileProcessorTimeoutMs),
         });
 
         return new AwsSqs(
