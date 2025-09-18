@@ -787,6 +787,9 @@ importers:
       handlebars:
         specifier: ^4.7.7
         version: 4.7.7
+      harper.js:
+        specifier: ^0.43.0
+        version: 0.43.0
       html-entities:
         specifier: ^2.3.3
         version: 2.3.3
@@ -5671,6 +5674,9 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
+  harper.js@0.43.0:
+    resolution: {integrity: sha512-rcpff3RTxGU1LB8X+nxO139UYBWkBORFMDnrZVN+9qpxiZnJJMKLEhpGnVBOiHnfeMXX7DMFEpjOOofw39XQTQ==}
+
   has-bigints@1.0.2:
     resolution: {integrity: sha512-tSvCKtBr9lkF0Ex0aQiP9N+OpV4zi2r/Nee5VkRDbaqv35RLYMzbwQfFSZZH0kR+Rd6302UJZ2p/bJCEoR3VoQ==}
 
@@ -7712,7 +7718,7 @@ packages:
   react-stately@3.27.0:
     resolution: {integrity: sha512-C5ubKP33M3SmilXYv2vHYgfSLsOM0jlZ8y1KyEKWeJzN4yxy0sGku2SRUpUWTDdncB5lOeLE21EZBJVz71wePA==}
     peerDependencies:
-      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0
 
   react@18.2.0:
     resolution: {integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==}
@@ -15647,6 +15653,8 @@ snapshots:
       wordwrap: 1.0.0
     optionalDependencies:
       uglify-js: 3.19.1
+
+  harper.js@0.43.0: {}
 
   has-bigints@1.0.2: {}
 

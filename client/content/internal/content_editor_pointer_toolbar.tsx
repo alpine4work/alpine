@@ -46,6 +46,7 @@ import {
     ContentEditorPointerToolbarFloaterState,
 } from "~/client/content/state/content_editor_floater_state.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {getContentEditorSelectionGeneration} from "~/client/content/state/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/state/create_toggle_mark_command.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/design/box.js";
@@ -56,7 +57,6 @@ import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -160,7 +160,7 @@ export function ContentEditorPointerToolbar({
             // Quality of life: If the user moves their pointer then we want to show the
             // toolbar instead of keeping it hidden. Since the user moving their pointer
             // may indicate they're looking to make a change.
-            setHasSelectionChangedOrPointerMovedSinceMount(true);
+            setMountSuppressionState(null);
         };
 
         viewElement.addEventListener("focus", handleFocus);
@@ -203,12 +203,8 @@ export function ContentEditorPointerToolbar({
         () => trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection),
         [state.selection],
     );
-    const initialSelection = useConstant(() => selection);
 
-    const [
-        hasSelectionChangedOrPointerMovedSinceMount,
-        setHasSelectionChangedOrPointerMovedSinceMount,
-    ] = useState(() => {
+    const [mountSuppressionState, setMountSuppressionState] = useState(() => {
         // If the initial selection is different from the previous floater's range then
         // open the pointer toolbar.
         //
@@ -220,24 +216,56 @@ export function ContentEditorPointerToolbar({
         // show the pointer toolbar until your selection moves.
         if (
             previousState !== null &&
-            (previousState.range.from !== initialSelection.$from.pos ||
-                previousState.range.to !== initialSelection.$to.pos)
+            (previousState.range.from !== selection.$from.pos ||
+                previousState.range.to !== selection.$to.pos)
         ) {
-            return true;
+            return null;
         }
 
-        return false;
+        return {selectionGeneration: getContentEditorSelectionGeneration(state)};
     });
 
     if (
-        !hasSelectionChangedOrPointerMovedSinceMount &&
-        (selection.$from.pos !== initialSelection.$from.pos ||
-            selection.$to.pos !== initialSelection.$to.pos)
+        mountSuppressionState !== null &&
+        mountSuppressionState.selectionGeneration !== getContentEditorSelectionGeneration(state)
     ) {
-        setHasSelectionChangedOrPointerMovedSinceMount(true);
+        setMountSuppressionState(null);
     }
 
     const isContextMenuOpen = useIsContextMenuOpen();
+
+    const [contextMenuSuppressionState, setContextMenuSuppressionState] = useState<{
+        selectionGeneration: number;
+    } | null>(null);
+
+    // Suppress the pointer toolbar while the context menu is open.
+    //
+    // NOTE(calebmer): Josh and I feel like it's a better experience when resolving
+    // spellcheck errors if the pointer toolbar doesn't open right after you accept
+    // (or ignore) a spellcheck issue. Are there other cases where it would be nice
+    // to show the pointer toolbar after a right click? Maybe this should be scoped
+    // specifically to spellcheck right click menus?
+    if (
+        isContextMenuOpen &&
+        (contextMenuSuppressionState === null ||
+            contextMenuSuppressionState.selectionGeneration !==
+                getContentEditorSelectionGeneration(state))
+    ) {
+        setContextMenuSuppressionState({
+            selectionGeneration: getContentEditorSelectionGeneration(state),
+        });
+    }
+
+    // Stop suppressing the pointer toolbar after the context menu closes and the
+    // selection moves.
+    if (
+        !isContextMenuOpen &&
+        contextMenuSuppressionState !== null &&
+        contextMenuSuppressionState.selectionGeneration !==
+            getContentEditorSelectionGeneration(state)
+    ) {
+        setContextMenuSuppressionState(null);
+    }
 
     const shouldShowCommentOnly: boolean = useMemo(
         () =>
@@ -252,6 +280,9 @@ export function ContentEditorPointerToolbar({
             (isFocused || (shouldShowCommentOnly && hasSelectionEnteredWhenUnfocused)) &&
             // Don't show while the context menu is open.
             !isContextMenuOpen &&
+            // Don't show while we're suppressed after the context menu has closed and
+            // before the selection has changed.
+            contextMenuSuppressionState === null &&
             // Make sure some characters are selected before showing the selection toolbar.
             selection.$from.pos !== selection.$to.pos &&
             // Only show the pointer toolbar for a text selection. This includes the
@@ -288,6 +319,7 @@ export function ContentEditorPointerToolbar({
             !isWaitingForTripleClickAfterDoubleClick
         );
     }, [
+        contextMenuSuppressionState,
         hasPointerMovedWhileDown,
         hasSelectionEnteredWhenUnfocused,
         isContextMenuOpen,
@@ -310,7 +342,7 @@ export function ContentEditorPointerToolbar({
         //
         // This defends against the case where we had a highlight toolbar opened but
         // then the user closed it and the regular toolbar wants to immediately open.
-        hasSelectionChangedOrPointerMovedSinceMount;
+        mountSuppressionState === null;
 
     useLayoutEffect(() => {
         let isPointerDown = false;
@@ -449,7 +481,14 @@ export function ContentEditorPointerToolbar({
         // close the toolbar when this happens.
         showState.extraOverlay !== "LinkInput"
     ) {
-        showState = {...showState, animation: "FadingOut"};
+        // If the context menu was opened then immediately hide without fading out.
+        // Since the context menu opens immediately so it looks weird for both to be
+        // onscreen at once.
+        if (isContextMenuOpen) {
+            showState = {isShowing: false};
+        } else {
+            showState = {...showState, animation: "FadingOut"};
+        }
     }
 
     // Make sure we update our state with the new value.
@@ -471,13 +510,7 @@ export function ContentEditorPointerToolbar({
                 clearTimeout(timeoutId);
             };
         }
-    }, [
-        hasSelectionChangedOrPointerMovedSinceMount,
-        selection.$from.pos,
-        selection.$to.pos,
-        shouldShow,
-        showState.isShowing,
-    ]);
+    }, [selection.$from.pos, selection.$to.pos, shouldShow, showState.isShowing]);
 
     useEffect(() => {
         if (showState.isShowing && showState.animation === "FadingIn") {

@@ -116,7 +116,10 @@ export function useContentEditorTracker({
                 const coordsTo =
                     typeof pos !== "number" ? viewRef.current.coordsAtPos(pos.to, side) : null;
 
-                if (!coordsTo) {
+                if (
+                    !coordsTo ||
+                    coordsTo.left + coordsTo.right + coordsTo.top + coordsTo.bottom === 0
+                ) {
                     coords = coordsFrom;
                 } else {
                     // When determining the coordinates of a selection range to position our cursor

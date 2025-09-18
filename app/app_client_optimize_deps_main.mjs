@@ -2,6 +2,7 @@ import crypto from "crypto";
 import fsSync from "fs";
 import fs from "fs/promises";
 import {
+    dirname as dirnamePath,
     join as joinPath,
     posix as pathPosix,
     relative as relativePath,
@@ -184,6 +185,38 @@ async function runOptimizeDeps(deps, resolvedConfig, ssr) {
             });
         }
     }
+
+    // Copy WASM files from dependencies
+    await Promise.all(
+        deps.map(async dep => {
+            const resolvedDep = await tryNodeResolve(
+                dep,
+                undefined,
+                {...resolvedConfig.resolve, root: resolvedConfig.root},
+                !ssr,
+                undefined,
+                ssr,
+                false,
+            );
+
+            if (resolvedDep) {
+                // Look for WASM files in the same directory as the resolved dependency
+                const depDir = dirnamePath(resolvedDep.id);
+
+                // HACK: this isn't an ideal implementation, just a practical one to get
+                // Harper.js working. Ideally we should recursively look through this
+                // directory for WASM files.
+                const files = await fs.readdir(depDir);
+                for (const file of files) {
+                    if (file.endsWith(".wasm")) {
+                        const srcPath = joinPath(depDir, file);
+                        const destPath = joinPath(processingCacheDir, file);
+                        await fs.copyFile(srcPath, destPath);
+                    }
+                }
+            }
+        }),
+    );
 
     await fs.writeFile(
         joinPath(processingCacheDir, "_metadata.json"),

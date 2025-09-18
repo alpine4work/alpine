@@ -658,14 +658,20 @@ export function createTestContext(
         // Anything in this directory will be available in an `output.zip` file in the
         // `bazel-testlogs` directory. Put our service logs in this directory.
         const testUndeclaredOutputsPath = assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR);
+        const testTmpdirPath = assertExists(process.env.TEST_TMPDIR);
+
+        if (!(await fs.pathExists(testTmpdirPath))) {
+            await fs.mkdirs(testTmpdirPath);
+        }
 
         const [newTemporaryDirectoryPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] =
             await runAllPromises([
-                fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
+                fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_")),
                 getPort(),
                 shouldStartOpensearch ? getPort() : null,
                 shouldSendJobsToSqs ? getPort() : null,
             ]);
+
         temporaryDirectoryPath = newTemporaryDirectoryPath;
 
         const ensureLocalCachePath = joinPath(temporaryDirectoryPath, "ensure");

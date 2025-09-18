@@ -69,6 +69,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "fuse.js",
     "grapheme-splitter",
     "hammerjs",
+    "harper.js",
     "html-tags/void.js",
     "js-cookie",
     "json-stable-stringify",

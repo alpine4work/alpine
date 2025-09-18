@@ -75,6 +75,7 @@ import {
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
+import {ContentEditorSpellChecker} from "~/client/content/internal/content_editor_spell_checker.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
 import {
@@ -90,7 +91,6 @@ import {
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
-import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
 import {
     ContentEditorReferencesSharedAction,
@@ -1116,19 +1116,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
                 // spell check results show up inline instead of requiring a right click (which
                 // we override).
-                //
-                // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                // spellchecker.
-                //
-                // NOTE(calebmer, 2023-02-19): Re-enabling this is now even harder now that we
-                // have custom right-click menus. On desktop you right click to see the correct
-                // spellings. But if we have our own right-click menu we can't show the correct
-                // spellings there so we only show a permanent red squiggle which is bad. I
-                // think the best answer here is to build our own spellchecker eventually.
-                ...(!isMobileWebKit &&
-                !isBrowserSpellcheckEnabled(spaceContextRef.current?.currentAccount?.id)
-                    ? {spellcheck: "false"}
-                    : undefined),
+                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
             },
 
             domParser: ContentEditorDomParser.fromSchema(schema),
@@ -3158,9 +3146,29 @@ function ContentEditor<Content extends ContentWithReferences>(
             flushSync(() => {
                 propsRef.current.onChange(wrap(newState), transaction);
             });
+
+            // If the state change was accepted (`view.updateState()` was called by
+            // `onChange` triggering a React re-render which is synchronous thanks to
+            // `flushSync()` which runs the layout effect in `<ContentEditor>` which calls
+            // `view.updateState()`) then tell our spell checker about the transaction.
+            if (view.state !== oldState) {
+                spellChecker?.handleTransaction(transaction);
+            }
         };
 
         const view = new EditorView(rootElement, viewProps);
+
+        /* ========================================================================== *\
+         *                               Spell checker                                *
+        \* ========================================================================== */
+
+        const spellChecker = spaceContextRef.current
+            ? new ContentEditorSpellChecker(
+                  () => assertExists(contextRef.current),
+                  spaceContextRef.current.space.id,
+                  view,
+              )
+            : null;
 
         /* ========================================================================== *\
          *                         Dual input modality events                         *
@@ -3401,6 +3409,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             document.removeEventListener("selectionchange", handleDocumentSelectionChange);
             tripleClickDragStateRef.current?.dispose();
             fileDragState?.dispose();
+            spellChecker?.destroy();
             view.destroy();
         };
 

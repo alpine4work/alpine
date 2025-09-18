@@ -1,4 +1,11 @@
-import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
+import {
+    ComplexStyleRule,
+    assignVars,
+    createGlobalTheme,
+    createVar,
+    globalStyle,
+    style,
+} from "@vanilla-extract/css";
 import Color from "color";
 import {
     accentThemeBackgroundColor,
@@ -82,11 +89,13 @@ import {
     allSpacingScales,
     remPxBySpacingScale,
 } from "~/shared/design/core/spacing_scale.js";
-import {themeColors} from "~/shared/design/core/theme_colors.js";
+import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -193,6 +202,7 @@ export const withUserSelectNoneDocClassName = style({
 });
 
 const blockStyles = {
+    position: "relative",
     width: "100%",
     maxWidth: blockMaxWidthVar,
     marginLeft: "auto",
@@ -1746,7 +1756,7 @@ const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacing
  * pixels. And use a combination of media queries and selectors to pick the
  * right values.
  */
-const inlineBackgroundPadding = createGlobalTheme(":root", {
+export const inlineBackgroundPadding = createGlobalTheme(":root", {
     top: inlineBackgroundPaddingPx.small[1].floor,
     bottom: inlineBackgroundPaddingPx.small[1].ceil,
 });
@@ -2820,6 +2830,69 @@ globalStyle(`${tableAddRowBumperIconButtonClassName} > svg`, {
     height: spacing["4"],
     fill: colorSchemeVars["grey-0"],
 });
+
+export const spellCheckClassName = style({
+    display: "contents",
+    pointerEvents: "none",
+});
+
+export const spellCheckSquiggleWidthRem = parseRemLength(spacing["1.5"]);
+export const spellCheckSquiggleHeightRem = spellCheckSquiggleWidthRem / 2;
+
+export const spellCheckSquiggleClassName = style({
+    position: "absolute",
+    height: `${spellCheckSquiggleHeightRem}rem`,
+    backgroundRepeat: "repeat-x",
+});
+
+function createSpellCheckSquiggleStyleRule(color: ThemeColor): ComplexStyleRule {
+    const colorBySelector = {
+        [lightColorSchemeSelector]: colors[`${color}-40`],
+        [darkColorSchemeSelector]: invertedColorsWithShade[`${color}-50`],
+    };
+
+    return {
+        selectors: Object.fromEntries(
+            getObjectEntriesWithKeyofType(selectorBySpacingScale).flatMap(
+                ([spacingScale, selector1]) =>
+                    Object.entries(colorBySelector).map(([selector2, color]) => [
+                        `${selector1}${selector2} &`,
+                        {
+                            backgroundImage: `url("${convertSvgToDataUrl(
+                                createSquiggleSvg(
+                                    spellCheckSquiggleWidthRem * remPxBySpacingScale[spacingScale],
+                                    color,
+                                ),
+                            )}")`,
+                        },
+                    ]),
+            ),
+        ),
+    };
+}
+
+export const spellCheckGrammarSquiggleClassName = style(createSpellCheckSquiggleStyleRule("blue"));
+
+export const spellCheckSpellingSquiggleClassName = style(createSpellCheckSquiggleStyleRule("red"));
+
+export const spellCheckFormattingSquiggleClassName = style(
+    createSpellCheckSquiggleStyleRule("green"),
+);
+
+function createSquiggleSvg(w: number, color: string) {
+    const h = w / 2;
+
+    // This was derived from VSCode's squiggle SVG.
+    // prettier-ignore
+    return `\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 3" height="${h}" width="${w}">
+    <g fill="${color}">
+        <polygon points="5.5,0 2.5,3 1.1,3 4.1,0"/>
+        <polygon points="4,0 6,2 6,0.6 5.4,0"/>
+        <polygon points="0,2 1,3 2.4,3 0,0.6"/>
+    </g>
+</svg>`;
+}
 
 function createChildSelectors(child: "first" | "last") {
     const selectors1 = [

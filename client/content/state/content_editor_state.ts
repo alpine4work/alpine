@@ -19,11 +19,13 @@ import {
     openContentEditorKeyboardLinkFloaterMetaKey,
     openContentEditorMentionFloaterMetaKey,
 } from "~/client/content/state/content_editor_meta_keys.js";
+import {contentEditorSpellCheckerPlugin} from "~/client/content/state/content_editor_spell_checker_plugin.js";
 import {contentEditorCodeBlockPlugin} from "~/client/content/state/internal/content_editor_code_block_plugin.js";
 import {buildContentEditorInputRulesPlugin} from "~/client/content/state/internal/content_editor_input_rules_plugin.js";
 import {buildContentEditorKeymapPlugin} from "~/client/content/state/internal/content_editor_keymap_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {contentEditorTablePlugin} from "~/client/content/state/table/content_editor_table_plugin.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
@@ -47,11 +49,13 @@ import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     FileId,
+    SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {hasSpellCheckFeature} from "~/shared/spaces/has_spell_check_feature.js";
 
 export const createContentCommentThreadMetaKey = "createCommentThread";
 export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
@@ -86,11 +90,43 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorQuickUndoPlugin(),
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
+        contentEditorSelectionGeneration(),
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         contentEditorTablePlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
+
+    // A bit of a hack to get the spaceId while this plugin is feature flagged
+    // We don't run harper server side, so we won't show errors outside the browser anyways
+    const spaceId =
+        typeof window !== "undefined"
+            ? (window.location.pathname.match(/\/s\/([^/]+)/)?.[1] as SpaceId) || null
+            : null;
+
+    // Native spellcheck is often more distracting then it's worth. It puts a red
+    // squiggly under names, nouns, industry terms, and oddly sometimes
+    // contractions (like "they're", maybe has to do with curly quotes?).
+    //
+    // It's also inconsistent with `<input>`s which don't have spellcheck on by
+    // default.
+    //
+    // In iOS, however, the native spellchecker is _essential_ for proper
+    // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
+    // spell check results show up inline instead of requiring a right click (which
+    // we override).
+    //
+    // Make sure our spell checker is disabled on mobile,
+    // the native spell checker should win there.
+    if (
+        spaceId &&
+        hasSpellCheckFeature(spaceId) &&
+        !isMobileWebKit &&
+        // Create an escape hatch while we're testing in case things break
+        localStorage.getItem("disableSpellCheck") !== "true"
+    ) {
+        plugins.push(contentEditorSpellCheckerPlugin());
+    }
 
     return plugins;
 }
@@ -1189,6 +1225,34 @@ function contentEditorIsContinuouslyTypingPlugin() {
 
 export function isContinuouslyTypingInContentEditor(state: EditorState): boolean {
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
+}
+
+const contentEditorSelectionGenerationPluginKey = new PluginKey<number>(
+    "contentEditorSelectionGeneration",
+);
+
+/**
+ * Plugin that records the selection generation. The selection generation
+ * changes whenever the selection is explicitly changed with
+ * `transaction.setSelection()`. The generation doesn't change if the selection
+ * moves due to some other user typing above the selection in the document
+ * (which causes the selection to be mapped).
+ */
+function contentEditorSelectionGeneration() {
+    return new Plugin<number>({
+        key: contentEditorSelectionGenerationPluginKey,
+        state: {
+            init: () => 0,
+            apply: (transaction, generation) => {
+                if (transaction.selectionSet) return generation + 1;
+                return generation;
+            },
+        },
+    });
+}
+
+export function getContentEditorSelectionGeneration(state: EditorState): number {
+    return contentEditorSelectionGenerationPluginKey.getState(state)!;
 }
 
 // Use an `ImmutableMap` since we'll need to `set()` every selection in the map

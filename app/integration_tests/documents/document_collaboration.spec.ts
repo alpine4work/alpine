@@ -148,6 +148,14 @@ test("can write collaboratively at the same time in a document", async ({
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space.id}`);
+    await page1.evaluate(() => {
+        // This test is doing a lot already and can time out our typing
+        // Disable spell check for this window to reduce load
+        localStorage.setItem("disableSpellCheck", "true");
+    });
+
     const document = await TestDocument.create(session1);
     await document.access.grantDefault(session1);
 
@@ -155,12 +163,18 @@ test("can write collaboratively at the same time in a document", async ({
         () => !window.matchMedia("(hover: none)").matches,
     );
 
-    await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/documents/${document.id}`);
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
     const page2 = await browserContext2.newPage();
+    await page2.goto(`/s/${space.id}`);
+    await page2.evaluate(() => {
+        // This test is doing a lot already and can time out our typing
+        // Disable spell check for this window to reduce load
+        localStorage.setItem("disableSpellCheck", "true");
+    });
+
     await page2.goto(`/s/${space.id}/documents/${document.id}`);
 
     await page1.getByRole("textbox", {name: "Document"}).focus();

@@ -28,6 +28,7 @@ ts_project(
         "//:node_modules/color",
         "//:node_modules/fuse.js",
         "//:node_modules/hammerjs",
+        "//:node_modules/harper.js",
         "//:node_modules/motion",
         "//:node_modules/phosphor-react",
         "//:node_modules/pretty-bytes",

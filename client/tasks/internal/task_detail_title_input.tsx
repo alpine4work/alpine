@@ -13,7 +13,6 @@ import {
     useRef,
 } from "react";
 import {flushSync} from "react-dom";
-import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -159,19 +158,7 @@ function TaskDetailTitleInput(
                         // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
                         // spell check results show up inline instead of requiring a right click (which
                         // we override).
-                        //
-                        // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                        // spellchecker.
-                        //
-                        // NOTE(calebmer, 2023-02-19): Re-enabling this is now even harder now that we
-                        // have custom right-click menus. On desktop you right click to see the correct
-                        // spellings. But if we have our own right-click menu we can't show the correct
-                        // spellings there so we only show a permanent red squiggle which is bad. I
-                        // think the best answer here is to build our own spellchecker eventually.
-                        ...(!isMobileWebKit &&
-                        !isBrowserSpellcheckEnabled(currentAccountIdRef.current)
-                            ? {spellcheck: "false"}
-                            : undefined),
+                        ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
                     },
 
                     dispatchTransaction: transaction => {
