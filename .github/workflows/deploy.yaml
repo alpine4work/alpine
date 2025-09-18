@@ -117,6 +117,6 @@ jobs:
                       "--cloudflareAccountId=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).cloudflareAccountId)")" \
                       "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                       "--fileProcessorJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).fileProcessorJobQueueUrl)")" \
-                      "--fileProcessorHeavyJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).fileProcessorHeavyJobQueueUrl)")" \
-                      "--fileProcessorLightJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).fileProcessorLightJobQueueUrl)")"
+                      "--fileProcessorHeavyJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).fileProcessorJobQueueUrl)")" \
+                      "--fileProcessorLightJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).fileProcessorJobQueueUrl)")"
 
