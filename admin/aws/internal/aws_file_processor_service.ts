@@ -37,6 +37,7 @@ import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js";
+import {AwsSqsLambdaSubscriber} from "~/admin/aws/internal/constructs/aws_sqs_lambda.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_constants.js";
@@ -78,9 +79,16 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // [3]: https://www.ffmpeg.org
 // [4]: https://www.libreoffice.org
 export class AwsFileProcessorService extends Construct {
+    // Lambda functions
+    private readonly fileProcessorLightLambda: AwsSqsLambdaSubscriber;
+    private readonly fileProcessorHeavyLambda: AwsSqsLambdaSubscriber;
     private readonly resizeLambda: LambdaAlias;
     private readonly resizeAvatarLambda: LambdaAlias;
+
+    // ALB
     private readonly fileProcessorServiceLoadBalancer: ApplicationLoadBalancer;
+
+    // ALB Target Groups
     private readonly legacyFileProcessorServiceTargetGroup: ApplicationTargetGroup;
     private readonly resizeFileTargetGroup: ApplicationTargetGroup;
     private readonly resizeAvatarTargetGroup: ApplicationTargetGroup;
@@ -140,6 +148,21 @@ export class AwsFileProcessorService extends Construct {
         });
         this.resizeAvatarLambda = resizeAvatarLambda;
         this.resizeAvatarTargetGroup = resizeAvatarTargetGroup;
+
+        this.fileProcessorLightLambda = getFileProcessorLambda(this, {
+            type: "Light",
+            secret,
+            dynamo,
+            sqs,
+            cloudflareAccountId,
+        });
+        this.fileProcessorHeavyLambda = getFileProcessorLambda(this, {
+            type: "Heavy",
+            secret,
+            dynamo,
+            sqs,
+            cloudflareAccountId,
+        });
 
         // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Delete this
         // Old FileProcessorService
@@ -528,8 +551,49 @@ function getResizeAvatarLambda(
     };
 }
 
+function getFileProcessorLambda(
+    parentConstruct: Construct,
+    {
+        type,
+        secret,
+        dynamo,
+        sqs,
+        cloudflareAccountId,
+    }: {
+        type: "Light" | "Heavy";
+        secret: ISecret;
+        dynamo: AwsDynamo;
+        sqs: AwsSqs;
+        cloudflareAccountId: string;
+    },
+) {
+    const lambdaOptions = getFileProcessorLambdaConfiguration(type, sqs);
+    const fileProcessorLambda = new AwsSqsLambdaSubscriber(parentConstruct, lambdaOptions.name, {
+        ...lambdaOptions,
+        secret,
+        sqs,
+        vpc: null,
+        cloudflareAccountId,
+        bazelConfiguration: {
+            bazelTarget: "//server/files/processor/process_file:process_file_lambda",
+            handlerFilePath: "process_file_lambda",
+        },
+    });
+
+    // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses.
+    // This reduces what an attacker can do with a compromised
+    // `FileProcessorService`.
+    //
+    // Disallow queries so you can't read all files for a space.
+    dynamo.grantReadWriteDataForTable(fileProcessorLambda.executionRole, "Files", {
+        disallowQuery: true,
+    });
+
+    return fileProcessorLambda;
+}
+
 function createListenerWithRouting(
-    scope: Construct,
+    parentConstruct: Construct,
     {
         loadBalancer,
         targetGroups,
@@ -546,7 +610,7 @@ function createListenerWithRouting(
         protocol: ApplicationProtocol.HTTPS,
         port: 443,
         certificates: [
-            new Certificate(scope, "Certificate", {
+            new Certificate(parentConstruct, "Certificate", {
                 domainName: "files.alpine.inc",
                 validation: CertificateValidation.fromDns(),
             }),
@@ -554,16 +618,20 @@ function createListenerWithRouting(
     });
 
     // Create a parameter for easy weight adjustment
-    const resizeFileLambdaWeight = new CfnParameter(scope, "ResizeFileServiceLambdaWeight", {
-        type: "Number",
-        default: 100,
-        minValue: 0,
-        maxValue: 100,
-        description: "Percentage of traffic to send to ResizeFileService Lambda (0-100)",
-    });
+    const resizeFileLambdaWeight = new CfnParameter(
+        parentConstruct,
+        "ResizeFileServiceLambdaWeight",
+        {
+            type: "Number",
+            default: 100,
+            minValue: 0,
+            maxValue: 100,
+            description: "Percentage of traffic to send to ResizeFileService Lambda (0-100)",
+        },
+    );
 
     const legacyFileProcessorServiceWeight = new CfnParameter(
-        scope,
+        parentConstruct,
         "LegacyFileProcessorServiceWeight",
         {
             type: "Number",
@@ -658,6 +726,29 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
             throw new InternalError(
                 quote`Unknown vCPU count for instance type ${instanceTypeString}, please update \`getInstanceTypeVCpuCount()\` to handle this instance type`,
             );
+        }
+    }
+}
+
+function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSqs) {
+    switch (type) {
+        case "Light": {
+            return {
+                name: "FileProcessorLight",
+                memorySize: 4096, // 4GB RAM (~2 vCPUs)
+                provisionedConcurrentExecutions: 2,
+                queue: sqs.getFileProcessorLightJobQueue(),
+                timeout: Duration.millis(fileProcessorTimeoutMs),
+            } as const;
+        }
+        case "Heavy": {
+            return {
+                name: "FileProcessorHeavy",
+                memorySize: 10240, // 10GB RAM (~6 vCPUs)
+                provisionedConcurrentExecutions: 1,
+                queue: sqs.getFileProcessorHeavyJobQueue(),
+                timeout: Duration.millis(fileProcessorTimeoutMs),
+            } as const;
         }
     }
 }

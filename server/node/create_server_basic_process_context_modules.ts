@@ -16,9 +16,8 @@ export const serverBasicProcessContextOptions = {
     jobQueueUrl: {type: "string"},
     fileProcessorJobQueueUrl: {type: "string"},
     edgeServiceUrl: {type: "string"},
-    // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues): These should not be optional
-    fileProcessorHeavyJobQueueUrl: {type: "string", optional: true},
-    fileProcessorLightJobQueueUrl: {type: "string", optional: true},
+    fileProcessorHeavyJobQueueUrl: {type: "string"},
+    fileProcessorLightJobQueueUrl: {type: "string"},
 } as const;
 
 export type ServerBasicProcessContextOptions = {
@@ -119,8 +118,14 @@ export function createServerBasicProcessContextModulesWithoutShutdownManager({
                     options.fileProcessorJobQueueUrl,
                     "`fileProcessorJobQueueUrl` option is required",
                 ),
-                fileProcessorHeavyQueueUrl: options.fileProcessorHeavyJobQueueUrl,
-                fileProcessorLightQueueUrl: options.fileProcessorLightJobQueueUrl,
+                fileProcessorHeavyQueueUrl: assertExists(
+                    options.fileProcessorHeavyJobQueueUrl,
+                    "`fileProcessorHeavyJobQueueUrl` option is required",
+                ),
+                fileProcessorLightQueueUrl: assertExists(
+                    options.fileProcessorLightJobQueueUrl,
+                    "`fileProcessorLightJobQueueUrl` option is required",
+                ),
             }),
         ),
         constants: new ServerConstantsContextModule({

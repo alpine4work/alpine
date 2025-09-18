@@ -101,6 +101,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/files/data:data",
     "//server/files/processor:processor_lib",
     "//server/files/processor/error:error",
+    "//server/files/processor/process_file:process_file",
     "//server/files/processor/resize_avatar:resize_avatar",
     "//server/files/processor/resize_file:resize_file",
     "//server/files/processor/sharp:sharp",

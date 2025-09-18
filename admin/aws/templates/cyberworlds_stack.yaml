@@ -861,6 +861,32 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsStack/Sqs/FileProcessorJobQueue/Resource
+    SqsFileProcessorLightJobQueueDC9222EF:
+        Type: AWS::SQS::Queue
+        Properties:
+            RedrivePolicy:
+                deadLetterTargetArn:
+                    Fn::GetAtt:
+                        - SqsFileProcessorJobQueue551DBCF8
+                        - Arn
+                maxReceiveCount: 5
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Sqs/FileProcessorLightJobQueue/Resource
+    SqsFileProcessorHeavyJobQueueA7996724:
+        Type: AWS::SQS::Queue
+        Properties:
+            RedrivePolicy:
+                deadLetterTargetArn:
+                    Fn::GetAtt:
+                        - SqsFileProcessorJobQueue551DBCF8
+                        - Arn
+                maxReceiveCount: 5
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Sqs/FileProcessorHeavyJobQueue/Resource
     SesConfigurationSet74E7EAAF:
         Type: AWS::SES::ConfigurationSet
         Properties:
@@ -1991,7 +2017,13 @@ Resources:
                       Effect: Allow
                       Resource:
                           - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
                                 - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
                                 - Arn
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
@@ -2723,7 +2755,13 @@ Resources:
                       Effect: Allow
                       Resource:
                           - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
                                 - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
                                 - Arn
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
@@ -3559,7 +3597,13 @@ Resources:
                       Effect: Allow
                       Resource:
                           - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
                                 - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
                                 - Arn
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
@@ -3906,7 +3950,13 @@ Resources:
                       Effect: Allow
                       Resource:
                           - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
                                 - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
                                 - Arn
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
@@ -4191,7 +4241,13 @@ Resources:
                       Effect: Allow
                       Resource:
                           - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
                                 - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
                                 - Arn
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
@@ -4828,6 +4884,398 @@ Resources:
             - FileProcessorServiceResizeAvatarLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY610C724B
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambdaTargetGroup/Resource
+    FileProcessorServiceFileProcessorLightExecutionRole0A556452:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/ExecutionRole/Resource
+    FileProcessorServiceFileProcessorLightExecutionRoleDefaultPolicy014BE6DA:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - FileProcessorServiceFileProcessorLightFunctionDeadLetterQueueC48E5E01
+                              - Arn
+                    - Action:
+                          - sqs:ChangeMessageVisibility
+                          - sqs:DeleteMessage
+                          - sqs:GetQueueAttributes
+                          - sqs:GetQueueUrl
+                          - sqs:ReceiveMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SqsFileProcessorLightJobQueueDC9222EF
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:FileProcessorServiceSecrets-??????
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                Version: 2012-10-17
+            PolicyName: FileProcessorServiceFileProcessorLightExecutionRoleDefaultPolicy014BE6DA
+            Roles:
+                - Ref: FileProcessorServiceFileProcessorLightExecutionRole0A556452
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/ExecutionRole/DefaultPolicy/Resource
+    FileProcessorServiceFileProcessorLightFunctionDeadLetterQueueC48E5E01:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/DeadLetterQueue/Resource
+    FileProcessorServiceFileProcessorLightFunction00F800F5:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - FileProcessorServiceFileProcessorLightFunctionDeadLetterQueueC48E5E01
+                        - Arn
+            Environment:
+                Variables:
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    NODE_ENV: production
+                    RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
+                    SECRET_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets
+            MemorySize: 4096
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - FileProcessorServiceFileProcessorLightExecutionRole0A556452
+                    - Arn
+            Timeout: 300
+        DependsOn:
+            - FileProcessorServiceFileProcessorLightExecutionRoleDefaultPolicy014BE6DA
+            - FileProcessorServiceFileProcessorLightExecutionRole0A556452
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/Resource
+    FileProcessorServiceFileProcessorLightFunctionLogRetentionBFF5790B:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: FileProcessorServiceFileProcessorLightFunction00F800F5
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/LogRetention/Resource
+    FileProcessorServiceFileProcessorLightFunctionCurrentVersionLatest:
+        Type: AWS::Lambda::Version
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceFileProcessorLightFunction00F800F5
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/CurrentVersion/Resource
+    FileProcessorServiceFileProcessorLightFunctionAliaslatestF50791AA:
+        Type: AWS::Lambda::Alias
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceFileProcessorLightFunction00F800F5
+            FunctionVersion:
+                Fn::GetAtt:
+                    - FileProcessorServiceFileProcessorLightFunctionCurrentVersionLatest
+                    - Version
+            Name: latest
+            ProvisionedConcurrencyConfig:
+                ProvisionedConcurrentExecutions: 2
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/Aliaslatest/Resource
+    FileProcessorServiceFileProcessorLightFunctionAliaslatestSqsEventSourceCyberworldsStackSqsFileProcessorLightJobQueue7C2FCC182898A523:
+        Type: AWS::Lambda::EventSourceMapping
+        Properties:
+            BatchSize: 1
+            EventSourceArn:
+                Fn::GetAtt:
+                    - SqsFileProcessorLightJobQueueDC9222EF
+                    - Arn
+            FunctionName:
+                Fn::Join:
+                    - ""
+                    - - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                  - ":"
+                                  - Ref: FileProcessorServiceFileProcessorLightFunctionAliaslatestF50791AA
+                      - :latest
+            FunctionResponseTypes:
+                - ReportBatchItemFailures
+            MaximumBatchingWindowInSeconds: 0
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/Aliaslatest/SqsEventSource:CyberworldsStackSqsFileProcessorLightJobQueue7C2FCC18/Resource
+    FileProcessorServiceFileProcessorHeavyExecutionRole25021649:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/ExecutionRole/Resource
+    FileProcessorServiceFileProcessorHeavyExecutionRoleDefaultPolicy436980C2:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - FileProcessorServiceFileProcessorHeavyFunctionDeadLetterQueue6C93D2BB
+                              - Arn
+                    - Action:
+                          - sqs:ChangeMessageVisibility
+                          - sqs:DeleteMessage
+                          - sqs:GetQueueAttributes
+                          - sqs:GetQueueUrl
+                          - sqs:ReceiveMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SqsFileProcessorHeavyJobQueueA7996724
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:FileProcessorServiceSecrets-??????
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                Version: 2012-10-17
+            PolicyName: FileProcessorServiceFileProcessorHeavyExecutionRoleDefaultPolicy436980C2
+            Roles:
+                - Ref: FileProcessorServiceFileProcessorHeavyExecutionRole25021649
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/ExecutionRole/DefaultPolicy/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionDeadLetterQueue6C93D2BB:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/DeadLetterQueue/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionDEA5E401:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - FileProcessorServiceFileProcessorHeavyFunctionDeadLetterQueue6C93D2BB
+                        - Arn
+            Environment:
+                Variables:
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorJobQueue551DBCF8
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    NODE_ENV: production
+                    RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
+                    SECRET_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets
+            MemorySize: 10240
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - FileProcessorServiceFileProcessorHeavyExecutionRole25021649
+                    - Arn
+            Timeout: 300
+        DependsOn:
+            - FileProcessorServiceFileProcessorHeavyExecutionRoleDefaultPolicy436980C2
+            - FileProcessorServiceFileProcessorHeavyExecutionRole25021649
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionLogRetention5ED14FD4:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: FileProcessorServiceFileProcessorHeavyFunctionDEA5E401
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/LogRetention/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionCurrentVersionLatest:
+        Type: AWS::Lambda::Version
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceFileProcessorHeavyFunctionDEA5E401
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/CurrentVersion/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionAliaslatestC4A48EAC:
+        Type: AWS::Lambda::Alias
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceFileProcessorHeavyFunctionDEA5E401
+            FunctionVersion:
+                Fn::GetAtt:
+                    - FileProcessorServiceFileProcessorHeavyFunctionCurrentVersionLatest
+                    - Version
+            Name: latest
+            ProvisionedConcurrencyConfig:
+                ProvisionedConcurrentExecutions: 1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/Aliaslatest/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionAliaslatestSqsEventSourceCyberworldsStackSqsFileProcessorHeavyJobQueueB1C3D697306EA5D3:
+        Type: AWS::Lambda::EventSourceMapping
+        Properties:
+            BatchSize: 1
+            EventSourceArn:
+                Fn::GetAtt:
+                    - SqsFileProcessorHeavyJobQueueA7996724
+                    - Arn
+            FunctionName:
+                Fn::Join:
+                    - ""
+                    - - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                  - ":"
+                                  - Ref: FileProcessorServiceFileProcessorHeavyFunctionAliaslatestC4A48EAC
+                      - :latest
+            FunctionResponseTypes:
+                - ReportBatchItemFailures
+            MaximumBatchingWindowInSeconds: 0
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/Aliaslatest/SqsEventSource:CyberworldsStackSqsFileProcessorHeavyJobQueueB1C3D697/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -5371,7 +5819,13 @@ Resources:
                                 - ScheduleDeployFunctionDeadLetterQueue1741E020
                                 - Arn
                           - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
                                 - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
                                 - Arn
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
@@ -5553,6 +6007,20 @@ Outputs:
                 - Arn
         Export:
             Name: CyberworldsStack:FileProcessorJobQueueArn
+    FileProcessorLightJobQueueArnExport:
+        Value:
+            Fn::GetAtt:
+                - SqsFileProcessorLightJobQueueDC9222EF
+                - Arn
+        Export:
+            Name: CyberworldsStack:FileProcessorLightJobQueueArn
+    FileProcessorHeavyJobQueueArnExport:
+        Value:
+            Fn::GetAtt:
+                - SqsFileProcessorHeavyJobQueueA7996724
+                - Arn
+        Export:
+            Name: CyberworldsStack:FileProcessorHeavyJobQueueArn
 Parameters:
     SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>

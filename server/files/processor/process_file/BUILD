@@ -18,3 +18,18 @@ ts_project(
         "//shared/tracer",
     ],
 )
+
+# Lambda for file resizing (replaces ECS endpoint)
+aws_lambda(
+    name = "process_file_lambda",
+    srcs = [":process_file"],
+    entry_point = "process_file_lambda.js",
+    visibility = ["//admin/aws:__pkg__"],
+    base_image = "lambda_node22_libreoffice",
+)
+
+production_transition(
+    name = "process_file_lambda_production",
+    target = ":process_file_lambda",
+    visibility = ["//admin/aws:__pkg__"],
+)

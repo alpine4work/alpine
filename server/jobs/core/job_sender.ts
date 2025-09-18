@@ -155,12 +155,13 @@ export class JobSender implements JobSenderBase {
         region: string;
         queueUrl: string;
         fileProcessorQueueUrl: string;
-        // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues): These should not be optional
-        fileProcessorHeavyQueueUrl?: string;
-        fileProcessorLightQueueUrl?: string;
+        fileProcessorHeavyQueueUrl: string;
+        fileProcessorLightQueueUrl: string;
     }) {
         const defaultEndpoint = new URL("/", defaultQueueUrl).toString();
         const fileProcessorEndpoint = new URL("/", fileProcessorQueueUrl).toString();
+        const fileProcessorHeavyEndpoint = new URL("/", fileProcessorHeavyQueueUrl).toString();
+        const fileProcessorLightEndpoint = new URL("/", fileProcessorLightQueueUrl).toString();
 
         this._defaultQueueUrl = defaultQueueUrl;
         this._defaultSqsClient = new SQSClient({
@@ -177,37 +178,17 @@ export class JobSender implements JobSenderBase {
                       endpoint: fileProcessorEndpoint,
                   });
 
-        // TODO(ifitzsimmons, 2025-07-30, #add-light-and-heavy-queues): Remove conditional logic
-        // once queues are not optional.
-        if (process.env.NODE_ENV !== "production") {
-            assert(
-                fileProcessorHeavyQueueUrl,
-                "`fileProcessorHeavyQueueUrl` is required in development",
-            );
-            assert(
-                fileProcessorLightQueueUrl,
-                "`fileProcessorLightQueueUrl` is required in development",
-            );
-            const fileProcessorHeavyEndpoint = new URL("/", fileProcessorHeavyQueueUrl).toString();
-            this._fileProcessorHeavyQueueUrl = fileProcessorHeavyQueueUrl;
-            this._fileProcessorHeavySqsClient = new SQSClient({
-                region,
-                endpoint: fileProcessorHeavyEndpoint,
-            });
+        this._fileProcessorHeavyQueueUrl = fileProcessorHeavyQueueUrl;
+        this._fileProcessorHeavySqsClient = new SQSClient({
+            region,
+            endpoint: fileProcessorHeavyEndpoint,
+        });
 
-            const fileProcessorLightEndpoint = new URL("/", fileProcessorLightQueueUrl).toString();
-            this._fileProcessorLightQueueUrl = fileProcessorLightQueueUrl;
-            this._fileProcessorLightSqsClient = new SQSClient({
-                region,
-                endpoint: fileProcessorLightEndpoint,
-            });
-        } else {
-            this._fileProcessorHeavyQueueUrl = this._fileProcessorQueueUrl;
-            this._fileProcessorHeavySqsClient = this._fileProcessorSqsClient;
-
-            this._fileProcessorLightQueueUrl = this._fileProcessorQueueUrl;
-            this._fileProcessorLightSqsClient = this._fileProcessorSqsClient;
-        }
+        this._fileProcessorLightQueueUrl = fileProcessorLightQueueUrl;
+        this._fileProcessorLightSqsClient = new SQSClient({
+            region,
+            endpoint: fileProcessorLightEndpoint,
+        });
     }
 
     public send(
