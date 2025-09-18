@@ -122,6 +122,16 @@ export type FileMicrosoftOfficeDocumentContentType =
     | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     | "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+const fileMicrosoftOfficeDocumentContentTypes: {
+    [Key in FileMicrosoftOfficeDocumentContentType]: true;
+} = {
+    "application/msword": true,
+    "application/vnd.ms-excel": true,
+    "application/vnd.ms-powerpoint": true,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
+};
 /**
  * Video files we support. We support all the same video types as Canva. See
  * [Canva's upload formats][1]. Many common video types do not have good
@@ -266,6 +276,10 @@ export function isFileVideoContentType(
     contentType: FileContentType,
 ): contentType is FileVideoContentType {
     return contentType in fileVideoContentTypes;
+}
+
+export function getFileMicrosoftOfficeContentTypes(): ReadonlyArray<FileMicrosoftOfficeDocumentContentType> {
+    return getObjectKeysWithKeyofType(fileMicrosoftOfficeDocumentContentTypes);
 }
 
 export function getFileVideoContentTypes(): ReadonlyArray<FileVideoContentType> {

@@ -424,7 +424,7 @@ export async function finishUploadingAndStartProcessingFile(
             // message fails we want to fail the entire upload.
 
             // Determine the appropriate processing tier based on content type and file size
-            const {jobType, reason} = routeFileToProcessor();
+            const {jobType, reason} = routeFileToProcessor(item);
 
             await context.jobs.sendAndWait({
                 type: jobType,

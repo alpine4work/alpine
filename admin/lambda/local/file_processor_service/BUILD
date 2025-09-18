@@ -23,5 +23,5 @@ js_binary(
     name = "lambda_runtime",
     data = [":file_processor_local_service_lib"],
     entry_point = "file_processor_local_service_main.js",
-    visibility = ["//admin/dev:__pkg__"],
+    visibility = ["//admin/dev:__pkg__", "//app/integration_tests:__pkg__"],
 )

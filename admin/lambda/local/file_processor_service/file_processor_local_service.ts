@@ -37,9 +37,9 @@ export async function run({
     tracer: TracerRoot;
     shutdownManager: ShutdownManager;
 }) {
-    const port = assertExists(options.port);
-    const sqsLocalPort = assertExists(options.sqsLocalPort);
-    const fileProcessorLambdaServiceUrl = `http://localhost:${port}`;
+    const port = assertExists(options.port, "`port` option is required");
+    const sqsLocalPort = assertExists(options.sqsLocalPort, "`sqsLocalPort` option is required");
+    const fileProcessorServiceUrl = `http://localhost:${port}`;
 
     const tokenAgent = await createServiceTokenAgent({
         serviceName: "FileProcessorService",
@@ -53,7 +53,7 @@ export async function run({
         tokenAgent,
         tracer,
         promiseWaiter,
-        fileProcessorServiceUrl: fileProcessorLambdaServiceUrl,
+        fileProcessorServiceUrl,
     });
 
     shutdownManager.registerWaitUntilPromise(promiseWaiter.wait());

@@ -64,7 +64,13 @@ let port: number;
 
 const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime, span) => {
-        if (job.type === "ProcessFile") {
+        if (
+            // TODO(ifitzsimmons, 2025-09-18): Remove this once we've migrated to the new job queue
+            // system.
+            job.type === "ProcessFile" ||
+            job.type === "ProcessFileLight" ||
+            job.type === "ProcessFileHeavy"
+        ) {
             await processFile(
                 actionContext.clone({r2: new CloudflareR2ContextModule(r2Client)}),
                 span,
