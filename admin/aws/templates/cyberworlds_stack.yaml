@@ -2052,6 +2052,10 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --fileProcessorHeavyJobQueueUrl="
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                              - " --fileProcessorLightJobQueueUrl="
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
                               - " --honeycombApiKey=$HONEYCOMB_API_KEY
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
@@ -2813,6 +2817,10 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --fileProcessorHeavyJobQueueUrl="
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                              - " --fileProcessorLightJobQueueUrl="
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
                               - " --ecsCluster="
                               - Ref: EcsClusterFB9B21B5
                               - "
@@ -3653,6 +3661,10 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --fileProcessorHeavyJobQueueUrl="
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                              - " --fileProcessorLightJobQueueUrl="
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
                               - " --jobQueueArn="
                               - Fn::GetAtt:
                                     - SqsJobQueue62388F96
@@ -4272,6 +4284,10 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --fileProcessorHeavyJobQueueUrl="
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                              - " --fileProcessorLightJobQueueUrl="
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
                               - " --honeycombApiKey=$HONEYCOMB_API_KEY --opensearchDomainEndpoint="
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
@@ -5514,6 +5530,10 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --fileProcessorHeavyJobQueueUrl="
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                              - " --fileProcessorLightJobQueueUrl="
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
                               - " --honeycombApiKey=$HONEYCOMB_API_KEY
                                 --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID

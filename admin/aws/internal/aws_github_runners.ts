@@ -383,6 +383,10 @@ export class AwsGithubRunners extends Construct {
                 sqs.getJobQueueUrl(),
                 '","fileProcessorJobQueueUrl":"',
                 sqs.getFileProcessorJobQueueUrl(),
+                '","fileProcessorHeavyJobQueueUrl":"',
+                sqs.getFileProcessorHeavyJobQueueUrl(),
+                '","fileProcessorLightJobQueueUrl":"',
+                sqs.getFileProcessorLightJobQueueUrl(),
                 '"}',
             ]),
 

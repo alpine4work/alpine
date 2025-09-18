@@ -77,6 +77,8 @@ export class AwsMigrationService extends Construct {
                     "--edgeServiceUrl=https://alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
+                    `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
+                    `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     // When you execute the ECS `RunTask` action to start migration service, you

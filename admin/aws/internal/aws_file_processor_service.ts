@@ -364,6 +364,8 @@ export class AwsFileProcessorService extends Construct {
                     "--edgeServiceUrl=https://alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
+                    `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
+                    `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     `--cloudflareAccountId=${cloudflareAccountId}`,
                     `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,

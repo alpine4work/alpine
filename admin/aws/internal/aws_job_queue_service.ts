@@ -248,6 +248,8 @@ export class AwsJobQueueService extends Construct {
                     `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
+                    `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
+                    `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
                     `--schedulerJobQueueRoleArn=${schedulerRole.roleArn}`,
                     "--edgeServiceUrl=https://alpine.inc",
