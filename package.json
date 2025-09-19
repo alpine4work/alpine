@@ -408,7 +408,10 @@
             "micromark-util-character@2.0.1": "admin/patches/micromark-util-character@2.0.1.patch",
             "mdast-util-gfm-table@2.0.0": "admin/patches/mdast-util-gfm-table@2.0.0.patch",
             "openapi-fetch@0.14.0": "admin/patches/openapi-fetch@0.14.0.patch",
-            "gpt-tokenizer@3.0.1": "admin/patches/gpt-tokenizer@3.0.1.patch"
+            "gpt-tokenizer@3.0.1": "admin/patches/gpt-tokenizer@3.0.1.patch",
+            "mdast-util-from-markdown@2.0.0": "admin/patches/mdast-util-from-markdown@2.0.0.patch",
+            "micromark@4.0.0": "admin/patches/micromark@4.0.0.patch",
+            "micromark-core-commonmark@2.0.0": "admin/patches/micromark-core-commonmark@2.0.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

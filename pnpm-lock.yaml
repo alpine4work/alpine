@@ -122,6 +122,9 @@ patchedDependencies:
   gpt-tokenizer@3.0.1:
     hash: 6bbterobkrlp3dczxpfustegpm
     path: admin/patches/gpt-tokenizer@3.0.1.patch
+  mdast-util-from-markdown@2.0.0:
+    hash: 3ygfqpp2a2r6e7m4e7nj7vng6m
+    path: admin/patches/mdast-util-from-markdown@2.0.0.patch
   mdast-util-gfm-strikethrough@2.0.0:
     hash: vncctalgpqfc6n6ssnlvkondw4
     path: admin/patches/mdast-util-gfm-strikethrough@2.0.0.patch
@@ -134,9 +137,15 @@ patchedDependencies:
   media-query-parser@2.0.2:
     hash: saj64dz6s226nfs27aiqrqatfi
     path: admin/patches/media-query-parser@2.0.2.patch
+  micromark-core-commonmark@2.0.0:
+    hash: rjs3elrravdyvnlbyzmiws7hei
+    path: admin/patches/micromark-core-commonmark@2.0.0.patch
   micromark-util-character@2.0.1:
     hash: lsom34pri4vgcmsq7gasnan52a
     path: admin/patches/micromark-util-character@2.0.1.patch
+  micromark@4.0.0:
+    hash: yx7jxgvndb5z3twc6jzfue3dom
+    path: admin/patches/micromark@4.0.0.patch
   onnxruntime-common@1.14.0:
     hash: pe6xj53aa4w53t6a6st3utfq5a
     path: admin/patches/onnxruntime-common@1.14.0.patch
@@ -855,7 +864,7 @@ importers:
         version: 9.0.1
       mdast-util-from-markdown:
         specifier: ^2.0.0
-        version: 2.0.0
+        version: 2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m)
       mdast-util-frontmatter:
         specifier: ^2.0.1
         version: 2.0.1
@@ -16807,14 +16816,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-from-markdown@2.0.0:
+  mdast-util-from-markdown@2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m):
     dependencies:
       '@types/mdast': 4.0.3
       '@types/unist': 3.0.2
       decode-named-character-reference: 1.0.2
       devlop: 1.1.0
       mdast-util-to-string: 4.0.0
-      micromark: 4.0.0
+      micromark: 4.0.0(patch_hash=yx7jxgvndb5z3twc6jzfue3dom)
       micromark-util-decode-numeric-character-reference: 2.0.1
       micromark-util-decode-string: 2.0.0
       micromark-util-normalize-identifier: 2.0.0
@@ -16833,7 +16842,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       escape-string-regexp: 5.0.0
-      mdast-util-from-markdown: 2.0.0
+      mdast-util-from-markdown: 2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m)
       mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
       micromark-extension-frontmatter: 2.0.0
     transitivePeerDependencies:
@@ -16842,7 +16851,7 @@ snapshots:
   mdast-util-gfm-strikethrough@2.0.0(patch_hash=vncctalgpqfc6n6ssnlvkondw4):
     dependencies:
       '@types/mdast': 4.0.3
-      mdast-util-from-markdown: 2.0.0
+      mdast-util-from-markdown: 2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m)
       mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
     transitivePeerDependencies:
       - supports-color
@@ -16852,7 +16861,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       markdown-table: 3.0.4
-      mdast-util-from-markdown: 2.0.0
+      mdast-util-from-markdown: 2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m)
       mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
     transitivePeerDependencies:
       - supports-color
@@ -16861,7 +16870,7 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.0
+      mdast-util-from-markdown: 2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m)
       mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
     transitivePeerDependencies:
       - supports-color
@@ -16872,7 +16881,7 @@ snapshots:
       '@types/mdast': 4.0.3
       devlop: 1.1.0
       longest-streak: 3.0.1
-      mdast-util-from-markdown: 2.0.0
+      mdast-util-from-markdown: 2.0.0(patch_hash=3ygfqpp2a2r6e7m4e7nj7vng6m)
       mdast-util-to-markdown: 2.1.2(patch_hash=cedwq4nopic5y2gqnyx7d4wjya)
       unist-util-remove-position: 5.0.0
     transitivePeerDependencies:
@@ -17015,7 +17024,7 @@ snapshots:
       micromark-util-types: 1.0.2
       uvu: 0.5.6
 
-  micromark-core-commonmark@2.0.0:
+  micromark-core-commonmark@2.0.0(patch_hash=rjs3elrravdyvnlbyzmiws7hei):
     dependencies:
       decode-named-character-reference: 1.0.2
       devlop: 1.1.0
@@ -17358,13 +17367,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  micromark@4.0.0:
+  micromark@4.0.0(patch_hash=yx7jxgvndb5z3twc6jzfue3dom):
     dependencies:
       '@types/debug': 4.1.7
       debug: 4.4.1(supports-color@10.0.0)
       decode-named-character-reference: 1.0.2
       devlop: 1.1.0
-      micromark-core-commonmark: 2.0.0
+      micromark-core-commonmark: 2.0.0(patch_hash=rjs3elrravdyvnlbyzmiws7hei)
       micromark-factory-space: 2.0.0
       micromark-util-character: 2.0.1(patch_hash=lsom34pri4vgcmsq7gasnan52a)
       micromark-util-chunked: 2.0.0

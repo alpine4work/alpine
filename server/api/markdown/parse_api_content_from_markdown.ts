@@ -57,6 +57,7 @@ export type ApiContentMarkdownParserOptions = {
 };
 
 export {actuallyParseApiContentFromMarkdown as parseApiContentFromMarkdown};
+export {parseApiContentFromMarkdown as parseApiContentFromMarkdownTree};
 
 type ApiContentMarkdownParserDefinitions = {
     readonly futureDefinitionsByIdentifier: Map<string, Array<DefinitionContent>>;
@@ -89,7 +90,22 @@ function actuallyParseApiContentFromMarkdown(
     markdown: string,
     options: ApiContentMarkdownParserOptions,
 ): ApiContent {
-    const root = fromMarkdown(markdown, "utf-8", {
+    const root = parseMarkdownTree(markdown);
+    return parseApiContentFromMarkdown(root, options);
+}
+
+export function parseMarkdownTree(
+    markdown: string,
+    options?: {allowUndefinedLinkReferenceIdentifiers?: boolean},
+): Root {
+    return fromMarkdown(markdown, "utf-8", {
+        // NOTE(calebmer): We add this option via patch to `micromark-core-commonmark`,
+        // `micromark`, and `mdast-util-from-markdown`. For when we want to parse
+        // `linkReference`s even when they don't have a matching definition. This is
+        // technically incompatible with the CommonMark spec which is why this isn't
+        // true by default.
+        allowUndefinedLinkReferenceIdentifiers: options?.allowUndefinedLinkReferenceIdentifiers,
+
         extensions: [
             gfmStrikethrough(),
             gfmTable(),
@@ -114,7 +130,12 @@ function actuallyParseApiContentFromMarkdown(
             frontmatterFromMarkdown("yaml"),
         ],
     });
+}
 
+function parseApiContentFromMarkdown(
+    root: Root,
+    options: ApiContentMarkdownParserOptions,
+): ApiContent {
     const definitions: ApiContentMarkdownParserDefinitions = {
         futureDefinitionsByIdentifier: new Map(),
         pastDefinitionsByIdentifier: new Map(),
@@ -140,14 +161,6 @@ function actuallyParseApiContentFromMarkdown(
 
     loop(root);
 
-    return parseApiContentFromMarkdown(root, definitions, options);
-}
-
-function parseApiContentFromMarkdown(
-    root: Root,
-    definitions: ApiContentMarkdownParserDefinitions,
-    options: ApiContentMarkdownParserOptions,
-): ApiContent {
     return {
         elements: Array.from(
             parseApiContentBlockElementsFromMarkdown(

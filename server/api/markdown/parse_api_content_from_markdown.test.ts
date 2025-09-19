@@ -1,6 +1,9 @@
 /* eslint-disable string-quotes */
 
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+import {
+    parseApiContentFromMarkdown,
+    parseMarkdownTree,
+} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -3183,6 +3186,155 @@ test("inline HTML <mark> tag in code block without attributes defaults to orange
                                 marks: [{type: "Highlight", color: "Orange"}],
                             },
                         ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("`parseMarkdownTree()` parses link reference without valid definition when `allowUndefinedLinkReferenceIdentifiers` is true", () => {
+    expect(
+        parseMarkdownTree("This is my [Dinosaur][] document", {
+            allowUndefinedLinkReferenceIdentifiers: true,
+        }),
+    ).toEqual({
+        type: "root",
+        position: expect.any(Object),
+        children: [
+            {
+                type: "paragraph",
+                position: expect.any(Object),
+                children: [
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: "This is my ",
+                    },
+                    {
+                        type: "linkReference",
+                        position: expect.any(Object),
+                        referenceType: "collapsed",
+                        identifier: "dinosaur",
+                        label: "Dinosaur",
+                        children: [
+                            {
+                                type: "text",
+                                position: expect.any(Object),
+                                value: "Dinosaur",
+                            },
+                        ],
+                    },
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: " document",
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("`parseMarkdownTree()` doesn’t parse link reference without valid definition when `allowUndefinedLinkReferenceIdentifiers` is false (the default)", () => {
+    expect(parseMarkdownTree("This is my [Dinosaur][] document")).toEqual({
+        type: "root",
+        position: expect.any(Object),
+        children: [
+            {
+                type: "paragraph",
+                position: expect.any(Object),
+                children: [
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: "This is my [Dinosaur][] document",
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("`parseMarkdownTree()` parses link reference in quotes without valid definition when `allowUndefinedLinkReferenceIdentifiers` is true", () => {
+    expect(
+        parseMarkdownTree('This is my "[Dinosaur][]" document', {
+            allowUndefinedLinkReferenceIdentifiers: true,
+        }),
+    ).toEqual({
+        type: "root",
+        position: expect.any(Object),
+        children: [
+            {
+                type: "paragraph",
+                position: expect.any(Object),
+                children: [
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: 'This is my "',
+                    },
+                    {
+                        type: "linkReference",
+                        position: expect.any(Object),
+                        referenceType: "collapsed",
+                        identifier: "dinosaur",
+                        label: "Dinosaur",
+                        children: [
+                            {
+                                type: "text",
+                                position: expect.any(Object),
+                                value: "Dinosaur",
+                            },
+                        ],
+                    },
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: '" document',
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("`parseMarkdownTree()` parses link reference in curly quotes without valid definition when `allowUndefinedLinkReferenceIdentifiers` is true", () => {
+    expect(
+        parseMarkdownTree("This is my “[Dinosaur][]” document", {
+            allowUndefinedLinkReferenceIdentifiers: true,
+        }),
+    ).toEqual({
+        type: "root",
+        position: expect.any(Object),
+        children: [
+            {
+                type: "paragraph",
+                position: expect.any(Object),
+                children: [
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: "This is my “",
+                    },
+                    {
+                        type: "linkReference",
+                        position: expect.any(Object),
+                        referenceType: "collapsed",
+                        identifier: "dinosaur",
+                        label: "Dinosaur",
+                        children: [
+                            {
+                                type: "text",
+                                position: expect.any(Object),
+                                value: "Dinosaur",
+                            },
+                        ],
+                    },
+                    {
+                        type: "text",
+                        position: expect.any(Object),
+                        value: "” document",
                     },
                 ],
             },

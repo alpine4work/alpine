@@ -16,7 +16,10 @@ import {
     AgentMessage,
     printAgentMessagesLog,
 } from "~/server/agents/internal/print_agent_messages_log.js";
-import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+import {
+    parseApiContentFromMarkdownTree,
+    parseMarkdownTree,
+} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_path.js";
 import {ApiChat} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -361,13 +364,20 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
     // - [ ] Upgrade to reasoning model
     // - [ ] Load mentioned content
     // - [ ] Load previous chat messages
-    // - [ ] "Forget" history (for power users to reset context)
     // - [ ] Load content underneath peek
     // - [ ] Alpine search
     // - [ ] [Web search][1]
     // - [ ] Update/create documents
     // - [ ] Update/create tasks, task collections, and subtasks
     // - [ ] View uploaded files (images mostly)
+    // - [ ] Forget context tool or force compaction tool (if user feels like
+    //       bot is going off the rails)
+    //
+    // [1]: https://platform.openai.com/docs/guides/tools-web-search
+    //
+    // TODO(calebmer, #ai): How do we enable the AI to mention users and other
+    // content? We can include a mention database but what if they try to mention
+    // something new?
     //
     // [1]: https://platform.openai.com/docs/guides/tools-web-search
     const {output} = await request.openAiClient.get().createResponse({
@@ -381,7 +391,7 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
 
     assert(output.length > 0);
 
-    const outputText = output
+    let markdown = output
         .flatMap(outputItem => {
             if (outputItem.type !== "message") return [];
 
@@ -395,7 +405,22 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
         })
         .join("\n");
 
-    let content = parseApiContentFromMarkdown(outputText, {spaceId: request.spaceId});
+    // Often OpenAI will start and end its response with `<bot name="ChatGPT">` and
+    // `</bot>` respectively. Mirroring the format seen in our instructions and in
+    // the chat context. Remove these start/end tags as they shouldn't show up in
+    // the output.
+    markdown = markdown.replace(/^\s*<bot(?: [^>]*)?>\s*/, "").replace(/\s*<\/bot>\s*$/, "");
+
+    const markdownTree = parseMarkdownTree(markdown, {
+        // For our mention syntax we use `[Alice][]` even when there's no matching
+        // definition. This is technically incompatible with CommonMark. If ChatGPT
+        // tries to output a mention in this format we want to parse it back properly.
+        // Which requires allowing our Markdown parser to parse links with undefined
+        // references.
+        allowUndefinedLinkReferenceIdentifiers: true,
+    });
+
+    let content = parseApiContentFromMarkdownTree(markdownTree, {spaceId: request.spaceId});
 
     // Convert all straight quotes (`'` and `"`) into proper curly quotes
     // (`“`, `”`, `‘`, `’`). Since LLMs typically only output straight quotes.

@@ -1,0 +1,56 @@
+diff --git a/dev/lib/label-end.js b/dev/lib/label-end.js
+index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..5564012665fc8e431640d68ada193953e7233d25 100644
+--- a/dev/lib/label-end.js
++++ b/dev/lib/label-end.js
+@@ -233,7 +233,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
+       return labelEndNok(code)
+     }
+
+-    defined = self.parser.defined.includes(
++    // NOTE(calebmer): Allow parsing `linkReferences` even if the identifier
++    // doesn't have a matching definition. Important for parsing AI generated
++    // content which may not make an attempt to define all link identifiers.
++    defined = self.parser.allowUndefinedLinkReferenceIdentifiers || self.parser.defined.includes(
+       normalizeIdentifier(
+         self.sliceSerialize({start: labelStart.end, end: self.now()})
+       )
+@@ -564,7 +567,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
+    * @type {State}
+    */
+   function referenceFullAfter(code) {
+-    return self.parser.defined.includes(
++    // NOTE(calebmer): Allow parsing `linkReferences` even if the identifier
++    // doesn't have a matching definition. Important for parsing AI generated
++    // content which may not make an attempt to define all link identifiers.
++    return self.parser.allowUndefinedLinkReferenceIdentifiers || self.parser.defined.includes(
+       normalizeIdentifier(
+         self.sliceSerialize(self.events[self.events.length - 1][1]).slice(1, -1)
+       )
+diff --git a/lib/label-end.js b/lib/label-end.js
+index b4a06def593cd6f6b4960b4e40426856b57985b3..0d2924735bdaa56034e65427d160b2bbcf4efb56 100644
+--- a/lib/label-end.js
++++ b/lib/label-end.js
+@@ -215,7 +215,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
+     if (labelStart._inactive) {
+       return labelEndNok(code)
+     }
+-    defined = self.parser.defined.includes(
++    // NOTE(calebmer): Allow parsing `linkReferences` even if the identifier
++    // doesn't have a matching definition. Important for parsing AI generated
++    // content which may not make an attempt to define all link identifiers.
++    defined = self.parser.allowUndefinedLinkReferenceIdentifiers || self.parser.defined.includes(
+       normalizeIdentifier(
+         self.sliceSerialize({
+           start: labelStart.end,
+@@ -539,7 +542,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
+    * @type {State}
+    */
+   function referenceFullAfter(code) {
+-    return self.parser.defined.includes(
++    // NOTE(calebmer): Allow parsing `linkReferences` even if the identifier
++    // doesn't have a matching definition. Important for parsing AI generated
++    // content which may not make an attempt to define all link identifiers.
++    return self.parser.allowUndefinedLinkReferenceIdentifiers || self.parser.defined.includes(
+       normalizeIdentifier(
+         self.sliceSerialize(self.events[self.events.length - 1][1]).slice(1, -1)
+       )
