@@ -564,7 +564,7 @@ async function actuallyHandleFetch(
                 headers.set("authorization", `bearer ${requestToken}`);
 
                 const taskRealtimeServiceHost =
-                    await taskRealtimeServiceRouter.getStickySessionHost(
+                    await taskRealtimeServiceRouter.getStickyAccountHost(
                         Context.new({
                             process: new ProcessContextModule({
                                 waitUntil: promise => executionContext.waitUntil(promise),
@@ -572,7 +572,7 @@ async function actuallyHandleFetch(
                             tracer: new TracerContextModule(span),
                         }),
                         spaceId,
-                        sessionCookieToken.sessionId,
+                        sessionCookieToken.accountId,
                     );
 
                 if (process.env.NODE_ENV !== "production") {
@@ -635,10 +635,10 @@ async function actuallyHandleFetch(
                 });
 
                 const taskRealtimeServiceHost = sessionCookieToken
-                    ? await taskRealtimeServiceRouter.getStickySessionHost(
+                    ? await taskRealtimeServiceRouter.getStickyAccountHost(
                           routerContext,
                           spaceId,
-                          sessionCookieToken.sessionId,
+                          sessionCookieToken.accountId,
                       )
                     : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
                       // well based on `BrowserId`. Maybe we should always use `BrowserId` actually

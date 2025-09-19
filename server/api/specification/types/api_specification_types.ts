@@ -33,7 +33,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -80,7 +83,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -121,7 +127,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -170,7 +179,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -209,7 +221,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -256,7 +271,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -295,7 +313,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -342,7 +363,10 @@ export namespace ApiSpecification {
                             readonly [name: string]: unknown;
                         };
                         content: {
-                            readonly "application/json": components["schemas"]["Message"];
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly message: components["schemas"]["Message"];
+                            };
                         };
                     };
                     readonly default: components["responses"]["Error"];
@@ -646,7 +670,6 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentInlineElementStrikeMark"]
                 | components["schemas"]["ContentInlineElementLinkMark"];
             readonly Message: {
-                readonly roomPath: components["schemas"]["MessageRoomPath"];
                 readonly index: number;
                 /** Format: date-time */
                 readonly createdTime: DateString;

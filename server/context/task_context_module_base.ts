@@ -1,7 +1,7 @@
 import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
+    ServerAccountActionContextModules,
     ServerActionContextModules,
-    ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -138,7 +138,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public abstract getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModuleBase & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<Result<TaskModel> | null>;
@@ -156,7 +156,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public abstract getTaskWithoutDependencies(
-        this: TaskContextModuleBase & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<TaskModel>;
@@ -171,7 +171,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public abstract getCollectionIfPossible(
-        this: TaskContextModuleBase & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<Result<TaskCollectionModel> | null>;
@@ -186,7 +186,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public abstract getCollection(
-        this: TaskContextModuleBase & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionModel>;

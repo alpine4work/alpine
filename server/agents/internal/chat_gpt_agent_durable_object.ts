@@ -43,7 +43,9 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
     ) {
         const roomPathObject = parseApiMessageRoomPath(event.roomPath);
 
-        const {data: message} = await getApiMessage(apiClient, roomPathObject, event.index);
+        const {
+            data: {message},
+        } = await getApiMessage(apiClient, roomPathObject, event.index);
 
         // Ignore non-content messages (e.g. deleted messages).
         if (message.payload.type !== "Content") return;

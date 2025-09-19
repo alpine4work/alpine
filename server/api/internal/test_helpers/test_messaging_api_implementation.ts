@@ -3,10 +3,60 @@ import request from "supertest";
 import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiMessageRoomPath} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
+import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {generateId} from "~/shared/id/id.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+
+const knownTaskId = generateId<TaskId>();
+const privateTaskId = generateId<TaskId>();
+const deletedTaskId = generateId<TaskId>();
+
+export const testMessagingApiImplementationSearchInjection: Partial<SearchInjection> = {
+    getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
+        if (entityId === `Task:${knownTaskId}`) {
+            return {
+                isPrivate: false,
+                entity: new SearchEntityModel({
+                    id: entityId,
+                    title: "Some bug",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            };
+        }
+
+        if (entityId === `Task:${privateTaskId}`) {
+            return {
+                isPrivate: true,
+            };
+        }
+
+        if (entityId === `Task:${deletedTaskId}`) {
+            return {
+                isPrivate: false,
+                entity: new SearchEntityModel({
+                    id: entityId,
+                    title: null,
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            };
+        }
+
+        return null;
+    },
+};
 
 export function testMessagingApiImplementation(
     context: TestContext,
@@ -49,14 +99,17 @@ export function testMessagingApiImplementation(
 
             expect(response.body).toEqual(
                 expect.objectContaining({
-                    roomPath,
-                    index: message.index,
-                    payload: expect.objectContaining({type: "Content"}),
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
                 }),
             );
 
             expect(
-                printApiContentToMarkdown(response.body.payload.content, {spaceId: space.id}),
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
             ).toEqual("Hello, world!\n");
         });
 
@@ -153,15 +206,330 @@ export function testMessagingApiImplementation(
 
             expect(response.body).toEqual(
                 expect.objectContaining({
-                    roomPath,
-                    index: message.index,
-                    payload: expect.objectContaining({type: "Content"}),
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
                 }),
             );
 
             expect(
-                printApiContentToMarkdown(response.body.payload.content, {spaceId: space.id}),
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
             ).toEqual("Hello, world!\n");
+        });
+
+        test("can read message with account mention", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession({role: "Admin"});
+            const session2 = await space.createSession({name: "Caleb Meredith"});
+
+            const botAccount = await TestBot.createAndInstantiate(session1);
+            const apiKey = await botAccount.createApiKey(session1);
+
+            const {roomPath, room} = await createPrivateRoom(session1, botAccount);
+
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            const response = await request(server)
+                .get(`${roomPath}/messages/${message.index}`)
+                .set("authorization", `bearer ${apiKey}`)
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual(
+                `Hello [Caleb Meredith](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention)\n`,
+            );
+        });
+
+        test("can read message with short account mention", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession({role: "Admin"});
+            const session2 = await space.createSession({name: "Caleb Meredith"});
+
+            const botAccount = await TestBot.createAndInstantiate(session1);
+            const apiKey = await botAccount.createApiKey(session1);
+
+            const {roomPath, room} = await createPrivateRoom(session1, botAccount);
+
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session2.account.id,
+                                    isShort: true,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            const response = await request(server)
+                .get(`${roomPath}/messages/${message.index}`)
+                .set("authorization", `bearer ${apiKey}`)
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual(
+                `Hello [Caleb](https://alpine.inc/s/${space.id}/accounts/${session2.account.id}?mention=short)\n`,
+            );
+        });
+
+        test("can read message with unknown entity mention", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+            const unknownTaskId = generateId<TaskId>();
+
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                session,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("We need to fix "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    type: "SearchEntity",
+                                    entityId: `Task:${unknownTaskId}`,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            const response = await request(server)
+                .get(`${roomPath}/messages/${message.index}`)
+                .set("authorization", `bearer ${apiKey}`)
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual(
+                `We need to fix [Unknown task](https://alpine.inc/s/${space.id}/tasks/${unknownTaskId}?mention)\n`,
+            );
+        });
+
+        test("can read message with known entity mention", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                session,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("We need to fix "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    type: "SearchEntity",
+                                    entityId: `Task:${knownTaskId}`,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            const response = await request(server)
+                .get(`${roomPath}/messages/${message.index}`)
+                .set("authorization", `bearer ${apiKey}`)
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual(
+                `We need to fix [Some bug](https://alpine.inc/s/${space.id}/tasks/${knownTaskId}?mention)\n`,
+            );
+        });
+
+        test("can read message with private entity mention", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                session,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("We need to fix "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    type: "SearchEntity",
+                                    entityId: `Task:${privateTaskId}`,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            const response = await request(server)
+                .get(`${roomPath}/messages/${message.index}`)
+                .set("authorization", `bearer ${apiKey}`)
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual(
+                `We need to fix [Private task](https://alpine.inc/s/${space.id}/tasks/${privateTaskId}?mention)\n`,
+            );
+        });
+
+        test("can read message with deleted entity mention", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, room} = await createPrivateRoom(session, botAccount);
+
+            const message = await TestMessagingRoomBase.createMessage(
+                room,
+                session,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("We need to fix "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    type: "SearchEntity",
+                                    entityId: `Task:${deletedTaskId}`,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            const response = await request(server)
+                .get(`${roomPath}/messages/${message.index}`)
+                .set("authorization", `bearer ${apiKey}`)
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: message.index,
+                        payload: expect.objectContaining({type: "Content"}),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual(
+                `We need to fix [Deleted task](https://alpine.inc/s/${space.id}/tasks/${deletedTaskId}?mention)\n`,
+            );
         });
 
         test("can create message", async () => {
@@ -193,16 +561,19 @@ export function testMessagingApiImplementation(
 
             expect(response.body).toEqual(
                 expect.objectContaining({
-                    roomPath,
-                    index: message.index + 1,
-                    payload: expect.objectContaining({
-                        type: "Content",
+                    message: expect.objectContaining({
+                        index: message.index + 1,
+                        payload: expect.objectContaining({
+                            type: "Content",
+                        }),
                     }),
                 }),
             );
 
             expect(
-                printApiContentToMarkdown(response.body.payload.content, {spaceId: space.id}),
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
             ).toEqual("Hello, world!\n");
         });
 
@@ -299,16 +670,19 @@ export function testMessagingApiImplementation(
 
             expect(response.body).toEqual(
                 expect.objectContaining({
-                    roomPath,
-                    index: message.index + 1,
-                    payload: expect.objectContaining({
-                        type: "Content",
+                    message: expect.objectContaining({
+                        index: message.index + 1,
+                        payload: expect.objectContaining({
+                            type: "Content",
+                        }),
                     }),
                 }),
             );
 
             expect(
-                printApiContentToMarkdown(response.body.payload.content, {spaceId: space.id}),
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
             ).toEqual("Hello, world!\n");
         });
     });

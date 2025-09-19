@@ -69,11 +69,22 @@ function normalizeNode(node: Node): Node {
 }
 
 function testIntoApiContent(node: Node, content: ApiContent) {
-    expect(fromApiContent(node.type.schema, intoApiContent(node)).toJSON()).toEqual(
-        normalizeNode(node).toJSON(),
-    );
+    expect(
+        fromApiContent(
+            node.type.schema,
+            intoApiContent(node, {
+                getAccountMentionTitleIfExists: () => undefined,
+                getSearchEntityMentionTitleIfExists: () => undefined,
+            }),
+        ).toJSON(),
+    ).toEqual(normalizeNode(node).toJSON());
 
-    expect(intoApiContent(node)).toEqual(content);
+    expect(
+        intoApiContent(node, {
+            getAccountMentionTitleIfExists: () => undefined,
+            getSearchEntityMentionTitleIfExists: () => undefined,
+        }),
+    ).toEqual(content);
 }
 test("converts empty paragraph into API content", () => {
     testIntoApiContent(doc(paragraph()), {
@@ -1909,9 +1920,12 @@ test("code mark is not allowed in code blocks", () => {
         ),
     );
 
-    expect(() => intoApiContent(node)).toThrow(
-        "`Code` mark isn’t supported in `Code` block element",
-    );
+    expect(() =>
+        intoApiContent(node, {
+            getAccountMentionTitleIfExists: () => undefined,
+            getSearchEntityMentionTitleIfExists: () => undefined,
+        }),
+    ).toThrow("`Code` mark isn’t supported in `Code` block element");
 });
 
 test("converts code block with multiple marks on same text", () => {

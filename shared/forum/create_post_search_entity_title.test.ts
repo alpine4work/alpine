@@ -1,5 +1,5 @@
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {truncateContentMentionText} from "~/shared/content/render_content_mention_to_text.js";
+import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {
     assertPostContent,

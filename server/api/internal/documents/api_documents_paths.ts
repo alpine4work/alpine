@@ -1,6 +1,6 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
-import {intoApiMessagePayload} from "~/server/api/internal/shared/into_api_message_payload.js";
+import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
 import {
     createDocumentComment,
     getDocumentCommentPayload,
@@ -16,7 +16,7 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
     "/documents/{id}/threads/{threadId}/messages/{index}": {
         get: async (context, {pathParams}) => {
-            const message = await getDocumentCommentPayload(context, {
+            const {spaceId, createdTime, payload} = await getDocumentCommentPayload(context, {
                 documentId: pathParams.id,
                 commentThreadId: pathParams.threadId,
                 commentIndex: pathParams.index,
@@ -25,10 +25,16 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
 
             return {
                 content: {
-                    roomPath: `/documents/${pathParams.id}/threads/${pathParams.threadId}`,
-                    index: pathParams.index,
-                    createdTime: serializeDateString(message.createdTime),
-                    payload: intoApiMessagePayload(message.payload),
+                    spaceId,
+                    message: {
+                        index: pathParams.index,
+                        createdTime: serializeDateString(createdTime),
+                        payload: await intoApiMessagePayloadWithReferences(
+                            context,
+                            spaceId,
+                            payload,
+                        ),
+                    },
                 },
             };
         },
@@ -40,7 +46,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
-            const {index, createdTime} = await createDocumentComment(context, {
+            const {spaceId, index, createdTime} = await createDocumentComment(context, {
                 documentId: pathParams.id,
                 commentThreadId: pathParams.threadId,
                 parentCommentIndex: null,
@@ -90,10 +96,16 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
 
             return {
                 content: {
-                    roomPath: `/documents/${pathParams.id}/threads/${pathParams.threadId}`,
-                    index,
-                    createdTime: serializeDateString(createdTime),
-                    payload: intoApiMessagePayload(payload),
+                    spaceId,
+                    message: {
+                        index,
+                        createdTime: serializeDateString(createdTime),
+                        payload: await intoApiMessagePayloadWithReferences(
+                            context,
+                            spaceId,
+                            payload,
+                        ),
+                    },
                 },
             };
         },

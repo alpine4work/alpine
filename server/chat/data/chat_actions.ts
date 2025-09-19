@@ -1569,11 +1569,12 @@ export async function getChatMessagePayload(
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
+    spaceId: SpaceId;
     createdTime: Date;
     authorId: AccountId;
     payload: MessagePayload;
 }> {
-    const [, item] = await runAllPromises([
+    const [{spaceId}, item] = await runAllPromises([
         authorizeChatAccess(context, chatId, {consistency}),
         ChatTable.getItemIfExists(
             context,
@@ -1590,6 +1591,7 @@ export async function getChatMessagePayload(
     if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
     return {
+        spaceId,
         createdTime: item.createdTime,
         authorId: item.authorId,
         payload: item.payload,

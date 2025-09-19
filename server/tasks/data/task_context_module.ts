@@ -1,7 +1,7 @@
 import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
+    ServerAccountActionContextModules,
     ServerActionContextModules,
-    ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
@@ -185,11 +185,11 @@ export class TaskContextModule extends TaskContextModuleBase {
         input: TaskRealtimeLoadQueriesInput,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         const [host, token] = await runAllPromises([
-            this._context.actor.type === "Session"
-                ? this.router.getStickySessionHost(
+            this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
+                ? this.router.getStickyAccountHost(
                       this._context,
                       spaceId,
-                      this._context.actor.getSessionId(),
+                      this._context.actor.getPossiblyBotAccountId(),
                   )
                 : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
                   // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
@@ -228,21 +228,20 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<Result<TaskModel> | null> {
         const [host, token] = await runAllPromises([
-            this.router.getStickySessionHost(
+            this.router.getStickyAccountHost(
                 this._context,
                 spaceId,
-                this._context.actor.getSessionId(),
+                this._context.actor.getPossiblyBotAccountId(),
             ),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
-                type: "Session",
-                sessionId: this._context.actor.getSessionId(),
-                accountId: this._context.actor.getAccountId(),
-            }),
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                "TaskRealtimeService",
+                this._context.actor.getTokenPayload(),
+            ),
         ]);
 
         const {taskResult} = await fetchWithTracer(
@@ -270,7 +269,7 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getTaskWithoutDependencies(
-        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<TaskModel> {
@@ -281,21 +280,20 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getCollectionIfPossible(
-        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<Result<TaskCollectionModel> | null> {
         const [host, token] = await runAllPromises([
-            this.router.getStickySessionHost(
+            this.router.getStickyAccountHost(
                 this._context,
                 spaceId,
-                this._context.actor.getSessionId(),
+                this._context.actor.getPossiblyBotAccountId(),
             ),
-            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
-                type: "Session",
-                sessionId: this._context.actor.getSessionId(),
-                accountId: this._context.actor.getAccountId(),
-            }),
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                "TaskRealtimeService",
+                this._context.actor.getTokenPayload(),
+            ),
         ]);
 
         const {collectionResult} = await fetchWithTracer(
@@ -323,7 +321,7 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getCollection(
-        this: TaskContextModule & ContextModuleBase<ServerSessionActionContextModules>,
+        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionModel> {

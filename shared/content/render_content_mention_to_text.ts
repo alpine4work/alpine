@@ -2,8 +2,8 @@ import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_with
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
@@ -85,37 +85,4 @@ export function renderContentMentionToText(
         default:
             throw exhaustive(mention);
     }
-}
-
-export function truncateContentMentionText(string: string) {
-    string = string.trim();
-
-    let length = 0;
-    let graphemeCount = 0;
-    let isTruncated = false;
-
-    const softMaxGraphemeCount = 130;
-
-    // According to Claude, 99% of English words are 14 characters or shorter. So
-    // we should safely be able to include an English word before we truncate.
-    const hardMaxGraphemeCount = softMaxGraphemeCount + 14;
-
-    for (const grapheme of iterateGraphemes(string)) {
-        // Truncate after the hard break max grapheme count.
-        if (graphemeCount >= hardMaxGraphemeCount) {
-            isTruncated = true;
-            break;
-        }
-
-        // Break at the first whitespace we see after the soft max grapheme count.
-        if (graphemeCount >= softMaxGraphemeCount && /^\p{White_Space}+$/u.test(grapheme)) {
-            isTruncated = true;
-            break;
-        }
-
-        length += grapheme.length;
-        graphemeCount++;
-    }
-
-    return string.slice(0, length) + (isTruncated ? " […]" : "");
 }

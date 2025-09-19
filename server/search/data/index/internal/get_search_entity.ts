@@ -1,6 +1,9 @@
 import {Node} from "prosemirror-model";
 import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_actions.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
 import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
@@ -29,7 +32,6 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
-import {SearchSystemActionContext} from "~/server/search/data/index/search_action_context.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionFromIndex,
@@ -193,10 +195,10 @@ interface TaskCollectionModelForAuthorization {
  * we might get the chat message's data from before your update.
  */
 class SearchEntityReadState {
-    private readonly _context: SearchSystemActionContext;
+    private readonly _context: ServerSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
     public readonly registerAdditionalWrite: (
-        action: (context: SearchSystemActionContext) => Promise<void>,
+        action: (context: ServerSystemActionContext) => Promise<void>,
     ) => void;
     private readonly _targetId: SearchDynamicEntityId;
 
@@ -215,7 +217,7 @@ class SearchEntityReadState {
     >();
 
     constructor(
-        context: SearchSystemActionContext,
+        context: ServerSystemActionContext,
         targetId: SearchDynamicEntityId,
         {
             tokenizer,
@@ -223,7 +225,7 @@ class SearchEntityReadState {
         }: {
             tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
             registerAdditionalWrite: (
-                action: (context: SearchSystemActionContext) => Promise<void>,
+                action: (context: ServerSystemActionContext) => Promise<void>,
             ) => void;
         },
     ) {
@@ -977,12 +979,12 @@ async function getSearchMentionEntityIfExists(
  * index.
  */
 export async function getSearchEntity(
-    context: SearchSystemActionContext,
+    context: ServerSystemActionContext,
     idObject: SearchDynamicEntityIdObject,
     options: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         registerAdditionalWrite: (
-            action: (context: SearchSystemActionContext) => Promise<void>,
+            action: (context: ServerSystemActionContext) => Promise<void>,
         ) => void;
     },
 ): Promise<{

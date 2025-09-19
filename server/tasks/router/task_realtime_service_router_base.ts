@@ -7,7 +7,7 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {decodeId} from "~/shared/id/id.js";
-import {SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -165,13 +165,13 @@ export abstract class TaskRealtimeServiceRouterBase {
     }
 
     /**
-     * If our session wants to connect to `TaskRealtimeService` then we
+     * If an account wants to connect to `TaskRealtimeService` then we
      * consistently pick a single, healthy, host.
      */
-    public async getStickySessionHost(
+    public async getStickyAccountHost(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         spaceId: SpaceId,
-        sessionId: SessionId,
+        accountId: AccountId,
     ): Promise<string> {
         const allHosts = await this.getHosts(context, spaceId);
 
@@ -194,7 +194,7 @@ export abstract class TaskRealtimeServiceRouterBase {
         // list doesn't change.
         healthyHosts.sort();
 
-        const hostIndex = this._stableRandom.randomInteger(sessionId, 0, healthyHosts.length);
+        const hostIndex = this._stableRandom.randomInteger(accountId, 0, healthyHosts.length);
 
         return healthyHosts[hostIndex]!;
     }

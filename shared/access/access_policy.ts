@@ -221,20 +221,35 @@ export const AccessPolicySchema = Schema.object({
     urlGrant: AccessPolicyUrlGrantSchema.nullable().default(null),
 });
 
+export const AccessPolicyRegister = createCrdtRegister(AccessPolicySchema);
+
 /**
  * `AccessPolicy` but without the `generation` property for grants with a
  * `Manage` access level.
  */
 export type AccessPolicyWithoutGenerations = {
-    readonly accountGrantById: ReadonlyMap<
-        AccountId,
-        DistributiveOmit<AccessPolicyAccountGrant, "generation">
-    >;
-    readonly defaultGrant: DistributiveOmit<AccessPolicyDefaultGrant, "generation"> | null;
+    readonly accountGrantById: ReadonlyMap<AccountId, AccessPolicyAccountGrantWithoutGeneration>;
+    readonly defaultGrant: AccessPolicyDefaultGrantWithoutGeneration | null;
     readonly urlGrant: AccessPolicyUrlGrant | null;
 };
 
-export const AccessPolicyRegister = createCrdtRegister(AccessPolicySchema);
+/**
+ * `AccessPolicyAccountGrant` but without the `generation` property for grants
+ * with a `Manage` access level.
+ */
+export type AccessPolicyAccountGrantWithoutGeneration = DistributiveOmit<
+    AccessPolicyAccountGrant,
+    "generation"
+>;
+
+/**
+ * `AccessPolicyDefaultGrant` but without the `generation` property for grants
+ * with a `Manage` access level.
+ */
+export type AccessPolicyDefaultGrantWithoutGeneration = DistributiveOmit<
+    AccessPolicyDefaultGrant,
+    "generation"
+>;
 
 /**
  * Get the access level of the provided `AccountId` assuming the `AccountId`

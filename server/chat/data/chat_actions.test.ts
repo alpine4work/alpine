@@ -3685,6 +3685,7 @@ test("will send share notification messages separately to each account", async (
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3700,6 +3701,7 @@ test("will send share notification messages separately to each account", async (
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3760,6 +3762,7 @@ test("will send share notification messages separately to each account", async (
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3775,6 +3778,7 @@ test("will send share notification messages separately to each account", async (
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3798,6 +3802,7 @@ test("will send share notification messages separately to each account", async (
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3813,6 +3818,7 @@ test("will send share notification messages separately to each account", async (
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3951,6 +3957,7 @@ test("processing send share notification message job is idempotent", async () =>
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -3966,6 +3973,7 @@ test("processing send share notification message job is idempotent", async () =>
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -4024,6 +4032,7 @@ test("processing send share notification message job is idempotent", async () =>
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {
@@ -4039,6 +4048,7 @@ test("processing send share notification message job is idempotent", async () =>
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
     ).resolves.toEqual({
+        spaceId: space.id,
         authorId: session1.account.id,
         createdTime: expect.any(Date),
         payload: {

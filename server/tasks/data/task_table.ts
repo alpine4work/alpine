@@ -5114,11 +5114,12 @@ export async function getTaskCommentPayload(
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
+    spaceId: SpaceId;
     createdTime: Date;
     authorId: AccountId;
     payload: MessagePayload;
 }> {
-    const [, item] = await runAllPromises([
+    const [{spaceId}, item] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
         TaskTable.getItemIfExists(
             context,
@@ -5135,6 +5136,7 @@ export async function getTaskCommentPayload(
     if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
 
     return {
+        spaceId,
         createdTime: item.createdTime,
         authorId: item.authorId,
         payload: item.payload,

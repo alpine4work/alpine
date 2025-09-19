@@ -1064,7 +1064,12 @@ export async function getChannelPreviewIfPossible(
     );
     if (!channelItem) return null;
 
-    const result = await authorizeChannelItemAccessIfPossible(context, channelItem, "View");
+    const result = await authorizeChannelItemAccessIfPossible(
+        context,
+        channelItem,
+        "View",
+        options,
+    );
     if (!result.ok) return result;
 
     return {
@@ -3180,13 +3185,14 @@ export async function getPostCommentPayload(
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
+    spaceId: SpaceId;
     createdTime: Date;
     authorId: AccountId;
     payload: MessagePayload;
     channelId: ChannelId;
     channelAccessPolicy: AccessPolicy;
 }> {
-    const [{channelId, channelAccessPolicy}, item] = await runAllPromises([
+    const [{spaceId, channelId, channelAccessPolicy}, item] = await runAllPromises([
         authorizePostAccess(context, postId, "View", {consistency}),
         ForumTable.getItemIfExists(
             context,
@@ -3203,6 +3209,7 @@ export async function getPostCommentPayload(
     if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
     return {
+        spaceId,
         createdTime: item.createdTime,
         authorId: item.authorId,
         payload: item.payload,

@@ -40,7 +40,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /chats/{id}/messages:
         parameters:
@@ -66,7 +73,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
@@ -91,7 +105,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /documents/{id}/threads/{threadId}/messages:
         parameters:
@@ -121,7 +142,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -142,7 +170,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /posts/{id}/messages:
         parameters:
@@ -168,7 +203,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -189,7 +231,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
     /tasks/{id}/messages:
         parameters:
@@ -215,7 +264,14 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: "#/components/schemas/Message"
+                                type: object
+                                required: [spaceId, message]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    message:
+                                        $ref: "#/components/schemas/Message"
 
 webhooks:
     bot:
@@ -639,9 +695,9 @@ components:
                     const: Mention
                 targetPath:
                     $ref: "#/components/schemas/ContentMentionInlineElementTargetPath"
-                # TODO(calebmer, #public-api): Document when this is undefined vs set. It
-                # requires data loading so maybe we require an option like
-                # `with=content-mention-titles`.
+                # TODO(calebmer, #public-api): Document that `title` is loaded using the search
+                # index so may be stale by up to 90s! (60s for slow document reindexing + 10s
+                # for OpenSearch refresh interval. Say 90s to give us enough buffer.)
                 title:
                     type: string
                     minLength: 1
@@ -746,11 +802,9 @@ components:
 
         Message:
             type: object
-            required: [roomPath, index, createdTime, payload]
+            required: [index, createdTime, payload]
             additionalProperties: false
             properties:
-                roomPath:
-                    $ref: "#/components/schemas/MessageRoomPath"
                 index:
                     type: integer
                     minimum: 0

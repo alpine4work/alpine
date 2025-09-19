@@ -470,7 +470,7 @@ export async function getDocumentPreviewIfPossible(
     const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
     if (!item) return null;
 
-    const result = await authorizeDocumentItemAccessIfPossible(context, item, "View");
+    const result = await authorizeDocumentItemAccessIfPossible(context, item, "View", options);
     if (!result.ok) return result;
 
     return {
@@ -4616,12 +4616,13 @@ export async function getDocumentCommentPayload(
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
+    spaceId: SpaceId;
     createdTime: Date;
     authorId: AccountId;
     payload: MessagePayload;
     documentAccessPolicy: AccessPolicy;
 }> {
-    const {commentItem, documentAccessPolicy} = await getDocumentCommentItem(context, {
+    const {spaceId, commentItem, documentAccessPolicy} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
         commentIndex,
@@ -4629,6 +4630,7 @@ export async function getDocumentCommentPayload(
     });
 
     return {
+        spaceId,
         createdTime: commentItem.createdTime,
         authorId: commentItem.authorId,
         payload: commentItem.payload,

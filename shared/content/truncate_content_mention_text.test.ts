@@ -1,4 +1,4 @@
-import {truncateContentMentionText} from "~/shared/content/render_content_mention_to_text.js";
+import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
 
 test("`truncateContentMentionText` handles empty string", () => {
     expect(truncateContentMentionText("")).toEqual("");

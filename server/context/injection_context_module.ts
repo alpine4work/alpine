@@ -23,6 +23,7 @@
  */
 
 import {
+    ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
@@ -205,7 +206,7 @@ export const SearchInjectionContextModule = createInjectionContextModule<SearchI
 
 export type SearchInjection = {
     getSearchMentionEntityIfPossible(
-        context: ServerSessionActionContext,
+        context: ServerAccountActionContext,
         spaceId: SpaceId,
         entityId: SearchMentionEntityId,
     ): Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null>;

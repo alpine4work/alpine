@@ -3,7 +3,7 @@ import {
     ApiPaths,
 } from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
-import {intoApiMessagePayload} from "~/server/api/internal/shared/into_api_message_payload.js";
+import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
 import {getChatMessagePayload, sendChatMessage} from "~/server/chat/data/chat_actions.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
@@ -16,7 +16,7 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
     "/chats/{id}/messages/{index}": {
         get: async (context, {pathParams, searchParams}) => {
-            const message = await getChatMessagePayload(context, {
+            const {spaceId, createdTime, payload} = await getChatMessagePayload(context, {
                 chatId: pathParams.id,
                 messageIndex: pathParams.index,
                 consistency: "StrongWithinCache",
@@ -24,10 +24,16 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             const content: ApiOperation200JsonResponseType<"/chats/{id}/messages/{index}", "get"> =
                 {
-                    roomPath: `/chats/${pathParams.id}`,
-                    index: pathParams.index,
-                    createdTime: serializeDateString(message.createdTime),
-                    payload: intoApiMessagePayload(message.payload),
+                    spaceId,
+                    message: {
+                        index: pathParams.index,
+                        createdTime: serializeDateString(createdTime),
+                        payload: await intoApiMessagePayloadWithReferences(
+                            context,
+                            spaceId,
+                            payload,
+                        ),
+                    },
                 };
 
             // We want to test that response schemas are validated in a Jest unit test. So
@@ -48,7 +54,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
-            const {index, createdTime} = await sendChatMessage(context, {
+            const {spaceId, index, createdTime} = await sendChatMessage(context, {
                 chatId: pathParams.id,
                 parentMessageIndex: null,
                 content,
@@ -97,10 +103,16 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             return {
                 content: {
-                    roomPath: `/chats/${pathParams.id}`,
-                    index,
-                    createdTime: serializeDateString(createdTime),
-                    payload: intoApiMessagePayload(payload),
+                    spaceId,
+                    message: {
+                        index,
+                        createdTime: serializeDateString(createdTime),
+                        payload: await intoApiMessagePayloadWithReferences(
+                            context,
+                            spaceId,
+                            payload,
+                        ),
+                    },
                 },
             };
         },

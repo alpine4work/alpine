@@ -1,6 +1,9 @@
 import {apiDocumentsPaths} from "~/server/api/internal/documents/api_documents_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-import {testMessagingApiImplementation} from "~/server/api/internal/test_helpers/test_messaging_api_implementation.js";
+import {
+    testMessagingApiImplementation,
+    testMessagingApiImplementationSearchInjection,
+} from "~/server/api/internal/test_helpers/test_messaging_api_implementation.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -9,6 +12,7 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 
 const context = createTestContext({
     documentsInjection,
+    searchInjection: testMessagingApiImplementationSearchInjection,
 });
 
 const server = createTestApiServer(context, apiDocumentsPaths);

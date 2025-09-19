@@ -22,14 +22,28 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {parseSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {
+    SearchMentionEntityId,
+    parseSearchMentionEntityId,
+} from "~/shared/search/search_entity_id.js";
+
+export type ApiContentMarkdownIntoOptions = {
+    readonly getAccountMentionTitleIfExists: (
+        accountId: AccountId,
+        options: {isShort: boolean},
+    ) => string | undefined;
+    readonly getSearchEntityMentionTitleIfExists: (
+        entityId: SearchMentionEntityId,
+    ) => string | undefined;
+};
 
 /**
  * Convert ProseMirror content into the format returned by the API.
  */
-export function intoApiContent(node: Node): ApiContent {
+export function intoApiContent(node: Node, options: ApiContentMarkdownIntoOptions): ApiContent {
     assert(node.type.name === "doc");
-    return {elements: Array.from(intoApiContentBlockElements(node.content.content))};
+    return {elements: Array.from(intoApiContentBlockElements(node.content.content, options))};
 }
 
 type ApiContentListBlockElementWorkingItem = {
@@ -39,6 +53,7 @@ type ApiContentListBlockElementWorkingItem = {
 
 function* intoApiContentBlockElements(
     nodes: ReadonlyArray<Node>,
+    options: ApiContentMarkdownIntoOptions,
 ): IterableIterator<ApiContentBlockElement> {
     let nodeIndex = 0;
     while (nodeIndex < nodes.length) {
@@ -79,11 +94,11 @@ function* intoApiContentBlockElements(
                     });
                 }
 
-                yield* intoApiContentListBlockElements(items);
+                yield* intoApiContentListBlockElements(items, options);
                 break;
             }
             default:
-                yield intoApiContentBlockElement(typeName, node);
+                yield intoApiContentBlockElement(typeName, node, options);
                 break;
         }
     }
@@ -91,6 +106,7 @@ function* intoApiContentBlockElements(
 
 function* intoApiContentListBlockElements(
     items: Array<ApiContentListBlockElementWorkingItem>,
+    options: ApiContentMarkdownIntoOptions,
 ): IterableIterator<ApiContentListBlockElement> {
     let lastElement:
         | {type: "UnorderedList"; items: Array<ApiContentListBlockElementItem>}
@@ -102,19 +118,22 @@ function* intoApiContentListBlockElements(
 
         const elements =
             item.node !== null
-                ? Array.from(intoApiContentBlockElements(item.node.content.content), element => {
-                      if (element.type !== "Paragraph") {
-                          throw new InternalError(
-                              quote`${element.type} block element isn’t supported in list block element item`,
-                          );
-                      }
-                      return element;
-                  })
+                ? Array.from(
+                      intoApiContentBlockElements(item.node.content.content, options),
+                      element => {
+                          if (element.type !== "Paragraph") {
+                              throw new InternalError(
+                                  quote`${element.type} block element isn’t supported in list block element item`,
+                              );
+                          }
+                          return element;
+                      },
+                  )
                 : [];
 
         const nestedListElements =
             item.items.length > 0
-                ? Array.from(intoApiContentListBlockElements(item.items))
+                ? Array.from(intoApiContentListBlockElements(item.items, options))
                 : undefined;
 
         switch (typeName) {
@@ -169,35 +188,39 @@ function* intoApiContentListBlockElements(
 function intoApiContentBlockElement(
     typeName: Exclude<ContentBlockNodeTypeName, "unorderedListItem" | "orderedListItem">,
     node: Node,
+    options: ApiContentMarkdownIntoOptions,
 ): ApiContentBlockElement {
     switch (typeName) {
         case "paragraph": {
             return {
                 type: "Paragraph",
-                elements: intoApiContentInlineElements(node.content.content),
+                elements: intoApiContentInlineElements(node.content.content, options),
             };
         }
         case "quoteBlock": {
             return {
                 type: "Quote",
-                elements: Array.from(intoApiContentBlockElements(node.content.content), element => {
-                    switch (element.type) {
-                        case "Paragraph":
-                        case "UnorderedList":
-                        case "OrderedList": {
-                            return element;
+                elements: Array.from(
+                    intoApiContentBlockElements(node.content.content, options),
+                    element => {
+                        switch (element.type) {
+                            case "Paragraph":
+                            case "UnorderedList":
+                            case "OrderedList": {
+                                return element;
+                            }
+                            case "Quote":
+                            case "Table":
+                            case "Code": {
+                                throw new InternalError(
+                                    quote`${element.type} block element isn’t supported in \`Quote\` block element`,
+                                );
+                            }
+                            default:
+                                throw exhaustive(element);
                         }
-                        case "Quote":
-                        case "Table":
-                        case "Code": {
-                            throw new InternalError(
-                                quote`${element.type} block element isn’t supported in \`Quote\` block element`,
-                            );
-                        }
-                        default:
-                            throw exhaustive(element);
-                    }
-                }),
+                    },
+                ),
             };
         }
         case "table": {
@@ -215,7 +238,7 @@ function intoApiContentBlockElement(
 
                             return {
                                 elements: Array.from(
-                                    intoApiContentBlockElements(cellNode.content.content),
+                                    intoApiContentBlockElements(cellNode.content.content, options),
                                     element => {
                                         switch (element.type) {
                                             case "Paragraph":
@@ -299,11 +322,15 @@ function intoApiContentBlockElement(
 
 function intoApiContentInlineElements(
     nodes: ReadonlyArray<Node>,
+    options: ApiContentMarkdownIntoOptions,
 ): ReadonlyArray<ApiContentInlineElement> {
-    return nodes.map(intoApiContentInlineElement);
+    return nodes.map(node => intoApiContentInlineElement(node, options));
 }
 
-function intoApiContentInlineElement(node: Node): ApiContentInlineElement {
+function intoApiContentInlineElement(
+    node: Node,
+    options: ApiContentMarkdownIntoOptions,
+): ApiContentInlineElement {
     const typeName = node.type.name as ContentInlineNodeTypeName;
 
     switch (typeName) {
@@ -333,6 +360,7 @@ function intoApiContentInlineElement(node: Node): ApiContentInlineElement {
                 return {
                     type: "Mention",
                     targetPath: `/accounts/${mention.accountId}`,
+                    title: options.getAccountMentionTitleIfExists(mention.accountId, mention),
                     isAccountShortName: mention.isShort,
                     marks:
                         node.marks.length > 0
@@ -366,6 +394,7 @@ function intoApiContentInlineElement(node: Node): ApiContentInlineElement {
                 return {
                     type: "Mention",
                     targetPath,
+                    title: options.getSearchEntityMentionTitleIfExists(mention.entityId),
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)

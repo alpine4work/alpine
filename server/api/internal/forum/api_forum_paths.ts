@@ -1,6 +1,6 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
-import {intoApiMessagePayload} from "~/server/api/internal/shared/into_api_message_payload.js";
+import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
 import {createPostComment, getPostCommentPayload} from "~/server/forum/data/forum_actions.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
@@ -13,7 +13,7 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> = {
     "/posts/{id}/messages/{index}": {
         get: async (context, {pathParams}) => {
-            const message = await getPostCommentPayload(context, {
+            const {spaceId, createdTime, payload} = await getPostCommentPayload(context, {
                 postId: pathParams.id,
                 commentIndex: pathParams.index,
                 consistency: "StrongWithinCache",
@@ -21,10 +21,16 @@ export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> 
 
             return {
                 content: {
-                    roomPath: `/posts/${pathParams.id}`,
-                    index: pathParams.index,
-                    createdTime: serializeDateString(message.createdTime),
-                    payload: intoApiMessagePayload(message.payload),
+                    spaceId,
+                    message: {
+                        index: pathParams.index,
+                        createdTime: serializeDateString(createdTime),
+                        payload: await intoApiMessagePayloadWithReferences(
+                            context,
+                            spaceId,
+                            payload,
+                        ),
+                    },
                 },
             };
         },
@@ -36,7 +42,7 @@ export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> 
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
-            const {index, createdTime} = await createPostComment(context, {
+            const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParams.id,
                 parentCommentIndex: null,
                 content,
@@ -85,10 +91,16 @@ export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> 
 
             return {
                 content: {
-                    roomPath: `/posts/${pathParams.id}`,
-                    index,
-                    createdTime: serializeDateString(createdTime),
-                    payload: intoApiMessagePayload(payload),
+                    spaceId,
+                    message: {
+                        index,
+                        createdTime: serializeDateString(createdTime),
+                        payload: await intoApiMessagePayloadWithReferences(
+                            context,
+                            spaceId,
+                            payload,
+                        ),
+                    },
                 },
             };
         },

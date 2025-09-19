@@ -515,9 +515,10 @@ test("can read message in chat with unscoped API key", async () => {
 
     expect(response.body).toEqual(
         expect.objectContaining({
-            roomPath: `/chats/${chat.id}`,
-            index: 0,
-            payload: expect.objectContaining({type: "Content"}),
+            message: expect.objectContaining({
+                index: 0,
+                payload: expect.objectContaining({type: "Content"}),
+            }),
         }),
     );
 });
@@ -541,9 +542,10 @@ test("can read message in chat", async () => {
 
     expect(response.body).toEqual(
         expect.objectContaining({
-            roomPath: `/chats/${chat.id}`,
-            index: 0,
-            payload: expect.objectContaining({type: "Content"}),
+            message: expect.objectContaining({
+                index: 0,
+                payload: expect.objectContaining({type: "Content"}),
+            }),
         }),
     );
 });
@@ -668,7 +670,7 @@ test("responds with pretty HTML if asked", async () => {
 
     expect(response.text).toContain(`\
 <span class="tok-punctuation">{</span>
-  <span class="tok-propertyName">&quot;roomPath&quot;</span>: <span class="tok-string">&quot;/chats/${chat.id}&quot;</span>`);
+  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`);
 
     /* eslint-enable string-quotes */
 });
@@ -695,7 +697,7 @@ test("responds with pretty HTML if asked using authorization cookie", async () =
 
     expect(response.text).toContain(`\
 <span class="tok-punctuation">{</span>
-  <span class="tok-propertyName">&quot;roomPath&quot;</span>: <span class="tok-string">&quot;/chats/${chat.id}&quot;</span>`);
+  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`);
 
     /* eslint-enable string-quotes */
 });

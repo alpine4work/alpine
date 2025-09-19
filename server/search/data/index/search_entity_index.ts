@@ -1,13 +1,19 @@
 import murmurhash from "murmurhash";
 import {Node} from "prosemirror-model";
+import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {
     getContentReferencesForServerPrintSingleLineTextSnippet,
     printContentSingleLineTextSnippetForServer,
 } from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
+    ServerSessionActionContextModules,
+    ServerSystemActionContext,
+    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {
@@ -63,13 +69,6 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {
-    SearchActionContextModules,
-    SearchSessionActionContext,
-    SearchSessionActionContextModules,
-    SearchSystemActionContext,
-    SearchSystemActionContextModules,
-} from "~/server/search/data/index/search_action_context.js";
-import {
     getPossiblyStaleChannelSearchAffinityEntityIds,
     getPossiblyStaleTaskCollectionSearchAffinityEntityIds,
     internalDangerouslyGetSpaceChannelSearchAffinityEntities,
@@ -94,7 +93,11 @@ import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,
 } from "~/server/tasks/data/task_table.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    AccessPolicy,
+    AccessPolicyAccountGrantWithoutGeneration,
+    AccessPolicyDefaultGrantWithoutGeneration,
+} from "~/shared/access/access_policy.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -481,7 +484,7 @@ export const processIndexSearchEntityDependentsJobTestCounter =
  * [1]: https://cohere.com
  */
 export async function processIndexSearchEntityJob(
-    context: SearchSystemActionContext,
+    context: ServerSystemActionContext,
     job: IndexSearchEntityJobDescription,
     jobStartTime: Date,
     span: Pick<TracerSpan, "addData">,
@@ -579,7 +582,7 @@ export async function processIndexSearchEntityJob(
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
         const readStartTime = new Date();
-        const additionalWriteActions: Array<(context: SearchSystemActionContext) => Promise<void>> =
+        const additionalWriteActions: Array<(context: ServerSystemActionContext) => Promise<void>> =
             [];
 
         const {dependencyIds, entity} = await getSearchEntity(context, job.update, {
@@ -758,7 +761,7 @@ export async function processIndexSearchEntityJob(
  * `processIndexSearchEntityJob()` sends a `IndexSearchEntityDependents` job.
  */
 export async function processIndexSearchEntityDependentsJob(
-    context: SearchSystemActionContext,
+    context: ServerSystemActionContext,
     job: IndexSearchEntityDependentsJobDescription,
 ) {
     const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
@@ -860,7 +863,7 @@ export async function processIndexSearchEntityDependentsJob(
  */
 export async function processIndexSearchEntityEmbeddingChunksJob(
     context: Context<
-        SearchSystemActionContextModules & {
+        ServerSystemActionContextModules & {
             /**
              * A language model is optional in unit tests. But must be provided in
              * production and local developer environments.
@@ -1117,7 +1120,7 @@ function assertSearchQueryTextLength(queryText: string) {
  * type-ahead functionality.
  */
 export async function searchByKeywords(
-    context: SearchSessionActionContext,
+    context: ServerSessionActionContext,
     {
         spaceId,
         queryText,
@@ -1781,7 +1784,7 @@ function enrichOpensearchSearchHitExplanation(
 // attack risk.
 export async function searchBySemantics(
     context: Context<
-        SearchSessionActionContextModules & {
+        ServerSessionActionContextModules & {
             languageModel: LanguageModelContextModule;
         }
     >,
@@ -2135,7 +2138,7 @@ const SearchEntityCache = new ContextCache<
 });
 
 const SearchEntityBatcher = new ContextBatcher<
-    SearchActionContextModules,
+    ServerActionContextModules,
     {spaceId: SpaceId; entityId: SearchDynamicEntityId},
     SearchEntityIndexDoc | null
 >(
@@ -2178,7 +2181,7 @@ export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
  * DynamoDB for most things but we load tasks from `TaskRealtimeService`.
  */
 async function fallbackGetSearchEntityBaseIfPossible(
-    context: SearchSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen: ReadonlySet<SearchEntityId>,
@@ -2301,7 +2304,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
 }
 
 async function fallbackGetSearchContentReferences(
-    context: SearchSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     originEntityId: SearchEntityId,
     content: Node,
@@ -2368,7 +2371,7 @@ async function fallbackGetSearchContentReferences(
  * ready.
  */
 async function getSearchEntityBaseIfPossible(
-    context: SearchSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
     seen: ReadonlySet<SearchEntityId> = emptySet,
@@ -2422,11 +2425,63 @@ async function getSearchEntityBaseIfPossible(
         );
     }
 
-    const isAccessAuthorized =
-        doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
-        doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(context.actor.getAccountId());
+    switch (context.actor.type) {
+        // Optimization: For session actors don't construct a full access policy and
+        // run `evaluateAccessPolicy()`. We can simply check whether the account is in
+        // `accountGrantAccountIds` (or the entity is shared with the space).
+        case "Session":
+        case "ImpersonatedAccount": {
+            const isAccessAuthorized =
+                doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
+                doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
+                    context.actor.getAccountId(),
+                );
 
-    if (!isAccessAuthorized) return {isPrivate: true};
+            if (!isAccessAuthorized) return {isPrivate: true};
+
+            break;
+        }
+
+        // For bot actors, run `evaluateAccessPolicy()`. In order to view a search
+        // entity all accounts in the bot's scope must have view access to the entity.
+        case "Bot": {
+            const accessPolicy: {
+                accountGrantById: Map<AccountId, AccessPolicyAccountGrantWithoutGeneration>;
+                defaultGrant: AccessPolicyDefaultGrantWithoutGeneration | null;
+                urlGrant: null;
+            } = {
+                accountGrantById: new Map(),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+
+            if (doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space") {
+                accessPolicy.defaultGrant = {level: "View"};
+            }
+
+            if (doc.fields["accessPolicy.accountGrantAccountIds"]) {
+                for (const accountId of doc.fields["accessPolicy.accountGrantAccountIds"]) {
+                    accessPolicy.accountGrantById.set(accountId, {level: "View"});
+                }
+            }
+
+            const isAccessAuthorized = await evaluateAccessPolicy(
+                // Reading from OpenSearch is inherently eventually consistent. OpenSearch data
+                // can be stale by up to two minutes. Don't bother requiring DynamoDB reads to
+                // be strongly consistent here.
+                context.dynamo.unexpectStrongReadConsistency(),
+                spaceId,
+                accessPolicy,
+                "View",
+            );
+
+            if (!isAccessAuthorized) return {isPrivate: true};
+
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 
     const title = doc.fields.title?.[0] ?? null;
     const titleVersion = doc.fields.titleVersion?.[0] ?? null;
@@ -2452,7 +2507,7 @@ async function getSearchEntityBaseIfPossible(
  * `SearchEntityRegistry`.
  */
 export async function getSearchEntityIfPossible(
-    context: SearchSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
 ): Promise<
@@ -2491,7 +2546,7 @@ export async function getSearchEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchAffinityEntityIfPossible(
-    context: SearchSessionActionContext,
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
     entityId: SearchAffinityEntityId & SearchDynamicEntityId,
 ): Promise<
@@ -2530,7 +2585,7 @@ export async function getSearchAffinityEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchMentionEntityIfPossible(
-    context: SearchSessionActionContext,
+    context: ServerAccountActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen?: ReadonlySet<SearchEntityId>,
@@ -2566,7 +2621,7 @@ export async function getSearchMentionEntityIfPossible(
  * exist in `results` and vice versa.
  */
 export async function searchByAffinity(
-    context: SearchSessionActionContext,
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<{
     hasMoreFavoriteResults: boolean;
@@ -2739,7 +2794,7 @@ export async function searchByAffinity(
  * the title of entities and only returns a subset of "mentionable" entities.
  */
 export async function searchMentionByKeywords(
-    context: SearchSessionActionContext,
+    context: ServerSessionActionContext,
     {
         spaceId,
         queryText,
@@ -3289,7 +3344,7 @@ export async function searchTaskCollectionsByAffinity(
  * `OrderKey`.
  */
 export async function getAllSearchFavoriteEntities(
-    context: SearchSessionActionContext,
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
 ): Promise<ReadonlyArray<SearchFavoriteEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);

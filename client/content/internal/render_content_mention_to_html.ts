@@ -18,7 +18,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {truncateContentMentionText} from "~/shared/content/render_content_mention_to_text.js";
+import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, addRemLengths} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";

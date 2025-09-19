@@ -1,8 +1,11 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {captureAfterTestEndsCallbacks} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {
     TestSessionActionContext,
     createTestContext,
@@ -65,8 +68,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
@@ -80,17 +85,6 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
 
-beforeEach(() => {
-    import.meta.jest.useFakeTimers();
-});
-
-afterEach(() => {
-    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
-    import.meta.jest.clearAllTimers();
-    import.meta.jest.useRealTimers();
-    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
-});
-
 const schema = DocumentContentProsemirrorSchema;
 const {SearchEntityKeywordIndex, SearchEntityEmbeddingChunkIndex} = getSearchEntityIndexesForTest();
 
@@ -101,6 +95,7 @@ beforeAll(async () => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
+    documentsInjection,
     searchInjection,
     spacesInjection,
     tasksInjection,
@@ -129,6 +124,16 @@ const context = createTestContext({
             }
         }
     },
+});
+
+beforeAll(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
 test("can index and reindex a document", async () => {
@@ -5983,4 +5988,184 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
             ],
         },
     ]);
+});
+
+describe("`getSearchEntityIfPossible()`", () => {
+    describe("bot actor", () => {
+        let scenario: Awaited<ReturnType<typeof createScenario>>;
+        let runAfterTestEndsCallbacks: () => Promise<void>;
+
+        beforeAll(async () => {
+            runAfterTestEndsCallbacks = await captureAfterTestEndsCallbacks(async () => {
+                scenario = await createScenario();
+            });
+        });
+
+        afterAll(async () => {
+            await runAfterTestEndsCallbacks();
+        });
+
+        async function createScenario() {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession({role: "Admin"});
+            const [session2, session3, session4] = await space.createSessions(3);
+            const botAccount = await TestBot.createAndInstantiate(session1);
+
+            const document1 = await TestDocument.create(session1, {title: "Test 1"});
+            await document1.access.grant(session1, session2);
+
+            const document2 = await TestDocument.create(session1, {title: "Test 2"});
+            await document2.access.grant(session1, session3);
+
+            const document3 = await TestDocument.create(session1, {title: "Test 2"});
+            await document3.access.grant(session1, session2);
+            await document3.access.grant(session1, session3);
+
+            const document4 = await TestDocument.create(session1, {title: "Test 2"});
+            await document4.access.grantDefault(session1);
+
+            await runAllTimersAndWaitForTestTasks();
+
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            return {
+                space,
+                session1,
+                session2,
+                session3,
+                session4,
+                botAccount,
+                document1,
+                document2,
+                document3,
+                document4,
+            };
+        }
+
+        type ExpectedResult = boolean;
+        type DocumentName = keyof typeof scenario & `document${string}`;
+        type AccountName = keyof typeof scenario & `session${string}`;
+
+        const testCases: Record<
+            DocumentName,
+            {
+                space: ExpectedResult;
+                account: Record<AccountName, ExpectedResult>;
+                document: Record<DocumentName, ExpectedResult>;
+            }
+        > = {
+            document1: {
+                space: false,
+                account: {
+                    session1: true,
+                    session2: true,
+                    session3: false,
+                    session4: false,
+                },
+                document: {
+                    document1: true,
+                    document2: false,
+                    document3: false,
+                    document4: false,
+                },
+            },
+            document2: {
+                space: false,
+                account: {
+                    session1: true,
+                    session2: false,
+                    session3: true,
+                    session4: false,
+                },
+                document: {
+                    document1: false,
+                    document2: true,
+                    document3: false,
+                    document4: false,
+                },
+            },
+            document3: {
+                space: false,
+                account: {
+                    session1: true,
+                    session2: true,
+                    session3: true,
+                    session4: false,
+                },
+                document: {
+                    document1: true,
+                    document2: true,
+                    document3: true,
+                    document4: false,
+                },
+            },
+            document4: {
+                space: true,
+                account: {
+                    session1: true,
+                    session2: true,
+                    session3: true,
+                    session4: true,
+                },
+                document: {
+                    document1: true,
+                    document2: true,
+                    document3: true,
+                    document4: true,
+                },
+            },
+        };
+
+        for (const [documentName, testCases2] of getObjectEntriesWithKeyofType(testCases)) {
+            // eslint-disable-next-line jest/valid-title
+            test(quote`${documentName} loaded with space scope`, async () => {
+                expect(
+                    await getSearchEntityIfPossible(
+                        scenario.botAccount.action({type: "Space"}),
+                        scenario.space.id,
+                        `Document:${scenario[documentName].id}`,
+                    ).then(entity => entity?.isPrivate),
+                ).toEqual(!testCases2.space);
+            });
+
+            for (const [accountName, expectedResult] of getObjectEntriesWithKeyofType(
+                testCases2.account,
+            )) {
+                // eslint-disable-next-line jest/valid-title
+                test(quote`${documentName} loaded with ${accountName} account scope`, async () => {
+                    expect(
+                        await getSearchEntityIfPossible(
+                            scenario.botAccount.action({
+                                type: "Account",
+                                accountId: scenario[accountName].account.id,
+                            }),
+                            scenario.space.id,
+                            `Document:${scenario[documentName].id}`,
+                        ).then(entity => entity?.isPrivate),
+                    ).toEqual(!expectedResult);
+                });
+            }
+
+            for (const [otherDocumentName, expectedResult] of getObjectEntriesWithKeyofType(
+                testCases2.document,
+            )) {
+                test(
+                    // eslint-disable-next-line jest/valid-title
+                    quote`${documentName} loaded with ${otherDocumentName} document scope`,
+                    async () => {
+                        expect(
+                            await getSearchEntityIfPossible(
+                                scenario.botAccount.action({
+                                    type: "Document",
+                                    documentId: scenario[otherDocumentName].id,
+                                }),
+                                scenario.space.id,
+                                `Document:${scenario[documentName].id}`,
+                            ).then(entity => entity?.isPrivate),
+                        ).toEqual(!expectedResult);
+                    },
+                );
+            }
+        }
+    });
 });
