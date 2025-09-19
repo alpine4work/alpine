@@ -65,9 +65,9 @@ export class TestBot {
 
     public static async createAndInstantiate(
         session: TestSpaceSession,
-        {accountId}: {accountId?: AccountId} = {},
+        {accountId, name}: {accountId?: AccountId; name?: string} = {},
     ) {
-        const bot = await TestBot.create(session.context);
+        const bot = await TestBot.create(session.context, {name});
         return bot.instantiate(session, {id: accountId});
     }
 

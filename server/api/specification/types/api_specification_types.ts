@@ -709,6 +709,10 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentInlineElementCommentMark"];
             readonly Message: {
                 readonly index: number;
+                readonly author: {
+                    readonly id: components["schemas"]["AccountId"];
+                    readonly name: string;
+                };
                 /** Format: date-time */
                 readonly createdTime: DateString;
                 readonly payload: components["schemas"]["MessagePayload"];

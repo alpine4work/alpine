@@ -1,6 +1,6 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
-import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
+import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     createTaskComment,
     getTaskCommentPayload,
@@ -8,7 +8,6 @@ import {
     getTaskCommentPayloadsFromStart,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -19,7 +18,7 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 export const apiTasksPaths: Pick<ApiPaths, keyof ApiPaths & `/tasks/${string}`> = {
     "/tasks/{id}/messages/{index}": {
         get: async (context, {pathParameters}) => {
-            const {spaceId, createdTime, payload} = await getTaskCommentPayload(context, {
+            const {spaceId, authorId, createdTime, payload} = await getTaskCommentPayload(context, {
                 taskId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 consistency: "StrongWithinCache",
@@ -28,15 +27,13 @@ export const apiTasksPaths: Pick<ApiPaths, keyof ApiPaths & `/tasks/${string}`> 
             return {
                 content: {
                     spaceId,
-                    message: {
+                    message: await intoApiMessage(context, {
+                        spaceId,
                         index: pathParameters.index,
-                        createdTime: serializeDateString(createdTime),
-                        payload: await intoApiMessagePayloadWithReferences(
-                            context,
-                            spaceId,
-                            payload,
-                        ),
-                    },
+                        authorId,
+                        createdTime,
+                        payload,
+                    }),
                 },
             };
         },
@@ -89,15 +86,15 @@ export const apiTasksPaths: Pick<ApiPaths, keyof ApiPaths & `/tasks/${string}`> 
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(async message => ({
-                            index: message.index,
-                            createdTime: serializeDateString(message.createdTime),
-                            payload: await intoApiMessagePayloadWithReferences(
-                                context,
+                        comments.map(message =>
+                            intoApiMessage(context, {
                                 spaceId,
-                                message.payload,
-                            ),
-                        })),
+                                index: message.index,
+                                authorId: message.authorId,
+                                createdTime: message.createdTime,
+                                payload: message.payload,
+                            }),
+                        ),
                     ),
                 },
             };
@@ -157,15 +154,13 @@ export const apiTasksPaths: Pick<ApiPaths, keyof ApiPaths & `/tasks/${string}`> 
             return {
                 content: {
                     spaceId,
-                    message: {
+                    message: await intoApiMessage(context, {
+                        spaceId,
                         index,
-                        createdTime: serializeDateString(createdTime),
-                        payload: await intoApiMessagePayloadWithReferences(
-                            context,
-                            spaceId,
-                            payload,
-                        ),
-                    },
+                        authorId: context.actor.getBotAccountId(),
+                        createdTime,
+                        payload: payload,
+                    }),
                 },
             };
         },

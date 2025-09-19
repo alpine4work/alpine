@@ -1,6 +1,6 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
-import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
+import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     createDocumentComment,
     getDocumentCommentPayload,
@@ -8,7 +8,6 @@ import {
     getDocumentCommentPayloadsFromStart,
 } from "~/server/documents/data/documents_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -19,25 +18,26 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
     "/documents/{id}/threads/{threadId}/messages/{index}": {
         get: async (context, {pathParameters}) => {
-            const {spaceId, createdTime, payload} = await getDocumentCommentPayload(context, {
-                documentId: pathParameters.id,
-                commentThreadId: pathParameters.threadId,
-                commentIndex: pathParameters.index,
-                consistency: "StrongWithinCache",
-            });
+            const {spaceId, authorId, createdTime, payload} = await getDocumentCommentPayload(
+                context,
+                {
+                    documentId: pathParameters.id,
+                    commentThreadId: pathParameters.threadId,
+                    commentIndex: pathParameters.index,
+                    consistency: "StrongWithinCache",
+                },
+            );
 
             return {
                 content: {
                     spaceId,
-                    message: {
+                    message: await intoApiMessage(context, {
+                        spaceId,
                         index: pathParameters.index,
-                        createdTime: serializeDateString(createdTime),
-                        payload: await intoApiMessagePayloadWithReferences(
-                            context,
-                            spaceId,
-                            payload,
-                        ),
-                    },
+                        authorId,
+                        createdTime,
+                        payload,
+                    }),
                 },
             };
         },
@@ -92,15 +92,15 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(async message => ({
-                            index: message.index,
-                            createdTime: serializeDateString(message.createdTime),
-                            payload: await intoApiMessagePayloadWithReferences(
-                                context,
+                        comments.map(message =>
+                            intoApiMessage(context, {
                                 spaceId,
-                                message.payload,
-                            ),
-                        })),
+                                index: message.index,
+                                authorId: message.authorId,
+                                createdTime: message.createdTime,
+                                payload: message.payload,
+                            }),
+                        ),
                     ),
                 },
             };
@@ -161,15 +161,13 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             return {
                 content: {
                     spaceId,
-                    message: {
+                    message: await intoApiMessage(context, {
+                        spaceId,
                         index,
-                        createdTime: serializeDateString(createdTime),
-                        payload: await intoApiMessagePayloadWithReferences(
-                            context,
-                            spaceId,
-                            payload,
-                        ),
-                    },
+                        authorId: context.actor.getBotAccountId(),
+                        createdTime,
+                        payload: payload,
+                    }),
                 },
             };
         },

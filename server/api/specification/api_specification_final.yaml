@@ -854,12 +854,23 @@ components:
 
         Message:
             type: object
-            required: [index, createdTime, payload]
+            required: [index, author, createdTime, payload]
             additionalProperties: false
             properties:
                 index:
                     type: integer
                     minimum: 0
+                author:
+                    type: object
+                    required: [id, name]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                        name:
+                            type: string
+                            minLength: 1
+                            maxLength: 50
                 createdTime:
                     type: string
                     format: date-time

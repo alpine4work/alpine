@@ -87,6 +87,8 @@ export type ApiContentInlineElementHighlightMarkColor =
 export type ApiContentInlineElementCommentMark =
     ApiSpecification.components["schemas"]["ContentInlineElementCommentMark"];
 
+export type ApiMessage = ApiSpecification.components["schemas"]["Message"];
+
 export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
 
 export type ApiErrorResponseBody =

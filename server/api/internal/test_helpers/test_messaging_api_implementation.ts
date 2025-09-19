@@ -79,7 +79,7 @@ export function testMessagingApiImplementation(
     describe("Messaging implementation", () => {
         test("can read message", async () => {
             const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
+            const session = await space.createSession({name: "John Smith", role: "Admin"});
 
             const botAccount = await TestBot.createAndInstantiate(session);
             const apiKey = await botAccount.createApiKey(session);
@@ -102,6 +102,10 @@ export function testMessagingApiImplementation(
                 expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
+                        author: expect.objectContaining({
+                            id: session.account.id,
+                            name: "John Smith",
+                        }),
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
@@ -537,7 +541,9 @@ export function testMessagingApiImplementation(
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
-            const botAccount = await TestBot.createAndInstantiate(session);
+            const botAccount = await TestBot.createAndInstantiate(session, {
+                name: "Rosey the Robot",
+            });
             const apiKey = await botAccount.createApiKey(session);
 
             const {roomPath, room} = await createPrivateRoom(session, botAccount);
@@ -564,6 +570,10 @@ export function testMessagingApiImplementation(
                 expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index + 1,
+                        author: expect.objectContaining({
+                            id: botAccount.id,
+                            name: "Rosey the Robot",
+                        }),
                         payload: expect.objectContaining({
                             type: "Content",
                         }),
@@ -689,7 +699,7 @@ export function testMessagingApiImplementation(
 
         test("can read messages", async () => {
             const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
+            const session = await space.createSession({name: "Sarah Smith", role: "Admin"});
 
             const botAccount = await TestBot.createAndInstantiate(session);
             const apiKey = await botAccount.createApiKey(session);
@@ -713,6 +723,10 @@ export function testMessagingApiImplementation(
                     messages: [
                         expect.objectContaining({
                             index: message.index,
+                            author: expect.objectContaining({
+                                id: session.account.id,
+                                name: "Sarah Smith",
+                            }),
                             payload: expect.objectContaining({type: "Content"}),
                         }),
                     ],

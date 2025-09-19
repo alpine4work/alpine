@@ -909,12 +909,30 @@ components:
 
         Message:
             type: object
-            required: [index, createdTime, payload]
+            required: [index, author, createdTime, payload]
             additionalProperties: false
             properties:
                 index:
                     type: integer
                     minimum: 0
+                author:
+                    type: object
+                    required: [id, name]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/AccountId"
+                        # For any useful rendering of a message, you need the author's name.
+                        #
+                        # TODO(calebmer, #public-api): Document that we load `name` with eventual
+                        # consistency. We usually return the correct name since account names don't
+                        # change often. But we the account name may be stale in certain edge cases by
+                        # ~20s (15s is the `SpaceAccountsCache` invalidation timeout, though
+                        # `ApiService` likely won't be using `SpaceAccountsCache` much).
+                        name:
+                            type: string
+                            minLength: 1
+                            maxLength: 50
                 createdTime:
                     type: string
                     format: date-time
