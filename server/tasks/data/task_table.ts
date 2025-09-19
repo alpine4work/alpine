@@ -19,7 +19,10 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
+import {
+    ServerMinimalActionContext,
+    ServerMinimalBotActionContext,
+} from "~/server/context/server_minimal_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -4612,9 +4615,9 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
 
             return okResult;
         }
+
         case "Session":
         case "ImpersonatedAccount":
-        case "Bot":
         case "Anonymous": {
             if (
                 context.actor.type === "ImpersonatedAccount" &&
@@ -4712,6 +4715,73 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                 }),
             };
         }
+
+        // NOTE(calebmer): When authorizing whether a `Bot` has access to a task, we
+        // need to collect everyone who has access to the task together at once and
+        // compare that against the bot's scope.
+        //
+        // Unlike authorization for a `Session` actor where we take a more optimized
+        // approach looking through each piece of a task one-by-one and only loading
+        // the next referenced task/collection if we haven't authorized earlier.
+        case "Bot": {
+            // Optimization: Before we go and load the task's full access policy, see if we
+            // can authorize task access using just the information immediately available
+            // in the task. The task's creator and assignee.
+            //
+            // Useful if a user is in a personal chat and asking their bot to read their
+            // personal tasks.
+            const cheapAccessPolicy: AccessPolicyWithoutGenerations = {
+                accountGrantById: new Map([
+                    [taskItem.creatorId, {level: "Edit"}],
+                    ...(taskItem.assigneeId.value
+                        ? [[taskItem.assigneeId.value, {level: "Edit"}] as const]
+                        : []),
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+
+            if (
+                await evaluateAccessPolicy(
+                    context,
+                    taskItem.spaceId,
+                    cheapAccessPolicy,
+                    expectedAccessLevel,
+                    options,
+                )
+            ) {
+                return okResult;
+            }
+
+            const accessPolicy = await getTaskItemAccessPolicyWithoutAuthorization(
+                context,
+                taskItem,
+                options,
+            );
+
+            if (
+                await evaluateAccessPolicy(
+                    context,
+                    taskItem.spaceId,
+                    accessPolicy,
+                    expectedAccessLevel,
+                    options,
+                )
+            ) {
+                return okResult;
+            }
+
+            return {
+                ok: false,
+                error: await createAccessPolicyPermissionDeniedError(context, {
+                    spaceId: taskItem.spaceId,
+                    expectedAccessLevel,
+                    aggregateDedupeKey: taskItem.taskId,
+                    displayMessages: taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+                }),
+            };
+        }
+
         default:
             throw exhaustive(context.actor);
     }
@@ -4883,12 +4953,27 @@ export async function getTaskAccessPolicyForBotScope(
         throw new PermissionDeniedError("Can only get access policy for the scoped task");
     }
 
+    const taskItem = await getTaskItemForAuthorization(context, taskId, null, options);
+
+    const [, accessPolicy] = await runAllPromises([
+        authorizeSpaceAccess(context, taskItem.spaceId),
+        getTaskItemAccessPolicyWithoutAuthorization(context, taskItem, options),
+    ]);
+
+    return accessPolicy;
+}
+
+async function getTaskItemAccessPolicyWithoutAuthorization(
+    context: ServerMinimalActionContext,
+    rootTaskItem: TaskEssentialAttributesItemBase,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<AccessPolicyWithoutGenerations> {
     const accountGrantById = new Map<AccountId, {level: AccessLevel}>();
     let defaultGrant: {level: AccessLevel} | null = null;
     let urlGrant: {level: "View"} | null = null;
 
     const seenCollectionIds = new Set<TaskCollectionId>();
-    const seenTaskIds = new Set<TaskId>([taskId]);
+    const seenTaskIds = new Set<TaskId>([rootTaskItem.taskId]);
 
     function addAccountGrant(accountId: AccountId, accessLevel: AccessLevel) {
         let accountGrant = accountGrantById.get(accountId);
@@ -4974,12 +5059,7 @@ export async function getTaskAccessPolicyForBotScope(
         ]);
     };
 
-    const rootTaskItem = await getTaskItemForAuthorization(context, taskId, null, options);
-
-    await runAllPromises([
-        authorizeSpaceAccess(context, rootTaskItem.spaceId),
-        !rootTaskItem.deletedTime ? addTaskGrants(rootTaskItem) : null,
-    ]);
+    await addTaskGrants(rootTaskItem);
 
     return {
         accountGrantById,

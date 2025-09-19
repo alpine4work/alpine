@@ -22050,6 +22050,8 @@ describe("`authorizeTaskAccess()`", () => {
             privateDeletedTask,
             urlPublicTask,
             urlPublicDeletedTask,
+            personalTask,
+            personalDeletedTask,
         ] = await runAllPromises([
             TestTaskCollection.create(session1),
             TestTaskCollection.create(session1),
@@ -22057,6 +22059,8 @@ describe("`authorizeTaskAccess()`", () => {
             TestTaskCollection.create(session1),
             TestTaskCollection.create(session1),
             TestTaskCollection.create(session1),
+            TestTask.create(session1),
+            TestTask.create(session1),
             TestTask.create(session1),
             TestTask.create(session1),
             TestTask.create(session1),
@@ -22084,6 +22088,7 @@ describe("`authorizeTaskAccess()`", () => {
         await publicDeletedTask.delete(session1);
         await privateDeletedTask.delete(session1);
         await urlPublicDeletedTask.delete(session1);
+        await personalDeletedTask.delete(session1);
 
         return {
             space,
@@ -22106,6 +22111,8 @@ describe("`authorizeTaskAccess()`", () => {
             privateDeletedTask,
             urlPublicTask,
             urlPublicDeletedTask,
+            personalTask,
+            personalDeletedTask,
         };
     }
 
@@ -22119,7 +22126,9 @@ describe("`authorizeTaskAccess()`", () => {
         | "privateTask"
         | "privateDeletedTask"
         | "urlPublicTask"
-        | "urlPublicDeletedTask";
+        | "urlPublicDeletedTask"
+        | "personalTask"
+        | "personalDeletedTask";
 
     const testCases: Record<
         TaskName,
@@ -22188,6 +22197,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: null,
                             urlPublicTask: null,
                             urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22237,6 +22248,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: null,
                             urlPublicTask: null,
                             urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22286,6 +22299,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: null,
                             urlPublicTask: null,
                             urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22337,6 +22352,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: "Bot can’t access deleted tasks",
                             urlPublicTask: "Bot can’t access deleted tasks",
                             urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22389,6 +22406,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: "Bot can’t access deleted tasks",
                             urlPublicTask: "Bot can’t access deleted tasks",
                             urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22438,6 +22457,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: "Bot can’t access deleted tasks",
                             urlPublicTask: "Bot can’t access deleted tasks",
                             urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22486,9 +22507,11 @@ describe("`authorizeTaskAccess()`", () => {
                             publicTask: "Actor doesn’t have `View` access level",
                             publicDeletedTask: "Actor doesn’t have `View` access level",
                             privateTask: null,
-                            privateDeletedTask: "Actor doesn’t have `View` access level",
+                            privateDeletedTask: null,
                             urlPublicTask: null,
-                            urlPublicDeletedTask: "Actor doesn’t have `View` access level",
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22535,9 +22558,11 @@ describe("`authorizeTaskAccess()`", () => {
                             publicTask: "Actor doesn’t have `Comment` access level",
                             publicDeletedTask: "Actor doesn’t have `Comment` access level",
                             privateTask: null,
-                            privateDeletedTask: "Actor doesn’t have `Comment` access level",
+                            privateDeletedTask: null,
                             urlPublicTask: null,
-                            urlPublicDeletedTask: "Actor doesn’t have `Comment` access level",
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22586,7 +22611,9 @@ describe("`authorizeTaskAccess()`", () => {
                             privateTask: "Actor doesn’t have `Edit` access level",
                             privateDeletedTask: "Actor doesn’t have `Edit` access level",
                             urlPublicTask: null,
-                            urlPublicDeletedTask: "Actor doesn’t have `Edit` access level",
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22635,9 +22662,11 @@ describe("`authorizeTaskAccess()`", () => {
                             publicTask: "Actor doesn’t have `View` access level",
                             publicDeletedTask: "Actor doesn’t have `View` access level",
                             privateTask: "Bot can’t access deleted tasks",
-                            privateDeletedTask: "Actor doesn’t have `View` access level",
+                            privateDeletedTask: "Bot can’t access deleted tasks",
                             urlPublicTask: "Bot can’t access deleted tasks",
-                            urlPublicDeletedTask: "Actor doesn’t have `View` access level",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22686,9 +22715,11 @@ describe("`authorizeTaskAccess()`", () => {
                             publicTask: "Actor doesn’t have `Comment` access level",
                             publicDeletedTask: "Actor doesn’t have `Comment` access level",
                             privateTask: "Bot can’t access deleted tasks",
-                            privateDeletedTask: "Actor doesn’t have `Comment` access level",
+                            privateDeletedTask: "Bot can’t access deleted tasks",
                             urlPublicTask: "Bot can’t access deleted tasks",
-                            urlPublicDeletedTask: "Actor doesn’t have `Comment` access level",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22737,7 +22768,9 @@ describe("`authorizeTaskAccess()`", () => {
                             privateTask: "Actor doesn’t have `Edit` access level",
                             privateDeletedTask: "Actor doesn’t have `Edit` access level",
                             urlPublicTask: "Bot can’t access deleted tasks",
-                            urlPublicDeletedTask: "Actor doesn’t have `Edit` access level",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22789,6 +22822,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: null,
                             urlPublicTask: null,
                             urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22837,7 +22872,9 @@ describe("`authorizeTaskAccess()`", () => {
                             privateTask: "Actor doesn’t have `Comment` access level",
                             privateDeletedTask: "Actor doesn’t have `Comment` access level",
                             urlPublicTask: null,
-                            urlPublicDeletedTask: "Actor doesn’t have `Comment` access level",
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22886,7 +22923,9 @@ describe("`authorizeTaskAccess()`", () => {
                             privateTask: "Actor doesn’t have `Edit` access level",
                             privateDeletedTask: "Actor doesn’t have `Edit` access level",
                             urlPublicTask: null,
-                            urlPublicDeletedTask: "Actor doesn’t have `Edit` access level",
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
                         },
                     },
                     otherBot: {
@@ -22938,6 +22977,8 @@ describe("`authorizeTaskAccess()`", () => {
                             privateDeletedTask: "Bot can’t access deleted tasks",
                             urlPublicTask: "Bot can’t access deleted tasks",
                             urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -22987,7 +23028,9 @@ describe("`authorizeTaskAccess()`", () => {
                             privateTask: "Actor doesn’t have `Comment` access level",
                             privateDeletedTask: "Actor doesn’t have `Comment` access level",
                             urlPublicTask: "Bot can’t access deleted tasks",
-                            urlPublicDeletedTask: "Actor doesn’t have `Comment` access level",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -23036,7 +23079,320 @@ describe("`authorizeTaskAccess()`", () => {
                             privateTask: "Actor doesn’t have `Edit` access level",
                             privateDeletedTask: "Actor doesn’t have `Edit` access level",
                             urlPublicTask: "Bot can’t access deleted tasks",
-                            urlPublicDeletedTask: "Actor doesn’t have `Edit` access level",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
+                        },
+                    },
+                    otherBot: {
+                        session: {
+                            session1: "Account doesn’t have access to space",
+                            otherSession: "Account doesn’t have access to space",
+                        },
+                        task: {},
+                    },
+                },
+            },
+        },
+        personalTask: {
+            View: {
+                anonymous: "Unauthenticated session",
+                system: {
+                    space: null,
+                    otherSpace: "System actor doesn’t have access to task’s space",
+                },
+                session: {
+                    session1: null,
+                    session2: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn’t have `View` access level",
+                    otherSession: "Account doesn’t have access to space",
+                },
+                impersonatedAccount: {
+                    space: {
+                        session1: null,
+                        session2: "Actor doesn’t have `View` access level",
+                        session3: "Actor doesn’t have `View` access level",
+                    },
+                    otherSpace: {
+                        session1: "Impersonated account actor doesn’t have access to task’s space",
+                        otherSession:
+                            "Impersonated account actor doesn’t have access to task’s space",
+                    },
+                },
+                bot: {
+                    bot: {
+                        session: {
+                            session1: null,
+                            session2: "Actor doesn’t have `View` access level",
+                            session3: "Actor doesn’t have `View` access level",
+                        },
+                        task: {
+                            publicTask: "Actor doesn’t have `View` access level",
+                            publicDeletedTask: "Actor doesn’t have `View` access level",
+                            privateTask: "Actor doesn’t have `View` access level",
+                            privateDeletedTask: "Actor doesn’t have `View` access level",
+                            urlPublicTask: null,
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
+                        },
+                    },
+                    otherBot: {
+                        session: {
+                            session1: "Account doesn’t have access to space",
+                            otherSession: "Account doesn’t have access to space",
+                        },
+                        task: {},
+                    },
+                },
+            },
+            Comment: {
+                anonymous: "Unauthenticated session",
+                system: {
+                    space: null,
+                    otherSpace: "System actor doesn’t have access to task’s space",
+                },
+                session: {
+                    session1: null,
+                    session2: "Actor doesn’t have `Comment` access level",
+                    session3: "Actor doesn’t have `Comment` access level",
+                    otherSession: "Account doesn’t have access to space",
+                },
+                impersonatedAccount: {
+                    space: {
+                        session1: null,
+                        session2: "Actor doesn’t have `Comment` access level",
+                        session3: "Actor doesn’t have `Comment` access level",
+                    },
+                    otherSpace: {
+                        session1: "Impersonated account actor doesn’t have access to task’s space",
+                        otherSession:
+                            "Impersonated account actor doesn’t have access to task’s space",
+                    },
+                },
+                bot: {
+                    bot: {
+                        session: {
+                            session1: null,
+                            session2: "Actor doesn’t have `Comment` access level",
+                            session3: "Actor doesn’t have `Comment` access level",
+                        },
+                        task: {
+                            publicTask: "Actor doesn’t have `Comment` access level",
+                            publicDeletedTask: "Actor doesn’t have `Comment` access level",
+                            privateTask: "Actor doesn’t have `Comment` access level",
+                            privateDeletedTask: "Actor doesn’t have `Comment` access level",
+                            urlPublicTask: null,
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
+                        },
+                    },
+                    otherBot: {
+                        session: {
+                            session1: "Account doesn’t have access to space",
+                            otherSession: "Account doesn’t have access to space",
+                        },
+                        task: {},
+                    },
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated session",
+                system: {
+                    space: null,
+                    otherSpace: "System actor doesn’t have access to task’s space",
+                },
+                session: {
+                    session1: null,
+                    session2: "Actor doesn’t have `Edit` access level",
+                    session3: "Actor doesn’t have `Edit` access level",
+                    otherSession: "Account doesn’t have access to space",
+                },
+                impersonatedAccount: {
+                    space: {
+                        session1: null,
+                        session2: "Actor doesn’t have `Edit` access level",
+                        session3: "Actor doesn’t have `Edit` access level",
+                    },
+                    otherSpace: {
+                        session1: "Impersonated account actor doesn’t have access to task’s space",
+                        otherSession:
+                            "Impersonated account actor doesn’t have access to task’s space",
+                    },
+                },
+                bot: {
+                    bot: {
+                        session: {
+                            session1: null,
+                            session2: "Actor doesn’t have `Edit` access level",
+                            session3: "Actor doesn’t have `Edit` access level",
+                        },
+                        task: {
+                            publicTask: "Actor doesn’t have `Edit` access level",
+                            publicDeletedTask: "Actor doesn’t have `Edit` access level",
+                            privateTask: "Actor doesn’t have `Edit` access level",
+                            privateDeletedTask: "Actor doesn’t have `Edit` access level",
+                            urlPublicTask: null,
+                            urlPublicDeletedTask: null,
+                            personalTask: null,
+                            personalDeletedTask: null,
+                        },
+                    },
+                    otherBot: {
+                        session: {
+                            session1: "Account doesn’t have access to space",
+                            otherSession: "Account doesn’t have access to space",
+                        },
+                        task: {},
+                    },
+                },
+            },
+        },
+        personalDeletedTask: {
+            View: {
+                anonymous: "Unauthenticated session",
+                system: {
+                    space: null,
+                    otherSpace: "System actor doesn’t have access to task’s space",
+                },
+                session: {
+                    session1: null,
+                    session2: "Actor doesn’t have `View` access level",
+                    session3: "Actor doesn’t have `View` access level",
+                    otherSession: "Account doesn’t have access to space",
+                },
+                impersonatedAccount: {
+                    space: {
+                        session1: null,
+                        session2: "Actor doesn’t have `View` access level",
+                        session3: "Actor doesn’t have `View` access level",
+                    },
+                    otherSpace: {
+                        session1: "Impersonated account actor doesn’t have access to task’s space",
+                        otherSession:
+                            "Impersonated account actor doesn’t have access to task’s space",
+                    },
+                },
+                bot: {
+                    bot: {
+                        session: {
+                            session1: "Bot can’t access deleted tasks",
+                            session2: "Actor doesn’t have `View` access level",
+                            session3: "Actor doesn’t have `View` access level",
+                        },
+                        task: {
+                            publicTask: "Actor doesn’t have `View` access level",
+                            publicDeletedTask: "Actor doesn’t have `View` access level",
+                            privateTask: "Actor doesn’t have `View` access level",
+                            privateDeletedTask: "Actor doesn’t have `View` access level",
+                            urlPublicTask: "Bot can’t access deleted tasks",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
+                        },
+                    },
+                    otherBot: {
+                        session: {
+                            session1: "Account doesn’t have access to space",
+                            otherSession: "Account doesn’t have access to space",
+                        },
+                        task: {},
+                    },
+                },
+            },
+            Comment: {
+                anonymous: "Unauthenticated session",
+                system: {
+                    space: "Can only view deleted task, access level `Comment` is not allowed",
+                    otherSpace: "System actor doesn’t have access to task’s space",
+                },
+                session: {
+                    session1: "Can only view deleted task, access level `Comment` is not allowed",
+                    session2: "Actor doesn’t have `Comment` access level",
+                    session3: "Actor doesn’t have `Comment` access level",
+                    otherSession: "Account doesn’t have access to space",
+                },
+                impersonatedAccount: {
+                    space: {
+                        session1:
+                            "Can only view deleted task, access level `Comment` is not allowed",
+                        session2: "Actor doesn’t have `Comment` access level",
+                        session3: "Actor doesn’t have `Comment` access level",
+                    },
+                    otherSpace: {
+                        session1: "Impersonated account actor doesn’t have access to task’s space",
+                        otherSession:
+                            "Impersonated account actor doesn’t have access to task’s space",
+                    },
+                },
+                bot: {
+                    bot: {
+                        session: {
+                            session1: "Bot can’t access deleted tasks",
+                            session2: "Actor doesn’t have `Comment` access level",
+                            session3: "Actor doesn’t have `Comment` access level",
+                        },
+                        task: {
+                            publicTask: "Actor doesn’t have `Comment` access level",
+                            publicDeletedTask: "Actor doesn’t have `Comment` access level",
+                            privateTask: "Actor doesn’t have `Comment` access level",
+                            privateDeletedTask: "Actor doesn’t have `Comment` access level",
+                            urlPublicTask: "Bot can’t access deleted tasks",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
+                        },
+                    },
+                    otherBot: {
+                        session: {
+                            session1: "Account doesn’t have access to space",
+                            otherSession: "Account doesn’t have access to space",
+                        },
+                        task: {},
+                    },
+                },
+            },
+            Edit: {
+                anonymous: "Unauthenticated session",
+                system: {
+                    space: "Can only view deleted task, access level `Edit` is not allowed",
+                    otherSpace: "System actor doesn’t have access to task’s space",
+                },
+                session: {
+                    session1: "Can only view deleted task, access level `Edit` is not allowed",
+                    session2: "Actor doesn’t have `Edit` access level",
+                    session3: "Actor doesn’t have `Edit` access level",
+                    otherSession: "Account doesn’t have access to space",
+                },
+                impersonatedAccount: {
+                    space: {
+                        session1: "Can only view deleted task, access level `Edit` is not allowed",
+                        session2: "Actor doesn’t have `Edit` access level",
+                        session3: "Actor doesn’t have `Edit` access level",
+                    },
+                    otherSpace: {
+                        session1: "Impersonated account actor doesn’t have access to task’s space",
+                        otherSession:
+                            "Impersonated account actor doesn’t have access to task’s space",
+                    },
+                },
+                bot: {
+                    bot: {
+                        session: {
+                            session1: "Bot can’t access deleted tasks",
+                            session2: "Actor doesn’t have `Edit` access level",
+                            session3: "Actor doesn’t have `Edit` access level",
+                        },
+                        task: {
+                            publicTask: "Actor doesn’t have `Edit` access level",
+                            publicDeletedTask: "Actor doesn’t have `Edit` access level",
+                            privateTask: "Actor doesn’t have `Edit` access level",
+                            privateDeletedTask: "Actor doesn’t have `Edit` access level",
+                            urlPublicTask: "Bot can’t access deleted tasks",
+                            urlPublicDeletedTask: "Bot can’t access deleted tasks",
+                            personalTask: "Bot can’t access deleted tasks",
+                            personalDeletedTask: "Bot can’t access deleted tasks",
                         },
                     },
                     otherBot: {
@@ -24582,7 +24938,7 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
         });
     });
 
-    test("access policy doesn’t include any grants when task is deleted", async () => {
+    test("access policy includes old grants when task is deleted", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const [session2, session3, session4, session5] = await space.createSessions(4);
@@ -24610,7 +24966,12 @@ describe("`getTaskAccessPolicyForBotScope()`", () => {
                 task.id,
             ),
         ).toEqual({
-            accountGrantById: new Map([]),
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Edit"}],
+                [session3.account.id, {level: "Edit"}],
+                [session4.account.id, {level: "Edit"}],
+                [session5.account.id, {level: "Edit"}],
+            ]),
             defaultGrant: null,
             urlGrant: null,
         });
