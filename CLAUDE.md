@@ -9,6 +9,8 @@ repository.
 
 ```bash
 ./admin/bin/dev check        # Run linting and formatting checks for changed files
+./admin/bin/dev format       # Fix any linting and formatting issues in changed files
+./admin/bin/dev format [...files] # Fix any linting and formatting issues in given files
 ```
 
 **Unit Test Commands:**
@@ -109,6 +111,14 @@ Only run tests if you're explicitly asked to. Our tests are expensive to run.
 committing to ensure code quality standards.
 
 ## Code Style
+
+Whenever you edit or add any file, _always_ run formatting before finishing your operation. To run
+our formatters, run:
+
+```bash
+./admin/bin/dev format            # All changed files
+./admin/bin/dev format [...files] # Specific files
+```
 
 **General**
 

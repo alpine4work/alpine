@@ -23,3 +23,4 @@ copy_to_bin(
     srcs = ["eslint_test.cjs"],
     visibility = ["//visibility:public"],
 )
+

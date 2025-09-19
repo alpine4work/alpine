@@ -31,6 +31,8 @@ Usage:
     dev check                Run source code checks for changed files
     dev check [...paths]     Run source code checks for the provided files
     dev check --all          Run all source code checks
+    dev format               Run ESLint with --fix and Prettier on changed files
+    dev format [...paths]    Run ESLint with --fix and Prettier on the provided files
     dev test                 Run unit tests for changed files
     dev test [...paths]      Run unit tests for the provided files
     dev test --all           Run all unit tests
@@ -93,6 +95,44 @@ case "$1" in
 
                 ./admin/bin/bazel query --noshow_progress "$query" | xargs ./admin/bin/bazel test
             fi
+        fi
+        ;;
+
+    format)
+        # Run format on specified files
+        format_files="${@:2}"
+        file_description="specified files"
+
+        # Determine which files to format
+        if [ -z "$2" ]; then
+            # Run format on changed files
+            format_files=$(git diff --name-only main | grep -E '\.(tsx?|jsx?|[cm]?js|css|json|md)$' | xargs find 2> /dev/null | tr '\n' ' ')
+            file_description="changed files"
+        fi
+
+        if [ -z "$format_files" ]; then
+            echo "No $file_description to format"
+        else
+            echo -e "Formatting $file_description:\n"
+            echo "$format_files" | tr ' ' '\n'
+            echo
+
+            # First run ESLint --fix on TypeScript/JavaScript files
+            js_files=$(echo "$format_files" | tr ' ' '\n' | grep -E '\.(tsx?|jsx?|[cm]?js)$' | tr '\n' ' ')
+            if [ -n "$js_files" ]; then
+                echo "Running ESLint --fix..."
+                ./admin/bin/node admin/eslint/eslint_test.cjs --fix $js_files
+                echo
+            fi
+
+            # Then run Prettier on all files
+            echo "Running Prettier..."
+
+            # TODO: Technically this won't work unless the developer has run pnpm install.
+            # Ideally we'd implement this script hermetically with Bazel. Which would
+            # involve setting up an sh_binary() or js_binary(), wiring in all the
+            # dependencies, etc. then calling bazel run on that binary.
+            ./admin/bin/pnpm exec prettier --write $format_files
         fi
         ;;
 
