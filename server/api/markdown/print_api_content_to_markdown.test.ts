@@ -7711,7 +7711,7 @@ test("divider", () => {
             ],
         },
         `\
----
+<hr/>
 `,
     );
 });
@@ -7777,6 +7777,149 @@ Section 2
 ---
 
 Section 3
+`,
+    );
+});
+
+test("dividers that look like frontmatter", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {type: "Divider"},
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "title: Hello, world!"}],
+                },
+                {type: "Divider"},
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "The quick brown fox jumps over the lazy dog."},
+                    ],
+                },
+            ],
+        },
+        `\
+<hr/>
+
+title: Hello, world!
+
+---
+
+The quick brown fox jumps over the lazy dog.
+`,
+    );
+});
+
+test("paragraph that looks like frontmatter", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "---"},
+                        {type: "Break"},
+                        {type: "Text", text: "title: Hello, world!"},
+                        {type: "Break"},
+                        {type: "Text", text: "---"},
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "The quick brown fox jumps over the lazy dog."},
+                    ],
+                },
+            ],
+        },
+        `\
+\\---\\
+title: Hello, world!\\
+\\---
+
+The quick brown fox jumps over the lazy dog.
+`,
+    );
+});
+
+test("paragraphs that look like frontmatter", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "---"}],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "title: Hello, world!"}],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "---"}],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "The quick brown fox jumps over the lazy dog."},
+                    ],
+                },
+            ],
+        },
+        `\
+\\---
+
+title: Hello, world!
+
+\\---
+
+The quick brown fox jumps over the lazy dog.
+`,
+    );
+});
+
+test("divider before empty unordered list", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {type: "Divider"},
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {elements: [{type: "Paragraph", elements: []}], nestedListElements: []},
+                    ],
+                },
+            ],
+        },
+        `\
+<hr/>
+
+- <p></p>
+`,
+    );
+});
+
+test("divider after paragraph but before empty unordered list", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {type: "Paragraph", elements: [{type: "Text", text: "a"}]},
+                {type: "Divider"},
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {elements: [{type: "Paragraph", elements: []}], nestedListElements: []},
+                    ],
+                },
+            ],
+        },
+        `\
+a
+
+---
+
+- <p></p>
 `,
     );
 });

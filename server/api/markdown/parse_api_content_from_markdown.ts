@@ -1,10 +1,12 @@
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {BlockContent, DefinitionContent, PhrasingContent, Root, RootContent} from "mdast";
 import {fromMarkdown} from "mdast-util-from-markdown";
+import {frontmatterFromMarkdown} from "mdast-util-frontmatter";
 import {gfmStrikethroughFromMarkdown} from "mdast-util-gfm-strikethrough";
 import {gfmTableFromMarkdown} from "mdast-util-gfm-table";
 import {gfmTaskListItemFromMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathFromMarkdown} from "mdast-util-math";
+import {frontmatter} from "micromark-extension-frontmatter";
 import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {gfmTable} from "micromark-extension-gfm-table";
 import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
@@ -86,7 +88,16 @@ function actuallyParseApiContentFromMarkdown(
     options: ApiContentMarkdownParserOptions,
 ): ApiContent {
     const root = fromMarkdown(markdown, "utf-8", {
-        extensions: [gfmStrikethrough(), gfmTable(), gfmTaskListItem(), math()],
+        extensions: [
+            gfmStrikethrough(),
+            gfmTable(),
+            gfmTaskListItem(),
+            math(),
+            // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
+            // Markdown but we want to reserve the syntax so we have the ability to use
+            // frontmatter in the future.
+            frontmatter("yaml"),
+        ],
         mdastExtensions: [
             gfmStrikethroughFromMarkdown(),
             gfmTableFromMarkdown(),
@@ -95,6 +106,10 @@ function actuallyParseApiContentFromMarkdown(
             // content but we might want to support math in the future. So make sure we
             // escape `$` and `$$` to reserve them.
             mathFromMarkdown(),
+            // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
+            // Markdown but we want to reserve the syntax so we have the ability to use
+            // frontmatter in the future.
+            frontmatterFromMarkdown("yaml"),
         ],
     });
 
@@ -380,6 +395,17 @@ function* parseApiContentBlockElementFromMarkdown(
                                     type: "Paragraph",
                                     elements: [{type: "Break", marks: undefined}],
                                 });
+                                break;
+                            }
+                            case "hr": {
+                                elements ??= [];
+
+                                if (textElements.length > 0) {
+                                    handleElement({type: "Paragraph", elements: textElements});
+                                    textElements = [];
+                                }
+
+                                handleElement({type: "Divider"});
                                 break;
                             }
                             case "strong":
@@ -793,6 +819,12 @@ function* parseApiContentBlockElementFromMarkdown(
         }
         case "footnoteDefinition": {
             // Footnotes are ignored for now.
+            break;
+        }
+        // @ts-expect-error: `mdast-util-frontmatter` doesn't seem to add the `yaml`
+        // node type to the Markdown AST.
+        case "yaml": {
+            // Frontmatter is ignored for now.
             break;
         }
         default:

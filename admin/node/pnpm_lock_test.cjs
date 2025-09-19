@@ -102,6 +102,8 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["domutils", ["2.8.0", "3.2.2"]],
     ["pure-rand", ["6.0.2", "7.0.1"]],
     ["unist-util-remove-position", ["4.0.1", "5.0.0"]],
+    ["mdast-util-frontmatter", ["1.0.0", "2.0.1"]],
+    ["micromark-extension-frontmatter", ["1.0.0", "2.0.0"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
@@ -149,7 +151,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["dotenv", ["10.0.0", "16.0.3"]],
     ["emoji-regex", ["8.0.0", "9.2.2", "10.2.1"]],
     ["entities", ["2.2.0", "4.5.0", "6.0.1"]],
-    ["escape-string-regexp", ["2.0.0", "4.0.0"]],
+    ["escape-string-regexp", ["2.0.0", "4.0.0", "5.0.0"]],
     ["eslint-scope", ["5.1.1", "7.2.2"]],
     ["eslint-visitor-keys", ["1.3.0", "2.1.0", "3.4.3"]],
     ["estraverse", ["4.3.0", "5.3.0"]],

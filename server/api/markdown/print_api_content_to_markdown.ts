@@ -1,5 +1,6 @@
 import escapeHtml from "escape-html";
 import {BlockContent, PhrasingContent, Root, TableCell, TableRow} from "mdast";
+import {frontmatterToMarkdown} from "mdast-util-frontmatter";
 import {gfmStrikethroughToMarkdown} from "mdast-util-gfm-strikethrough";
 import {gfmTableToMarkdown} from "mdast-util-gfm-table";
 import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
@@ -78,6 +79,10 @@ function actuallyPrintApiContentToMarkdown(
             // content but we might want to support math in the future. So make sure we
             // escape `$` and `$$` to reserve them.
             mathToMarkdown(),
+            // NOTE(calebmer, 2025-09-02): We don't currently support frontmatter in our
+            // Markdown but we want to reserve the syntax so we have the ability to use
+            // frontmatter in the future.
+            frontmatterToMarkdown("yaml"),
         ],
     });
 }
@@ -88,7 +93,20 @@ function printApiContentToMarkdown(
 ): Root {
     return {
         type: "root",
-        children: Array.from(printApiContentBlockElementsToMarkdown(content.elements, options)),
+        children:
+            // If the first element in our content is a divider then we serialize it using
+            // the HTML syntax `<hr/>` so the divider isn't confused with frontmatter.
+            content.elements.length > 0 && content.elements[0]!.type === "Divider"
+                ? Array.from(
+                      concatIterables(
+                          [{type: "html", value: "<hr/>"}],
+                          printApiContentBlockElementsToMarkdown(
+                              content.elements.slice(1),
+                              options,
+                          ),
+                      ),
+                  )
+                : Array.from(printApiContentBlockElementsToMarkdown(content.elements, options)),
     };
 }
 

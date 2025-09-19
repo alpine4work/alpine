@@ -3124,3 +3124,25 @@ My [link][example].
         ],
     });
 });
+
+test("frontmatter is ignored", () => {
+    expect(
+        parseApiContentFromMarkdown(
+            `\
+---
+title: Hello, world!
+---
+
+The quick brown fox jumps over the lazy dog.
+`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "The quick brown fox jumps over the lazy dog."}],
+            },
+        ],
+    });
+});
