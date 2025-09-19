@@ -1,3 +1,4 @@
+import {addDays, subDays} from "date-fns";
 import {ApiClient, createApiClient} from "~/server/agents/internal/api_client.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {
@@ -14,6 +15,7 @@ import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -44,14 +46,34 @@ export type AgentWebhookRequest = {
 };
 
 /**
+ * Delete the agent's storage after thirty days of inactivity (about a month).
+ */
+export const agentDeleteAllStorageAlarmDays = 30;
+
+/**
+ * Reset the agent's alarm every day there's some activity.
+ */
+export function shouldResetAgentDeleteAllStorageAlarm({
+    currentTime,
+    alarmTime,
+}: {
+    currentTime: Date;
+    alarmTime: Date;
+}) {
+    return currentTime > subDays(alarmTime, agentDeleteAllStorageAlarmDays - 1);
+}
+
+/**
  * Base class for agent Cloudflare Durable Objects. Sets up some basic
  * infrastructure like the tracer and process context module.
  */
 export abstract class AgentDurableObjectBase<Route> {
-    protected readonly _state: DurableObjectState;
-    protected readonly _tracer: TracerRoot;
-    protected readonly _processContext: AgentContext;
+    private readonly _state: DurableObjectState;
     private readonly _env: AgentDurableObjectEnv;
+    private readonly _tracer: TracerRoot;
+    private readonly _processContext: AgentContext;
+
+    private readonly _alarmTimeMutex: MutexValue<Date | null> = new MutexValue(null);
 
     constructor(
         serviceName: TracerServiceName,
@@ -105,7 +127,11 @@ export abstract class AgentDurableObjectBase<Route> {
      */
     protected abstract _webhook(request: AgentWebhookRequest): Promise<void>;
 
-    public fetch(request: Request): Promise<Response> {
+    public async fetch(request: Request): Promise<Response> {
+        // When the Durable Object's alarm is triggered, we delete all storage
+        // associated with the Durable Object.
+        await this._maybeResetAlarm();
+
         const url = new URL(request.url);
 
         const [route, routeObject] = this._parseRoute(url);
@@ -194,5 +220,46 @@ export abstract class AgentDurableObjectBase<Route> {
         );
 
         return new Response(null, {status: 200});
+    }
+
+    /**
+     * Alarm has run! Delete all storage associated with the Durable Object.
+     */
+    public async alarm() {
+        await this._state.storage.deleteAll();
+    }
+
+    /**
+     * We maintain an alarm that'll run a month from now that deletes all storage
+     * associated with the Durable Object. This function checks if the alarm will
+     * run soon and if so resets the alarm to a point later in the future.
+     */
+    private async _maybeResetAlarm() {
+        const currentTime = new Date();
+
+        await this._alarmTimeMutex.withLock(async alarmTimeRef => {
+            // If no alarm time is set, read the alarm time from storage. If there's no
+            // alarm time in storage then set an alarm to cleanup the durable object.
+            if (alarmTimeRef.current === null) {
+                const alarmTimeFromStorage = await this._state.storage.getAlarm();
+
+                if (alarmTimeFromStorage !== null) {
+                    alarmTimeRef.current = new Date(alarmTimeFromStorage);
+                } else {
+                    alarmTimeRef.current = addDays(currentTime, agentDeleteAllStorageAlarmDays);
+                    await this._state.storage.setAlarm(alarmTimeRef.current);
+                }
+            }
+
+            if (
+                shouldResetAgentDeleteAllStorageAlarm({
+                    currentTime,
+                    alarmTime: alarmTimeRef.current,
+                })
+            ) {
+                alarmTimeRef.current = addDays(currentTime, agentDeleteAllStorageAlarmDays);
+                await this._state.storage.setAlarm(alarmTimeRef.current);
+            }
+        });
     }
 }
