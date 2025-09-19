@@ -22,6 +22,7 @@ ts_project(
         "//:node_modules/@types/bintrees",
         "//:node_modules/bintrees",
         "//:node_modules/gpt-tokenizer",
+        "//:node_modules/immer",
         "//:node_modules/openai",
         "//:node_modules/openapi-fetch",
         "//server/api/markdown",

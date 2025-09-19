@@ -10,6 +10,7 @@ import {
     getApiMessagesFromEnd,
     getApiMessagesFromStart,
 } from "~/server/agents/internal/api_client.js";
+import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage.js";
 import {
     AgentMessage,
@@ -394,6 +395,14 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
         })
         .join("\n");
 
+    let content = parseApiContentFromMarkdown(outputText, {spaceId: request.spaceId});
+
+    // Convert all straight quotes (`'` and `"`) into proper curly quotes
+    // (`“`, `”`, `‘`, `’`). Since LLMs typically only output straight quotes.
+    // Curly quotes are proper typography and are consistent with text written in
+    // Alpine where we automatically convert quotes into curly quotes.
+    content = convertApiContentToProperQuotes(content);
+
     await request.storage.transaction(async transaction => {
         const state = await ChatGptAgentConversationStateStore.new(transaction);
 
@@ -407,9 +416,7 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
         // right after you respond.
         const {
             data: {message},
-        } = await createApiMessage(request.apiClient, request.room, {
-            content: parseApiContentFromMarkdown(outputText, {spaceId: request.spaceId}),
-        });
+        } = await createApiMessage(request.apiClient, request.room, {content});
 
         // We're going to update our conversation with the output directly from OpenAI
         // and set `lastMessageIndex` to the new message's index. Make sure if there
