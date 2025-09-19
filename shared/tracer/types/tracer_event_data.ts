@@ -1549,6 +1549,35 @@ export type TracerEventData = {
         /** How long did the request to `AppService` from `EdgeService` take? */
         readonly appServiceDurationMs?: number;
     };
+
+    /**
+     * Information regarding requests to the OpenAI API.
+     */
+    readonly openai?: {
+        /** The OpenAI model used. */
+        readonly model?: string;
+
+        /**
+         * Information from the [OpenAI response API][1]. See the response API
+         * documentation for what these fields mean.
+         *
+         * [1]: https://platform.openai.com/docs/api-reference/responses/create
+         */
+        readonly responses?: {
+            readonly id?: string;
+            readonly promptCacheKey?: string;
+            readonly safetyIdentifier?: string;
+            readonly status?: string;
+            readonly incompleteDetails?: {reason?: string};
+            readonly usage?: {
+                readonly inputTokens?: number;
+                readonly cachedInputTokens?: number;
+                readonly outputTokens?: number;
+                readonly reasoningOutputTokens?: number;
+                readonly totalTokens?: number;
+            };
+        };
+    };
 };
 
 /**

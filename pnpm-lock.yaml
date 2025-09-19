@@ -119,6 +119,9 @@ patchedDependencies:
   eslint@8.57.0:
     hash: voandurs7i7djwvrsfd3v5zv5i
     path: admin/patches/eslint@8.57.0.patch
+  gpt-tokenizer@3.0.1:
+    hash: 6bbterobkrlp3dczxpfustegpm
+    path: admin/patches/gpt-tokenizer@3.0.1.patch
   mdast-util-gfm-strikethrough@2.0.0:
     hash: vncctalgpqfc6n6ssnlvkondw4
     path: admin/patches/mdast-util-gfm-strikethrough@2.0.0.patch
@@ -337,6 +340,9 @@ importers:
       '@miniflare/core':
         specifier: 2.14.4
         version: 2.14.4
+      '@miniflare/durable-objects':
+        specifier: 2.14.4
+        version: 2.14.4
       '@miniflare/r2':
         specifier: 2.14.4
         version: 2.14.4
@@ -344,6 +350,9 @@ importers:
         specifier: 2.14.4
         version: 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-file':
+        specifier: 2.14.4
+        version: 2.14.4
+      '@miniflare/storage-memory':
         specifier: 2.14.4
         version: 2.14.4
       '@nextjournal/lezer-clojure':
@@ -781,6 +790,9 @@ importers:
       get-port:
         specifier: ^5.1.1
         version: 5.1.1
+      gpt-tokenizer:
+        specifier: ^3.0.1
+        version: 3.0.1(patch_hash=6bbterobkrlp3dczxpfustegpm)
       grapheme-splitter:
         specifier: ^1.0.4
         version: 1.0.4
@@ -910,6 +922,9 @@ importers:
       onnxruntime-node:
         specifier: 1.14.0
         version: 1.14.0
+      openai:
+        specifier: ^5.19.1
+        version: 5.19.1(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.23.8)
       openapi-fetch:
         specifier: ^0.14.0
         version: 0.14.0(patch_hash=5nf25snmhqf6dxhzitcgzxx6tq)
@@ -5661,6 +5676,9 @@ packages:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
 
+  gpt-tokenizer@3.0.1:
+    resolution: {integrity: sha512-5jdaspBq/w4sWw322SvQj1Fku+CN4OAfYZeeEg8U7CWtxBz+zkxZ3h0YOHD43ee+nZYZ5Ud70HRN0ANcdIj4qg==}
+
   graceful-fs@4.2.10:
     resolution: {integrity: sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA==}
 
@@ -7258,6 +7276,18 @@ packages:
   open@8.4.0:
     resolution: {integrity: sha512-XgFPPM+B28FtCCgSb9I+s9szOC1vZRSwgWsRUA5ylIxRTgKozqjOCrVOqGsYABPYK5qnfqClxZTFBa8PKt2v6Q==}
     engines: {node: '>=12'}
+
+  openai@5.19.1:
+    resolution: {integrity: sha512-zSqnUF7oR9ksmpusKkpUgkNrj8Sl57U+OyzO8jzc7LUjTMg4DRfR3uCm+EIMA6iw06sRPNp4t7ojp3sCpEUZRQ==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   openapi-fetch@0.14.0:
     resolution: {integrity: sha512-PshIdm1NgdLvb05zp8LqRQMNSKzIlPkyMxYFxwyHR+UlKD4t2nUjkDhNxeRbhRSEd3x5EUNh2w5sJYwkhOH4fg==}
@@ -15654,6 +15684,8 @@ snapshots:
 
   gopd@1.2.0: {}
 
+  gpt-tokenizer@3.0.1(patch_hash=6bbterobkrlp3dczxpfustegpm): {}
+
   graceful-fs@4.2.10: {}
 
   grad-school@0.0.5: {}
@@ -18015,6 +18047,11 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
+
+  openai@5.19.1(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.23.8):
+    optionalDependencies:
+      ws: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
+      zod: 3.23.8
 
   openapi-fetch@0.14.0(patch_hash=5nf25snmhqf6dxhzitcgzxx6tq):
     dependencies:

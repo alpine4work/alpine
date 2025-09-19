@@ -60,9 +60,11 @@
         "@lezer/yaml": "^1.0.3",
         "@lume/kiwi": "^0.4.3",
         "@miniflare/core": "2.14.4",
+        "@miniflare/durable-objects": "2.14.4",
         "@miniflare/r2": "2.14.4",
         "@miniflare/shared": "2.14.4",
         "@miniflare/storage-file": "2.14.4",
+        "@miniflare/storage-memory": "2.14.4",
         "@nextjournal/lezer-clojure": "^1.0.0",
         "@octokit/auth-action": "^5.1.1",
         "@octokit/auth-app": "^7.1.0",
@@ -208,6 +210,7 @@
         "functional-red-black-tree": "^1.0.1",
         "fuse.js": "^6.6.2",
         "get-port": "^5.1.1",
+        "gpt-tokenizer": "^3.0.1",
         "grapheme-splitter": "^1.0.4",
         "hammerjs": "^2.0.8",
         "handlebars": "^4.7.7",
@@ -251,6 +254,7 @@
         "node-cron": "^3.0.3",
         "onnxruntime-common": "1.14.0",
         "onnxruntime-node": "1.14.0",
+        "openai": "^5.19.1",
         "openapi-fetch": "^0.14.0",
         "openapi-types": "^12.1.3",
         "openapi-typescript": "^7.8.0",
@@ -403,7 +407,8 @@
             "mdast-util-gfm-strikethrough@2.0.0": "admin/patches/mdast-util-gfm-strikethrough@2.0.0.patch",
             "micromark-util-character@2.0.1": "admin/patches/micromark-util-character@2.0.1.patch",
             "mdast-util-gfm-table@2.0.0": "admin/patches/mdast-util-gfm-table@2.0.0.patch",
-            "openapi-fetch@0.14.0": "admin/patches/openapi-fetch@0.14.0.patch"
+            "openapi-fetch@0.14.0": "admin/patches/openapi-fetch@0.14.0.patch",
+            "gpt-tokenizer@3.0.1": "admin/patches/gpt-tokenizer@3.0.1.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

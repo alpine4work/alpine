@@ -1214,6 +1214,7 @@ export namespace ApiSpecification {
                 readonly type: "NewMessage";
                 readonly roomPath: components["schemas"]["MessageRoomPath"];
                 readonly index: number;
+                readonly authorId: components["schemas"]["AccountId"];
                 readonly wasMentioned?: boolean;
             };
         };

@@ -164,7 +164,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
             context.getTemporaryDirectoryPath(),
             "files",
         );
-        const edgeCacheLocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "edge");
+        const edgeCacheLocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "edge/cache");
+        const edgeDurableObjectsLocalDataPath = joinPath(
+            context.getTemporaryDirectoryPath(),
+            "edge/durable-objects",
+        );
 
         const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
         const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
@@ -308,6 +312,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--cacheLocalDataPath=${edgeCacheLocalDataPath}`,
+                `--durableObjectsLocalDataPath=${edgeDurableObjectsLocalDataPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
             ],
             {

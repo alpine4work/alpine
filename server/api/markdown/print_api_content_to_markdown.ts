@@ -56,13 +56,17 @@ export type ApiContentMarkdownPrinterOptions = {
 };
 
 export {actuallyPrintApiContentToMarkdown as printApiContentToMarkdown};
+export {printApiContentToMarkdown as printApiContentToMarkdownTree};
 
 function actuallyPrintApiContentToMarkdown(
     content: ApiContent,
     options: ApiContentMarkdownPrinterOptions,
 ): string {
     const root = printApiContentToMarkdown(content, options);
+    return printMarkdownTree(root);
+}
 
+export function printMarkdownTree(root: Root): string {
     return toMarkdown(root, {
         bullet: "-",
         rule: "-",

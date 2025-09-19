@@ -91,11 +91,16 @@ export type ApiAccount = ApiSpecification.components["schemas"]["Account"];
 
 export type ApiAccountWithoutSpace = ApiSpecification.components["schemas"]["AccountWithoutSpace"];
 
+export type ApiChat = ApiSpecification.components["schemas"]["Chat"];
+
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiMessage = ApiSpecification.components["schemas"]["Message"];
 
 export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
+
+export type ApiMessageContentPayload =
+    ApiSpecification.components["schemas"]["MessageContentPayload"];
 
 export type ApiErrorResponseBody =
     ApiSpecification.components["responses"]["Error"]["content"]["application/json"];

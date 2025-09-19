@@ -3,11 +3,11 @@ import chalk from "chalk";
 import {differenceInHours} from "date-fns";
 import {isProcessExitErrorWithCode, runProcess} from "~/server/helpers/node/run_process.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {DateString, deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const githubOwner = "cyberworlds";

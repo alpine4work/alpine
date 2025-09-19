@@ -20,6 +20,14 @@ export function isDateString(string: string): string is DateString {
 }
 
 /**
+ * Asserts the provided string is a valid `DateString`.
+ */
+export function assertDateString(string: string): DateString {
+    assert(isDateString(string));
+    return string;
+}
+
+/**
  * Serializes a JavaScript `Date` object to a `DateString`.
  *
  * Fails with an `InternalError` if the provided `Date` is not valid.

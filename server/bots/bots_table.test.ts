@@ -22,7 +22,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const mockTokenAgent: BotWebhookContextModuleTokenAgentInterface = {
@@ -128,6 +128,7 @@ test("if webhook is successful it’s only called once", async () => {
 
     const event1: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -136,6 +137,7 @@ test("if webhook is successful it’s only called once", async () => {
 
     const event2: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 1,
     };
@@ -214,6 +216,7 @@ test("if webhook is successful it’s only called once even if job is run multip
 
     const event1: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -222,6 +225,7 @@ test("if webhook is successful it’s only called once even if job is run multip
 
     const event2: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 1,
     };
@@ -351,6 +355,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -424,6 +429,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -489,6 +495,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -564,6 +571,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -658,6 +666,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -766,6 +775,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };
@@ -866,6 +876,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
 
     const event: ApiBotWebhookEvent = {
         type: "NewMessage",
+        authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
     };

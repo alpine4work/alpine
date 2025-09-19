@@ -1,30 +1,28 @@
-import createOpenapiClient, {Client as OpenapiClient} from "openapi-fetch";
+import {ApiClient, createApiClient} from "~/server/agents/internal/api_client.js";
+import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
+import {
+    ApiMessageRoomPathObject,
+    parseApiMessageRoomPath,
+} from "~/server/api/specification/parse_api_path.js";
 import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
-    ApiErrorResponseBody,
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
-
-export type ApiClient = OpenapiClient<ApiSpecification.paths>;
 
 export type AgentDurableObjectEnv = {
     API_SERVICE_URL: string;
     CHAT_GPT_API_SERVICE_KEY: string;
+    OPEN_AI_API_KEY?: string;
     HONEYCOMB_API_KEY?: string;
 };
 
@@ -33,6 +31,16 @@ export type AgentContext = Context<AgentContextModules>;
 export type AgentContextModules = {
     process: ProcessContextModule;
     tracer: TracerContextModule;
+};
+
+export type AgentWebhookRequest = {
+    readonly storage: DurableObjectStorage;
+    readonly apiClient: ApiClient;
+    readonly openAiClient: Lazy<OpenAiClient>;
+    readonly spaceId: SpaceId;
+    readonly accountId: AccountId;
+    readonly event: ApiBotWebhookEvent;
+    readonly room: ApiMessageRoomPathObject;
 };
 
 /**
@@ -95,10 +103,7 @@ export abstract class AgentDurableObjectBase<Route> {
     /**
      * Handle an HTTP webhook call from Alpine.
      */
-    protected abstract _webhook(
-        apiClient: ApiClient,
-        requestBody: {spaceId: SpaceId; event: ApiBotWebhookEvent},
-    ): Promise<void>;
+    protected abstract _webhook(request: AgentWebhookRequest): Promise<void>;
 
     public fetch(request: Request): Promise<Response> {
         const url = new URL(request.url);
@@ -137,7 +142,8 @@ export abstract class AgentDurableObjectBase<Route> {
             });
         }
 
-        const {accessToken, spaceId, event}: ApiBotWebhookRequestBody = await request.json();
+        const {accessToken, spaceId, accountId, event}: ApiBotWebhookRequestBody =
+            await request.json();
 
         // We immediately return 200 to Alpine so the request isn't retried and we
         // process the webhook in the background. This is also important since
@@ -145,10 +151,35 @@ export abstract class AgentDurableObjectBase<Route> {
         // a retry.
         context.process.waitUntil(
             context.tracer.getTracer().withSpan("Process agent webhook", async span => {
-                const apiClient = this._createApiClient(span, accessToken);
-
                 try {
-                    await this._webhook(apiClient, {spaceId, event});
+                    const context: AgentWebhookRequest = {
+                        storage: this._state.storage,
+                        spaceId,
+                        accountId,
+                        event,
+                        room: parseApiMessageRoomPath(event.roomPath),
+                        apiClient: createApiClient(span, {
+                            baseUrl: assertExists(
+                                this._env.API_SERVICE_URL,
+                                "Missing `API_SERVICE_URL` environment variable",
+                            ),
+                            apiKey: assertExists(
+                                this._env.CHAT_GPT_API_SERVICE_KEY,
+                                "Missing `CHAT_GPT_API_SERVICE_KEY` environment variable",
+                            ),
+                            accessToken,
+                        }),
+                        openAiClient: new Lazy(() => {
+                            return new OpenAiClient(span, {
+                                apiKey: assertExists(
+                                    this._env.OPEN_AI_API_KEY,
+                                    "Missing `OPEN_AI_API_KEY` environment variable",
+                                ),
+                            });
+                        }),
+                    };
+
+                    await this._webhook(context);
                 } catch (error) {
                     // Log errors in development since webhook errors aren't shown to the user in
                     // the UI. So we need to show webhook errors in our logs.
@@ -163,95 +194,5 @@ export abstract class AgentDurableObjectBase<Route> {
         );
 
         return new Response(null, {status: 200});
-    }
-
-    protected _createApiClient(tracer: TracerBase, accessToken: string): ApiClient {
-        const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
-            // Convert path params from the OpenAPI format (`/hello/{name}`) to the
-            // format expected by `fetchWithTracer()` (`/hello/:name`). Right now we only
-            // support path params that are an entire path segment. Paths like
-            // `/report.{format}` aren't currently accepted.
-            const route = schemaPath
-                .split("/")
-                .map(pathSegment => {
-                    if (!pathSegment.startsWith("{")) {
-                        assert(!/[{}]/.test(pathSegment));
-                        return pathSegment;
-                    }
-
-                    assert(pathSegment.endsWith("}"));
-
-                    const pathParamName = pathSegment.slice(1, -1);
-                    assert(isIdentifier(pathParamName));
-
-                    return `:${pathParamName}`;
-                })
-                .join("/");
-
-            return route;
-        });
-
-        const apiClient: ApiClient = createOpenapiClient({
-            baseUrl: this._env.API_SERVICE_URL,
-            headers: {
-                authorization: `bearer ${this._env.CHAT_GPT_API_SERVICE_KEY}~${accessToken}`,
-            },
-        });
-
-        apiClient.use({
-            onRequest: ({request, schemaPath, options}) => {
-                return fetchWithTracer(
-                    tracer,
-                    request.url,
-                    {
-                        serviceName: "ApiService",
-                        route: routeBySchemaPath.getOrSetDefault(schemaPath),
-                        method: request.method,
-                        headers: request.headers,
-                        body: request.body,
-                        signal: request.signal,
-                    },
-                    async response => {
-                        // If the request failed, then throw an error. We want to mark this span as
-                        // failed and we don't want to handle errors inline.
-                        if (!response.ok) {
-                            const responseBody: ApiErrorResponseBody = await response.json();
-
-                            throw new InternalError(
-                                `API request failed: ${responseBody.error.message}`,
-                                {cause: {status: response.status, ...responseBody}},
-                            );
-                        }
-
-                        if (options.parseAs === "stream") {
-                            return response;
-                        }
-
-                        // Parse the response body in our `fetchWithTracer()` action so the time it
-                        // takes for the response body to be streamed is included in the span.
-                        const responseBody = await response[options.parseAs]();
-
-                        // Don't throw an error when `openapi-fetch` [calls this method a second
-                        // time][1]. Instead return what we already parsed.
-                        //
-                        // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L234-L241
-                        (response as any)[options.parseAs] = () => responseBody;
-
-                        // For error handling `openapi-fetch` [calls `response.text()` and tries to
-                        // parse it as JSON][1]. So add a `text()` handler if we're parsing as JSON and
-                        // the request is not ok.
-                        //
-                        // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L243-L250
-                        if (!response.ok && options.parseAs === "json") {
-                            (response as any).text = () => JSON.stringify(responseBody);
-                        }
-
-                        return response;
-                    },
-                );
-            },
-        });
-
-        return apiClient;
     }
 }

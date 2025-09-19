@@ -38,6 +38,7 @@ async function main() {
             tokenAgentSecret: tokenAgentSecretPath,
             fileProcessorServiceUrl,
             cacheLocalDataPath,
+            durableObjectsLocalDataPath,
             cloudflareR2LocalDataPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
@@ -56,6 +57,7 @@ async function main() {
             tokenAgentSecret: {type: "string"},
             fileProcessorServiceUrl: {type: "string"},
             cacheLocalDataPath: {type: "string"},
+            durableObjectsLocalDataPath: {type: "string"},
             cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
@@ -82,6 +84,8 @@ async function main() {
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
     if (!fileProcessorServiceUrl) throw new Error("Missing `fileProcessorServiceUrl` arg");
     if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
+    if (!durableObjectsLocalDataPath)
+        throw new Error("Missing `durableObjectsLocalDataPath` option");
     if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
 
     const [
@@ -121,6 +125,7 @@ async function main() {
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
         upstream: appServiceUrl,
         cachePersist: cacheLocalDataPath,
+        durableObjectsPersist: durableObjectsLocalDataPath,
         r2Persist: cloudflareR2LocalDataPath,
         bindings: {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,

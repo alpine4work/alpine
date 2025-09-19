@@ -1,6 +1,6 @@
 import {useMemo} from "react";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 
 /**
  * Format a number as a human readable string. In English adds thousands

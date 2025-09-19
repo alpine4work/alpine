@@ -1551,69 +1551,14 @@ function* parseApiContentInlineElementFromMarkdown(
             try {
                 url = new URL(content.url);
             } catch {
-                // noop
+                // Noop
             }
 
-            let mentionTargetPath: ApiContentMentionInlineElementTargetPath | undefined;
+            const mentionTargetPath = url
+                ? parseApiContentMentionInlineElementTargetPathIfPossible(options.spaceId, url)
+                : null;
 
-            // This link is treated as a mention if it's an `https://alpine.inc` link with
-            // a `mention` search param.
-            if (
-                url?.protocol === "https:" &&
-                url.host === "alpine.inc" &&
-                url.pathname.startsWith(`/s/${options.spaceId}/`) &&
-                url.searchParams.has("mention")
-            ) {
-                const pathSegments = url.pathname.slice(`/s/${options.spaceId}/`.length).split("/");
-
-                if (pathSegments.length === 2) {
-                    const pathSegment1 = pathSegments[0]!;
-                    const pathSegment2 = pathSegments[1]!;
-
-                    switch (pathSegment1) {
-                        case "accounts": {
-                            if (isId<AccountId>(pathSegment2)) {
-                                mentionTargetPath = `/accounts/${pathSegment2}`;
-                            }
-                            break;
-                        }
-                        case "channels": {
-                            if (isId<ChannelId>(pathSegment2)) {
-                                mentionTargetPath = `/channels/${pathSegment2}`;
-                            }
-                            break;
-                        }
-                        case "documents": {
-                            if (isId<DocumentId>(pathSegment2)) {
-                                mentionTargetPath = `/documents/${pathSegment2}`;
-                            }
-                            break;
-                        }
-                        case "posts": {
-                            if (isId<PostId>(pathSegment2)) {
-                                mentionTargetPath = `/posts/${pathSegment2}`;
-                            }
-                            break;
-                        }
-                        case "tasks": {
-                            if (isId<TaskId>(pathSegment2)) {
-                                mentionTargetPath = `/tasks/${pathSegment2}`;
-                            }
-                            break;
-                        }
-                    }
-                } else if (pathSegments.length === 3) {
-                    if (
-                        pathSegments[0] === "tasks" &&
-                        pathSegments[1] === "collections" &&
-                        isId<TaskCollectionId>(pathSegments[2]!)
-                    ) {
-                        mentionTargetPath = `/task-collections/${pathSegments[2]}`;
-                    }
-                }
-            }
-
-            if (mentionTargetPath === undefined) {
+            if (mentionTargetPath === null) {
                 markStack.push({type: "Link", url: content.url});
 
                 yield* parseApiContentInlineElementsFromMarkdown(
@@ -2008,6 +1953,71 @@ function* parseApiContentInlineElementFromMarkdown(
         default:
             throw exhaustive(content);
     }
+}
+
+export function parseApiContentMentionInlineElementTargetPathIfPossible(
+    spaceId: SpaceId,
+    url: URL,
+): ApiContentMentionInlineElementTargetPath | null {
+    const isMentionUrl =
+        url?.protocol === "https:" &&
+        url.host === "alpine.inc" &&
+        url.pathname.startsWith(`/s/${spaceId}/`) &&
+        url.searchParams.has("mention");
+
+    // This link is treated as a mention if it's an `https://alpine.inc` link with
+    // a `mention` search param.
+    if (!isMentionUrl) return null;
+
+    const pathSegments = url.pathname.slice(`/s/${spaceId}/`.length).split("/");
+
+    if (pathSegments.length === 2) {
+        const pathSegment1 = pathSegments[0]!;
+        const pathSegment2 = pathSegments[1]!;
+
+        switch (pathSegment1) {
+            case "accounts": {
+                if (isId<AccountId>(pathSegment2)) {
+                    return `/accounts/${pathSegment2}`;
+                }
+                break;
+            }
+            case "channels": {
+                if (isId<ChannelId>(pathSegment2)) {
+                    return `/channels/${pathSegment2}`;
+                }
+                break;
+            }
+            case "documents": {
+                if (isId<DocumentId>(pathSegment2)) {
+                    return `/documents/${pathSegment2}`;
+                }
+                break;
+            }
+            case "posts": {
+                if (isId<PostId>(pathSegment2)) {
+                    return `/posts/${pathSegment2}`;
+                }
+                break;
+            }
+            case "tasks": {
+                if (isId<TaskId>(pathSegment2)) {
+                    return `/tasks/${pathSegment2}`;
+                }
+                break;
+            }
+        }
+    } else if (pathSegments.length === 3) {
+        if (
+            pathSegments[0] === "tasks" &&
+            pathSegments[1] === "collections" &&
+            isId<TaskCollectionId>(pathSegments[2]!)
+        ) {
+            return `/task-collections/${pathSegments[2]}`;
+        }
+    }
+
+    return null;
 }
 
 function parseApiContentInlineElementHighlightMarkColorIfPossible(

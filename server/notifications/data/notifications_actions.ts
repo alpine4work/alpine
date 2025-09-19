@@ -88,7 +88,6 @@ import {
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
-import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -118,6 +117,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
@@ -2249,6 +2249,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
         type: "NewMessage",
         roomPath: `/chats/${event.chatId}`,
         index: event.messageIndex,
+        authorId: event.authorId,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (
@@ -2462,6 +2463,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
         type: "NewMessage",
         roomPath: `/posts/${event.postId}`,
         index: event.commentIndex,
+        authorId: event.authorId,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (context, event, {accountId}) => {
@@ -2846,6 +2848,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
         type: "NewMessage",
         roomPath: `/documents/${event.documentId}/threads/${event.commentThreadId}`,
         index: event.commentIndex,
+        authorId: event.authorId,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (context, event, {accountId, entryItem}) => {
@@ -3050,6 +3053,7 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
         type: "NewMessage",
         roomPath: `/tasks/${event.taskId}`,
         index: event.commentIndex,
+        authorId: event.authorId,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (context, event, {accountId}) => {

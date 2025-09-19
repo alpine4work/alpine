@@ -520,6 +520,25 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     edge: {
         appServiceDurationMs: Schema.float,
     },
+    openai: {
+        model: Schema.string,
+        responses: {
+            id: Schema.string,
+            promptCacheKey: Schema.string,
+            safetyIdentifier: Schema.string,
+            status: Schema.string,
+            incompleteDetails: {
+                reason: Schema.string,
+            },
+            usage: {
+                inputTokens: Schema.integer,
+                cachedInputTokens: Schema.integer,
+                outputTokens: Schema.integer,
+                reasoningOutputTokens: Schema.integer,
+                totalTokens: Schema.integer,
+            },
+        },
+    },
 };
 
 /**

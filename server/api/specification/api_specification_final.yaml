@@ -1309,7 +1309,7 @@ components:
 
         BotWebhookNewMessageEvent:
             type: object
-            required: [type, roomPath, index]
+            required: [type, roomPath, index, authorId]
             additionalProperties: false
             properties:
                 type:
@@ -1319,5 +1319,7 @@ components:
                 index:
                     type: integer
                     minimum: 0
+                authorId:
+                    $ref: "#/components/schemas/AccountId"
                 wasMentioned:
                     type: boolean

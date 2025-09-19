@@ -82,6 +82,7 @@ process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
+const openAiDevApiKey = env.OPEN_AI_DEV_API_KEY;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);
 const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
@@ -375,6 +376,7 @@ function createArtifacts() {
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "edge")}`,
+                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "edge")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
@@ -530,8 +532,10 @@ function createArtifacts() {
             },
             args: [
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "agents")}`,
+                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "agents")}`,
                 `--apiServiceUrl=http://localhost:${apiDevPort}`,
                 `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
+                `--openAiDevApiKey=${openAiDevApiKey}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],

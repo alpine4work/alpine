@@ -8,11 +8,11 @@ import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
 import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Locale} from "~/shared/helpers/intl/locale.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,

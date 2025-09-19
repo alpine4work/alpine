@@ -7,7 +7,7 @@ import {
     TaskClientStore,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
-import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
 export function TaskDeleteConfirmationModalDialog({

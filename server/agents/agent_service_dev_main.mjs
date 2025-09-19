@@ -28,18 +28,22 @@ async function main() {
         values: {
             port: portString,
             cacheLocalDataPath,
+            durableObjectsLocalDataPath,
             apiServiceUrl,
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
             honeycombApiKey,
+            openAiDevApiKey,
             inspectorPort: inspectorPortString,
         },
     } = parseArgs({
         options: {
             port: {type: "string"},
             cacheLocalDataPath: {type: "string"},
+            durableObjectsLocalDataPath: {type: "string"},
             apiServiceUrl: {type: "string"},
             chatGptApiServiceKey: {type: "string"},
             honeycombApiKey: {type: "string"},
+            openAiDevApiKey: {type: "string"},
             inspectorPort: {type: "string"},
         },
     });
@@ -49,6 +53,8 @@ async function main() {
     }
 
     if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` option");
+    if (!durableObjectsLocalDataPath)
+        throw new Error("Missing `durableObjectsLocalDataPath` option");
     if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
     if (!chatGptApiServiceKeyPath) throw new Error("Missing `chatGptApiServiceKey` option");
 
@@ -71,9 +77,11 @@ async function main() {
         scriptPath: joinPath(runfilesPath, "cyberworlds/server/agents/agent_service_bundle.js"),
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.toml"),
         cachePersist: cacheLocalDataPath,
+        durableObjectsPersist: durableObjectsLocalDataPath,
         bindings: {
             API_SERVICE_URL: apiServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
+            OPEN_AI_API_KEY: openAiDevApiKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },
         globals: {
