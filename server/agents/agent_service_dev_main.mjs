@@ -28,6 +28,8 @@ async function main() {
         values: {
             port: portString,
             cacheLocalDataPath,
+            apiServiceUrl,
+            chatGptApiServiceKey: chatGptApiServiceKeyPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
         },
@@ -35,6 +37,8 @@ async function main() {
         options: {
             port: {type: "string"},
             cacheLocalDataPath: {type: "string"},
+            apiServiceUrl: {type: "string"},
+            chatGptApiServiceKey: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
         },
@@ -44,10 +48,14 @@ async function main() {
         inspector.open(parseInt(inspectorPortString, 10));
     }
 
-    if (!portString) throw new Error("Missing `port` arg");
-    const port = parseInt(portString, 10);
+    if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` option");
+    if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
+    if (!chatGptApiServiceKeyPath) throw new Error("Missing `chatGptApiServiceKey` option");
 
-    if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
+    const chatGptApiServiceKey = (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim();
+
+    if (!portString) throw new Error("Missing `port` option");
+    const port = parseInt(portString, 10);
 
     const runfilesPath = process.env.RUNFILES;
     if (!runfilesPath) throw new Error("Missing runfiles env variable");
@@ -64,6 +72,8 @@ async function main() {
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.toml"),
         cachePersist: cacheLocalDataPath,
         bindings: {
+            API_SERVICE_URL: apiServiceUrl,
+            CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },
         globals: {

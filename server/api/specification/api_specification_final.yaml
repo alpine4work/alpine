@@ -107,13 +107,16 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, accessToken, eventId, event]
+                            required: [spaceId, accountId, attempt, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
+                                attempt:
+                                    type: integer
+                                    minimum: 1
                                 accessToken:
                                     type: string
                                 eventId:

@@ -5,6 +5,7 @@ import {FailedPreconditionError, UnavailableError} from "~/shared/error/error.js
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -40,6 +41,22 @@ const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
  * Human readable phrases match our span name style which is why we do this.
  */
 export type ExternalServiceName = "Cloudflare 1.1.1.1" | "OpenSearch" | "Cohere";
+
+function isExternalServiceName(
+    serviceName: TracerServiceName | ExternalServiceName,
+): serviceName is ExternalServiceName {
+    switch (serviceName) {
+        case "Cloudflare 1.1.1.1":
+        case "OpenSearch":
+        case "Cohere":
+            return true;
+        default:
+            // Should handle all `ExternalServiceName`s. Only `TracerServiceName`s should
+            // be left (`cast()` enforces this with TypeScript).
+            cast<TracerServiceName>(serviceName);
+            return false;
+    }
+}
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
@@ -148,7 +165,12 @@ export async function fetchWithTracer<ResponseData>(
 
     try {
         const requestHeaders = new Headers(requestInit?.headers);
-        addTracerPropagationContextHeader(requestHeaders, span);
+
+        // Add our tracer propagation context if this isn't a request to an external
+        // service.
+        if (!isExternalServiceName(serviceName)) {
+            addTracerPropagationContextHeader(requestHeaders, span);
+        }
 
         let request = new Request(url, {
             ...requestInit,

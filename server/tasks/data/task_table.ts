@@ -4412,11 +4412,18 @@ export async function authorizeTaskAccess(
     const taskItem = await getTaskItemForAuthorization(context, taskId, loaders, options);
 
     unwrapResult(
-        await authorizeTaskItemAccessIfPossible(context, taskItem, expectedAccessLevel, {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
-        }),
+        await authorizeTaskItemAccessIfPossible(
+            context,
+            taskItem,
+            expectedAccessLevel,
+            {
+                getTaskItem: taskId =>
+                    getTaskItemForAuthorization(context, taskId, loaders, options),
+                getCollectionItem: collectionId =>
+                    getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
+            },
+            options,
+        ),
     );
 
     return {spaceId: taskItem.spaceId, createdTime: taskItem.createdTime};
@@ -4512,12 +4519,14 @@ async function authorizeTaskItemAccessIfPossible(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     const result = await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
         context,
         taskItem,
         expectedAccessLevel,
         loaders,
+        options,
     );
 
     // If you were authorized to view, edit, whatever, but the task is deleted then
@@ -4588,6 +4597,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     switch (context.actor.type) {
         case "System": {
@@ -4664,6 +4674,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                         collectionItem.spaceId,
                         collectionItem.accessPolicy.value,
                         expectedAccessLevel,
+                        options,
                     );
 
                     return hasAccess ? collectionItem : null;
@@ -4686,6 +4697,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
                         parentTaskItem,
                         expectedAccessLevel,
                         loaders,
+                        options,
                     );
                 }
             }

@@ -74,6 +74,9 @@ export type ApiContentInlineElementLinkMark =
 
 export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
 
+export type ApiErrorResponseBody =
+    ApiSpecification.components["responses"]["Error"]["content"]["application/json"];
+
 export type ApiBotWebhookRequestBody =
     ApiSpecification.webhooks["bot"]["post"]["requestBody"]["content"]["application/json"];
 

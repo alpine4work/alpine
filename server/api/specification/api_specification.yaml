@@ -17,6 +17,10 @@ servers:
     - url: https://api.alpine.inc
 
 paths:
+    # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
+    # endpoints that deal with content. This variant should return a string for
+    # content instead of an AST. Also add a `-markdown` variant for any `/messages`
+    # endpoints (both `GET` and `POST`).
     /chats/{id}/messages/{index}:
         parameters:
             - name: id
@@ -114,13 +118,16 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, accessToken, eventId, event]
+                            required: [spaceId, accountId, attempt, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
+                                attempt:
+                                    type: integer
+                                    minimum: 1
                                 accessToken:
                                     type: string
                                 eventId:

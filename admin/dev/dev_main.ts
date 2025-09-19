@@ -530,6 +530,8 @@ function createArtifacts() {
             },
             args: [
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "agents")}`,
+                `--apiServiceUrl=http://localhost:${apiDevPort}`,
+                `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],

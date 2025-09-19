@@ -249,6 +249,7 @@
         "node-cron": "^3.0.3",
         "onnxruntime-common": "1.14.0",
         "onnxruntime-node": "1.14.0",
+        "openapi-fetch": "^0.14.0",
         "openapi-types": "^12.1.3",
         "openapi-typescript": "^7.8.0",
         "opentype.js": "^1.3.4",
@@ -399,7 +400,8 @@
             "mdast-util-to-markdown@2.1.2": "admin/patches/mdast-util-to-markdown@2.1.2.patch",
             "mdast-util-gfm-strikethrough@2.0.0": "admin/patches/mdast-util-gfm-strikethrough@2.0.0.patch",
             "micromark-util-character@2.0.1": "admin/patches/micromark-util-character@2.0.1.patch",
-            "mdast-util-gfm-table@2.0.0": "admin/patches/mdast-util-gfm-table@2.0.0.patch"
+            "mdast-util-gfm-table@2.0.0": "admin/patches/mdast-util-gfm-table@2.0.0.patch",
+            "openapi-fetch@0.14.0": "admin/patches/openapi-fetch@0.14.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

@@ -195,6 +195,7 @@ export namespace ApiSpecification {
                         readonly "application/json": {
                             readonly spaceId: components["schemas"]["SpaceId"];
                             readonly accountId: components["schemas"]["AccountId"];
+                            readonly attempt: number;
                             readonly accessToken: string;
                             readonly eventId: components["schemas"]["BotWebhookEventId"];
                             readonly event: components["schemas"]["BotWebhookEvent"];

@@ -545,7 +545,7 @@ export async function authorizeDocumentAccess(
 ): Promise<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}> {
     const documentItem = await getDocumentItemForAuthorization(context, documentId, options);
 
-    await authorizeDocumentItemAccess(context, documentItem, expectedAccessLevel);
+    await authorizeDocumentItemAccess(context, documentItem, expectedAccessLevel, options);
 
     return {
         spaceId: documentItem.spaceId,
@@ -590,9 +590,15 @@ async function authorizeDocumentItemAccess(
     context: ServerActionContext,
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<void> {
     unwrapResult(
-        await authorizeDocumentItemAccessIfPossible(context, documentItem, expectedAccessLevel),
+        await authorizeDocumentItemAccessIfPossible(
+            context,
+            documentItem,
+            expectedAccessLevel,
+            options,
+        ),
     );
 }
 
@@ -600,6 +606,7 @@ async function authorizeDocumentItemAccessIfPossible(
     context: ServerActionContext,
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     // Evaluate the document access policy.
     const isAccessAuthorized = await evaluateAccessPolicy(
@@ -607,6 +614,7 @@ async function authorizeDocumentItemAccessIfPossible(
         documentItem.spaceId,
         documentItem.accessPolicy,
         expectedAccessLevel,
+        options,
     );
 
     if (isAccessAuthorized) return okResult;

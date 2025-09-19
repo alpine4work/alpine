@@ -1,0 +1,120 @@
+diff --git a/dist/index.d.cts b/dist/index.d.cts
+index bec0d5fdb6cb59a977d5ade1c693dbe613a2043e..65f887bfbca875135e5a1f660e2356379bde3897 100644
+--- a/dist/index.d.cts
++++ b/dist/index.d.cts
+@@ -89,17 +89,14 @@ type RequestBodyOption<T> = OperationRequestBodyContent<T> extends never
+ 
+ type FetchOptions<T> = RequestOptions<T> & Omit<RequestInit, "body" | "headers">;
+ 
+-type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> =
+-  | {
+-      data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
+-      error?: never;
+-      response: Response;
+-    }
+-  | {
+-      data?: never;
+-      error: ErrorResponse<ResponseObjectMap<T>, Media>;
+-      response: Response;
+-    };
++// NOTE(calebmer): The implementation of `fetch()` we provide `openapi-fetch`
++// always throws if `!request.ok` so we should never see an error as the fetch
++// response. Patching so we have more convenient types that match how we want to
++// use the library.
++export type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> = {
++  data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
++  response: Response;
++};
+ 
+ type RequestOptions<T> = ParamsOption<T> &
+   RequestBodyOption<T> & {
+diff --git a/dist/index.d.mts b/dist/index.d.mts
+index d0bdd6b4e2ff6a89cf2014b533b37bb16abb8a44..72d90c9b8729d86cc07d189069e0cb68d9785198 100644
+--- a/dist/index.d.mts
++++ b/dist/index.d.mts
+@@ -89,17 +89,14 @@ type RequestBodyOption<T> = OperationRequestBodyContent<T> extends never
+ 
+ type FetchOptions<T> = RequestOptions<T> & Omit<RequestInit, "body" | "headers">;
+ 
+-type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> =
+-  | {
+-      data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
+-      error?: never;
+-      response: Response;
+-    }
+-  | {
+-      data?: never;
+-      error: ErrorResponse<ResponseObjectMap<T>, Media>;
+-      response: Response;
+-    };
++// NOTE(calebmer): The implementation of `fetch()` we provide `openapi-fetch`
++// always throws if `!request.ok` so we should never see an error as the fetch
++// response. Patching so we have more convenient types that match how we want to
++// use the library.
++export type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> = {
++  data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
++  response: Response;
++};
+ 
+ type RequestOptions<T> = ParamsOption<T> &
+   RequestBodyOption<T> & {
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index bec0d5fdb6cb59a977d5ade1c693dbe613a2043e..65f887bfbca875135e5a1f660e2356379bde3897 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -89,17 +89,14 @@ type RequestBodyOption<T> = OperationRequestBodyContent<T> extends never
+ 
+ type FetchOptions<T> = RequestOptions<T> & Omit<RequestInit, "body" | "headers">;
+ 
+-type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> =
+-  | {
+-      data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
+-      error?: never;
+-      response: Response;
+-    }
+-  | {
+-      data?: never;
+-      error: ErrorResponse<ResponseObjectMap<T>, Media>;
+-      response: Response;
+-    };
++// NOTE(calebmer): The implementation of `fetch()` we provide `openapi-fetch`
++// always throws if `!request.ok` so we should never see an error as the fetch
++// response. Patching so we have more convenient types that match how we want to
++// use the library.
++export type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> = {
++  data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
++  response: Response;
++};
+ 
+ type RequestOptions<T> = ParamsOption<T> &
+   RequestBodyOption<T> & {
+diff --git a/src/index.d.ts b/src/index.d.ts
+index 79dec3d77016cc66433bb44e23a712aae7f3b149..7429e7b7cdb7470b1c028f8adb1ea80f205d7a7e 100644
+--- a/src/index.d.ts
++++ b/src/index.d.ts
+@@ -100,17 +100,14 @@ export type RequestBodyOption<T> = OperationRequestBodyContent<T> extends never
+ 
+ export type FetchOptions<T> = RequestOptions<T> & Omit<RequestInit, "body" | "headers">;
+ 
+-export type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> =
+-  | {
+-      data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
+-      error?: never;
+-      response: Response;
+-    }
+-  | {
+-      data?: never;
+-      error: ErrorResponse<ResponseObjectMap<T>, Media>;
+-      response: Response;
+-    };
++// NOTE(calebmer): The implementation of `fetch()` we provide `openapi-fetch`
++// always throws if `!request.ok` so we should never see an error as the fetch
++// response. Patching so we have more convenient types that match how we want to
++// use the library.
++export type FetchResponse<T extends Record<string | number, any>, Options, Media extends MediaType> = {
++  data: ParseAsResponse<SuccessResponse<ResponseObjectMap<T>, Media>, Options>;
++  response: Response;
++};
+ 
+ export type RequestOptions<T> = ParamsOption<T> &
+   RequestBodyOption<T> & {

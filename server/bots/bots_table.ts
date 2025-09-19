@@ -575,6 +575,7 @@ async function actuallyCallBotWebhook(
         spaceId: job.spaceId,
         accountId: job.botAccountId,
         accessToken,
+        attempt: attemptNumber,
         eventId: job.eventId,
         event: job.event,
     };

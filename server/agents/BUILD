@@ -15,6 +15,8 @@ ts_project(
     # observability with our tracer framework. So there are some codebase-specific
     # dependencies but we try to keep them few and far between.
     deps = [
+        "//:node_modules/openapi-fetch",
+        "//server/api/markdown",
         "//server/api/specification",
         # We don't want to depend on all the codebase-specific utilities in
         # `//server/cloudflare`. Just the global types.

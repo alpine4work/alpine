@@ -2,7 +2,9 @@ import {intoApiMessagePayload} from "~/server/api/into_api_message_payload.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {getChatMessagePayload} from "~/server/chat/data/chat_actions.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {getDocumentCommentPayload} from "~/server/documents/data/documents_actions.js";
+import {getPostCommentPayload} from "~/server/forum/data/forum_actions.js";
+import {getTaskCommentPayload} from "~/server/tasks/data/task_table.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -65,7 +67,7 @@ export const apiPaths: {
 } = {
     "/chats/{id}/messages/{index}": {
         get: async (context, {pathParams, searchParams}) => {
-            const chatMessage = await getChatMessagePayload(context, {
+            const message = await getChatMessagePayload(context, {
                 chatId: pathParams.id,
                 messageIndex: pathParams.index,
                 consistency: "StrongWithinCache",
@@ -75,8 +77,8 @@ export const apiPaths: {
                 {
                     roomPath: `/chats/${pathParams.id}`,
                     index: pathParams.index,
-                    createdTime: serializeDateString(chatMessage.createdTime),
-                    payload: intoApiMessagePayload(chatMessage.payload),
+                    createdTime: serializeDateString(message.createdTime),
+                    payload: intoApiMessagePayload(message.payload),
                 };
 
             // We want to test that response schemas are validated in a Jest unit test. So
@@ -91,21 +93,61 @@ export const apiPaths: {
         },
     },
     "/documents/{id}/threads/{threadId}/messages/{index}": {
-        // TODO(calebmer, #api): Implement this route
-        get: async () => {
-            throw new UnimplementedError("TODO");
+        get: async (context, {pathParams}) => {
+            // TODO(calebmer, #api): Tests!
+            const message = await getDocumentCommentPayload(context, {
+                documentId: pathParams.id,
+                commentThreadId: pathParams.threadId,
+                commentIndex: pathParams.index,
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    roomPath: `/documents/${pathParams.id}/threads/${pathParams.threadId}`,
+                    index: pathParams.index,
+                    createdTime: serializeDateString(message.createdTime),
+                    payload: intoApiMessagePayload(message.payload),
+                },
+            };
         },
     },
     "/posts/{id}/messages/{index}": {
-        // TODO(calebmer, #api): Implement this route
-        get: async () => {
-            throw new UnimplementedError("TODO");
+        get: async (context, {pathParams}) => {
+            // TODO(calebmer, #api): Tests!
+            const message = await getPostCommentPayload(context, {
+                postId: pathParams.id,
+                commentIndex: pathParams.index,
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    roomPath: `/posts/${pathParams.id}`,
+                    index: pathParams.index,
+                    createdTime: serializeDateString(message.createdTime),
+                    payload: intoApiMessagePayload(message.payload),
+                },
+            };
         },
     },
     "/tasks/{id}/messages/{index}": {
-        // TODO(calebmer, #api): Implement this route
-        get: async () => {
-            throw new UnimplementedError("TODO");
+        get: async (context, {pathParams}) => {
+            // TODO(calebmer, #api): Tests!
+            const message = await getTaskCommentPayload(context, {
+                taskId: pathParams.id,
+                commentIndex: pathParams.index,
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    roomPath: `/tasks/${pathParams.id}`,
+                    index: pathParams.index,
+                    createdTime: serializeDateString(message.createdTime),
+                    payload: intoApiMessagePayload(message.payload),
+                },
+            };
         },
     },
 };
