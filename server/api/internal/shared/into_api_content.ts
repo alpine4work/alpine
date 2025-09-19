@@ -17,6 +17,7 @@ import {
     ContentListItemNodeTypeName,
     ContentMarkTypeName,
 } from "~/shared/content/content_node_type_name.js";
+import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -210,6 +211,8 @@ function intoApiContentBlockElement(
                                 return element;
                             }
                             case "Quote":
+                            case "Heading":
+                            case "Divider":
                             case "Table":
                             case "Code": {
                                 throw new InternalError(
@@ -222,6 +225,16 @@ function intoApiContentBlockElement(
                     },
                 ),
             };
+        }
+        case "heading": {
+            return {
+                type: "Heading",
+                level: clampHeadingLevel(node.attrs.level),
+                elements: intoApiContentInlineElements(node.content.content, options),
+            };
+        }
+        case "divider": {
+            return {type: "Divider"};
         }
         case "table": {
             let columnWidth = 2;
@@ -248,7 +261,9 @@ function intoApiContentBlockElement(
                                             case "Code": {
                                                 return element;
                                             }
-                                            case "Table": {
+                                            case "Table":
+                                            case "Heading":
+                                            case "Divider": {
                                                 throw new InternalError(
                                                     quote`${element.type} block element isn’t supported in \`Table\` block element`,
                                                 );
@@ -308,8 +323,6 @@ function intoApiContentBlockElement(
             };
         }
         case "checkListItem":
-        case "heading":
-        case "divider":
         case "fileRow":
         case "fileFloat":
         case "fileRowTable": {

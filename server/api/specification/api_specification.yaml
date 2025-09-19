@@ -489,6 +489,8 @@ components:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement"
+                - $ref: "#/components/schemas/ContentHeadingBlockElement"
+                - $ref: "#/components/schemas/ContentDividerBlockElement"
                 - $ref: "#/components/schemas/ContentTableBlockElement"
                 - $ref: "#/components/schemas/ContentCodeBlockElement"
             discriminator:
@@ -498,6 +500,8 @@ components:
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
                     Quote: "#/components/schemas/ContentQuoteBlockElement"
+                    Heading: "#/components/schemas/ContentHeadingBlockElement"
+                    Divider: "#/components/schemas/ContentDividerBlockElement"
                     Table: "#/components/schemas/ContentTableBlockElement"
                     Code: "#/components/schemas/ContentCodeBlockElement"
 
@@ -594,6 +598,30 @@ components:
                     Paragraph: "#/components/schemas/ContentParagraphBlockElement"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+
+        ContentHeadingBlockElement:
+            type: object
+            required: [type, level, elements]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Heading
+                level:
+                    type: integer
+                    minimum: 1
+                    maximum: 3
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement"
+
+        ContentDividerBlockElement:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Divider
 
         ContentTableBlockElement:
             type: object

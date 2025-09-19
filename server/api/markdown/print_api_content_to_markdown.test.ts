@@ -7551,3 +7551,232 @@ test("escaped pipe between text in table cell with code mark", () => {
 `,
     );
 });
+
+// Tests for Heading and Divider elements
+test("heading level 1", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 1,
+                    elements: [{type: "Text", text: "Main Title"}],
+                },
+            ],
+        },
+        `\
+# Main Title
+`,
+    );
+});
+
+test("heading level 2", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 2,
+                    elements: [{type: "Text", text: "Subtitle"}],
+                },
+            ],
+        },
+        `\
+## Subtitle
+`,
+    );
+});
+
+test("heading level 3", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 3,
+                    elements: [{type: "Text", text: "Section"}],
+                },
+            ],
+        },
+        `\
+### Section
+`,
+    );
+});
+
+test("heading with marks", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 2,
+                    elements: [
+                        {type: "Text", text: "Bold "},
+                        {type: "Text", text: "and", marks: [{type: "Bold"}]},
+                        {type: "Text", text: " "},
+                        {type: "Text", text: "italic", marks: [{type: "Italic"}]},
+                        {type: "Text", text: " heading"},
+                    ],
+                },
+            ],
+        },
+        `\
+## Bold **and** *italic* heading
+`,
+    );
+});
+
+test("heading with empty content", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 1,
+                    elements: [],
+                },
+            ],
+        },
+        `\
+#
+`,
+    );
+});
+
+test("heading with break nodes", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 2,
+                    elements: [
+                        {type: "Text", text: "Multi"},
+                        {type: "Break"},
+                        {type: "Text", text: "line heading"},
+                    ],
+                },
+            ],
+        },
+        `\
+## Multi<br/>line heading
+`,
+    );
+});
+
+test("multiple headings", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Heading",
+                    level: 1,
+                    elements: [{type: "Text", text: "Chapter 1"}],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Some content here."}],
+                },
+                {
+                    type: "Heading",
+                    level: 2,
+                    elements: [{type: "Text", text: "Section A"}],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "More content."}],
+                },
+            ],
+        },
+        `\
+# Chapter 1
+
+Some content here.
+
+## Section A
+
+More content.
+`,
+    );
+});
+
+test("divider", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Divider",
+                },
+            ],
+        },
+        `\
+---
+`,
+    );
+});
+
+test("divider between paragraphs", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Before divider"}],
+                },
+                {
+                    type: "Divider",
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "After divider"}],
+                },
+            ],
+        },
+        `\
+Before divider
+
+---
+
+After divider
+`,
+    );
+});
+
+test("multiple dividers", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Section 1"}],
+                },
+                {
+                    type: "Divider",
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Section 2"}],
+                },
+                {
+                    type: "Divider",
+                },
+                {
+                    type: "Paragraph",
+                    elements: [{type: "Text", text: "Section 3"}],
+                },
+            ],
+        },
+        `\
+Section 1
+
+---
+
+Section 2
+
+---
+
+Section 3
+`,
+    );
+});

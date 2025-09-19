@@ -94,6 +94,14 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             normalizeApiContentBlockElements(element.elements);
             break;
         }
+        case "Heading": {
+            normalizeApiContentInlineElements(element.elements);
+            break;
+        }
+        case "Divider": {
+            // Already normalized.
+            break;
+        }
         case "Code": {
             if (element.lines.length === 0) {
                 element.lines.push({elements: []});

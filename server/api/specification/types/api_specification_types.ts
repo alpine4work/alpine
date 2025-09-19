@@ -456,6 +456,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentUnorderedListBlockElement"]
                 | components["schemas"]["ContentOrderedListBlockElement"]
                 | components["schemas"]["ContentQuoteBlockElement"]
+                | components["schemas"]["ContentHeadingBlockElement"]
+                | components["schemas"]["ContentDividerBlockElement"]
                 | components["schemas"]["ContentTableBlockElement"]
                 | components["schemas"]["ContentCodeBlockElement"];
             readonly ContentParagraphBlockElement: {
@@ -501,6 +503,22 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentParagraphBlockElement"]
                 | components["schemas"]["ContentUnorderedListBlockElement"]
                 | components["schemas"]["ContentOrderedListBlockElement"];
+            readonly ContentHeadingBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Heading";
+                readonly level: number;
+                readonly elements: readonly components["schemas"]["ContentInlineElement"][];
+            };
+            readonly ContentDividerBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Divider";
+            };
             readonly ContentTableBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript

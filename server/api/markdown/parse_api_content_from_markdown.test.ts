@@ -1101,6 +1101,227 @@ test("HTML table with complex cell content", () => {
     });
 });
 
+test("HTML table with heading in cell", () => {
+    expect(
+        parseApiContentFromMarkdown(
+            `\
+<table>
+<tr>
+<td>
+# Heading in cell
+Regular text
+</td>
+<td>## Another heading</td>
+</tr>
+</table>`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Table",
+                width: 1,
+                columns: [{width: 1}, {width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
+                rows: [
+                    {
+                        cells: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: " # Heading in cell Regular text ",
+                                                marks: undefined,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "## Another heading",
+                                                marks: undefined,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("HTML table with divider in cell", () => {
+    expect(
+        parseApiContentFromMarkdown(
+            `\
+<table>
+<tr>
+<td>
+
+Before divider
+
+---
+
+After divider
+
+</td>
+<td>Regular content</td>
+</tr>
+</table>`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Table",
+                width: 1,
+                columns: [{width: 1}, {width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
+                rows: [
+                    {
+                        cells: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "Before divider",
+                                                marks: undefined,
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "---"}],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "After divider", marks: undefined},
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "Regular content",
+                                                marks: undefined,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("HTML table with both heading and divider in cell", () => {
+    expect(
+        parseApiContentFromMarkdown(
+            `\
+<table>
+<tr>
+<td>
+
+# Section Title
+
+Some content
+
+---
+
+## Subsection
+
+More content
+
+</td>
+</tr>
+</table>`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Table",
+                width: 1,
+                columns: [{width: 1}],
+                hasHeaderColumn: undefined,
+                hasHeaderRow: undefined,
+                rows: [
+                    {
+                        cells: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "Section Title",
+                                                marks: [{type: "Bold"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Some content", marks: undefined},
+                                        ],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "---"}],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "Subsection",
+                                                marks: [{type: "Bold"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "More content", marks: undefined},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
 test("table HTML in list throws error", () => {
     expect(() =>
         parseApiContentFromMarkdown(
@@ -1691,13 +1912,87 @@ test("table in quote cell is flattened", () => {
     });
 });
 
+test("heading in quote becomes paragraph with bold", () => {
+    expect(
+        parseApiContentFromMarkdown(
+            `\
+> # Quoted heading
+> Regular quoted text`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Quote",
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Quoted heading", marks: [{type: "Bold"}]}],
+                    },
+                    {type: "Paragraph", elements: [{type: "Text", text: "Regular quoted text"}]},
+                ],
+            },
+        ],
+    });
+});
+
+test("divider in quote becomes paragraph with dashes", () => {
+    expect(
+        parseApiContentFromMarkdown(
+            `\
+> Before divider
+>
+> ---
+>
+> After divider`,
+            {spaceId},
+        ),
+    ).toEqual({
+        elements: [
+            {
+                type: "Quote",
+                elements: [
+                    {type: "Paragraph", elements: [{type: "Text", text: "Before divider"}]},
+                    {type: "Paragraph", elements: [{type: "Text", text: "---"}]},
+                    {type: "Paragraph", elements: [{type: "Text", text: "After divider"}]},
+                ],
+            },
+        ],
+    });
+});
+
 // Tests for headings
-test("heading becomes paragraph", () => {
+test("heading level 1", () => {
     expect(parseApiContentFromMarkdown("# Heading 1", {spaceId})).toEqual({
         elements: [
             {
-                type: "Paragraph",
+                type: "Heading",
+                level: 1,
                 elements: [{type: "Text", text: "Heading 1"}],
+            },
+        ],
+    });
+});
+
+test("heading level 2", () => {
+    expect(parseApiContentFromMarkdown("## Heading 2", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Heading",
+                level: 2,
+                elements: [{type: "Text", text: "Heading 2"}],
+            },
+        ],
+    });
+});
+
+test("heading level 3", () => {
+    expect(parseApiContentFromMarkdown("### Heading 3", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Heading",
+                level: 3,
+                elements: [{type: "Text", text: "Heading 3"}],
             },
         ],
     });
@@ -1707,7 +2002,8 @@ test("heading with marks", () => {
     expect(parseApiContentFromMarkdown("## **Bold** and *italic* heading", {spaceId})).toEqual({
         elements: [
             {
-                type: "Paragraph",
+                type: "Heading",
+                level: 2,
                 elements: [
                     {type: "Text", text: "Bold", marks: [{type: "Bold"}]},
                     {type: "Text", text: " and "},
@@ -1731,28 +2027,42 @@ test("multiple heading levels", () => {
     ).toEqual({
         elements: [
             {
-                type: "Paragraph",
+                type: "Heading",
+                level: 1,
                 elements: [{type: "Text", text: "Level 1"}],
             },
             {
-                type: "Paragraph",
+                type: "Heading",
+                level: 2,
                 elements: [{type: "Text", text: "Level 2"}],
             },
             {
-                type: "Paragraph",
+                type: "Heading",
+                level: 3,
                 elements: [{type: "Text", text: "Level 3"}],
             },
         ],
     });
 });
 
-// Tests for thematic breaks
-test("thematic break becomes text", () => {
+test("heading with empty content", () => {
+    expect(parseApiContentFromMarkdown("# ", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Heading",
+                level: 1,
+                elements: [],
+            },
+        ],
+    });
+});
+
+// Tests for thematic breaks (dividers)
+test("thematic break becomes divider", () => {
     expect(parseApiContentFromMarkdown("---", {spaceId})).toEqual({
         elements: [
             {
-                type: "Paragraph",
-                elements: [{type: "Text", text: "---"}],
+                type: "Divider",
             },
         ],
     });
@@ -1776,12 +2086,31 @@ Second paragraph`,
                 elements: [{type: "Text", text: "First paragraph"}],
             },
             {
-                type: "Paragraph",
-                elements: [{type: "Text", text: "---"}],
+                type: "Divider",
             },
             {
                 type: "Paragraph",
                 elements: [{type: "Text", text: "Second paragraph"}],
+            },
+        ],
+    });
+});
+
+test("thematic break with asterisks", () => {
+    expect(parseApiContentFromMarkdown("***", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Divider",
+            },
+        ],
+    });
+});
+
+test("thematic break with underscores", () => {
+    expect(parseApiContentFromMarkdown("___", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Divider",
             },
         ],
     });

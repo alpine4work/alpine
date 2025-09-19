@@ -21,6 +21,8 @@ import {
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
+    ApiContentDividerBlockElement,
+    ApiContentHeadingBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementLinkMark,
     ApiContentInlineElementMark,
@@ -271,6 +273,16 @@ const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElemen
     ),
 });
 
+const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockElement> = fc.record({
+    type: fc.constant("Heading"),
+    level: fc.oneof(fc.constant(1), fc.constant(2), fc.constant(3)),
+    elements: fc.array(ApiContentInlineElementArbitrary),
+});
+
+const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElement> = fc.record({
+    type: fc.constant("Divider"),
+});
+
 const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
     createUnionArbitrary<ApiContentCodeBlockElementTextInlineElementMark>({
         Bold: fc.constant({type: "Bold"}),
@@ -359,6 +371,8 @@ const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElem
     UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
     OrderedList: ApiContentOrderedListBlockElementArbitrary,
     Quote: ApiContentQuoteBlockElementArbitrary,
+    Heading: ApiContentHeadingBlockElementArbitrary,
+    Divider: ApiContentDividerBlockElementArbitrary,
     Code: ApiContentCodeBlockElementArbitrary,
     Table: ApiContentTableBlockElementArbitrary,
 });

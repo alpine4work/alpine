@@ -1511,5 +1511,87 @@ export function testMessagingApiImplementation(
             expect(response2.body.messages[count].index).toBe(message.index);
             expect(response2.body.nextCursor).toBeNull();
         });
+
+        test("can create message with heading that’s converted to paragraph", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
+
+            const response = await request(server)
+                .post(`${roomPath}/messages`)
+                .set("authorization", `bearer ${apiKey}`)
+                .send({
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Hello, world!"}],
+                            },
+                        ],
+                    },
+                })
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: initialMessageCount,
+                        payload: expect.objectContaining({
+                            type: "Content",
+                        }),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual("**Hello, world!**\n");
+        });
+
+        test("can create message with divider that’s converted to paragraph", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
+
+            const response = await request(server)
+                .post(`${roomPath}/messages`)
+                .set("authorization", `bearer ${apiKey}`)
+                .send({
+                    content: {
+                        elements: [{type: "Divider"}],
+                    },
+                })
+                .expect("content-type", "application/json")
+                .expect(200);
+
+            expect(response.body).toEqual(
+                expect.objectContaining({
+                    message: expect.objectContaining({
+                        index: initialMessageCount,
+                        payload: expect.objectContaining({
+                            type: "Content",
+                        }),
+                    }),
+                }),
+            );
+
+            expect(
+                printApiContentToMarkdown(response.body.message.payload.content, {
+                    spaceId: space.id,
+                }),
+            ).toEqual("\\---\n");
+        });
     });
 }

@@ -30,6 +30,12 @@ export type ApiContentQuoteBlockElement =
 export type ApiContentQuoteBlockElementBlockElement =
     ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement"];
 
+export type ApiContentHeadingBlockElement =
+    ApiSpecification.components["schemas"]["ContentHeadingBlockElement"];
+
+export type ApiContentDividerBlockElement =
+    ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
+
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
 

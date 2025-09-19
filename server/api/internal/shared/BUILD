@@ -20,6 +20,7 @@ ts_project(
         "//:node_modules/prettier",
         "//:node_modules/prosemirror-model",
         "//:node_modules/yaml",
+        "//server/api/markdown",
         "//server/api/specification",
         "//server/context",
         "//server/helpers",

@@ -36,6 +36,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -259,6 +260,24 @@ function* parseApiContentBlockElementFromMarkdown(
                     ),
                 ),
             };
+            break;
+        }
+        case "heading": {
+            yield {
+                type: "Heading",
+                level: clamp(1, Math.floor(content.depth), 3),
+                elements: Array.from(
+                    parseAndMergeApiContentInlineElementsFromMarkdown(
+                        content.children,
+                        definitions,
+                        options,
+                    ),
+                ),
+            };
+            break;
+        }
+        case "thematicBreak": {
+            yield {type: "Divider"};
             break;
         }
         case "html": {
@@ -736,31 +755,6 @@ function* parseApiContentBlockElementFromMarkdown(
                 hasHeaderRow: true,
                 hasHeaderColumn: undefined,
                 rows,
-            };
-            break;
-        }
-        case "heading": {
-            // TODO(calebmer): Someday we'll support headings in `ApiContent` and we'll
-            // need to update this.
-            yield {
-                type: "Paragraph",
-                elements: Array.from(
-                    parseApiContentInlineElementsFromMarkdown(
-                        content.children,
-                        definitions,
-                        new ApiContentInlineElementsMarkdownParserMarkStack(),
-                        options,
-                    ),
-                ),
-            };
-            break;
-        }
-        case "thematicBreak": {
-            // TODO(calebmer): Someday we'll support dividers in `ApiContent` and we'll
-            // need to update this.
-            yield {
-                type: "Paragraph",
-                elements: [{type: "Text", text: "---", marks: undefined}],
             };
             break;
         }
@@ -1819,6 +1813,23 @@ function* intoApiContentTableBlockElementCellElement(
             yield element;
             break;
         }
+        case "Heading": {
+            yield {
+                type: "Paragraph",
+                elements: element.elements.map(childElement => ({
+                    ...childElement,
+                    marks: normalizeApiContentInlineElementMarks([
+                        ...(childElement.marks ?? []),
+                        {type: "Bold"},
+                    ]),
+                })),
+            };
+            break;
+        }
+        case "Divider": {
+            yield {type: "Paragraph", elements: [{type: "Text", text: "---"}]};
+            break;
+        }
         case "Table": {
             for (const row of element.rows) {
                 for (const cell of row.cells) {
@@ -1870,7 +1881,7 @@ function* intoApiContentQuoteBlockElementBlockElement(
     }
 }
 
-function* intoApiContentParagraphBlockElement(
+export function* intoApiContentParagraphBlockElement(
     actualElement: ApiContentBlockElement,
 ): IterableIterator<ApiContentParagraphBlockElement> {
     for (const element of intoApiContentQuoteBlockElementBlockElement(actualElement)) {

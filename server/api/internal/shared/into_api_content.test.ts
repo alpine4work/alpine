@@ -6,6 +6,7 @@ import {intoApiContent} from "~/server/api/internal/shared/into_api_content.js";
 import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -15,7 +16,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentProsemirrorSchema as schema} from "~/shared/messaging/message_content_schema.js";
 
 // Node builders
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
@@ -43,6 +43,9 @@ const table = (
 ) => schema.nodes.table.create(attrs, rows);
 const tableRow = (...cells: Array<Node>) => schema.nodes.tableRow.create(null, cells);
 const tableCell = (...content: Array<Node>) => schema.nodes.tableCell.create(null, content);
+const heading = (level: number, ...content: Array<Node>) =>
+    schema.nodes.heading.create({level}, content);
+const divider = () => schema.nodes.divider.create();
 
 // Mark builders
 const bold = () => schema.marks.bold.create();
@@ -2487,4 +2490,27 @@ test("converts quote block with lists inside into API content", () => {
             ],
         },
     );
+});
+
+test("converts headings into API content", () => {
+    testIntoApiContent(
+        doc(
+            heading(1, text("Heading 1")),
+            heading(2, text("Heading 2")),
+            heading(3, text("Heading 3")),
+        ),
+        {
+            elements: [
+                {type: "Heading", level: 1, elements: [{type: "Text", text: "Heading 1"}]},
+                {type: "Heading", level: 2, elements: [{type: "Text", text: "Heading 2"}]},
+                {type: "Heading", level: 3, elements: [{type: "Text", text: "Heading 3"}]},
+            ],
+        },
+    );
+});
+
+test("converts dividers into API content", () => {
+    testIntoApiContent(doc(divider()), {
+        elements: [{type: "Divider"}],
+    });
 });

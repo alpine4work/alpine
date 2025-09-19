@@ -1,4 +1,5 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {intoApiContentParagraphBlockElement} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {parseApiContentMentionInlineElementTargetPath} from "~/server/api/specification/parse_api_path.js";
 import {
     ApiContent,
@@ -24,7 +25,7 @@ export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): 
 
 function* fromApiContentBlockElements(
     schema: ProsemirrorSchema,
-    elements: ReadonlyArray<ApiContentBlockElement>,
+    elements: Iterable<ApiContentBlockElement>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
@@ -81,6 +82,33 @@ function* fromApiContentBlockElements(
                     null,
                     Array.from(fromApiContentBlockElements(schema, element.elements)),
                 );
+                break;
+            }
+            case "Heading": {
+                if (!schema.nodes.heading) {
+                    yield* fromApiContentBlockElements(
+                        schema,
+                        intoApiContentParagraphBlockElement(element),
+                    );
+                    break;
+                }
+
+                yield schema.nodes.heading.create(
+                    {level: element.level},
+                    fromApiContentInlineElements(schema, element.elements),
+                );
+                break;
+            }
+            case "Divider": {
+                if (!schema.nodes.divider) {
+                    yield* fromApiContentBlockElements(
+                        schema,
+                        intoApiContentParagraphBlockElement(element),
+                    );
+                    break;
+                }
+
+                yield schema.nodes.divider.create();
                 break;
             }
             case "Table": {

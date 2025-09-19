@@ -63,6 +63,7 @@ function actuallyPrintApiContentToMarkdown(
 
     return toMarkdown(root, {
         bullet: "-",
+        rule: "-",
         extensions: [
             gfmStrikethroughToMarkdown(),
             // Disable `tablePipeAlign` since we can have arbitrarily long content in
@@ -173,6 +174,25 @@ function* printApiContentBlockElementToMarkdown(
                     printApiContentBlockElementsToMarkdown(element.elements, options),
                 ),
             };
+            break;
+        }
+        case "Heading": {
+            const children = printApiContentInlineElementsToMarkdown(element.elements, {
+                ...options,
+                forceBreakHtml: true,
+            });
+
+            assert(element.level === 1 || element.level === 2 || element.level === 3);
+
+            yield {
+                type: "heading",
+                depth: element.level,
+                children,
+            };
+            break;
+        }
+        case "Divider": {
+            yield {type: "thematicBreak"};
             break;
         }
         case "Code": {
