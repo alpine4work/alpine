@@ -4,7 +4,6 @@ import {
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {createWorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {
     WorkerProcessContext,
     WorkerProcessContextModules,
@@ -13,6 +12,13 @@ import {
     WorkerRpcContextBatcher,
     WorkerRpcContextModule,
 } from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {
+    ActorContextModule,
+    AnonymousActorContextModule,
+    BotActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -38,6 +44,7 @@ import {
 } from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -272,7 +279,7 @@ export function createDurableObject<
                         cookieJar: this._cookieJar,
                     });
 
-                    const actorContextModule = await createWorkerActorContextModule(
+                    const actorContextModule = await createDurableObjectActorContextModule(
                         tokenAgent,
                         authorizationHeaderToken,
                     );
@@ -444,4 +451,47 @@ export function createDurableObject<
             };
         }
     };
+}
+
+/**
+ * Verify the token and return an actor context module corresponding to
+ * the token.
+ */
+async function createDurableObjectActorContextModule(
+    tokenAgent: TokenAgent,
+    token: string,
+): Promise<ActorContextModule> {
+    const {serviceName, payload} = await tokenAgent.publicSide.verifyToken(token);
+
+    switch (payload.type) {
+        case "Session": {
+            // The tokens provided to Durable Objects are short lived. So we don't check if
+            // the session was revoked. If the session was valid when the token was signed
+            // we trust it's still valid now.
+            //
+            // If we make an RPC call then `AppService` will check it the session was
+            // revoked.
+            return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
+                serviceName,
+                payload.sessionId,
+                payload.accountId,
+            );
+        }
+        case "System": {
+            return SystemActorContextModule.dangerouslyNew(serviceName, payload.spaceId);
+        }
+        case "Anonymous": {
+            return AnonymousActorContextModule.dangerouslyNew(serviceName);
+        }
+        case "Bot": {
+            return BotActorContextModule.dangerouslyNew(
+                serviceName,
+                payload.spaceId,
+                payload.accountId,
+                payload.scope,
+            );
+        }
+        default:
+            throw exhaustive(payload);
+    }
 }

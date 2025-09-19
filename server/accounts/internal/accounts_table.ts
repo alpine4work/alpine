@@ -299,14 +299,18 @@ export type AccountEmailAddressItem = DynamoTableItemType<
     "Attributes"
 >;
 
-export type AccountAttributesItem = DynamoTableItemType<
+export type AccountItemWithoutAvatar = DynamoTableItemType<
     typeof AccountsTable,
     "Account",
     "Attributes"
 >;
-export type AccountSettingsItem = DynamoTableItemType<typeof AccountsTable, "Account", "Settings">;
+
 export type AccountAvatarItem = DynamoTableItemType<typeof AccountsTable, "Account", "Avatar">;
-export type AccountItem = AccountAttributesItem & {
+
+export type AccountItem = AccountItemWithoutAvatar & {
     readonly avatar: AccountAvatarItem | null;
 };
+
+export type AccountSettingsItem = DynamoTableItemType<typeof AccountsTable, "Account", "Settings">;
+
 export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;

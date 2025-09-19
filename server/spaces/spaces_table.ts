@@ -4,19 +4,13 @@ import {
     checkAccountVersionConditionCheck,
     createAccountTransactionEntry,
     createAccountWithEmailAddressTransactionEntries,
-    dangerouslyGetAccountIfExistsWithoutCaching,
+    dangerouslyGetAccountIfExistsWithoutAuthorization,
     getAccountByIdAsAdmin,
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
 import {getBot} from "~/server/bots/bots_table.js";
-import {
-    DynamoActorContextModule,
-    DynamoImpersonatedAccountActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {
     ServerActionContext,
@@ -38,7 +32,12 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoTransactionCancelledExceptionByConditionCheckError} from "~/server/dynamo/core/is_dynamo_transaction_cancelled_exception_by_condition_check_error.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
-import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {
+    ActorContextModule,
+    ImpersonatedAccountActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -74,7 +73,7 @@ import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -472,6 +471,7 @@ export async function addSpaceAccountForTest(
 
     await addSpaceAccountWithoutAuthorization(
         context.clone({
+            cache: CacheContextModule.new(),
             searchInjection: context.searchInjection.cloneForTest({
                 // Don't add `TaskPersonal` favorite search entity in our test environment.
                 // That would require all server tests taking a dependency on
@@ -528,12 +528,15 @@ export async function seedTestSpaces(
 
     if (!spaceAccountItem || spaceAccountItem.state.type !== "Active") {
         try {
-            await addSpaceAccountWithoutAuthorization(context, {
-                spaceId: defaultSpaceId,
-                accountId: adminAccountId,
-                // make default space account as "Owner" since it is the first account in the space.
-                role: "Owner",
-            });
+            await addSpaceAccountWithoutAuthorization(
+                context.clone({cache: CacheContextModule.new()}),
+                {
+                    spaceId: defaultSpaceId,
+                    accountId: adminAccountId,
+                    // make default space account as "Owner" since it is the first account in the space.
+                    role: "Owner",
+                },
+            );
         } catch (error) {
             // Ignore account is already a member of space error. Since this means due to a
             // race condition we tried to add the account to the space twice.
@@ -949,6 +952,7 @@ async function getAddSpaceAccountTransactionEntries({
 export async function addSpaceAccountWithoutAuthorization(
     context: Context<
         DynamoContextModules & {
+            cache: CacheContextModule;
             jobs: JobsContextModule;
             searchInjection: SearchInjectionContextModule;
         }
@@ -970,13 +974,8 @@ export async function addSpaceAccountWithoutAuthorization(
                 sortRangeType: "Attributes",
                 spaceId,
             }),
-            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId),
-            SpacesTable.getItemIfExists(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId,
-            }),
+            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
+            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             SpacesTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "Spaces",
@@ -1179,7 +1178,7 @@ export const removeSpaceAccountBeforeExecuteTestCheckpoint =
  * remove accounts from the space.
  */
 function removeSpaceAccountWithoutAuthorization(
-    context: ServerProcessContext,
+    context: ServerActionContext,
     {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
 ): Promise<AccountModel> {
     return context.dynamo.retryTransaction(async context => {
@@ -1191,13 +1190,8 @@ function removeSpaceAccountWithoutAuthorization(
                 sortRangeType: "Attributes",
                 spaceId,
             }),
-            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId),
-            SpacesTable.getItemIfExists(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId,
-            }),
+            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
+            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             SpacesTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "Spaces",
@@ -1495,7 +1489,7 @@ class SpaceAccountsCache {
             tracer: TracerContextModule;
             cache: CacheContextModule;
             dynamo: DynamoContextModule;
-            actor: DynamoActorContextModule;
+            actor: ActorContextModule;
         }>,
         spaceId: SpaceId,
     ): Promise<SpaceAccountsCacheData> {
@@ -1724,43 +1718,70 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
 
         const accountAvatarOverrideItemsPromise: Promise<
             Array<[AccountId, SpaceAccountAvatarOverrideItem]>
-        > = parallelMapAsyncIterableToArray(
-            SpacesTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "Space",
-                    spaceId,
+        > = arrayFromAsyncIterable(
+            mapAsyncIterableIterator(
+                SpacesTable.query(context, {
+                    limit: "All",
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Space",
+                        spaceId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "AccountAvatarOverride",
+                        accountId: getMinId<AccountId>(),
+                    },
+                    endSortKey: {
+                        sortRangeType: "AccountAvatarOverride",
+                        accountId: getMaxId<AccountId>(),
+                    },
+                }),
+                item => {
+                    // Optimization: Add item to cache so we can skip loading it later if the item
+                    // is requested again.
+                    SpaceAccountAvatarOverrideItemContextCache.set(
+                        context,
+                        consistency,
+                        `${spaceId}:${item.accountId}`,
+                        item,
+                    );
+
+                    return [item.accountId, item];
                 },
-                startSortKey: {
-                    sortRangeType: "AccountAvatarOverride",
-                    accountId: getMinId<AccountId>(),
-                },
-                endSortKey: {
-                    sortRangeType: "AccountAvatarOverride",
-                    accountId: getMaxId<AccountId>(),
-                },
-            }),
-            async item => [item.accountId, item],
+            ),
         );
 
         const spaceAccountsPromise = arrayFromAsyncIterable(
-            SpacesTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "Space",
-                    spaceId,
+            mapAsyncIterableIterator(
+                SpacesTable.query(context, {
+                    limit: "All",
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Space",
+                        spaceId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Account",
+                        accountId: getMinId<AccountId>(),
+                    },
+                    endSortKey: {
+                        sortRangeType: "Account",
+                        accountId: getMaxId<AccountId>(),
+                    },
+                }),
+                item => {
+                    // Optimization: Add item to cache so we can skip loading it later if the item
+                    // is requested again.
+                    SpaceAccountItemContextCache.set(
+                        context,
+                        consistency,
+                        `${spaceId}:${item.accountId}`,
+                        item,
+                    );
+
+                    return item;
                 },
-                startSortKey: {
-                    sortRangeType: "Account",
-                    accountId: getMinId<AccountId>(),
-                },
-                endSortKey: {
-                    sortRangeType: "Account",
-                    accountId: getMaxId<AccountId>(),
-                },
-            }),
+            ),
         );
 
         // NOTE(ifitzsimmons, #space-account-avatar-override-query) We could technically fetch
@@ -1793,7 +1814,7 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                     );
                 }
 
-                let account = await dangerouslyGetAccountIfExistsWithoutCaching(
+                let account = await dangerouslyGetAccountIfExistsWithoutAuthorization(
                     context,
                     item.accountId,
                     {consistency},
@@ -1802,7 +1823,7 @@ async function getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
                 // If we don't find the account it might be because of DynamoDB eventual
                 // consistency lag. Try again with strong consistency.
                 if (!account && consistency !== "Strong") {
-                    account = await dangerouslyGetAccountIfExistsWithoutCaching(
+                    account = await dangerouslyGetAccountIfExistsWithoutAuthorization(
                         context,
                         item.accountId,
                         {consistency: "Strong"},
@@ -1865,41 +1886,19 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
             spaceId,
         );
 
-    const accountFromCache1 = accountsCacheData?.accountById.get(accountId);
+    const accountFromCache = accountsCacheData?.accountById.get(accountId);
     if (
-        accountFromCache1 &&
-        (accountFromCache1.initialData.space.state.type === "Active" ||
+        accountFromCache &&
+        (accountFromCache.initialData.space.state.type === "Active" ||
             (options?.allowInvitePending &&
-                accountFromCache1.initialData.space.state.type === "InvitePending"))
+                accountFromCache.initialData.space.state.type === "InvitePending"))
     ) {
         // Sanity check: Don't allow bot accounts to have admin roles.
-        if (accountFromCache1.botId && accountFromCache1.initialData.space.role !== "Member") {
+        if (accountFromCache.botId && accountFromCache.initialData.space.role !== "Member") {
             throw new DataLossError("Bot account should always have a member role");
         }
 
-        if (hasSpaceRole(accountFromCache1.initialData.space.role, expectedRole)) {
-            return true;
-        }
-    }
-
-    // Check if `getAccountIfExists()` has loaded the account...
-    const accountFromCache2 = await AccountModelContextCache.getIfExists(
-        context,
-        "Eventual",
-        `${spaceId}:${accountId}`,
-    );
-    if (
-        accountFromCache2 &&
-        (accountFromCache2.initialData.space.state.type === "Active" ||
-            (options?.allowInvitePending &&
-                accountFromCache2.initialData.space.state.type === "InvitePending"))
-    ) {
-        // Sanity check: Don't allow bot accounts to have admin roles.
-        if (accountFromCache2.botId && accountFromCache2.initialData.space.role !== "Member") {
-            throw new DataLossError("Bot account should always have a member role");
-        }
-
-        if (hasSpaceRole(accountFromCache2.initialData.space.role, expectedRole)) {
+        if (hasSpaceRole(accountFromCache.initialData.space.role, expectedRole)) {
             return true;
         }
     }
@@ -2174,7 +2173,7 @@ export async function authorizeOwnSpaceAccountAccess(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     accountId: AccountId,
 ) {
@@ -2240,7 +2239,7 @@ export async function getBotAccountIdForSpaceIfExists(
 export async function authorizeNotBotSpaceAccount(
     context: Context<{
         process: ProcessContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         batch: BatchContextModule;
@@ -2276,7 +2275,7 @@ export async function isBotSpaceAccount(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2306,7 +2305,7 @@ export async function getSpaceAccountBotIdIfExists(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2345,16 +2344,8 @@ export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
             spaceId,
         );
 
-    const accountFromCache1 = accountsCacheData?.accountById.get(accountId);
-    if (accountFromCache1) return accountFromCache1.botId ?? null;
-
-    // Check if `getAccountIfExists()` has loaded the account...
-    const accountFromCache2 = await AccountModelContextCache.getIfExists(
-        context,
-        "Eventual",
-        `${spaceId}:${accountId}`,
-    );
-    if (accountFromCache2) return accountFromCache2.botId ?? null;
+    const accountFromCache = accountsCacheData?.accountById.get(accountId);
+    if (accountFromCache) return accountFromCache.botId ?? null;
 
     // Read the item with eventual consistency (and context caching). The `botId`
     // property is immutable so if we find an item then we'll know if it's a bot or
@@ -2406,7 +2397,7 @@ export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
 export async function impersonateAccountAsSystemContext<
     Modules extends {
         process: ProcessContextModule;
-        actor: DynamoSystemActorContextModule;
+        actor: SystemActorContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         batch: BatchContextModule;
@@ -2423,7 +2414,7 @@ export async function impersonateAccountAsSystemContext<
                 {
                     cache: CacheContextModule;
                     batch: BatchContextModule;
-                    actor: DynamoImpersonatedAccountActorContextModule;
+                    actor: ImpersonatedAccountActorContextModule;
                 }
             >
         >,
@@ -2453,10 +2444,7 @@ export async function impersonateAccountAsSystemContext<
         {
             cache: context.cache.forkForChangedActor(),
             batch: context.batch.forkForChangedActor(),
-            actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
-                context.actor,
-                accountId,
-            ),
+            actor: ImpersonatedAccountActorContextModule.dangerouslyNew(context.actor, accountId),
         },
         action,
     );
@@ -2479,19 +2467,14 @@ const SpaceAccountItemContextCache = new DynamoContextCache<
  * "dangerous". You must do that yourself.
  */
 async function getSpaceAccountItemIfExistsWithoutAuthorization(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     spaceId: SpaceId,
     accountId: AccountId,
     {
         consistency = "Eventual",
         allowsEventualReadConsistency = false,
     }: {
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
         allowsEventualReadConsistency?: boolean;
     } = {},
 ): Promise<SpaceAccountItem | null> {
@@ -2507,18 +2490,6 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
             ),
     );
 }
-
-const AccountModelContextCache = new DynamoContextCache<
-    `${SpaceId}:${AccountId}`,
-    AccountModel | null
->({
-    // Allow sharing this cache because the results do not depend on who the
-    // actor is.
-    //
-    // We do use the session actor to optimize account item loading if available
-    // but it doesn't change cache semantics.
-    whenActorChanges: "DangerouslyShare",
-});
 
 /**
  * Get an account through a provided space. We can only authorize whether you
@@ -2542,7 +2513,7 @@ export async function getAccountIfExists(
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2563,7 +2534,7 @@ export async function getOwnAccountIfExists(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoSessionActorContextModule;
+        actor: SessionActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2594,7 +2565,7 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2650,68 +2621,71 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
     });
 }
 
+const SpaceAccountAvatarOverrideItemContextCache = new DynamoContextCache<
+    `${SpaceId}:${AccountId}`,
+    SpaceAccountAvatarOverrideItem | null
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
+
 async function getAccountIfExistsWithoutAuthorization(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountModel | null> {
-    return AccountModelContextCache.get(
-        context,
-        consistency,
-        `${spaceId}:${accountId}`,
-        async consistency => {
-            // If we have cached account data and we're loading with eventual consistency
-            // then we can use the cached data.
-            if (consistency === "Eventual") {
-                // We can't use `getDataIfExistsWithoutLoading()` because it calls
-                // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
-                // `authorizeSpaceAccess()` looks at the cache result of this function.
-                //
-                // It's safe to skip authorization for this function, though, because we
-                // authorize space access above.
-                const accountsCacheData =
-                    await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
-                        context,
-                        spaceId,
-                    );
-                if (accountsCacheData) {
-                    return accountsCacheData.accountById.get(accountId) ?? null;
-                }
-            }
+    // If we have cached account data and we're loading with eventual consistency
+    // then we can use the cached data.
+    if (consistency === "Eventual") {
+        // We can't use `getDataIfExistsWithoutLoading()` because it calls
+        // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
+        // `authorizeSpaceAccess()` looks at the cache result of this function.
+        //
+        // It's safe to skip authorization for this function, though, because we
+        // authorize space access above.
+        const accountsCacheData =
+            await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+                context,
+                spaceId,
+            );
+        if (accountsCacheData) {
+            return accountsCacheData.accountById.get(accountId) ?? null;
+        }
+    }
 
-            // Otherwise load account data and space account data. If this is the current
-            // account, we may have already cached the account item.
-            const [account, spaceAccountItem] = await runAllPromises([
-                consistency === "Eventual" &&
-                context.actor.type === "Session" &&
-                context.actor.getAccountId() === accountId
-                    ? context.actor.getAccount()
-                    : dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
-                          consistency,
-                      }),
-                getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
-                    consistency,
-                }),
-            ]);
+    // Otherwise load account data and space account data. If this is the current
+    // account, we may have already cached the account item.
+    const [account, spaceAccountItem] = await runAllPromises([
+        dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {consistency}),
+        getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+            consistency,
+        }),
+    ]);
 
-            if (!spaceAccountItem) return null;
+    if (!spaceAccountItem) return null;
 
-            if (spaceAccountItem.state.type !== "Active") {
-                // NOTE(ifitzsimmons, #account-override-avatar-consistency):
-                // “We know there’s a potential eventual consistency race condition here where
-                // Space#Account has a non-Active state but we don’t find a
-                // Space#AccountAvatarOverride item due to eventual consistency lag. We’re not
-                // fixing this since we expect it to be quite rare in practice and the impact to be
-                // a pretty minor glitch (removed account appears as if they didn’t have an avatar
-                // set).
-                const spaceAccountAvatarOverride = await SpacesTable.getItemIfExists(
+    if (spaceAccountItem.state.type !== "Active") {
+        // NOTE(ifitzsimmons, #account-override-avatar-consistency):
+        // “We know there’s a potential eventual consistency race condition here where
+        // Space#Account has a non-Active state but we don’t find a
+        // Space#AccountAvatarOverride item due to eventual consistency lag. We’re not
+        // fixing this since we expect it to be quite rare in practice and the impact to be
+        // a pretty minor glitch (removed account appears as if they didn’t have an avatar
+        // set).
+        const spaceAccountAvatarOverride = await SpaceAccountAvatarOverrideItemContextCache.get(
+            context,
+            consistency,
+            `${spaceId}:${accountId}`,
+            consistency =>
+                SpacesTable.getItemIfExists(
                     context,
                     {
                         partitionType: "Space",
@@ -2720,33 +2694,32 @@ async function getAccountIfExistsWithoutAuthorization(
                         accountId,
                     },
                     {consistency},
-                );
+                ),
+        );
 
-                return createAccountModelFromItem(
-                    {
-                        ...spaceAccountItem,
-                        accountAvatarOverride: spaceAccountAvatarOverride ?? null,
-                    },
-                    null,
-                );
-            } else {
-                // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
-                // our account table.
-                if (!account) {
-                    throw new DataLossError("Space account item exists but account item doesn’t");
-                }
+        return createAccountModelFromItem(
+            {
+                ...spaceAccountItem,
+                accountAvatarOverride: spaceAccountAvatarOverride ?? null,
+            },
+            null,
+        );
+    } else {
+        // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
+        // our account table.
+        if (!account) {
+            throw new DataLossError("Space account item exists but account item doesn’t");
+        }
 
-                return createAccountModelFromItem(
-                    {
-                        ...spaceAccountItem,
-                        // Active accounts should not have an avatar override
-                        accountAvatarOverride: null,
-                    },
-                    account,
-                );
-            }
-        },
-    );
+        return createAccountModelFromItem(
+            {
+                ...spaceAccountItem,
+                // Active accounts should not have an avatar override
+                accountAvatarOverride: null,
+            },
+            account,
+        );
+    }
 }
 
 /**
@@ -2760,7 +2733,7 @@ export async function getAccount(
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2928,13 +2901,8 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                 sortRangeType: "Attributes",
                 spaceId,
             }),
-            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId),
-            SpacesTable.getItemIfExists(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId,
-            }),
+            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
+            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             SpacesTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "Spaces",
@@ -3381,13 +3349,8 @@ export async function updateSpaceAccountRole(
                 sortRangeType: "Attributes",
                 spaceId,
             }),
-            SpacesTable.getItemIfExists(context, {
-                partitionType: "Space",
-                sortRangeType: "Account",
-                spaceId,
-                accountId,
-            }),
-            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
+            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
+            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {
                 consistency: "Strong",
             }),
         ]);
@@ -3517,25 +3480,25 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
     return context.dynamo.retryTransaction(async context => {
         const [oldSpaceAccountItem, newSpaceAccountItem, oldOwnerAccount, newOwnerAccount] =
             await runAllPromises([
-                SpacesTable.getItem(context, {
-                    partitionType: "Space",
-                    sortRangeType: "Account",
+                getSpaceAccountItemIfExistsWithoutAuthorization(
+                    context,
                     spaceId,
-                    accountId: oldOwnerAccountId,
-                }),
-                SpacesTable.getItem(context, {
-                    partitionType: "Space",
-                    sortRangeType: "Account",
+                    oldOwnerAccountId,
+                ),
+                getSpaceAccountItemIfExistsWithoutAuthorization(
+                    context,
                     spaceId,
-                    accountId: newOwnerAccountId,
-                }),
-                dangerouslyGetAccountIfExistsWithoutCaching(context, oldOwnerAccountId),
-                dangerouslyGetAccountIfExistsWithoutCaching(context, newOwnerAccountId),
+                    newOwnerAccountId,
+                ),
+                dangerouslyGetAccountIfExistsWithoutAuthorization(context, oldOwnerAccountId),
+                dangerouslyGetAccountIfExistsWithoutAuthorization(context, newOwnerAccountId),
             ]);
 
         // These should exist since the corresponding space items exist.
         assert(oldOwnerAccount);
         assert(newOwnerAccount);
+        assert(oldSpaceAccountItem);
+        assert(newSpaceAccountItem);
 
         // Double check the old account is an owner. This is important if we need to
         // retry the transaction.
@@ -3622,7 +3585,7 @@ async function updateSpaceAccountWithInviteDecision(
             getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
                 consistency: "Strong",
             }),
-            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
+            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {
                 consistency: "Strong",
             }),
             SpacesTable.getItemIfExists(context, {

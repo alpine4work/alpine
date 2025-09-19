@@ -5,7 +5,7 @@ import {FileProcessorProcessContext} from "~/server/files/data/file_processor_co
 import {resizeFile} from "~/server/files/processor/resize_file.js";
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
+import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -151,7 +151,7 @@ export function createFileProcessorServiceServer(
             batch: BatchContextModule.new(),
         });
 
-        const actorContextModule = await createDynamoActorContextModule(
+        const actorContextModule = await createActorContextModuleFromAuthorizationHeader(
             baseActionContext,
             request.headers,
             tokenAgent,

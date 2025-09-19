@@ -1,8 +1,4 @@
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContext,
@@ -10,6 +6,10 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    ActorContextModule,
+    SessionActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -41,7 +41,7 @@ assertAssignableTypes<ServerActionContext, FileProcessorActionContext>();
 export type FileProcessorActionContextModules = FileProcessorProcessContextModules & {
     cache: CacheContextModule;
     batch: BatchContextModule;
-    actor: DynamoActorContextModule;
+    actor: ActorContextModule;
 };
 
 export type FileProcessorSessionActionContext = Context<FileProcessorSessionActionContextModules>;
@@ -50,5 +50,5 @@ assertAssignableTypes<ServerSessionActionContext, FileProcessorSessionActionCont
 
 export type FileProcessorSessionActionContextModules = Replace<
     FileProcessorActionContextModules,
-    {actor: DynamoSessionActorContextModule}
+    {actor: SessionActorContextModule}
 >;

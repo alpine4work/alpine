@@ -1,14 +1,14 @@
-import {
-    DynamoActorContextModule,
-    DynamoAnonymousActorContextModule,
-    DynamoBotActorContextModule,
-    DynamoImpersonatedAccountActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-    DynamoUnknownActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {
+    ActorContextModule,
+    AnonymousActorContextModule,
+    BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+    UnknownActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -44,7 +44,7 @@ export type ServerActionContext = Context<ServerActionContextModules>;
 
 export type ServerActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }
 >;
 
@@ -61,7 +61,7 @@ export type ServerSessionActionContextWithEmail = Context<
 
 export type ServerSessionActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoSessionActorContextModule;
+        actor: SessionActorContextModule;
     }
 >;
 
@@ -72,7 +72,7 @@ export type ServerSystemActionContext = Context<ServerSystemActionContextModules
 
 export type ServerSystemActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoSystemActorContextModule;
+        actor: SystemActorContextModule;
     }
 >;
 
@@ -83,7 +83,7 @@ export type ServerAnonymousActionContext = Context<ServerAnonymousActionContextM
 
 export type ServerAnonymousActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoAnonymousActorContextModule;
+        actor: AnonymousActorContextModule;
     }
 >;
 
@@ -96,7 +96,7 @@ export type ServerImpersonatedAccountActionContext =
 
 export type ServerImpersonatedAccountActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoImpersonatedAccountActorContextModule;
+        actor: ImpersonatedAccountActorContextModule;
     }
 >;
 
@@ -107,7 +107,7 @@ export type ServerBotActionContext = Context<ServerBotActionContextModules>;
 
 export type ServerBotActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoBotActorContextModule;
+        actor: BotActorContextModule;
     }
 >;
 
@@ -119,7 +119,7 @@ export type ServerUnknownActionContext = Context<ServerUnknownActionContextModul
 
 export type ServerUnknownActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
-        actor: DynamoUnknownActorContextModule;
+        actor: UnknownActorContextModule;
     }
 >;
 
@@ -132,8 +132,8 @@ export type ServerAccountActionContext = Context<ServerAccountActionContextModul
 export type ServerAccountActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
         actor:
-            | DynamoSessionActorContextModule
-            | DynamoImpersonatedAccountActorContextModule
-            | DynamoBotActorContextModule;
+            | SessionActorContextModule
+            | ImpersonatedAccountActorContextModule
+            | BotActorContextModule;
     }
 >;

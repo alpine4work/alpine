@@ -1,9 +1,4 @@
 import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
-import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
@@ -17,6 +12,11 @@ import {
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    ActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -53,14 +53,14 @@ assertAssignableTypes<TaskRealtimeActionContext, ServerMinimalActionContext>();
 export type TaskRealtimeActionContextModules = TaskRealtimeProcessContextModules & {
     batch: BatchContextModule;
     cache: CacheContextModule;
-    actor: DynamoActorContextModule;
+    actor: ActorContextModule;
 };
 
 export type TaskRealtimeSessionActionContext = Context<TaskRealtimeSessionActionContextModules>;
 
 export type TaskRealtimeSessionActionContextModules = Replace<
     TaskRealtimeActionContextModules,
-    {actor: DynamoSessionActorContextModule}
+    {actor: SessionActorContextModule}
 >;
 
 assertAssignableTypes<ServerSessionActionContext, TaskRealtimeSessionActionContext>();
@@ -71,5 +71,5 @@ assertAssignableTypes<ServerSystemActionContext, TaskRealtimeSystemActionContext
 
 export type TaskRealtimeSystemActionContextModules = Replace<
     TaskRealtimeActionContextModules,
-    {actor: DynamoSystemActorContextModule}
+    {actor: SystemActorContextModule}
 >;

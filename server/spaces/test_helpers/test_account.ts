@@ -1,12 +1,13 @@
 import {
     createAccountEmailAddressForTest,
     createAccountForTest,
-    dangerouslyGetAccountIfExistsWithoutCaching,
+    dangerouslyGetAccountIfExistsWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -58,7 +59,10 @@ export class TestAccount {
      * the account doesn't already exist.
      */
     public static async get(context: TestContext, accountId: AccountId) {
-        const account = await dangerouslyGetAccountIfExistsWithoutCaching(context, accountId);
+        const account = await dangerouslyGetAccountIfExistsWithoutAuthorization(
+            context.clone({cache: CacheContextModule.new()}),
+            accountId,
+        );
         if (!account) throw new NotFoundError("Account not found");
 
         return new TestAccount(context, accountId, account.initialData.name);
@@ -84,7 +88,10 @@ export class TestAccount {
 
     public async get(): Promise<AccountModelWithoutSpace> {
         return assertExists(
-            await dangerouslyGetAccountIfExistsWithoutCaching(this.context, this.id),
+            await dangerouslyGetAccountIfExistsWithoutAuthorization(
+                this.context.clone({cache: CacheContextModule.new()}),
+                this.id,
+            ),
         );
     }
 }

@@ -1,8 +1,4 @@
 import {
-    DynamoActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
-import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
@@ -11,6 +7,10 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     authorizeNotBotSpaceAccount,
@@ -1221,7 +1221,7 @@ export function markSearchAffinityEntityInteractionForAccount(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoSystemActorContextModule;
+        actor: SystemActorContextModule;
     }>,
     {
         spaceId,
@@ -1279,7 +1279,7 @@ async function addSearchAffinityEntityPoints(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
+        actor: ActorContextModule;
     }>,
     {
         spaceId,
@@ -1473,7 +1473,7 @@ export async function addSearchAffinityEntityActiveTaskAssigneePoints(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoSystemActorContextModule;
+        actor: SystemActorContextModule;
     }>,
     {
         spaceId,
@@ -1597,7 +1597,7 @@ export async function removeSearchAffinityEntityActiveTaskAssigneePoints(
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoSystemActorContextModule;
+        actor: SystemActorContextModule;
     }>,
     {
         spaceId,

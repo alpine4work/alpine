@@ -54,7 +54,7 @@ export type WorkerActionContextModules = MergeObjectIntersection<
         /**
          * A representation of the entity acting against our systems.
          *
-         * Uses the generic actor interface instead of `WorkerActorContextModule`
+         * Uses the generic actor interface instead of `ActorContextModule`
          * (which is what we instantiate this context with) so that tests can pass in
          * an `AppActorContextModule` which is type compatible.
          */

@@ -1,11 +1,11 @@
-import {Session} from "~/server/accounts/accounts_actions.js";
-import {
-    DynamoActorContextModule,
-    DynamoAnonymousActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
+import {getSessionIfExists as actuallyGetSessionIfExists} from "~/server/accounts/accounts_actions.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    ActorContextModule,
+    AnonymousActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -20,7 +20,7 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Authenticates using the information from an HTTP request to create a
- * `DynamoActorContextModule` which will be used for checking permissions
+ * `ActorContextModule` which will be used for checking permissions
  * throughout the rest of our code.
  *
  * Clients can authenticate with our app service in one of two ways:
@@ -35,7 +35,7 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
  *    service family executes RPCs against our app service. You can
  *    authenticate as a session or system actor through an authorization header.
  */
-export async function authenticateDynamoActorContextModule(
+export async function authenticateActorContextModule(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -53,7 +53,7 @@ export async function authenticateDynamoActorContextModule(
         authorizationHeader: string | null;
         spaceIdHint: SpaceId | null;
     },
-): Promise<DynamoActorContextModule> {
+): Promise<ActorContextModule> {
     const sessionCookiePayload = await sessionCookie?.getIfExists();
 
     // Optimization: When loading our session from the database, also attempt to
@@ -64,13 +64,16 @@ export async function authenticateDynamoActorContextModule(
     const getSessionIfExists = async (
         sessionId: SessionId,
         accountId: AccountId,
-    ): Promise<Session | null> => {
+    ): Promise<{
+        id: SessionId;
+        accountId: AccountId;
+    } | null> => {
         if (!spaceIdHint) {
-            return Session.getIfExists(context, sessionId, accountId);
+            return actuallyGetSessionIfExists(context, sessionId, accountId);
         }
 
         const [session] = await runAllPromises([
-            Session.getIfExists(context, sessionId, accountId),
+            actuallyGetSessionIfExists(context, sessionId, accountId),
             // This function caches its result for the duration of the request. Which is
             // why we can call it here and ignore the output.
             isAccountMemberOfSpaceWithoutAuthorization(context, spaceIdHint, accountId),
@@ -94,12 +97,16 @@ export async function authenticateDynamoActorContextModule(
         if (!session) {
             // Remove our session cookie if the session was deleted from the database.
             sessionCookie!.dangerouslySet(null);
-            return DynamoAnonymousActorContextModule.dangerouslyNew("AppClient");
+            return AnonymousActorContextModule.dangerouslyNew("AppClient");
         }
 
         // If we receive a session cookie, we treat the request as if it came from a
         // user's web browser and use the `AppClient` service name.
-        return DynamoSessionActorContextModule.dangerouslyNew("AppClient", session);
+        return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
+            "AppClient",
+            session.id,
+            session.accountId,
+        );
     }
 
     // 2. Authorization header authentication
@@ -125,16 +132,20 @@ export async function authenticateDynamoActorContextModule(
                 if (!session) {
                     throw new PermissionDeniedError("Session not found");
                 }
-                return DynamoSessionActorContextModule.dangerouslyNew(serviceName, session);
+                return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
+                    serviceName,
+                    session.id,
+                    session.accountId,
+                );
             }
             case "System": {
-                return DynamoSystemActorContextModule.dangerouslyNew(
+                return SystemActorContextModule.dangerouslyNew(
                     serviceName,
                     authorizationHeaderPayload.spaceId,
                 );
             }
             case "Anonymous": {
-                return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
+                return AnonymousActorContextModule.dangerouslyNew(serviceName);
             }
             case "Bot": {
                 // Bot actors can't render React pages or call RPCs. They must use the API.
@@ -149,5 +160,5 @@ export async function authenticateDynamoActorContextModule(
 
     // 3. If we don't have a session cookie or `Authorization` header then this is
     //    an anonymous request.
-    return DynamoAnonymousActorContextModule.dangerouslyNew("AppClient");
+    return AnonymousActorContextModule.dangerouslyNew("AppClient");
 }

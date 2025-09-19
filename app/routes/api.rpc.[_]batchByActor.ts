@@ -1,4 +1,4 @@
-import {authenticateDynamoActorContextModule} from "~/app/helpers/authenticate_dynamo_actor_context_module.js";
+import {authenticateActorContextModule} from "~/app/helpers/authenticate_actor_context_module.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
@@ -35,16 +35,13 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
         // Authenticate each actor and create a context object for that actor.
         const contextByActorIndex = await runAllPromises(
             batchCall.actors.map(async actor => {
-                const actorContextModule = await authenticateDynamoActorContextModule(
-                    loaderContext,
-                    {
-                        tokenAgent: loaderContext.loader.tokenAgent,
-                        // We never allow session authentication for the `/api/rpc/_batchByActor` route.
-                        sessionCookie: null,
-                        authorizationHeader: actor.authorization,
-                        spaceIdHint,
-                    },
-                );
+                const actorContextModule = await authenticateActorContextModule(loaderContext, {
+                    tokenAgent: loaderContext.loader.tokenAgent,
+                    // We never allow session authentication for the `/api/rpc/_batchByActor` route.
+                    sessionCookie: null,
+                    authorizationHeader: actor.authorization,
+                    spaceIdHint,
+                });
 
                 return loaderContext.clone({actor: actorContextModule});
             }),

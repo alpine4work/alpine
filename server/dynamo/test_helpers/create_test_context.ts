@@ -8,18 +8,9 @@ import {
     startOpensearchLocal,
 } from "~/admin/opensearch/local/start_opensearch_local.js";
 import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
-import {Session} from "~/server/accounts/accounts_actions.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
-import {
-    DynamoAnonymousActorContextModule,
-    DynamoBotActorContextModule,
-    DynamoImpersonatedAccountActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-    DynamoUnknownActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {TestFilesContextModule} from "~/server/context/files_context_module.js";
 import {
     ChatInjection,
@@ -57,7 +48,16 @@ import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_se
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
-import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_context_module.js";
+import {
+    ActorContextModule,
+    ActorServiceName,
+    AnonymousActorContextModule,
+    BotActorContextModule,
+    ImpersonatedAccountActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+    UnknownActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
@@ -454,7 +454,7 @@ export function createTestContext(
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
                 batch: context.batch.forkForChangedActor(),
-                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                actor: SystemActorContextModule.dangerouslyNew(
                     context.actor?.serviceName ?? "Test",
                     spaceId,
                 ),
@@ -467,8 +467,8 @@ export function createTestContext(
         return processContext.clone({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
-            actor: new DynamoUnknownActorContextModule(async () =>
-                DynamoAnonymousActorContextModule.dangerouslyNew("Test"),
+            actor: new UnknownActorContextModule(async () =>
+                AnonymousActorContextModule.dangerouslyNew("Test"),
             ),
         });
     };
@@ -487,9 +487,10 @@ export function createTestContext(
         return processContext.clone({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
-            actor: DynamoSessionActorContextModule.dangerouslyNew(
+            actor: SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
                 serviceName,
-                Session.test(session),
+                "id" in session ? session.id : session.sessionId,
+                "id" in session ? session.account.id : session.accountId,
             ),
             fork: new ForkActionContextModule(),
         });
@@ -507,7 +508,7 @@ export function createTestContext(
         return processContext.clone({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
-            actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
+            actor: SystemActorContextModule.dangerouslyNew(serviceName, spaceId),
         });
     };
 
@@ -524,7 +525,7 @@ export function createTestContext(
         return processContext.clone({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
-            actor: DynamoAnonymousActorContextModule.dangerouslyNew(serviceName),
+            actor: AnonymousActorContextModule.dangerouslyNew(serviceName),
         });
     };
 
@@ -541,8 +542,8 @@ export function createTestContext(
         return processContext.clone({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
-            actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
-                DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
+            actor: ImpersonatedAccountActorContextModule.dangerouslyNew(
+                SystemActorContextModule.dangerouslyNew(serviceName, spaceId),
                 accountId,
             ),
         });
@@ -562,12 +563,7 @@ export function createTestContext(
         return processContext.clone({
             cache: CacheContextModule.new(),
             batch: BatchContextModule.new(),
-            actor: DynamoBotActorContextModule.dangerouslyNew(
-                serviceName,
-                spaceId,
-                botAccountId,
-                scope,
-            ),
+            actor: BotActorContextModule.dangerouslyNew(serviceName, spaceId, botAccountId, scope),
             fork: new ForkActionContextModule(),
         });
     };

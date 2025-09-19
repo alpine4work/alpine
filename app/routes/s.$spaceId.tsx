@@ -70,7 +70,8 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
-import {DynamoSessionActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
+import {getOwnAccount} from "~/server/accounts/accounts_actions.js";
+import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {getInbox} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
@@ -241,7 +242,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
         case "Session": {
             const sessionContext = context as Context<
-                Replace<LoaderContextModules, {actor: DynamoSessionActorContextModule}>
+                Replace<LoaderContextModules, {actor: SessionActorContextModule}>
             >;
 
             // In the case of a permission denial, we may want to expose certain space data
@@ -331,7 +332,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 );
                 if (spaceAuthorizationResult.ok) throw error;
 
-                const {account} = await context.actor.getAccountAndHasInternalAccess();
+                const account = await getOwnAccount(sessionContext);
 
                 const limitedSpace = new SpaceModel({
                     id: spaceId,

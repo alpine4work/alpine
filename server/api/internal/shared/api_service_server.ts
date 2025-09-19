@@ -12,8 +12,8 @@ import {renderApiBrowser} from "~/server/api/internal/shared/api_browser.js";
 import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {getApiKeyAttributesIfExists} from "~/server/bots/bots_table.js";
-import {DynamoBotActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {BotActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     createStandardizedServerBase,
@@ -662,7 +662,7 @@ export async function createApiServiceRequestListener(
 
                     // We’ve validated the caller's API key and access token. Let them make a
                     // request with a bot actor!
-                    actor: DynamoBotActorContextModule.dangerouslyNew(
+                    actor: BotActorContextModule.dangerouslyNew(
                         "ApiService",
                         spaceId,
                         accountId,

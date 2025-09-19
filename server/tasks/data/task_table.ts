@@ -11,7 +11,6 @@ import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
@@ -1057,10 +1056,7 @@ export async function runIndexEveryTaskActionStep1Of2(
                     context.clone({
                         cache: CacheContextModule.new(),
                         batch: BatchContextModule.new(),
-                        actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            serviceName,
-                            item.spaceId,
-                        ),
+                        actor: SystemActorContextModule.dangerouslyNew(serviceName, item.spaceId),
                     }),
                     {...item, actions: createActions},
                     {
@@ -1121,7 +1117,7 @@ export async function runIndexEveryTaskActionStep2Of2(
                         context.clone({
                             cache: CacheContextModule.new(),
                             batch: BatchContextModule.new(),
-                            actor: DynamoSystemActorContextModule.dangerouslyNew(
+                            actor: SystemActorContextModule.dangerouslyNew(
                                 serviceName,
                                 item.spaceId,
                             ),

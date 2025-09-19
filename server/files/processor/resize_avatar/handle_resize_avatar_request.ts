@@ -1,6 +1,6 @@
 import {resizeAvatar} from "~/server/files/processor/resize_avatar/resize_avatar.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
-import {createDynamoActorSessionContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
+import {createDynamoActorSessionContextModule} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";

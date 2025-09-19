@@ -1,7 +1,7 @@
 import os from "os";
 import {resizeFile} from "~/server/files/processor/resize_file.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
-import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
+import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {isId} from "~/shared/id/id.js";
@@ -27,7 +27,7 @@ export async function handleResizeFileRequest(
 ): Promise<Response> {
     const {spaceId, fileId} = parseRoute(url);
 
-    const actorContextModule = await createDynamoActorContextModule(
+    const actorContextModule = await createActorContextModuleFromAuthorizationHeader(
         processContext,
         request.headers,
         tokenAgent,

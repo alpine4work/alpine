@@ -1,9 +1,9 @@
-import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
     ServerAccountActionContextModules,
     ServerActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -54,7 +54,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
     protected readonly _dangerouslyEscalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor?: DynamoActorContextModule;
+            actor?: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -68,7 +68,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor?: DynamoActorContextModule;
+                actor?: ActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,
@@ -205,7 +205,7 @@ export class TestTaskContextModule
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor?: DynamoActorContextModule;
+                actor?: ActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,

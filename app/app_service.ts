@@ -9,7 +9,7 @@ import {
     AppServiceSystemActionContextModules,
 } from "~/app/app_service_context.js";
 import {AppService, AppServiceConstants} from "~/app/app_service_types.js";
-import {authenticateDynamoActorContextModule} from "~/app/helpers/authenticate_dynamo_actor_context_module.js";
+import {authenticateActorContextModule} from "~/app/helpers/authenticate_actor_context_module.js";
 import {createAppServerRoutes} from "~/app/router/app_server_routes.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
@@ -20,11 +20,6 @@ import {
 } from "~/server/apns/apns_context_module.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
-import {
-    DynamoActorContextModule,
-    DynamoSystemActorContextModule,
-    DynamoUnknownActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {
@@ -37,9 +32,15 @@ import {
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+    UnknownActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
@@ -67,6 +68,7 @@ import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_priva
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -215,7 +217,7 @@ async function createAppService({
     const dangerouslyEscalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor?: DynamoActorContextModule;
+            actor?: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -233,7 +235,7 @@ async function createAppService({
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
                 batch: context.batch.forkForChangedActor(),
-                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                actor: SystemActorContextModule.dangerouslyNew(
                     // `context.actor` is `undefined` for maintenance jobs. Though we shouldn't be
                     // running maintenance jobs in `AppService`. Handle the case anyway.
                     context.actor?.serviceName ?? "AppService",
@@ -445,7 +447,12 @@ function createActorContextModule(
     // never gets called. You can also parallelize other network requests with
     // authentication deeper in a route. Once we authenticate it is cached for
     // the route.
-    return new DynamoUnknownActorContextModule(async context => {
+    return new UnknownActorContextModule<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>(async context => {
         const authorizationHeader = request.headers.get("authorization");
 
         const spaceIdStringHint =
@@ -455,7 +462,7 @@ function createActorContextModule(
         const spaceIdHint =
             spaceIdStringHint && isId<SpaceId>(spaceIdStringHint) ? spaceIdStringHint : null;
 
-        return authenticateDynamoActorContextModule(context, {
+        return authenticateActorContextModule(context, {
             tokenAgent,
             sessionCookie,
             authorizationHeader,

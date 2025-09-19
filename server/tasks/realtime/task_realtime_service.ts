@@ -1,11 +1,6 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
-import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
@@ -13,6 +8,11 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
+import {
+    ActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerBasicProcessContextModules,
@@ -29,7 +29,7 @@ import {
     createServiceOpensearchContextModule,
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
-import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
+import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
 import {
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
@@ -181,7 +181,7 @@ export async function run({
     const dangerouslyEscalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor: DynamoActorContextModule;
+            actor: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -199,10 +199,7 @@ export async function run({
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
                 batch: context.batch.forkForChangedActor(),
-                actor: DynamoSystemActorContextModule.dangerouslyNew(
-                    context.actor.serviceName,
-                    spaceId,
-                ),
+                actor: SystemActorContextModule.dangerouslyNew(context.actor.serviceName, spaceId),
             },
             action,
         );
@@ -264,7 +261,7 @@ export async function run({
             batch: BatchContextModule.new(),
         });
 
-        const actorContextModule = await createDynamoActorContextModule(
+        const actorContextModule = await createActorContextModuleFromAuthorizationHeader(
             baseActionContext,
             request.headers,
             tokenAgent,
@@ -283,7 +280,7 @@ export async function run({
                     throw new PermissionDeniedError("Only `EdgeService` can connect via WebSocket");
                 }
 
-                if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
+                if (!(actorContextModule instanceof SessionActorContextModule)) {
                     throw new PermissionDeniedError(
                         "Only session actors can connect via WebSocket",
                     );
@@ -327,7 +324,7 @@ export async function run({
                     );
                 }
 
-                if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {
+                if (!(actorContextModule instanceof SystemActorContextModule)) {
                     throw new PermissionDeniedError("Only system actors can apply transactions");
                 }
 

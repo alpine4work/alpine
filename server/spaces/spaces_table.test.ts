@@ -1156,7 +1156,20 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
     const cacheContext1 = session1.action();
     const cacheContext2 = session1.action();
 
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    expect(getCount()).toEqual(0);
+
     const cachedAccount1 = await getAccountIfExists(cacheContext1, space.id, session2.account.id);
+
+    expect(getCount()).toEqual(3);
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toEqual(
+        cachedAccount1,
+    );
+
+    expect(getCount()).toEqual(3);
 
     expect(cachedAccount1).toEqual(
         createTestAccountModel({
@@ -1172,20 +1185,25 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
             },
         }),
     );
-    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
-        cachedAccount1,
-    );
 
     await removeSpaceAccount(session1.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });
 
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    expect(getCount()).toEqual(0);
+
     const cachedAccount2 = await getAccountIfExists(cacheContext2, space.id, session2.account.id);
 
-    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+    expect(getCount()).toEqual(4);
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toEqual(
         cachedAccount1,
     );
+
+    expect(getCount()).toEqual(4);
+
     expect(cachedAccount2).toEqual(
         createTestAccountModel({
             id: session2.account.id,
@@ -1220,12 +1238,20 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
 
     await acceptSpaceAccountInvite(session2.action(), space.id);
 
-    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    expect(getCount()).toEqual(0);
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toEqual(
         cachedAccount1,
     );
-    expect(await getAccountIfExists(cacheContext2, space.id, session2.account.id)).toBe(
+
+    expect(getCount()).toEqual(0);
+
+    expect(await getAccountIfExists(cacheContext2, space.id, session2.account.id)).toEqual(
         cachedAccount2,
     );
+
+    expect(getCount()).toEqual(0);
 
     const cachedAccount3 = await getAccountIfExists(cacheContext2, space.id, session2.account.id, {
         consistency: "Strong",
@@ -1247,12 +1273,20 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
         }),
     );
 
-    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toBe(
+    dynamoClientExecuteActionTestCounter.resetForTest();
+    expect(getCount()).toEqual(0);
+
+    expect(await getAccountIfExists(cacheContext1, space.id, session2.account.id)).toEqual(
         cachedAccount1,
     );
-    expect(await getAccountIfExists(cacheContext2, space.id, session2.account.id)).toBe(
+
+    expect(getCount()).toEqual(0);
+
+    expect(await getAccountIfExists(cacheContext2, space.id, session2.account.id)).toEqual(
         cachedAccount3,
     );
+
+    expect(getCount()).toEqual(0);
 });
 
 test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCache`", async () => {

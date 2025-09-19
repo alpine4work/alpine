@@ -1,5 +1,4 @@
-import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_actions.js";
-import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
+import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/accounts_actions.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -1252,7 +1251,7 @@ class TaskActionTransactionIndexState {
             {
                 const newReferencedAccountById = await runAllPromises(
                     Array.from(referencedAccountIds, accountId =>
-                        dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
+                        dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {
                             // Avoid our account cache to get the latest account model. Ok to get these
                             // accounts without authorization since we call `getAccount()` for these same
                             // accounts earlier which will perform authorization.
@@ -1921,7 +1920,7 @@ export async function queryTaskIndex(
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
         opensearch: OpensearchContextModule;
-        actor: DynamoSystemActorContextModule;
+        actor: SystemActorContextModule;
     }>,
     {
         spaceId,

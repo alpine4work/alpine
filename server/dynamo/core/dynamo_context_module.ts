@@ -1,5 +1,6 @@
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
@@ -130,16 +131,35 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
             context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
         ) => Promise<Value>,
     ): Promise<Value> {
+        let hasAlreadyAttempted = false;
+
         return retryWithExponentialBackoff(retry => {
-            return this._context.with(
-                {
-                    dynamo: new DynamoContextModule(this._client, {
-                        retryTransaction: retry,
-                        expectsStrongReadConsistency: this._expectsStrongReadConsistency,
-                    }),
-                },
-                action,
-            );
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
+
+            const dynamoContextModule = new DynamoContextModule(this._client, {
+                retryTransaction: retry,
+                expectsStrongReadConsistency: this._expectsStrongReadConsistency,
+            });
+
+            if (isInitialAttempt || !("cache" in this._context)) {
+                return this._context.with({dynamo: dynamoContextModule}, action);
+            } else {
+                // On second attempt, use an empty cache when we re-run the action. Because
+                // usually the reason we're retrying is we need to read an item with a newer
+                // `updateLockVersion`. The cache outside this retry loop isn't affected. But
+                // if we read the item using a cache then we'll keep re-reading the cached item
+                // instead of reading a new item. Causing us to retry until
+                // `retryWithExponentialBackoff()` reaches its retry limit.
+                return this._context.with(
+                    {
+                        dynamo: dynamoContextModule,
+                        cache: CacheContextModule.new(),
+                    },
+                    // @ts-expect-error
+                    action,
+                );
+            }
         });
     }
 

@@ -1,11 +1,11 @@
 import prettyBytes from "pretty-bytes";
-import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {authorizeRequestAndGetSessionToken} from "~/server/edge/internal/authorize_request_and_get_session_token.js";
 import {getContentLengthAndCanonicalContentType} from "~/server/edge/internal/get_content_length_and_content_type.js";
 import {
     PutR2ObjectBucketInterface,
     putR2ObjectWithSpan,
 } from "~/server/edge/internal/put_r2_object_with_span.js";
+import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_name.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
@@ -48,7 +48,7 @@ export async function uploadAvatar(
         rpc: RpcContextModuleBase;
         tracer: TracerContextModule;
         batch: BatchContextModule;
-        actor: WorkerSessionActorContextModule;
+        actor: SessionActorContextModule;
     }>,
     executionContext: {},
     env: {AvatarsBucket: PutR2ObjectBucketInterface; FILE_PROCESSOR_SERVICE_URL?: string},
@@ -221,7 +221,7 @@ async function finishUploadingAvatar(
 }
 
 async function callFileProcessorResizeAvatar(
-    context: Context<{actor: WorkerSessionActorContextModule}>,
+    context: Context<{actor: SessionActorContextModule}>,
     {
         avatarId,
         fileProcessorServiceUrl,

@@ -1,4 +1,3 @@
-import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
     ServerAccountActionContextModules,
     ServerActionContextModules,
@@ -8,6 +7,7 @@ import {
     TaskContextModuleActionTransaction,
     TaskContextModuleBase,
 } from "~/server/context/task_context_module_base.js";
+import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -65,7 +65,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor?: DynamoActorContextModule;
+                actor?: ActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,

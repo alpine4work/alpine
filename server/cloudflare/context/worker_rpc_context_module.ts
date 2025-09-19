@@ -1,4 +1,4 @@
-import {WorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
+import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenPayload} from "~/server/tokens/token_payload.js";
 import {BatchContextModule, ContextBatcherBase} from "~/shared/context/batch_context_module.js";
@@ -32,7 +32,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export class WorkerRpcContextModule extends RpcContextModuleBase<{
     tracer: TracerContextModule;
-    actor: WorkerActorContextModule;
+    actor: ActorContextModule;
     batch: BatchContextModule;
 }> {
     private readonly _batcher: WorkerRpcContextBatcher;
@@ -47,46 +47,10 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
         input: Input,
     ): Promise<Output> {
         return this._context.tracer.withSpan(`RPC ${definition.name}`, async (context, span) => {
-            let tokenPayload: TokenPayload;
-            switch (context.actor.type) {
-                case "Session": {
-                    tokenPayload = {
-                        type: "Session",
-                        sessionId: context.actor.getSessionId(),
-                        accountId: context.actor.getAccountId(),
-                    };
-                    break;
-                }
-                case "System": {
-                    tokenPayload = {
-                        type: "System",
-                        spaceId: context.actor.getSpaceId(),
-                    };
-                    break;
-                }
-                case "Anonymous": {
-                    tokenPayload = {
-                        type: "Anonymous",
-                    };
-                    break;
-                }
-                case "Bot": {
-                    tokenPayload = {
-                        type: "Bot",
-                        spaceId: context.actor.getSpaceId(),
-                        accountId: context.actor.getBotAccountId(),
-                        scope: context.actor.getScope(),
-                    };
-                    break;
-                }
-                default:
-                    throw exhaustive(context.actor);
-            }
-
             const serializedInput = definition.inputSchema.serialize(input);
 
             const serializedOutput = await this._context.batch.execute(this._batcher, {
-                tokenPayload,
+                tokenPayload: context.actor.getTokenPayload(),
                 name: definition.name,
                 input: serializedInput,
                 span,

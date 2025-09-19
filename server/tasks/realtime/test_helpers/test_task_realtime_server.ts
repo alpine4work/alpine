@@ -1,5 +1,4 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
     ServerActionContextModules,
     ServerSystemActionContext,
@@ -7,6 +6,7 @@ import {
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
@@ -263,7 +263,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor?: DynamoActorContextModule;
+                actor?: ActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,

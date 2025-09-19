@@ -5,30 +5,36 @@ import {
     AccountEmailAddressIndex,
     AccountEmailAddressItem,
     AccountItem,
+    AccountItemWithoutAvatar,
     AccountsTable,
 } from "~/server/accounts/internal/accounts_table.js";
-import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-    SessionInterface,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {
+    ActorContextModule,
+    SessionActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {
     AccountModelWithoutSpace,
+    AccountModelWithoutSpaceData,
     unknownAccountId,
 } from "~/shared/accounts/account_model_without_space.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -42,7 +48,6 @@ import {
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -78,15 +83,68 @@ export function getAppleReviewerAccountPasswordForTest() {
     return appleReviewerAccountPassword;
 }
 
-async function getAccountItem(
-    context: DynamoContext,
+const AccountItemWithoutAvatarContextCache = new DynamoContextCache<
+    AccountId,
+    AccountItemWithoutAvatar | null
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
+
+async function getAccountItemWithoutAvatarIfExists(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<AccountItem> {
-    const item = await getAccountItemIfExists(context, accountId, {consistency});
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<AccountItemWithoutAvatar | null> {
+    // Pretend like the unknown account doesn't exist. We do have an unknown
+    // account record in our database as a safety precaution to make sure we
+    // don't accidentally create an account with the unknown `AccountId`. But we
+    // should never return that data. Instead if you want data for an unknown
+    // account call `AccountModel.getUnknown()`.
+    //
+    // Calling `getAccount(unknownAccountId)` should always fail with a not
+    // found error.
+    if (accountId === unknownAccountId) return null;
+
+    // If we've already load the account item with its avatar then we don't need to
+    // load the attributes item separately.
+    const item = await AccountItemContextCache.getIfExists(context, consistency, accountId);
+    if (item) return item;
+
+    return AccountItemWithoutAvatarContextCache.get(
+        context,
+        consistency,
+        accountId,
+        consistency => {
+            return AccountsTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Account",
+                    sortRangeType: "Attributes",
+                    accountId,
+                },
+                {consistency},
+            );
+        },
+    );
+}
+
+async function getAccountItemWithoutAvatar(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    accountId: AccountId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<AccountItemWithoutAvatar> {
+    const item = await getAccountItemWithoutAvatarIfExists(context, accountId, options);
     if (!item) throw new NotFoundError("Account not found");
     return item;
 }
+
+const AccountItemContextCache = new DynamoContextCache<AccountId, AccountItem | null>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 // NOTE(ifitzsimmons, 2025-08-10):
 // DynamoDB cost optimization: We query both Attributes and Avatar items in a single
@@ -94,36 +152,58 @@ async function getAccountItem(
 // within DynamoDB's 4KB item limit, making this more cost-effective than separate
 // requests while maintaining the flexibility to fetch account metadata independently.
 async function getAccountItemIfExists(
-    context: DynamoContext,
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountItem | null> {
-    const items = await arrayFromAsyncIterable(
-        AccountsTable.query(context, {
-            limit: 2,
-            partitionKey: {
-                partitionType: "Account",
-                accountId,
-            },
-            startSortKey: {sortRangeType: "Attributes"},
-            endSortKey: {sortRangeType: "Avatar"},
-            consistency,
-        }),
-    );
+    // Pretend like the unknown account doesn't exist. We do have an unknown
+    // account record in our database as a safety precaution to make sure we
+    // don't accidentally create an account with the unknown `AccountId`. But we
+    // should never return that data. Instead if you want data for an unknown
+    // account call `AccountModel.getUnknown()`.
+    //
+    // Calling `getAccount(unknownAccountId)` should always fail with a not
+    // found error.
+    if (accountId === unknownAccountId) return null;
 
-    const attributesItem = findMapIterable(items, item =>
-        item.sortRangeType === "Attributes" ? item : undefined,
-    );
-    if (!attributesItem) return null;
+    return AccountItemContextCache.get(context, consistency, accountId, async consistency => {
+        const items = await arrayFromAsyncIterable(
+            AccountsTable.query(context, {
+                limit: 2,
+                partitionKey: {
+                    partitionType: "Account",
+                    accountId,
+                },
+                startSortKey: {sortRangeType: "Attributes"},
+                endSortKey: {sortRangeType: "Avatar"},
+                consistency,
+            }),
+        );
 
-    const avatarItem = findMapIterable(items, item =>
-        item.sortRangeType === "Avatar" ? item : undefined,
-    );
+        const attributesItem = findMapIterable(items, item =>
+            item.sortRangeType === "Attributes" ? item : undefined,
+        );
+        if (!attributesItem) return null;
 
-    return {
-        avatar: avatarItem ?? null,
-        ...attributesItem,
-    };
+        const avatarItem = findMapIterable(items, item =>
+            item.sortRangeType === "Avatar" ? item : undefined,
+        );
+
+        return {
+            avatar: avatarItem ?? null,
+            ...attributesItem,
+        };
+    });
+}
+
+async function getAccountItem(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    accountId: AccountId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<AccountItem> {
+    const item = await getAccountItemIfExists(context, accountId, options);
+    if (!item) throw new NotFoundError("Account not found");
+    return item;
 }
 
 /**
@@ -133,7 +213,7 @@ async function getAccountItemIfExists(
  * authorizes that the actor is allowed to read the account's email addresses.
  */
 export async function internalGetLatestEmailAddressByAccountIdWithoutAuthorization(
-    context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
+    context: Context<DynamoContextModules & {actor: ActorContextModule}>,
     accountId: AccountId,
 ) {
     const emailAddressItems = await arrayFromAsyncIterable(
@@ -823,132 +903,55 @@ export async function rewindAccountEmailAddressOneTimePasswordSignInStateTimeFor
     );
 }
 
-export class Session implements SessionInterface {
-    public readonly id: SessionId;
-    public readonly accountId: AccountId;
-    private readonly _preloadedAccount: {
-        readonly account: AccountModelWithoutSpace;
-        readonly hasInternalAccess: boolean;
-    } | null;
-
-    private constructor(
-        id: SessionId,
-        accountId: AccountId,
-        preloadedAccount: {
-            readonly account: AccountModelWithoutSpace;
-            readonly hasInternalAccess: boolean;
-        } | null,
-    ) {
-        this.id = id;
-        this.accountId = accountId;
-        this._preloadedAccount = preloadedAccount;
-    }
-
-    public static async getIfExists(
-        context: DynamoContext,
-        sessionId: SessionId,
-        // Optional: As an optimization you may include the account the session is for
-        // so you load both the session data and account data in parallel. If you pass
-        // in the wrong account ID for the session an error will be thrown.
-        sessionAccountId: AccountId | null,
-    ): Promise<Session | null> {
-        const [sessionItem, accountItem] = await runAllPromises([
-            AccountsTable.getItemIfExists(context, {
-                partitionType: "Session",
-                sortRangeType: "Attributes",
-                sessionId,
-            }),
-            sessionAccountId ? getAccountItemIfExists(context, sessionAccountId) : null,
-        ]);
-
-        if (!sessionItem) return null;
-
-        if (sessionAccountId) {
-            if (sessionItem.accountId !== sessionAccountId)
-                throw new PermissionDeniedError("Wrong `AccountId` for session");
-
-            if (!accountItem)
-                throw new InternalError("Expected account referenced by session to exist");
-
-            // Sanity check: We shouldn't create sessions for bots. Only for accounts that
-            // can sign in via email or some other method. Therefore we shouldn't be
-            // reading a bot session account.
-            if (accountItem.bot) {
-                throw new DataLossError("Bot accounts can’t have sessions");
-            }
-        }
-
-        return new Session(
+export async function getSessionIfExists(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    sessionId: SessionId,
+    // Optional: As an optimization you may include the account the session is for
+    // so you load both the session data and account data in parallel. If you pass
+    // in the wrong account ID for the session an error will be thrown.
+    sessionAccountId: AccountId | null,
+): Promise<{
+    readonly id: SessionId;
+    readonly accountId: AccountId;
+} | null> {
+    const [sessionItem, accountItem] = await runAllPromises([
+        AccountsTable.getItemIfExists(context, {
+            partitionType: "Session",
+            sortRangeType: "Attributes",
             sessionId,
-            sessionItem.accountId,
-            accountItem
-                ? {
-                      account: createAccountModelFromItem(accountItem),
-                      hasInternalAccess: accountItem.hasInternalAccess ?? false,
-                  }
-                : null,
-        );
-    }
+        }),
 
-    /**
-     * Allow creating a session class directly from ID and database item object
-     * in tests. Can only run in test environments.
-     */
-    public static test(
-        sessionItem:
-            | {id: SessionId; account: {id: AccountId}}
-            | {sessionId: SessionId; accountId: AccountId},
-    ) {
-        assert(process.env.NODE_ENV === "test");
+        // Preload the session account item and its avatar. This will populate the
+        // `ContextCache` for the account item so when we load it later it's
+        // immediately available.
+        //
+        // TODO(calebmer): Is this a useful optimization anymore? It may be a useful
+        // optimization when React server side rendering but not when executing an RPC
+        // (when we don't need the account avatar).
+        sessionAccountId ? getAccountItemIfExists(context, sessionAccountId) : null,
+    ]);
 
-        // Support passing in a session model object (e.g. `TestScenarioSession`) and
-        // passing a `SessionItem` object in directly.
-        if ("id" in sessionItem) {
-            return new Session(sessionItem.id, sessionItem.account.id, null);
-        } else {
-            return new Session(sessionItem.sessionId, sessionItem.accountId, null);
+    if (!sessionItem) return null;
+
+    if (sessionAccountId) {
+        if (sessionItem.accountId !== sessionAccountId)
+            throw new PermissionDeniedError("Wrong `AccountId` for session");
+
+        if (!accountItem)
+            throw new InternalError("Expected account referenced by session to exist");
+
+        // Sanity check: We shouldn't create sessions for bots. Only for accounts that
+        // can sign in via email or some other method. Therefore we shouldn't be
+        // reading a bot session account.
+        if (accountItem.bot) {
+            throw new DataLossError("Bot accounts can’t have sessions");
         }
     }
 
-    private _accountPromise: Promise<{
-        readonly account: AccountModelWithoutSpace;
-        readonly hasInternalAccess: boolean;
-    }> | null = null;
-
-    public getAccountAndHasInternalAccess(context: DynamoContext): Promise<{
-        readonly account: AccountModelWithoutSpace;
-        readonly hasInternalAccess: boolean;
-    }> {
-        if (this._preloadedAccount !== null) return Promise.resolve(this._preloadedAccount);
-
-        if (this._accountPromise === null) {
-            this._accountPromise = (async () => {
-                const accountItem = assertExists(
-                    await dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
-                        context,
-                        this.accountId,
-                    ),
-                    "Expected account referenced by session to exist",
-                );
-
-                // Sanity check: We shouldn't create sessions for bots. Only for accounts that
-                // can sign in via email or some other method. Therefore we shouldn't be
-                // reading a bot session account.
-                if (accountItem.account.botId) {
-                    throw new DataLossError("Bot accounts can’t have sessions");
-                }
-
-                return accountItem;
-            })();
-        }
-
-        return this._accountPromise;
-    }
-
-    public async getAccount(context: DynamoContext): Promise<AccountModelWithoutSpace> {
-        const {account} = await this.getAccountAndHasInternalAccess(context);
-        return account;
-    }
+    return {
+        id: sessionId,
+        accountId: sessionItem.accountId,
+    };
 }
 
 function createAccountModelFromItem(accountItem: AccountItem) {
@@ -957,6 +960,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         version: accountItem.updateLockVersion ?? 0,
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
+        botId: accountItem.bot?.botId,
         avatar: accountItem.avatar
             ? {
                   avatarId: accountItem.avatar.avatarId,
@@ -964,7 +968,6 @@ function createAccountModelFromItem(accountItem: AccountItem) {
                   version: accountItem.avatar.updateLockVersion ?? 0,
               }
             : null,
-        botId: accountItem.bot?.botId,
     });
 }
 
@@ -972,10 +975,15 @@ function createAccountModelFromItem(accountItem: AccountItem) {
  * Authorizes the account for this request has internal access. Throws a
  * `PermissionDeniedError` if not.
  */
-export async function authorizeInternalAccess(context: Context<{actor: DynamoActorContextModule}>) {
+export async function authorizeInternalAccess(
+    context: Context<DynamoContextModules & {cache: CacheContextModule; actor: ActorContextModule}>,
+) {
     switch (context.actor.type) {
         case "Session": {
-            const {hasInternalAccess} = await context.actor.getAccountAndHasInternalAccess();
+            const {hasInternalAccess} = await getAccountItemWithoutAvatar(
+                context,
+                context.actor.getAccountId(),
+            );
 
             if (!hasInternalAccess) {
                 throw new PermissionDeniedError("Account does not have internal access", {
@@ -1012,28 +1020,35 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
  * allowed to access the account and does not cache accounts. Instead use
  * `getAccountIfExists()` in `server/spaces/spaces_table.ts`.
  */
-async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
-    context: DynamoContext,
+export async function dangerouslyGetAccountIfExistsWithoutAuthorization(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-) {
-    // Pretend like the unknown account doesn't exist. We do have an unknown
-    // account record in our database as a safety precaution to make sure we
-    // don't accidentally create an account with the unknown `AccountId`. But we
-    // should never return that data. Instead if you want data for an unknown
-    // account call `AccountModel.getUnknown()`.
-    //
-    // Calling `getAccount(unknownAccountId)` should always fail with a not
-    // found error.
-    if (accountId === unknownAccountId) return null;
-
-    const accountItem = await getAccountItemIfExists(context, accountId, {consistency});
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<AccountModelWithoutSpace | null> {
+    const accountItem = await getAccountItemIfExists(context, accountId, options);
     if (!accountItem) return null;
+    return createAccountModelFromItem(accountItem);
+}
 
-    return {
-        account: createAccountModelFromItem(accountItem),
-        hasInternalAccess: accountItem.hasInternalAccess ?? false,
-    };
+/**
+ * Get the actor's account.
+ */
+export async function getOwnAccount(
+    context: Context<
+        DynamoContextModules & {cache: CacheContextModule; actor: SessionActorContextModule}
+    >,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<AccountModelWithoutSpace> {
+    const accountItem = await getAccountItemIfExists(
+        context,
+        context.actor.getAccountId(),
+        options,
+    );
+
+    // The account must exist since we have a session actor for the account.
+    assert(accountItem);
+
+    return createAccountModelFromItem(accountItem);
 }
 
 /**
@@ -1044,25 +1059,21 @@ async function dangerouslyGetAccountAndHasInternalAccessIfExistsWithoutCaching(
  * allowed to access the account and does not cache accounts. Instead use
  * `getAccountIfExists()` in `server/spaces/spaces_table.ts`.
  */
-export async function dangerouslyGetAccountIfExistsWithoutCaching(
-    context: DynamoContext,
+export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-) {
-    // Pretend like the unknown account doesn't exist. We do have an unknown
-    // account record in our database as a safety precaution to make sure we
-    // don't accidentally create an account with the unknown `AccountId`. But we
-    // should never return that data. Instead if you want data for an unknown
-    // account call `AccountModel.getUnknown()`.
-    //
-    // Calling `getAccount(unknownAccountId)` should always fail with a not
-    // found error.
-    if (accountId === unknownAccountId) return null;
-
-    const accountItem = await getAccountItemIfExists(context, accountId, {consistency});
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Omit<AccountModelWithoutSpaceData, "avatar"> | null> {
+    const accountItem = await getAccountItemWithoutAvatarIfExists(context, accountId, options);
     if (!accountItem) return null;
 
-    return createAccountModelFromItem(accountItem);
+    return {
+        id: accountItem.accountId,
+        version: accountItem.updateLockVersion ?? 0,
+        name: accountItem.name,
+        nameVersion: accountItem.nameVersion ?? 0,
+        botId: accountItem.bot?.botId,
+    };
 }
 
 export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoint<AccountId>();
@@ -1233,7 +1244,7 @@ export async function getOurLastOpenedSpaceId(
  * its `AccountId` (since the user signed out then back in) it may do so.
  */
 export async function registerOurAccountAppleDeviceToken(
-    context: Context<DynamoContextModules & {actor: DynamoSessionActorContextModule}>,
+    context: Context<DynamoContextModules & {actor: SessionActorContextModule}>,
     deviceToken: Uint8Array,
 ): Promise<void> {
     // This method is called every time our iOS app is opened in case the device
@@ -1261,7 +1272,7 @@ export type AccountDevice = {
  * devices.
  */
 export async function internalGetRegisteredAccountDevicesWithoutAuthorization(
-    context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
+    context: Context<DynamoContextModules & {actor: ActorContextModule}>,
     accountId: AccountId,
 ): Promise<ReadonlyArray<AccountDevice>> {
     return arrayFromAsyncIterable(
@@ -1279,7 +1290,7 @@ export async function internalGetRegisteredAccountDevicesWithoutAuthorization(
  * function does nothing.
  */
 export async function deleteAccountAppleDeviceTokenIfExists(
-    context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
+    context: Context<DynamoContextModules & {actor: ActorContextModule}>,
     accountId: AccountId,
     deviceToken: Uint8Array,
 ): Promise<void> {
@@ -1316,7 +1327,9 @@ export async function deleteAccountAppleDeviceTokenIfExists(
 }
 
 export async function updateAccountAvatar(
-    context: Context<DynamoContextModules & {actor: DynamoSessionActorContextModule}>,
+    context: Context<
+        DynamoContextModules & {cache: CacheContextModule; actor: SessionActorContextModule}
+    >,
     {
         avatarContent,
         avatarId,
@@ -1325,12 +1338,6 @@ export async function updateAccountAvatar(
         avatarId: AvatarId;
     },
 ): Promise<AccountModelWithoutSpace> {
-    // NOTE(ifitzsimmons, 2025-08-15): TypeScript doesn't like this line and I have no idea why.
-    // It seems to be confused about the context type. I don't have any concrete plan to fix this.
-    // I think in an ideal state, I would just use the DynamoServerSessionContext, but that
-    // introduces a circular dependency on the on //server/accounts. If we can decouple
-    // //server/context and //server/accounts, we should use DynamoServerSessionContext above.
-    // @ts-expect-error
     context.actor.authorizeSession();
 
     const accountId = context.actor.getAccountId();

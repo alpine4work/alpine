@@ -5,8 +5,7 @@ import {
     ReceiveMessageCommand,
     SQSClient,
 } from "@aws-sdk/client-sqs";
-import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
-import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
+import {ActorServiceName, SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {
     JobQueueName,
@@ -109,7 +108,7 @@ export class JobQueueConsumer<
                     tracer: TracerContextModule;
                     cache: CacheContextModule;
                     batch: BatchContextModule;
-                    actor: DynamoSystemActorContextModule;
+                    actor: SystemActorContextModule;
                 }
             >
         >,
@@ -202,7 +201,7 @@ export class JobQueueConsumer<
                             tracer: TracerContextModule;
                             cache: CacheContextModule;
                             batch: BatchContextModule;
-                            actor: DynamoSystemActorContextModule;
+                            actor: SystemActorContextModule;
                         }
                     >
                 >,
@@ -331,7 +330,7 @@ export class JobQueueConsumer<
                             tracer: TracerContextModule;
                             cache: CacheContextModule;
                             batch: BatchContextModule;
-                            actor: DynamoSystemActorContextModule;
+                            actor: SystemActorContextModule;
                         }
                     >
                 >,
@@ -883,7 +882,7 @@ export class JobQueueConsumer<
                         tracer: TracerContextModule;
                         cache: CacheContextModule;
                         batch: BatchContextModule;
-                        actor: DynamoSystemActorContextModule;
+                        actor: SystemActorContextModule;
                     },
                     void
                 >(
@@ -898,10 +897,7 @@ export class JobQueueConsumer<
                         // It's different for HTTP servers with routes to the public internet! For
                         // those we need to be more careful and make sure we include a signed token to
                         // correctly identify our services.
-                        actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            this._serviceName,
-                            spaceId,
-                        ),
+                        actor: SystemActorContextModule.dangerouslyNew(this._serviceName, spaceId),
                     },
                     actionContext =>
                         this._processJob(

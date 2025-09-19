@@ -1,6 +1,6 @@
 import {Handler, Context as LambdaContext, SQSEvent, SQSRecord} from "aws-lambda";
 import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
-import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
+import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
@@ -34,7 +34,7 @@ const honeycombApiKey =
         : assertExists(process.env.HONEYCOMB_API_KEY, "HONEYCOMB_API_KEY is required");
 
 export type LambdaSystemActionContext = Context<
-    LambdaActionContextModules & {actor: DynamoSystemActorContextModule}
+    LambdaActionContextModules & {actor: SystemActorContextModule}
 >;
 export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobDescription>({
     processJob,
@@ -221,7 +221,7 @@ async function _processJob<TJobDescription extends JobDescription>(
 
         await actionContext.with(
             {
-                actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
+                actor: SystemActorContextModule.dangerouslyNew(serviceName, spaceId),
             },
             context =>
                 withLambdaTimeout(lambdaContext, new AbortController(), async () =>

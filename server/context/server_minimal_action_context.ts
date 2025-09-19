@@ -1,8 +1,4 @@
 import {
-    DynamoActorContextModule,
-    DynamoBotActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
-import {
     ChatInjectionContextModule,
     DocumentsInjectionContextModule,
     ForumInjectionContextModule,
@@ -10,6 +6,7 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {ActorContextModule, BotActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -32,7 +29,7 @@ export type ServerMinimalActionContextModules = {
     cache: CacheContextModule;
     batch: BatchContextModule;
     dynamo: DynamoContextModule;
-    actor: DynamoActorContextModule;
+    actor: ActorContextModule;
     chatInjection: ChatInjectionContextModule;
     documentsInjection: DocumentsInjectionContextModule;
     forumInjection: ForumInjectionContextModule;
@@ -44,6 +41,6 @@ export type ServerMinimalBotActionContext = Context<ServerMinimalBotActionContex
 export type ServerMinimalBotActionContextModules = Replace<
     ServerMinimalActionContextModules,
     {
-        actor: DynamoBotActorContextModule;
+        actor: BotActorContextModule;
     }
 >;

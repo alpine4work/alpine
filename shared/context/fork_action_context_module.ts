@@ -11,7 +11,7 @@ import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_s
  * module instance with new state but with the same underlying configuration.
  * For example, caches like `CacheContextModule` and batchers like
  * `BatchContextModule` don't share caches/batches with forked modules.
- * However `WorkerSessionActorContextModule` does maintain its `accountId` and
+ * However `SessionActorContextModule` does maintain its `accountId` and
  * `sessionId` in the fork.
  */
 export interface ForkableContextModuleBase extends ContextModuleBase {

@@ -1,4 +1,4 @@
-import {DynamoActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
+import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {
     authorizeSpaceAccess,
     impersonateAccountAsSystemContext,
@@ -99,7 +99,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
     private readonly _dangerouslyEscalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor: DynamoActorContextModule;
+            actor: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -143,7 +143,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
+                actor: ActorContextModule;
                 cache: CacheContextModule;
                 batch: BatchContextModule;
             }>,

@@ -1,5 +1,4 @@
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
-import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {
     WorkerRpcContextBatcher,
     WorkerRpcContextModule,
@@ -15,6 +14,7 @@ import {
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {uploadAvatar} from "~/server/edge/upload_avatar.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
+import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
@@ -689,7 +689,11 @@ async function actuallyHandleFetch(
                     Context.new({
                         tracer: new TracerContextModule(span),
                         batch: BatchContextModule.new(),
-                        actor: WorkerSessionActorContextModule.dangerouslyNew(
+                        // These upload file endpoints can't do anything harmful with a revoked
+                        // session. Sure they can upload files to R2 but as soon as we try to make an
+                        // RPC call to `AppService` it'll fail because we check if the session was
+                        // revoked in `AppService`.
+                        actor: SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
                             "AppService",
                             sessionId,
                             accountId,

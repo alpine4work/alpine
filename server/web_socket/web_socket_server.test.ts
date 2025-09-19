@@ -1,5 +1,4 @@
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {TestSessionActorContextModule} from "~/server/helpers/test/test_actor_context_module.js";
 import {Response} from "~/server/node/install_response_with_web_socket_support.js";
 import {
     WebSocketConnectionProcedures,
@@ -82,7 +81,8 @@ const sessionIdByAccountId = new DefaultMap<AccountId, SessionId>(generateId);
 
 function action(accountId: AccountId): Context<TestSessionActionContextModules> {
     return processContext.clone({
-        actor: new TestSessionActorContextModule(
+        actor: SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
+            "Test",
             sessionIdByAccountId.getOrSetDefault(accountId),
             accountId,
         ),

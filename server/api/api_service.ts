@@ -5,10 +5,6 @@ import {
     createServiceCloudflareR2ContextModule,
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
-import {
-    DynamoActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {
@@ -27,6 +23,10 @@ import {
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
+import {
+    ActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerBasicProcessContextModules,
@@ -109,7 +109,7 @@ export async function run({
     const dangerouslyEscalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
-            actor?: DynamoActorContextModule;
+            actor?: ActorContextModule;
             cache: CacheContextModule;
             batch: BatchContextModule;
         }>,
@@ -127,7 +127,7 @@ export async function run({
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
                 batch: context.batch.forkForChangedActor(),
-                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                actor: SystemActorContextModule.dangerouslyNew(
                     // `context.actor` is `undefined` for maintenance jobs. Though we shouldn't be
                     // running maintenance jobs in `ApiService`. Handle the case anyway.
                     context.actor?.serviceName ?? "ApiService",

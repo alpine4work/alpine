@@ -1,12 +1,12 @@
-import {Session} from "~/server/accounts/accounts_actions.js";
-import {
-    DynamoActorContextModule,
-    DynamoAnonymousActorContextModule,
-    DynamoBotActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/context/dynamo_actor_context_module.js";
+import {getSessionIfExists} from "~/server/accounts/accounts_actions.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    ActorContextModule,
+    AnonymousActorContextModule,
+    BotActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
@@ -26,9 +26,9 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
- * Create a `DynamoActorContextModule` from an HTTP `Authorization` header.
+ * Create a `ActorContextModule` from an HTTP `Authorization` header.
  */
-export async function createDynamoActorContextModule(
+export async function createActorContextModuleFromAuthorizationHeader(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
@@ -38,7 +38,7 @@ export async function createDynamoActorContextModule(
     requestHeaders: Headers,
     tokenAgent: TokenAgent,
     spaceId: SpaceId,
-): Promise<DynamoActorContextModule> {
+): Promise<ActorContextModule> {
     const {serviceName, authorizationHeaderPayload} =
         await getAuthorizationPayloadAndServiceNameFromHeaders(requestHeaders, tokenAgent);
 
@@ -56,13 +56,13 @@ export async function createDynamoActorContextModule(
             if (spaceId !== authorizationHeaderPayload.spaceId) {
                 throw new PermissionDeniedError("System actor doesn’t have access to space");
             }
-            return DynamoSystemActorContextModule.dangerouslyNew(
+            return SystemActorContextModule.dangerouslyNew(
                 serviceName,
                 authorizationHeaderPayload.spaceId,
             );
         }
         case "Anonymous": {
-            return DynamoAnonymousActorContextModule.dangerouslyNew(serviceName);
+            return AnonymousActorContextModule.dangerouslyNew(serviceName);
         }
         case "Bot": {
             // We trust the token payload. We assume bot tokens are:
@@ -72,7 +72,7 @@ export async function createDynamoActorContextModule(
             //
             // Unlike sessions where we need to keep checking the database to see if the
             // session has been revoked.
-            return DynamoBotActorContextModule.dangerouslyNew(
+            return BotActorContextModule.dangerouslyNew(
                 serviceName,
                 authorizationHeaderPayload.spaceId,
                 authorizationHeaderPayload.accountId,
@@ -122,7 +122,7 @@ export async function createDynamoActorSessionContextModule(
         : () => {};
 
     const [session] = await runAllPromises([
-        Session.getIfExists(
+        getSessionIfExists(
             context,
             authorizationHeaderPayload.sessionId,
             authorizationHeaderPayload.accountId,
@@ -133,7 +133,11 @@ export async function createDynamoActorSessionContextModule(
     if (!session) {
         throw new PermissionDeniedError("Session not found");
     }
-    return DynamoSessionActorContextModule.dangerouslyNew(serviceName, session);
+    return SessionActorContextModule.dangerouslyNewWithoutCheckingIfRevoked(
+        serviceName,
+        session.id,
+        session.accountId,
+    );
 }
 
 async function getAuthorizationPayloadAndServiceNameFromHeaders(
