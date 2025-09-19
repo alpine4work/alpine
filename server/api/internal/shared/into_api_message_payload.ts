@@ -1,4 +1,4 @@
-import {intoApiContent} from "~/server/api/into_api_content.js";
+import {intoApiContent} from "~/server/api/internal/shared/into_api_content.js";
 import {ApiMessagePayload} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessagePayload} from "~/shared/messaging/message_model.js";

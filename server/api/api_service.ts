@@ -1,4 +1,5 @@
-import {createApiServiceServer} from "~/server/api/api_service_server.js";
+import {apiPaths} from "~/server/api/internal/api_paths.js";
+import {createApiServiceServer} from "~/server/api/internal/shared/api_service_server.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     createServiceCloudflareR2ContextModule,
@@ -162,7 +163,7 @@ export async function run({
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
     });
 
-    const server = await createApiServiceServer(processContext, {
+    const server = await createApiServiceServer(processContext, apiPaths, {
         shutdownManager,
         edgeServiceUrl,
         tokenAgent,

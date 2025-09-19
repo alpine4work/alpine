@@ -1,8 +1,8 @@
 /* eslint-disable string-quotes */
 
 import {Mark, Node} from "prosemirror-model";
-import {fromApiContent} from "~/server/api/from_api_content.js";
-import {intoApiContent} from "~/server/api/into_api_content.js";
+import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {intoApiContent} from "~/server/api/internal/shared/into_api_content.js";
 import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";

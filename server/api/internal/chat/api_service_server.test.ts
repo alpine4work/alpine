@@ -1,17 +1,17 @@
-import fs from "fs/promises";
-import {IncomingMessage, ServerResponse} from "http";
-import {join as joinPath} from "path";
+// Generic tests for `api_service_server.ts`. Needs to be in the package
+// `//server/api/internal/chat` since we need access to some API path
+// implementations to test the service properly.
+
 import request from "supertest";
-import {createApiServiceRequestListener} from "~/server/api/api_service_server.js";
+import {apiChatPaths} from "~/server/api/internal/chat/api_chat_paths.js";
+import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
+import {createTestTokenAgent} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {TokenAgentJobQueueServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
-import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -19,39 +19,12 @@ const context = createTestContext({
     chatInjection,
 });
 
-let jobQueueTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide>;
-let apiTokenAgent: TokenAgent;
+const server = createTestApiServer(context, apiChatPaths);
+
 let appTokenAgent: TokenAgent;
-let server: (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void;
 
 beforeAll(async () => {
-    let temporaryJobQueueTokenAgent: TokenAgent;
-
-    [apiTokenAgent, temporaryJobQueueTokenAgent, appTokenAgent] = await createTestTokenAgents(
-        context,
-        ["ApiService", "JobQueueService", "AppService"],
-    );
-
-    const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
-
-    jobQueueTokenAgent = {
-        publicSide: temporaryJobQueueTokenAgent.publicSide,
-        privateSide: await TokenAgentJobQueueServicePrivateSide.new(
-            await runAllObjectPromises({
-                serviceName: "JobQueueService",
-                servicePrivateKey: fs.readFile(
-                    joinPath(keysDirectoryPath, "job_queue_service_rsa"),
-                    "utf8",
-                ),
-                secret: fs.readFile(joinPath(keysDirectoryPath, "token_agent_secret"), "utf8"),
-            }),
-        ),
-    };
-
-    server = await createApiServiceRequestListener(context, {
-        edgeServiceUrl: "https://test.alpine.inc",
-        tokenAgent: apiTokenAgent,
-    });
+    appTokenAgent = await createTestTokenAgent(context, "AppService");
 });
 
 test("not found route", async () => {
@@ -215,7 +188,7 @@ test("rejects access token for the wrong service", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const accessToken = await jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
+    const accessToken = await server.jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
         "ChatRealtimeService",
         {
             type: "Bot",
@@ -245,7 +218,7 @@ test("rejects expired access token", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const accessToken = await jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
+    const accessToken = await server.jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
         "ApiService",
         {
             type: "Bot",
@@ -276,7 +249,7 @@ test("rejects non-bot token payload", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const accessToken = await jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
+    const accessToken = await server.jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
         "ApiService",
         {
             type: "System",
@@ -306,7 +279,7 @@ test("rejects unknown API key (with short lived token)", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const accessToken = await jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
+    const accessToken = await server.jobQueueTokenAgent.privateSide.dangerouslySignShortLivedToken(
         "ApiService",
         {
             type: "Bot",
@@ -337,7 +310,7 @@ test("rejects unknown API key", async () => {
     const message = await chat.sendMessage(session1);
 
     const accessToken =
-        await jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
+        await server.jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
             type: "Bot",
             spaceId: space.id,
             accountId: session1.account.id,
@@ -393,7 +366,7 @@ test("doesn’t allow a scoped API key with an access token", async () => {
     const message = await chat.sendMessage(session2);
 
     const accessToken =
-        await jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
+        await server.jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
             type: "Bot",
             spaceId: space.id,
             accountId: session1.account.id,
@@ -426,7 +399,7 @@ test("doesn’t allow non-bot account in access token", async () => {
     const message = await chat.sendMessage(session2);
 
     const accessToken =
-        await jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
+        await server.jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
             type: "Bot",
             spaceId: space.id,
             accountId: session1.account.id,
@@ -460,7 +433,7 @@ test("doesn’t allow mismatched bot between API key and access token", async ()
     const message = await chat.sendMessage(session2);
 
     const accessToken =
-        await jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
+        await server.jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
             type: "Bot",
             spaceId: space.id,
             accountId: bot2.id,
@@ -495,7 +468,7 @@ test("rejects request from removed bot account", async () => {
     await space.removeAccount(bot);
 
     const accessToken =
-        await jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
+        await server.jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
             type: "Bot",
             spaceId: space.id,
             accountId: bot.id,
@@ -527,7 +500,7 @@ test("can read message in chat with unscoped API key", async () => {
     const message = await chat.sendMessage(session2);
 
     const accessToken =
-        await jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
+        await server.jobQueueTokenAgent.privateSide.dangerouslySignLongLivedTokenForBotWebhook({
             type: "Bot",
             spaceId: space.id,
             accountId: bot.id,

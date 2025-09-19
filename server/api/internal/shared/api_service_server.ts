@@ -8,8 +8,8 @@ import Negotiator from "negotiator";
 import {OpenAPIV3} from "openapi-types";
 import {join as joinPath} from "path";
 import Yaml from "yaml";
-import {renderApiBrowser} from "~/server/api/api_browser.js";
-import {ApiPathsBase, apiPaths} from "~/server/api/api_paths.js";
+import {renderApiBrowser} from "~/server/api/internal/shared/api_browser.js";
+import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {getApiKeyAttributesIfExists} from "~/server/bots/bots_table.js";
 import {DynamoBotActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
@@ -73,6 +73,7 @@ const apiSpecificationPath = joinPath(
 
 export async function createApiServiceServer(
     processContext: ServerProcessContext,
+    paths: ApiPathsBase,
     {
         shutdownManager,
         edgeServiceUrl,
@@ -83,7 +84,7 @@ export async function createApiServiceServer(
         tokenAgent: TokenAgent;
     },
 ) {
-    const requestListener = await createApiServiceRequestListener(processContext, {
+    const requestListener = await createApiServiceRequestListener(processContext, paths, {
         edgeServiceUrl,
         tokenAgent,
     });
@@ -97,6 +98,7 @@ export async function createApiServiceServer(
 
 export async function createApiServiceRequestListener(
     processContext: ServerProcessContext,
+    paths: ApiPathsBase,
     {
         edgeServiceUrl,
         tokenAgent,
@@ -422,13 +424,7 @@ export async function createApiServiceRequestListener(
                   })
                 : null;
 
-        const executeOperation = assertExists(cast<ApiPathsBase>(apiPaths)[openApiPath])[
-            openApiMethod
-        ];
-
-        // If `openApiOperation` isn't undefined then `executeOperation` also shouldn't
-        // be undefined.
-        assert((openApiOperation === undefined) === (executeOperation === undefined));
+        const executeOperation = paths[openApiPath]?.[openApiMethod];
 
         async function requestListener(
             span: TracerSpan,
