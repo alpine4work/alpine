@@ -632,7 +632,9 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentInlineElementItalicMark"]
                 | components["schemas"]["ContentInlineElementStrikeMark"]
                 | components["schemas"]["ContentInlineElementLinkMark"]
-                | components["schemas"]["ContentInlineElementCodeMark"];
+                | components["schemas"]["ContentInlineElementCodeMark"]
+                | components["schemas"]["ContentInlineElementHighlightMark"]
+                | components["schemas"]["ContentInlineElementCommentMark"];
             readonly ContentInlineElementBoldMark: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -669,6 +671,29 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Code";
             };
+            readonly ContentInlineElementHighlightMark: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Highlight";
+                readonly color: components["schemas"]["ContentInlineElementHighlightMarkColor"];
+            };
+            /** @enum {string} */
+            readonly ContentInlineElementHighlightMarkColor:
+                | "Red"
+                | "Orange"
+                | "Green"
+                | "Blue"
+                | "Purple";
+            readonly ContentInlineElementCommentMark: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Comment";
+                readonly threadId: components["schemas"]["DocumentThreadId"];
+            };
             readonly ContentCodeBlockElementTextInlineElement: {
                 /** @constant */
                 readonly type: "Text";
@@ -679,7 +704,9 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentInlineElementBoldMark"]
                 | components["schemas"]["ContentInlineElementItalicMark"]
                 | components["schemas"]["ContentInlineElementStrikeMark"]
-                | components["schemas"]["ContentInlineElementLinkMark"];
+                | components["schemas"]["ContentInlineElementLinkMark"]
+                | components["schemas"]["ContentInlineElementHighlightMark"]
+                | components["schemas"]["ContentInlineElementCommentMark"];
             readonly Message: {
                 readonly index: number;
                 /** Format: date-time */

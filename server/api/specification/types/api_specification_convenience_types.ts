@@ -78,6 +78,15 @@ export type ApiContentInlineElementCodeMark =
 export type ApiContentInlineElementLinkMark =
     ApiSpecification.components["schemas"]["ContentInlineElementLinkMark"];
 
+export type ApiContentInlineElementHighlightMark =
+    ApiSpecification.components["schemas"]["ContentInlineElementHighlightMark"];
+
+export type ApiContentInlineElementHighlightMarkColor =
+    ApiSpecification.components["schemas"]["ContentInlineElementHighlightMarkColor"];
+
+export type ApiContentInlineElementCommentMark =
+    ApiSpecification.components["schemas"]["ContentInlineElementCommentMark"];
+
 export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
 
 export type ApiErrorResponseBody =

@@ -24,6 +24,8 @@ import {
     ApiContentDividerBlockElement,
     ApiContentHeadingBlockElement,
     ApiContentInlineElement,
+    ApiContentInlineElementCommentMark,
+    ApiContentInlineElementHighlightMark,
     ApiContentInlineElementLinkMark,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
@@ -44,6 +46,7 @@ import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
@@ -93,37 +96,58 @@ const ApiContentMentionInlineElementTargetPathObjectArbitrary =
         })),
     });
 
-const ApiContentLinkInlineElementArbitrary: Arbitrary<ApiContentInlineElementLinkMark> = fc.record({
-    type: fc.constant("Link"),
-    url: fc.oneof(
-        {weight: 50, arbitrary: fc.webUrl()},
-        {weight: 1, arbitrary: fc.string({unit: "grapheme"})},
+const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
+    fc.record({
+        type: fc.constant("Link"),
+        url: fc.oneof(
+            {weight: 50, arbitrary: fc.webUrl()},
+            {weight: 1, arbitrary: fc.string({unit: "grapheme"})},
 
-        // We have special handling for link marks that look like mentions so they're
-        // not parsed as mention nodes. Make sure we generate mention-looking URLs.
-        {
-            weight: 1,
-            arbitrary: fc
-                .tuple(ApiContentMentionInlineElementTargetPathObjectArbitrary, fc.boolean())
-                .map(([targetPathObject, isAccountShortName]) =>
-                    printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
-                        targetPathObject,
-                        {
-                            spaceId,
-                            isAccountShortName,
-                        },
+            // We have special handling for link marks that look like mentions so they're
+            // not parsed as mention nodes. Make sure we generate mention-looking URLs.
+            {
+                weight: 1,
+                arbitrary: fc
+                    .tuple(ApiContentMentionInlineElementTargetPathObjectArbitrary, fc.boolean())
+                    .map(([targetPathObject, isAccountShortName]) =>
+                        printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
+                            targetPathObject,
+                            {
+                                spaceId,
+                                isAccountShortName,
+                            },
+                        ),
                     ),
-                ),
-        },
-    ),
-});
+            },
+        ),
+    });
+
+const ApiContentInlineElementHighlightMarkArbitrary: Arbitrary<ApiContentInlineElementHighlightMark> =
+    fc.record({
+        type: fc.constant("Highlight"),
+        color: fc.oneof(
+            fc.constant("Red"),
+            fc.constant("Orange"),
+            fc.constant("Green"),
+            fc.constant("Blue"),
+            fc.constant("Purple"),
+        ),
+    });
+
+const ApiContentInlineElementCommentMarkArbitrary: Arbitrary<ApiContentInlineElementCommentMark> =
+    fc.record({
+        type: fc.constant("Comment"),
+        threadId: createIdArbitrary<DocumentCommentThreadId>(),
+    });
 
 const ApiContentInlineElementMarkArbitrary = createUnionArbitrary<ApiContentInlineElementMark>({
     Bold: fc.constant({type: "Bold"}),
     Italic: fc.constant({type: "Italic"}),
     Strike: fc.constant({type: "Strike"}),
     Code: fc.constant({type: "Code"}),
-    Link: ApiContentLinkInlineElementArbitrary,
+    Link: ApiContentInlineElementLinkMarkArbitrary,
+    Highlight: ApiContentInlineElementHighlightMarkArbitrary,
+    Comment: ApiContentInlineElementCommentMarkArbitrary,
 });
 
 const ApiContentTextInlineElementTextArbitrary = fc.oneof(
@@ -288,7 +312,9 @@ const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
         Bold: fc.constant({type: "Bold"}),
         Italic: fc.constant({type: "Italic"}),
         Strike: fc.constant({type: "Strike"}),
-        Link: ApiContentLinkInlineElementArbitrary,
+        Link: ApiContentInlineElementLinkMarkArbitrary,
+        Highlight: ApiContentInlineElementHighlightMarkArbitrary,
+        Comment: ApiContentInlineElementCommentMarkArbitrary,
     });
 
 const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContentCodeBlockElementTextInlineElement> =
@@ -321,7 +347,9 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
             width: fc.float({min: 1, max: 20, noNaN: true}),
             hasHeaderRow: fc.constant(true),
             hasHeaderColumn: fc.constant(false),
-            columns: fc.array(fc.record({width: fc.float({min: Math.fround(0.01), max: 20})})),
+            columns: fc.array(
+                fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
+            ),
             rows: fc.array(
                 fc.record({
                     cells: fc.array(
@@ -342,10 +370,12 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
     // a GFM table.
     fc.record({
         type: fc.constant("Table"),
-        width: fc.float({min: 1, max: 20}),
+        width: fc.float({min: 1, max: 20, noNaN: true}),
         hasHeaderRow: fc.boolean(),
         hasHeaderColumn: fc.boolean(),
-        columns: fc.array(fc.record({width: fc.float({min: Math.fround(0.01), max: 20})})),
+        columns: fc.array(
+            fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
+        ),
         rows: fc.array(
             fc.record({
                 cells: fc.array(

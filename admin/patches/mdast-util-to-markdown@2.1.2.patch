@@ -1,5 +1,5 @@
 diff --git a/lib/handle/emphasis.js b/lib/handle/emphasis.js
-index 92be547459a62ae18f813651b713d31fbc4efbe0..40c93b015d28ec5c1e2ed1675c31846f763e3d06 100644
+index 92be547459a62ae18f813651b713d31fbc4efbe0..6f5bc19219c30a0ad369cebe1d4c4d98dc7e3c81 100644
 --- a/lib/handle/emphasis.js
 +++ b/lib/handle/emphasis.js
 @@ -3,6 +3,7 @@
@@ -49,7 +49,7 @@ index 92be547459a62ae18f813651b713d31fbc4efbe0..40c93b015d28ec5c1e2ed1675c31846f
  
    if (close.inside) {
 -    between = between.slice(0, -1) + encodeCharacterReference(betweenTail)
-+    // NOTE(calebmer): If we encode a character reference that was before an escape
++    // NOTE(calebmer): If we encode a character reference that was after an escape
 +    // character then we need to double escape the escape character so it doesn't
 +    // escape the new character reference.
 +    between =
@@ -95,7 +95,7 @@ index 92be547459a62ae18f813651b713d31fbc4efbe0..40c93b015d28ec5c1e2ed1675c31846f
 +  return string.slice(-1)
 +}
 diff --git a/lib/handle/strong.js b/lib/handle/strong.js
-index 475d5f78b9373ce400c36bdbb0fe8a9374249ef1..a85be8562fd2f6e7b4872bce4cc59bfdfdec884b 100644
+index 475d5f78b9373ce400c36bdbb0fe8a9374249ef1..5935a50dd971fbaccc8933c2e3f33b4b2a404278 100644
 --- a/lib/handle/strong.js
 +++ b/lib/handle/strong.js
 @@ -29,22 +29,33 @@ export function strong(node, _, state, info) {
@@ -128,7 +128,7 @@ index 475d5f78b9373ce400c36bdbb0fe8a9374249ef1..a85be8562fd2f6e7b4872bce4cc59bfd
  
    if (close.inside) {
 -    between = between.slice(0, -1) + encodeCharacterReference(betweenTail)
-+    // NOTE(calebmer): If we encode a character reference that was before an escape
++    // NOTE(calebmer): If we encode a character reference that was after an escape
 +    // character then we need to double escape the escape character so it doesn't
 +    // escape the new character reference.
 +    between =
@@ -174,18 +174,22 @@ index 475d5f78b9373ce400c36bdbb0fe8a9374249ef1..a85be8562fd2f6e7b4872bce4cc59bfd
 +  return string.slice(-1)
 +}
 diff --git a/lib/unsafe.js b/lib/unsafe.js
-index c5c5d4a12ad91e8e15c5fcb0dedf1d376bebfeb6..01a1b2ed744c9832194bb644cbf0e1d23bd1802c 100644
+index c5c5d4a12ad91e8e15c5fcb0dedf1d376bebfeb6..99ae5d6f5c934d440820ac78895c1a498b501bc9 100644
 --- a/lib/unsafe.js
 +++ b/lib/unsafe.js
-@@ -102,10 +102,13 @@ export const unsafe = [
+@@ -102,20 +102,33 @@ export const unsafe = [
    // slash (closing tag), question mark (instruction), or a letter (tag).
    // An autolink also starts with a letter.
    // Finally, it could break out of a destination literal.
 -  {atBreak: true, character: '<', after: '[!/?A-Za-z]'},
-+  {atBreak: true, character: '<', after: '[\\x00-\\x1F\\x21-\\x3B\\x3D\\x3F-\\x7F]'},
    {
++    atBreak: true,
      character: '<',
 -    after: '[!/?A-Za-z]',
++    after: '[\\x00-\\x1F\\x21-\\x3B\\x3D\\x3F-\\x7F]'
++  },
++  {
++    character: '<',
 +    // NOTE(calebmer): Our markdown parser is treating `<@0>`, `<0@0>`, and
 +    // others as an autolink. Escape every time we see `<` followed by something
 +    // other than a space, `<`, or `>`.
@@ -193,8 +197,26 @@ index c5c5d4a12ad91e8e15c5fcb0dedf1d376bebfeb6..01a1b2ed744c9832194bb644cbf0e1d2
      inConstruct: 'phrasing',
      notInConstruct: fullPhrasingSpans
    },
+-  {character: '<', inConstruct: 'destinationLiteral'},
++  // NOTE(calebmer): Make sure we escape `<` and `>` in raw link destinations too
++  // otherwise the parser may interpret the character as the start of a
++  // `destinationLiteral` link.
++  {character: '<', inConstruct: ['destinationLiteral', 'destinationRaw']},
+   // An equals to can start setext heading underlines.
+   {atBreak: true, character: '='},
+   // A greater than can start block quotes and it can break out of a
+   // destination literal.
+   {atBreak: true, character: '>'},
+-  {character: '>', inConstruct: 'destinationLiteral'},
++  // NOTE(calebmer): Make sure we escape `<` and `>` in raw link destinations too
++  // otherwise the parser may interpret the character as the start of a
++  // `destinationLiteral` link.
++  {character: '>', inConstruct: ['destinationLiteral', 'destinationRaw']},
+   // Question mark and at sign are not used in markdown for constructs.
+   // A left bracket can start definitions, references, labels,
+   {atBreak: true, character: '['},
 diff --git a/lib/util/container-phrasing.js b/lib/util/container-phrasing.js
-index 3b4dc46bcab677d1a86c0ca3cc0d11e876e7e81b..cd61673a309fd4f67771ac203b618d376f171a3f 100644
+index 3b4dc46bcab677d1a86c0ca3cc0d11e876e7e81b..ee2115ee29835cecc5e9e73600efadb818e414dd 100644
 --- a/lib/util/container-phrasing.js
 +++ b/lib/util/container-phrasing.js
 @@ -47,11 +47,13 @@ export function containerPhrasing(parent, state, info) {
@@ -238,7 +260,7 @@ index 3b4dc46bcab677d1a86c0ca3cc0d11e876e7e81b..cd61673a309fd4f67771ac203b618d37
          results[results.length - 1] =
 -          results[results.length - 1].slice(0, -1) +
 -          encodeCharacterReference(before.charCodeAt(0))
-+          // NOTE(calebmer): If we encode a character reference that was before an escape
++          // NOTE(calebmer): If we encode a character reference that was after an escape
 +          // character then we need to double escape the escape character so it doesn't
 +          // escape the new character reference.
 +          (lastResult.slice(-(before.length + 1), -before.length) === '\\'

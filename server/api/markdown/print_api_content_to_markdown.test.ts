@@ -4,9 +4,10 @@ import {normalizeApiContent} from "~/server/api/markdown/normalize_api_content.j
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
@@ -3750,9 +3751,11 @@ test("code block with bold marks", () => {
             ],
         },
         `\
-<pre><code class="language-javascript">
+<pre>
+<code class="language-javascript">
 const <strong>highlighted</strong> = true;
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3777,9 +3780,11 @@ test("code block with italic marks", () => {
             ],
         },
         `\
-<pre><code class="language-markdown">
+<pre>
+<code class="language-markdown">
 This is <em>emphasized</em> text
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3806,10 +3811,12 @@ test("code block with strikethrough marks", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 - <del>removed</del>
 + added
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3838,9 +3845,11 @@ test("code block with link marks", () => {
             ],
         },
         `\
-<pre><code class="language-html">
+<pre>
+<code class="language-html">
 Visit <a href="https://example.com">https://example.com</a> for more
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3874,9 +3883,11 @@ test("code block with multiple marks on same text", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 normal <strong><em>bold+italic</em></strong> <strong><em><del>all</del></em></strong>
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3901,9 +3912,11 @@ test("code block with mark merging - adjacent same marks", () => {
             ],
         },
         `\
-<pre><code class="language-javascript">
+<pre>
+<code class="language-javascript">
 <strong>const merged</strong> = true;
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3940,9 +3953,11 @@ test("code block with mark merging - links with same URL", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 <a href="https://example.com">https://example.com</a>
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -3975,9 +3990,11 @@ test("code block with no mark merging - links with different URLs", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 <a href="https://example1.com">link1</a> <a href="https://example2.com">link2</a>
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4015,11 +4032,13 @@ test("code block with marks across multiple lines", () => {
             ],
         },
         `\
-<pre><code class="language-javascript">
+<pre>
+<code class="language-javascript">
 <strong>function </strong>foo() {
 <em>  return </em><strong><em>42</em></strong>;
 }
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4046,11 +4065,13 @@ test("code block with empty lines and marks", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 <strong>line 1</strong>
 
 <em>line 3</em>
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4079,13 +4100,15 @@ test("code block with empty lines at start/end and mark", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 
 Hello, <strong>world</strong>!
 
 foobar
 
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4116,9 +4139,11 @@ test("code block with complex mark nesting 1", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 start <strong>bold <em>bold+italic </em></strong><em>italic</em> end
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4149,9 +4174,11 @@ test("code block with complex mark nesting 2", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 start <em>bold </em><strong><em>bold+italic </em>italic</strong> end
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4183,11 +4210,13 @@ test("code block with special HTML characters", () => {
             ],
         },
         `\
-<pre><code class="language-html">
+<pre>
+<code class="language-html">
 &lt;div&gt;
   &amp;nbsp;<strong>&lt;strong&gt;</strong>bold<strong>&lt;/strong&gt;</strong>
 &lt;/div&gt;
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -4245,9 +4274,11 @@ test("code block with marks and empty text elements", () => {
             ],
         },
         `\
-<pre><code class="language-text">
+<pre>
+<code class="language-text">
 <strong>text</strong>
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -5320,7 +5351,7 @@ test("angle brackets in URL", () => {
             ],
         },
         `\
-[link](https://example.com/<path>)
+[link](https://example.com/\\<path\\>)
 `,
     );
 });
@@ -6388,9 +6419,11 @@ test("code block with empty mark and separate marked text elements", () => {
             ],
         },
         `\
-<pre><code class="language-lua">
+<pre>
+<code class="language-lua">
  <strong>&lt;</strong>
-</code></pre>
+</code>
+</pre>
 `,
     );
 });
@@ -7920,6 +7953,507 @@ a
 ---
 
 - <p></p>
+`,
+    );
+});
+
+// Highlight mark tests
+test("text with highlight mark", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This is "},
+                        {
+                            type: "Text",
+                            text: "highlighted",
+                            marks: [{type: "Highlight", color: "Red"}],
+                        },
+                        {type: "Text", text: " text"},
+                    ],
+                },
+            ],
+        },
+        `\
+This is <mark class="highlight-red">highlighted</mark> text
+`,
+    );
+});
+
+test("text with different highlight colors", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Red ", marks: [{type: "Highlight", color: "Red"}]},
+                        {
+                            type: "Text",
+                            text: "Orange ",
+                            marks: [{type: "Highlight", color: "Orange"}],
+                        },
+                        {
+                            type: "Text",
+                            text: "Green ",
+                            marks: [{type: "Highlight", color: "Green"}],
+                        },
+                        {type: "Text", text: "Blue ", marks: [{type: "Highlight", color: "Blue"}]},
+                        {
+                            type: "Text",
+                            text: "Purple",
+                            marks: [{type: "Highlight", color: "Purple"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<mark class="highlight-red">Red </mark><mark class="highlight-orange">Orange </mark><mark class="highlight-green">Green </mark><mark class="highlight-blue">Blue </mark><mark class="highlight-purple">Purple</mark>
+`,
+    );
+});
+
+test("text with highlight and other marks", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "bold highlighted text",
+                            marks: [{type: "Bold"}, {type: "Highlight", color: "Blue"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<mark class="highlight-blue">**bold highlighted text**</mark>
+`,
+    );
+});
+
+// Comment mark tests
+test("text with comment mark", () => {
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This is "},
+                        {type: "Text", text: "commented", marks: [{type: "Comment", threadId}]},
+                        {type: "Text", text: " text"},
+                    ],
+                },
+            ],
+        },
+        `\
+This is <mark data-comment="${threadId}">commented</mark> text
+`,
+    );
+});
+
+test("text with comment and highlight marks", () => {
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "highlighted and commented",
+                            marks: [
+                                {type: "Highlight", color: "Green"},
+                                {type: "Comment", threadId},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<mark data-comment="${threadId}"><mark class="highlight-green">highlighted and commented</mark></mark>
+`,
+    );
+});
+
+test("text with multiple comment marks preserves all comments", () => {
+    const threadId1 = assertId<DocumentCommentThreadId>("89z0rd2c0wh8fkdb1jc71mj5a4");
+    const threadId2 = assertId<DocumentCommentThreadId>("ynd1e11m2grtkxtr58qek5mktr");
+    const threadId3 = assertId<DocumentCommentThreadId>("3xqx9qc10mk0wq0nqke1vjqea8");
+
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This text has "},
+                        {
+                            type: "Text",
+                            text: "multiple comments",
+                            marks: [
+                                {type: "Comment", threadId: threadId1},
+                                {type: "Comment", threadId: threadId2},
+                                {type: "Comment", threadId: threadId3},
+                            ],
+                        },
+                        {type: "Text", text: " on it"},
+                    ],
+                },
+            ],
+        },
+        `\
+This text has <mark data-comment="${threadId3}"><mark data-comment="${threadId1}"><mark data-comment="${threadId2}">multiple comments</mark></mark></mark> on it
+`,
+    );
+});
+
+test("text with multiple highlight marks only prints one highlight", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This text has "},
+                        {
+                            type: "Text",
+                            text: "multiple highlights",
+                            marks: [
+                                {type: "Highlight", color: "Red"},
+                                {type: "Highlight", color: "Blue"},
+                                {type: "Highlight", color: "Green"},
+                            ],
+                        },
+                        {type: "Text", text: " but only one should print"},
+                    ],
+                },
+            ],
+        },
+        `\
+This text has <mark class="highlight-green">multiple highlights</mark> but only one should print
+`,
+    );
+});
+
+test("comment mark inside code block", () => {
+    const threadId = assertId<DocumentCommentThreadId>("00000000000000000000000000");
+
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Code",
+                    language: "javascript",
+                    lines: [
+                        {
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: " ",
+                                    marks: [{type: "Comment", threadId}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<pre>
+<code class="language-javascript">
+<mark data-comment="${threadId}"> </mark>
+</code>
+</pre>
+`,
+    );
+});
+
+test("code block with highlight mark inside", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                    columns: [],
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Code",
+                                            language: "elixir",
+                                            lines: [
+                                                {
+                                                    elements: [
+                                                        {
+                                                            type: "Text",
+                                                            text: " ",
+                                                            marks: [
+                                                                {
+                                                                    type: "Highlight",
+                                                                    color: "Purple",
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+<table>
+<tbody>
+<tr>
+<td>
+
+<pre>
+<code class="language-elixir">
+<mark class="highlight-purple"> </mark>
+</code>
+</pre>
+
+</td>
+<td>
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+    );
+});
+
+test("identical adjacent marks in simple table cell", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    hasHeaderRow: true,
+                    hasHeaderColumn: false,
+                    columns: [],
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [
+                                                {
+                                                    type: "Text",
+                                                    text: " ",
+                                                    marks: [{type: "Highlight", color: "Red"}],
+                                                },
+                                                {
+                                                    type: "Text",
+                                                    text: " ",
+                                                    marks: [{type: "Highlight", color: "Red"}],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+| <mark class="highlight-red"> </mark><mark class="highlight-red"> </mark> | |
+| - | - |
+`,
+    );
+});
+
+test("backslash before escaped space in simple table cell", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    hasHeaderRow: true,
+                    hasHeaderColumn: false,
+                    columns: [],
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "\\ ", marks: []}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+| \\\\&#x20; | |
+| - | - |
+`,
+    );
+});
+
+test("less than in link URL", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Link", url: "<"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+[ ](\\<)
+`,
+    );
+});
+
+test("less than with text followed by greater than in link URL", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Link", url: "<test>"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+[ ](\\<test\\>)
+`,
+    );
+});
+
+test("less than after text in link URL", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Link", url: "test<"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+[ ](test\\<)
+`,
+    );
+});
+
+test("less than followed by text (with space) followed by greater than in link URL", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Link", url: "<hello world>"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+[ ](<\\<hello world\\>>)
+`,
+    );
+});
+
+test("greater than in link URL", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Link", url: ">"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+[ ](\\>)
+`,
+    );
+});
+
+test("less than or not equals in link URL", () => {
+    testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Link", url: "≮"}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+[ ](\\≮)
 `,
     );
 });

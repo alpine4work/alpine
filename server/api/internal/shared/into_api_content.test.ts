@@ -6,11 +6,13 @@ import {intoApiContent} from "~/server/api/internal/shared/into_api_content.js";
 import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     TaskCollectionId,
@@ -53,6 +55,8 @@ const italic = () => schema.marks.italic.create();
 const code = () => schema.marks.code.create();
 const link = (url: string) => schema.marks.link.create({url});
 const strike = () => schema.marks.strike.create();
+const highlight = (color: HighlightColor) => schema.marks.highlight.create({color});
+const comment = (commentThreadId: string) => schema.marks.comment.create({commentThreadId});
 
 function normalizeNode(node: Node): Node {
     if (node.isText) return node;
@@ -82,6 +86,17 @@ function testIntoApiContent(node: Node, content: ApiContent) {
         ).toJSON(),
     ).toEqual(normalizeNode(node).toJSON());
 
+    expect(
+        intoApiContent(node, {
+            getAccountMentionTitleIfExists: () => undefined,
+            getSearchEntityMentionTitleIfExists: () => undefined,
+        }),
+    ).toEqual(content);
+}
+
+function testIntoApiContentOnly(node: Node, content: ApiContent) {
+    // Only test the intoApiContent conversion (not round-trip)
+    // This is for cases where the schema doesn't support certain marks
     expect(
         intoApiContent(node, {
             getAccountMentionTitleIfExists: () => undefined,
@@ -2513,4 +2528,208 @@ test("converts dividers into API content", () => {
     testIntoApiContent(doc(divider()), {
         elements: [{type: "Divider"}],
     });
+});
+
+test("converts text with highlight mark into API content", () => {
+    testIntoApiContentOnly(
+        doc(
+            paragraph(
+                text("This is "),
+                text("highlighted", [highlight(HighlightColor.Red)]),
+                text(" text"),
+            ),
+        ),
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This is "},
+                        {
+                            type: "Text",
+                            text: "highlighted",
+                            marks: [{type: "Highlight", color: "Red"}],
+                        },
+                        {type: "Text", text: " text"},
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts text with comment mark into API content", () => {
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    testIntoApiContentOnly(
+        doc(paragraph(text("This is "), text("commented", [comment(threadId)]), text(" text"))),
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This is "},
+                        {type: "Text", text: "commented", marks: [{type: "Comment", threadId}]},
+                        {type: "Text", text: " text"},
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts text with multiple highlight colors into API content", () => {
+    testIntoApiContentOnly(
+        doc(
+            paragraph(
+                text("Red ", [highlight(HighlightColor.Red)]),
+                text("Orange ", [highlight(HighlightColor.Orange)]),
+                text("Green ", [highlight(HighlightColor.Green)]),
+                text("Blue ", [highlight(HighlightColor.Blue)]),
+                text("Purple", [highlight(HighlightColor.Purple)]),
+            ),
+        ),
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Red ", marks: [{type: "Highlight", color: "Red"}]},
+                        {
+                            type: "Text",
+                            text: "Orange ",
+                            marks: [{type: "Highlight", color: "Orange"}],
+                        },
+                        {
+                            type: "Text",
+                            text: "Green ",
+                            marks: [{type: "Highlight", color: "Green"}],
+                        },
+                        {type: "Text", text: "Blue ", marks: [{type: "Highlight", color: "Blue"}]},
+                        {
+                            type: "Text",
+                            text: "Purple",
+                            marks: [{type: "Highlight", color: "Purple"}],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts text with combined highlight and comment marks into API content", () => {
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    testIntoApiContentOnly(
+        doc(
+            paragraph(
+                text("This is "),
+                text("highlighted and commented", [
+                    highlight(HighlightColor.Blue),
+                    comment(threadId),
+                ]),
+                text(" text"),
+            ),
+        ),
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This is "},
+                        {
+                            type: "Text",
+                            text: "highlighted and commented",
+                            marks: [
+                                {type: "Comment", threadId},
+                                {type: "Highlight", color: "Blue"},
+                            ],
+                        },
+                        {type: "Text", text: " text"},
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts text with highlight, comment, and other marks into API content", () => {
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    testIntoApiContentOnly(
+        doc(
+            paragraph(
+                text("This is "),
+                text("bold highlighted commented", [
+                    bold(),
+                    italic(),
+                    highlight(HighlightColor.Purple),
+                    comment(threadId),
+                ]),
+                text(" text"),
+            ),
+        ),
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This is "},
+                        {
+                            type: "Text",
+                            text: "bold highlighted commented",
+                            marks: [
+                                {type: "Comment", threadId},
+                                {type: "Bold"},
+                                {type: "Italic"},
+                                {type: "Highlight", color: "Purple"},
+                            ],
+                        },
+                        {type: "Text", text: " text"},
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts text with multiple comment marks into API content", () => {
+    const threadId1 = generateId<DocumentCommentThreadId>();
+    const threadId2 = generateId<DocumentCommentThreadId>();
+    const threadId3 = generateId<DocumentCommentThreadId>();
+
+    testIntoApiContentOnly(
+        doc(
+            paragraph(
+                text("This text has "),
+                text("multiple comments", [
+                    comment(threadId1),
+                    comment(threadId2),
+                    comment(threadId3),
+                ]),
+                text(" on it"),
+            ),
+        ),
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "This text has "},
+                        {
+                            type: "Text",
+                            text: "multiple comments",
+                            marks: [
+                                {type: "Comment", threadId: threadId1},
+                                {type: "Comment", threadId: threadId2},
+                                {type: "Comment", threadId: threadId3},
+                            ],
+                        },
+                        {type: "Text", text: " on it"},
+                    ],
+                },
+            ],
+        },
+    );
 });

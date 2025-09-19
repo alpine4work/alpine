@@ -53,7 +53,7 @@ index 1a1463967110645620d922832c95e0f85e727b71..8f12576bd95a7b67f3912fa52ee13aae
 +  )
 +
 +  if (close.inside) {
-+    // NOTE(calebmer): If we encode a character reference that was before an escape
++    // NOTE(calebmer): If we encode a character reference that was after an escape
 +    // character then we need to double escape the escape character so it doesn't
 +    // escape the new character reference.
 +    between =

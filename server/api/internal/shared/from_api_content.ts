@@ -5,13 +5,16 @@ import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentInlineElement,
+    ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentMentionInlineElement,
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -238,13 +241,13 @@ function fromApiContentInlineElementMarks(
     schema: ProsemirrorSchema,
     marks: ReadonlyArray<ApiContentInlineElementMark>,
 ): ReadonlyArray<Mark> {
-    return marks.map(mark => fromApiContentInlineElementMark(schema, mark));
+    return filterMapArray(marks, mark => fromApiContentInlineElementMark(schema, mark));
 }
 
 function fromApiContentInlineElementMark(
     schema: ProsemirrorSchema,
     mark: ApiContentInlineElementMark,
-): Mark {
+): Mark | undefined {
     switch (mark.type) {
         case "Link":
             return schema.marks.link!.create({url: mark.url});
@@ -256,7 +259,39 @@ function fromApiContentInlineElementMark(
             return schema.marks.code!.create();
         case "Strike":
             return schema.marks.strike!.create();
+
+        case "Highlight": {
+            if (!schema.marks.highlight) return;
+
+            return schema.marks.highlight.create({
+                color: fromApiContentInlineElementHighlightMarkColor(mark.color),
+            });
+        }
+        case "Comment": {
+            if (!schema.marks.comment) return;
+
+            return schema.marks.comment.create({commentThreadId: mark.threadId});
+        }
         default:
             throw exhaustive(mark);
+    }
+}
+
+export function fromApiContentInlineElementHighlightMarkColor(
+    color: ApiContentInlineElementHighlightMarkColor,
+): HighlightColor {
+    switch (color) {
+        case "Red":
+            return HighlightColor.Red;
+        case "Orange":
+            return HighlightColor.Orange;
+        case "Green":
+            return HighlightColor.Green;
+        case "Blue":
+            return HighlightColor.Blue;
+        case "Purple":
+            return HighlightColor.Purple;
+        default:
+            throw exhaustive(color);
     }
 }

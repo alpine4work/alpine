@@ -19,6 +19,7 @@ import {
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentInlineElement,
+    ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentListBlockElementItem,
@@ -43,6 +44,7 @@ import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
@@ -311,8 +313,14 @@ function* parseApiContentBlockElementFromMarkdown(
                 href: string | null;
             } | null = null;
 
+            let markTagState: {
+                phase: "<mark>" | "<mark class>" | "<mark data-comment>";
+                class: string | null;
+                dataComment: string | null;
+            } | null = null;
+
             let codeTagState: {
-                phase: "<pre>" | "<code>" | "<code class>" | "</code>";
+                phase: "<pre>" | "<pre>..." | "<code>" | "<code class>" | "<code>..." | "</code>";
                 class: string | null;
                 textElements: Array<{
                     type: "Text";
@@ -331,6 +339,11 @@ function* parseApiContentBlockElementFromMarkdown(
                 // whitespace.
                 if (codeTagState === null) {
                     text = text.replaceAll(/\s+/g, " ");
+                }
+
+                // Ignore text between the `<pre>` and `<code>` tags.
+                if (codeTagState !== null && codeTagState.phase !== "<code>...") {
+                    return;
                 }
 
                 const actualTextElements =
@@ -426,6 +439,10 @@ function* parseApiContentBlockElementFromMarkdown(
                                 anchorTagState = {phase: "<a>", href: null};
                                 break;
                             }
+                            case "mark": {
+                                markTagState = {phase: "<mark>", class: null, dataComment: null};
+                                break;
+                            }
                             case "pre": {
                                 if (codeTagState !== null) break;
 
@@ -443,7 +460,7 @@ function* parseApiContentBlockElementFromMarkdown(
                                 break;
                             }
                             case "code": {
-                                if (codeTagState?.phase === "<pre>") {
+                                if (codeTagState?.phase === "<pre>...") {
                                     codeTagState.phase = "<code>";
                                 } else {
                                     markStack.pushForHtmlTag(tagName, {type: "Code"});
@@ -481,6 +498,48 @@ function* parseApiContentBlockElementFromMarkdown(
                             anchorTagState = null;
                         }
 
+                        // The `<mark>` HTML element can either be a comment or highlight.
+                        if (markTagState !== null) {
+                            if (
+                                markTagState.dataComment &&
+                                isId<DocumentCommentThreadId>(markTagState.dataComment)
+                            ) {
+                                markStack.pushForHtmlTag("mark", {
+                                    type: "Comment",
+                                    threadId: markTagState.dataComment,
+                                });
+                            } else {
+                                let color: ApiContentInlineElementHighlightMarkColor | null = null;
+
+                                if (markTagState.class) {
+                                    const colorMatch =
+                                        markTagState.class.match(/^highlight-([a-z]+)$/);
+
+                                    color = colorMatch
+                                        ? parseApiContentInlineElementHighlightMarkColorIfPossible(
+                                              colorMatch[1]!,
+                                          )
+                                        : null;
+                                }
+
+                                markStack.pushForHtmlTag("mark", {
+                                    type: "Highlight",
+                                    // Default to orange since that's our closest color to yellow. The default
+                                    // browser CSS typically renders `<mark>` with a yellow background.
+                                    color: color ?? "Orange",
+                                });
+                            }
+                            markTagState = null;
+                        }
+
+                        if (codeTagState?.phase === "<pre>") {
+                            codeTagState.phase = "<pre>...";
+                        }
+
+                        if (codeTagState?.phase === "<code>") {
+                            codeTagState.phase = "<code>...";
+                        }
+
                         tableState?.onOpenTagEnd();
                     },
                     onclosetag: (start, end) => {
@@ -506,12 +565,13 @@ function* parseApiContentBlockElementFromMarkdown(
                             case "em":
                             case "i":
                             case "del":
-                            case "a": {
+                            case "a":
+                            case "mark": {
                                 markStack.popForHtmlTag(tagName);
                                 break;
                             }
                             case "code": {
-                                if (codeTagState?.phase === "<code>") {
+                                if (codeTagState?.phase === "<code>...") {
                                     codeTagState.phase = "</code>";
                                 } else {
                                     markStack.popForHtmlTag(tagName);
@@ -654,6 +714,16 @@ function* parseApiContentBlockElementFromMarkdown(
                             anchorTagState.href = "";
                         }
 
+                        if (markTagState?.phase === "<mark>") {
+                            if (attributeName === "class") {
+                                markTagState.phase = "<mark class>";
+                                markTagState.class = "";
+                            } else if (attributeName === "data-comment") {
+                                markTagState.phase = "<mark data-comment>";
+                                markTagState.dataComment = "";
+                            }
+                        }
+
                         if (codeTagState?.phase === "<code>" && attributeName === "class") {
                             codeTagState.phase = "<code class>";
                             codeTagState.class = "";
@@ -666,6 +736,14 @@ function* parseApiContentBlockElementFromMarkdown(
 
                         if (anchorTagState?.phase === "<a href>") {
                             anchorTagState.href += attributeData;
+                        }
+
+                        if (markTagState?.phase === "<mark class>") {
+                            markTagState.class += attributeData;
+                        }
+
+                        if (markTagState?.phase === "<mark data-comment>") {
+                            markTagState.dataComment += attributeData;
                         }
 
                         if (codeTagState?.phase === "<code class>") {
@@ -681,6 +759,14 @@ function* parseApiContentBlockElementFromMarkdown(
                             anchorTagState.href += attributeData;
                         }
 
+                        if (markTagState?.phase === "<mark class>") {
+                            markTagState.class += attributeData;
+                        }
+
+                        if (markTagState?.phase === "<mark data-comment>") {
+                            markTagState.dataComment += attributeData;
+                        }
+
                         if (codeTagState?.phase === "<code class>") {
                             codeTagState.class += attributeData;
                         }
@@ -690,6 +776,14 @@ function* parseApiContentBlockElementFromMarkdown(
                     onattribend: () => {
                         if (anchorTagState?.phase === "<a href>") {
                             anchorTagState.phase = "<a>";
+                        }
+
+                        if (markTagState?.phase === "<mark class>") {
+                            markTagState.phase = "<mark>";
+                        }
+
+                        if (markTagState?.phase === "<mark data-comment>") {
+                            markTagState.phase = "<mark>";
                         }
 
                         if (codeTagState?.phase === "<code class>") {
@@ -743,10 +837,9 @@ function* parseApiContentBlockElementFromMarkdown(
                 return {
                     cells: row.children.map((cell): ApiContentTableBlockElementCell => {
                         const elements = Array.from(
-                            parseApiContentInlineElementsFromMarkdown(
+                            parseAndMergeApiContentInlineElementsFromMarkdown(
                                 cell.children,
                                 definitions,
-                                new ApiContentInlineElementsMarkdownParserMarkStack(),
                                 options,
                                 {
                                     onSpanDataWidth: newWidth => {
@@ -1120,6 +1213,10 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
     options: ApiContentMarkdownParserOptions,
+    callbacks?: {
+        onSpanDataWidth?: (width: number | null) => void;
+        onSpanDataColumnWidths?: (columnWidths: Array<number> | null) => void;
+    },
 ): IterableIterator<ApiContentInlineElement> {
     let lastElement: ApiContentInlineElement | undefined;
 
@@ -1128,6 +1225,7 @@ function* parseAndMergeApiContentInlineElementsFromMarkdown(
         definitions,
         new ApiContentInlineElementsMarkdownParserMarkStack(),
         options,
+        callbacks,
     )) {
         // Merge any adjacent text elements with the same marks.
         if (
@@ -1601,6 +1699,12 @@ function* parseApiContentInlineElementFromMarkdown(
                 href: string | null;
             } | null = null;
 
+            let markTagState: {
+                phase: "<mark>" | "<mark class>" | "<mark data-comment>";
+                class: string | null;
+                dataComment: string | null;
+            } | null = null;
+
             let spanTagState: {
                 workingWidth: string | null;
                 workingColumnWidths: string | null;
@@ -1623,6 +1727,10 @@ function* parseApiContentInlineElementFromMarkdown(
                             }
                             case "a": {
                                 anchorTagState = {phase: "<a>", href: null};
+                                break;
+                            }
+                            case "mark": {
+                                markTagState = {phase: "<mark>", class: null, dataComment: null};
                                 break;
                             }
                             case "strong":
@@ -1676,6 +1784,40 @@ function* parseApiContentInlineElementFromMarkdown(
                             anchorTagState = null;
                         }
 
+                        // The `<mark>` HTML element can either be a comment or highlight.
+                        if (markTagState !== null) {
+                            if (
+                                markTagState.dataComment &&
+                                isId<DocumentCommentThreadId>(markTagState.dataComment)
+                            ) {
+                                markStack.pushForHtmlTag("mark", {
+                                    type: "Comment",
+                                    threadId: markTagState.dataComment,
+                                });
+                            } else {
+                                let color: ApiContentInlineElementHighlightMarkColor | null = null;
+
+                                if (markTagState.class) {
+                                    const colorMatch =
+                                        markTagState.class.match(/^highlight-([a-z]+)$/);
+
+                                    color = colorMatch
+                                        ? parseApiContentInlineElementHighlightMarkColorIfPossible(
+                                              colorMatch[1]!,
+                                          )
+                                        : null;
+                                }
+
+                                markStack.pushForHtmlTag("mark", {
+                                    type: "Highlight",
+                                    // Default to orange since that's our closest color to yellow. The default
+                                    // browser CSS typically renders `<mark>` with a yellow background.
+                                    color: color ?? "Orange",
+                                });
+                            }
+                            markTagState = null;
+                        }
+
                         if (spanTagState !== null) {
                             spanTagState = null;
                         }
@@ -1685,6 +1827,7 @@ function* parseApiContentInlineElementFromMarkdown(
 
                         switch (tagName) {
                             case "a":
+                            case "mark":
                             case "strong":
                             case "b":
                             case "em":
@@ -1719,6 +1862,16 @@ function* parseApiContentInlineElementFromMarkdown(
                             anchorTagState.href = "";
                         }
 
+                        if (markTagState?.phase === "<mark>") {
+                            if (attributeName === "class") {
+                                markTagState.phase = "<mark class>";
+                                markTagState.class = "";
+                            } else if (attributeName === "data-comment") {
+                                markTagState.phase = "<mark data-comment>";
+                                markTagState.dataComment = "";
+                            }
+                        }
+
                         if (spanTagState !== null) {
                             if (attributeName === "data-width") {
                                 spanTagState.workingWidth = "";
@@ -1732,6 +1885,14 @@ function* parseApiContentInlineElementFromMarkdown(
 
                         if (anchorTagState?.phase === "<a href>") {
                             anchorTagState.href += attributeData;
+                        }
+
+                        if (markTagState?.phase === "<mark class>") {
+                            markTagState.class += attributeData;
+                        }
+
+                        if (markTagState?.phase === "<mark data-comment>") {
+                            markTagState.dataComment += attributeData;
                         }
 
                         if (typeof spanTagState?.workingWidth === "string") {
@@ -1749,6 +1910,14 @@ function* parseApiContentInlineElementFromMarkdown(
                             anchorTagState.href += attributeData;
                         }
 
+                        if (markTagState?.phase === "<mark class>") {
+                            markTagState.class += attributeData;
+                        }
+
+                        if (markTagState?.phase === "<mark data-comment>") {
+                            markTagState.dataComment += attributeData;
+                        }
+
                         if (typeof spanTagState?.workingWidth === "string") {
                             spanTagState.workingWidth += attributeData;
                         }
@@ -1760,6 +1929,14 @@ function* parseApiContentInlineElementFromMarkdown(
                     onattribend: () => {
                         if (anchorTagState?.phase === "<a href>") {
                             anchorTagState.phase = "<a>";
+                        }
+
+                        if (markTagState?.phase === "<mark class>") {
+                            markTagState.phase = "<mark>";
+                        }
+
+                        if (markTagState?.phase === "<mark data-comment>") {
+                            markTagState.phase = "<mark>";
                         }
 
                         // Try to parse `data-width` attribute.
@@ -1830,6 +2007,25 @@ function* parseApiContentInlineElementFromMarkdown(
         }
         default:
             throw exhaustive(content);
+    }
+}
+
+function parseApiContentInlineElementHighlightMarkColorIfPossible(
+    color: string,
+): ApiContentInlineElementHighlightMarkColor | null {
+    switch (color) {
+        case "red":
+            return "Red";
+        case "orange":
+            return "Orange";
+        case "green":
+            return "Green";
+        case "blue":
+            return "Blue";
+        case "purple":
+            return "Purple";
+        default:
+            return null;
     }
 }
 
@@ -1956,6 +2152,8 @@ function intoApiContentCodeBlockElementTextInlineElementMarks(
             case "Italic":
             case "Strike":
             case "Link":
+            case "Highlight":
+            case "Comment":
                 result.push(mark);
                 break;
             case "Code":

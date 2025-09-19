@@ -1,8 +1,8 @@
 diff --git a/lib/index.js b/lib/index.js
-index 11e51158c5cece45ab736893d257fa98aef6cede..4208ff686bd724215cbf0dcc7e1f49748a4790a0 100644
+index 11e51158c5cece45ab736893d257fa98aef6cede..637bcaf431289845bd337db30126b7a1c89144f7 100644
 --- a/lib/index.js
 +++ b/lib/index.js
-@@ -213,13 +213,23 @@ export function gfmTableToMarkdown(options) {
+@@ -213,13 +213,30 @@ export function gfmTableToMarkdown(options) {
    function handleTableCell(node, _, state, info) {
      const exit = state.enter('tableCell')
      const subexit = state.enter('phrasing')
@@ -19,7 +19,14 @@ index 11e51158c5cece45ab736893d257fa98aef6cede..4208ff686bd724215cbf0dcc7e1f4974
 +    // space as an HTML entity. Since GFM tables use space to align columns,
 +    // trailing spaces will otherwise be lost.
 +    if (value.length > 0 && value[value.length - 1] === ' ') {
-+      value = value.slice(0, -1) + '&#x20;'
++      // NOTE(calebmer): If we encode a character reference that was after an escape
++      // character then we need to double escape the escape character so it doesn't
++      // escape the new character reference.
++      value =
++        (value.slice(-2, -1) === '\\'
++          ? value.slice(0, -2) + '\\\\'
++          : value.slice(0, -1)) +
++        '&#x20;'
 +    }
 +    if (value.length > 0 && value[0] === ' ') {
 +      value = '&#x20;' + value.slice(1)

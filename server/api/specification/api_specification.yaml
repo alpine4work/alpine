@@ -785,6 +785,8 @@ components:
                 - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
                 - $ref: "#/components/schemas/ContentInlineElementLinkMark"
                 - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+                - $ref: "#/components/schemas/ContentInlineElementHighlightMark"
+                - $ref: "#/components/schemas/ContentInlineElementCommentMark"
             discriminator:
                 propertyName: type
                 mapping:
@@ -793,6 +795,8 @@ components:
                     Strike: "#/components/schemas/ContentInlineElementStrikeMark"
                     Link: "#/components/schemas/ContentInlineElementLinkMark"
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
+                    Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
+                    Comment: "#/components/schemas/ContentInlineElementCommentMark"
 
         ContentInlineElementBoldMark:
             type: object
@@ -836,6 +840,35 @@ components:
                 type:
                     const: Code
 
+        ContentInlineElementHighlightMark:
+            type: object
+            required: [type, color]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Highlight
+                color:
+                    $ref: "#/components/schemas/ContentInlineElementHighlightMarkColor"
+
+        ContentInlineElementHighlightMarkColor:
+            type: string
+            enum:
+                - Red
+                - Orange
+                - Green
+                - Blue
+                - Purple
+
+        ContentInlineElementCommentMark:
+            type: object
+            required: [type, threadId]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Comment
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+
         ContentCodeBlockElementTextInlineElement:
             type: object
             required: [type, text]
@@ -858,6 +891,8 @@ components:
                 - $ref: "#/components/schemas/ContentInlineElementItalicMark"
                 - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
                 - $ref: "#/components/schemas/ContentInlineElementLinkMark"
+                - $ref: "#/components/schemas/ContentInlineElementHighlightMark"
+                - $ref: "#/components/schemas/ContentInlineElementCommentMark"
             discriminator:
                 propertyName: type
                 mapping:
@@ -865,6 +900,8 @@ components:
                     Italic: "#/components/schemas/ContentInlineElementItalicMark"
                     Strike: "#/components/schemas/ContentInlineElementStrikeMark"
                     Link: "#/components/schemas/ContentInlineElementLinkMark"
+                    Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
+                    Comment: "#/components/schemas/ContentInlineElementCommentMark"
 
         # =========================================================================== #
         #                                  Messages                                   #

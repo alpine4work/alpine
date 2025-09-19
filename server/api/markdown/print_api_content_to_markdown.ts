@@ -19,6 +19,7 @@ import {
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentInlineElement,
     ApiContentInlineElementCodeMark,
+    ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementLinkMark,
     ApiContentInlineElementMark,
     ApiContentParagraphBlockElement,
@@ -265,7 +266,7 @@ function printApiContentCodeBlockElementToMarkdown(
     // https://html.spec.whatwg.org/multipage/text-level-semantics.html#the-code-element
     //
     // eslint-disable-next-line string-quotes
-    let html = `<pre><code class="language-${escapeHtml(element.language)}">\n`;
+    let html = `<pre>\n<code class="language-${escapeHtml(element.language)}">\n`;
 
     for (const line of element.lines) {
         let openMarks: Array<ApiContentCodeBlockElementTextInlineElementMark> = [];
@@ -303,6 +304,10 @@ function printApiContentCodeBlockElementToMarkdown(
                     case "Link":
                         html += "</a>";
                         break;
+                    case "Highlight":
+                    case "Comment":
+                        html += "</mark>";
+                        break;
                     default:
                         throw exhaustive(mark);
                 }
@@ -324,10 +329,22 @@ function printApiContentCodeBlockElementToMarkdown(
                     case "Strike":
                         html += "<del>";
                         break;
-                    case "Link":
+                    case "Link": {
                         // eslint-disable-next-line string-quotes
                         html += `<a href="${escapeHtml(mark.url)}">`;
                         break;
+                    }
+                    case "Highlight": {
+                        const color = printApiContentInlineElementHighlightMarkColor(mark.color);
+                        // eslint-disable-next-line string-quotes
+                        html += `<mark class="highlight-${color}">`;
+                        break;
+                    }
+                    case "Comment": {
+                        // eslint-disable-next-line string-quotes
+                        html += `<mark data-comment="${mark.threadId}">`;
+                        break;
+                    }
                     default:
                         throw exhaustive(mark);
                 }
@@ -354,6 +371,10 @@ function printApiContentCodeBlockElementToMarkdown(
                 case "Link":
                     html += "</a>";
                     break;
+                case "Highlight":
+                case "Comment":
+                    html += "</mark>";
+                    break;
                 default:
                     throw exhaustive(mark);
             }
@@ -363,7 +384,7 @@ function printApiContentCodeBlockElementToMarkdown(
         html += "\n";
     }
 
-    html += "</code></pre>";
+    html += "</code>\n</pre>";
 
     return {type: "html", value: html};
 }
@@ -456,13 +477,13 @@ function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
         let html = "<span hidden";
 
         if (element.width !== 1) {
-            html += ` data-width="${JSON.stringify(element.width)}"`;
+            html += ` data-width="${escapeHtml(JSON.stringify(element.width))}"`;
         }
 
         if (element.columns.some(column => column.width !== 1)) {
-            html += ` data-column-widths="${JSON.stringify(
-                element.columns.map(column => column.width),
-            ).slice(1, -1)}"`;
+            html += ` data-column-widths="${escapeHtml(
+                JSON.stringify(element.columns.map(column => column.width)).slice(1, -1),
+            )}"`;
         }
 
         html += "/>";
@@ -1049,7 +1070,10 @@ function* printApiContentInlineElementMarksToMarkdown(
 
     const markedContent = (
         mentionishMark ? marks.filter(mark => mark !== mentionishMark) : marks
-    ).reduceRight(printApiContentInlineElementMarkToMarkdown, content);
+    ).reduceRight(
+        printApiContentInlineElementMarkToMarkdown,
+        !Array.isArray(content) ? [content] : content,
+    );
 
     // If the URL looks like a mention then we need to use the HTML `<a>` form to
     // serialize the link. So the Markdown link isn't parsed as a mention.
@@ -1057,28 +1081,71 @@ function* printApiContentInlineElementMarksToMarkdown(
     // eslint-disable-next-line string-quotes
     if (mentionishMark) yield {type: "html", value: `<a href="${escapeHtml(mentionishMark.url)}">`};
 
-    if (Array.isArray(markedContent)) yield* markedContent;
-    else yield markedContent;
+    yield* markedContent;
 
     if (mentionishMark) yield {type: "html", value: `</a>`};
 }
 
-function printApiContentInlineElementMarkToMarkdown(
-    content: PhrasingContent | Array<PhrasingContent>,
+function* printApiContentInlineElementMarkToMarkdown(
+    content: Iterable<PhrasingContent>,
     mark: Exclude<ApiContentInlineElementMark, ApiContentInlineElementCodeMark>,
-): PhrasingContent {
-    if (!Array.isArray(content)) content = [content];
-
+): IterableIterator<PhrasingContent> {
     switch (mark.type) {
-        case "Bold":
-            return {type: "strong", children: content};
-        case "Italic":
-            return {type: "emphasis", children: content};
-        case "Strike":
-            return {type: "delete", children: content};
-        case "Link":
-            return {type: "link", url: mark.url, children: content};
+        case "Bold": {
+            const contentArray = !Array.isArray(content) ? Array.from(content) : content;
+            yield {type: "strong", children: contentArray};
+            break;
+        }
+        case "Italic": {
+            const contentArray = !Array.isArray(content) ? Array.from(content) : content;
+            yield {type: "emphasis", children: contentArray};
+            break;
+        }
+        case "Strike": {
+            const contentArray = !Array.isArray(content) ? Array.from(content) : content;
+            yield {type: "delete", children: contentArray};
+            break;
+        }
+        case "Link": {
+            const contentArray = !Array.isArray(content) ? Array.from(content) : content;
+            yield {type: "link", url: mark.url, children: contentArray};
+            break;
+        }
+        case "Highlight": {
+            const color = printApiContentInlineElementHighlightMarkColor(mark.color);
+            // eslint-disable-next-line string-quotes
+            yield {type: "html", value: `<mark class="highlight-${escapeHtml(color)}">`};
+            yield* content;
+            yield {type: "html", value: `</mark>`};
+            break;
+        }
+        case "Comment": {
+            // eslint-disable-next-line string-quotes
+            yield {type: "html", value: `<mark data-comment="${escapeHtml(mark.threadId)}">`};
+            yield* content;
+            yield {type: "html", value: `</mark>`};
+            break;
+        }
         default:
             throw exhaustive(mark);
+    }
+}
+
+function printApiContentInlineElementHighlightMarkColor(
+    color: ApiContentInlineElementHighlightMarkColor,
+) {
+    switch (color) {
+        case "Red":
+            return "red";
+        case "Orange":
+            return "orange";
+        case "Green":
+            return "green";
+        case "Blue":
+            return "blue";
+        case "Purple":
+            return "purple";
+        default:
+            throw exhaustive(color);
     }
 }

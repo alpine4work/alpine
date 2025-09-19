@@ -8,6 +8,7 @@ import {
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
@@ -214,7 +215,7 @@ function normalizeApiContentInlineElements(
     }
 }
 
-export const apiContentInlineElementMarkTypeNormalizedOrder = Object.keys(
+export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithKeyofType(
     // We use an object so TypeScript makes sure we list each type once. Then
     // convert to an array with `Object.keys()`.
     cast<Record<ApiContentInlineElementMark["type"], true>>({
@@ -222,6 +223,8 @@ export const apiContentInlineElementMarkTypeNormalizedOrder = Object.keys(
         // adjacent links since they're always wrapping all other marks.
         Link: true,
 
+        Comment: true,
+        Highlight: true,
         Bold: true,
         Italic: true,
         Strike: true,
@@ -240,17 +243,21 @@ export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInl
         let markKey: string;
 
         switch (mark.type) {
-            // Only one mark of each type may exist in a marks array. When we introduce the
-            // `Comment` mark there may be multiple comment marks with different
-            // `DocumentCommentThreadId`s. Which is why this is an exhaustive switch, when
-            // we add the comment mark we need to handle normalization differently.
+            // You can only have one of these mark types on any given text.
             case "Bold":
             case "Italic":
             case "Strike":
             case "Link":
             case "Code":
+            case "Highlight":
                 markKey = mark.type;
                 break;
+
+            // You can have multiple comment marks for different threads on any given text.
+            case "Comment":
+                markKey = `${mark.type}:${mark.threadId}`;
+                break;
+
             default:
                 throw exhaustive(mark);
         }
@@ -258,14 +265,14 @@ export function normalizeApiContentInlineElementMarks<Mark extends ApiContentInl
         markByKey.set(markKey, mark);
     }
 
-    const sortedMarkKeys = Array.from(markByKey.keys()).sort(
-        (markKey1, markKey2) =>
-            apiContentInlineElementMarkTypeNormalizedOrder.indexOf(markKey1) -
-                apiContentInlineElementMarkTypeNormalizedOrder.indexOf(markKey2) ||
+    const sortedMarkEntries = Array.from(markByKey.entries()).sort(
+        ([markKey1, mark1], [markKey2, mark2]) =>
+            apiContentInlineElementMarkTypeNormalizedOrder.indexOf(mark1.type) -
+                apiContentInlineElementMarkTypeNormalizedOrder.indexOf(mark2.type) ||
             defaultCompareStrings(markKey1, markKey2),
     );
 
-    const normalizedMarks = sortedMarkKeys.map(markKey => markByKey.get(markKey)!);
+    const normalizedMarks = sortedMarkEntries.map(([, mark]) => mark);
 
     if (normalizedMarks.length === 0) {
         return undefined;

@@ -3,6 +3,7 @@ import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentInlineElement,
+    ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentListBlockElementItem,
@@ -18,6 +19,7 @@ import {
     ContentMarkTypeName,
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -440,10 +442,39 @@ function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMar
             return {type: "Code"};
         case "strike":
             return {type: "Strike"};
-        case "comment":
-        case "highlight":
-            throw new UnimplementedError(`${typeName} mark isn’t available in the API yet`);
+
+        case "highlight": {
+            return {
+                type: "Highlight",
+                color: intoApiContentInlineElementHighlightMarkColor(mark.attrs.color),
+            };
+        }
+        case "comment": {
+            return {
+                type: "Comment",
+                threadId: mark.attrs.commentThreadId,
+            };
+        }
         default:
             throw exhaustive(typeName);
+    }
+}
+
+export function intoApiContentInlineElementHighlightMarkColor(
+    color: HighlightColor,
+): ApiContentInlineElementHighlightMarkColor {
+    switch (color) {
+        case HighlightColor.Red:
+            return "Red";
+        case HighlightColor.Orange:
+            return "Orange";
+        case HighlightColor.Green:
+            return "Green";
+        case HighlightColor.Blue:
+            return "Blue";
+        case HighlightColor.Purple:
+            return "Purple";
+        default:
+            throw exhaustive(color);
     }
 }

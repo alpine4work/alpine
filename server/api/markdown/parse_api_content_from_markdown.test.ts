@@ -3146,3 +3146,46 @@ The quick brown fox jumps over the lazy dog.
         ],
     });
 });
+
+test("inline HTML <mark> tag without attributes defaults to orange highlight", () => {
+    expect(parseApiContentFromMarkdown("<mark>highlighted text</mark>", {spaceId})).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Text",
+                        text: "highlighted text",
+                        marks: [{type: "Highlight", color: "Orange"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("inline HTML <mark> tag in code block without attributes defaults to orange highlight", () => {
+    expect(
+        parseApiContentFromMarkdown("<pre><code><mark>highlighted text</mark></code></pre>", {
+            spaceId,
+        }),
+    ).toEqual({
+        elements: [
+            {
+                type: "Code",
+                language: "text",
+                lines: [
+                    {
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "highlighted text",
+                                marks: [{type: "Highlight", color: "Orange"}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
