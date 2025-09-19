@@ -1026,8 +1026,21 @@ Resources:
                   AttributeType: S
                 - AttributeName: sortKey
                   AttributeType: S
+                - AttributeName: index1PartitionKey
+                  AttributeType: S
+                - AttributeName: index1SortKey
+                  AttributeType: S
             BillingMode: PAY_PER_REQUEST
             DeletionProtectionEnabled: true
+            GlobalSecondaryIndexes:
+                - IndexName: Index1
+                  KeySchema:
+                      - AttributeName: index1PartitionKey
+                        KeyType: HASH
+                      - AttributeName: index1SortKey
+                        KeyType: RANGE
+                  Projection:
+                      ProjectionType: KEYS_ONLY
             KeySchema:
                 - AttributeName: partitionKey
                   KeyType: HASH

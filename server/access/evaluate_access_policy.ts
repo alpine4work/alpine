@@ -3,6 +3,7 @@ import {
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -32,6 +33,7 @@ export async function evaluateAccessPolicy(
     spaceId: SpaceId,
     accessPolicy: AccessPolicyWithoutGenerations,
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<boolean> {
     // If there's a `urlGrant` then everyone has access at this level. Even when
     // `accountId` is null or `accountId` does not have space access.
@@ -130,7 +132,10 @@ export async function evaluateAccessPolicy(
             // to seriously reconsider bot permissions on a shared entity.
             assertEqualTypes<AccessPolicyUrlGrant["level"], "View">();
 
-            const botAccessPolicy = await getBotAccessPolicy(context as ServerBotActionContext);
+            const botAccessPolicy = await getBotAccessPolicy(
+                context as ServerBotActionContext,
+                options,
+            );
 
             // If the bot's scope is everyone in the space and we didn't have
             // `accessPolicy.defaultGrant` earlier then the bot can't read this private
@@ -198,6 +203,7 @@ export async function evaluateAccessPolicy(
 
 async function getBotAccessPolicy(
     context: ServerMinimalBotActionContext,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccessPolicyWithoutGenerations> {
     // The scope of access the bot has. For example, if you mention a bot from a
     // forum post then the bot's scope will be `Post` with the corresponding
@@ -256,6 +262,7 @@ async function getBotAccessPolicy(
         case "Chat": {
             const accountIds = await context.chatInjection.getChatAccountIdsForBotScope(
                 scope.chatId,
+                options,
             );
 
             // Only accounts that are members of the chat have access to the chat. Create
@@ -275,13 +282,16 @@ async function getBotAccessPolicy(
             };
         }
         case "Document": {
-            return context.documentsInjection.getDocumentAccessPolicyForBotScope(scope.documentId);
+            return context.documentsInjection.getDocumentAccessPolicyForBotScope(
+                scope.documentId,
+                options,
+            );
         }
         case "Post": {
-            return context.forumInjection.getPostAccessPolicyForBotScope(scope.postId);
+            return context.forumInjection.getPostAccessPolicyForBotScope(scope.postId, options);
         }
         case "Task": {
-            return context.tasksInjection.getTaskAccessPolicyForBotScope(scope.taskId);
+            return context.tasksInjection.getTaskAccessPolicyForBotScope(scope.taskId, options);
         }
         default:
             throw exhaustive(scope);

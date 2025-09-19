@@ -79,8 +79,6 @@ for (const [currentProcessingType, processingMultiple] of [
     ["ThriceConcurrently", 3],
 ] as const) {
     describe(`processing: ${currentProcessingType}`, () => {
-        if (currentProcessingType !== "Once") return;
-
         beforeEach(() => {
             processingType = currentProcessingType;
         });

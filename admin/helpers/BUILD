@@ -19,5 +19,6 @@ ts_project(
         "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
     ],
 )

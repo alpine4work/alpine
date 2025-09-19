@@ -11,6 +11,7 @@ import {
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
@@ -2444,14 +2445,19 @@ export async function dangerouslyGetPostAuthorWithoutAuthorization(
 export async function getPostAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,
     postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccessPolicy> {
     const scope = context.actor.getScope();
     if (scope.type !== "Post" || scope.postId !== postId) {
         throw new PermissionDeniedError("Can only get access policy for the scoped post");
     }
 
-    const postItem = await getPostItemForAuthorization(context, postId);
-    const channelItem = await getChannelPreviewItemForAuthorization(context, postItem.channelId);
+    const postItem = await getPostItemForAuthorization(context, postId, options);
+    const channelItem = await getChannelPreviewItemForAuthorization(
+        context,
+        postItem.channelId,
+        options,
+    );
 
     await authorizeSpaceAccess(context, channelItem.spaceId);
 
@@ -2830,7 +2836,7 @@ export async function authorizePostAccessIfPossible(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         postId,
         parentCommentIndex,
@@ -2919,7 +2925,7 @@ export async function createPostComment(
 
         const commentIndex = postItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
-        const authorId = context.actor.getAccountId();
+        const authorId = context.actor.getPossiblyBotAccountId();
 
         const newCommentCountByAuthorId = new Map(postItem.commentsSummary.commentCountByAuthorId);
         const oldCommentCount = postItem.commentsSummary.commentCountByAuthorId.get(authorId) ?? 0;
@@ -2990,9 +2996,7 @@ export async function createPostComment(
                         };
 
                         oldContributionCount =
-                            contributorsItem.contributionCountByAccountId.get(
-                                context.actor.getAccountId(),
-                            ) ?? 0;
+                            contributorsItem.contributionCountByAccountId.get(authorId) ?? 0;
 
                         newContributionCount = Math.min(
                             oldContributionCount + 1,
@@ -3009,10 +3013,7 @@ export async function createPostComment(
                             contributorsItem.contributionCountByAccountId,
                         );
 
-                        newContributionCountByAccountId.set(
-                            context.actor.getAccountId(),
-                            newContributionCount,
-                        );
+                        newContributionCountByAccountId.set(authorId, newContributionCount);
 
                         return {
                             ...contributorsItem,
@@ -3074,41 +3075,50 @@ export async function createPostComment(
             },
         });
 
-        // Creating a comment on a post accrues affinity points to the channel the post
-        // was made in. If you're interacting with a post this probably means the topic
-        // of the post (the channel) is relevant to you as well.
-        //
-        // We don't give posts themselves affinity points. That's because posts are
-        // fairly short lived (a couple days). However, we give channels affinity
-        // points so you could quickly jump to a channel if you're looking for a
-        // certain post inside the channel.
-        context.process.waitUntil(
-            markSearchAffinityEntityInteraction(context, {
-                spaceId: postItem.spaceId,
-                entityId: `Channel:${postItem.channelId}`,
-                interaction:
-                    content.nodeSize < 50
-                        ? {type: "LowIntentUpdate"}
-                        : {type: "MediumIntentUpdate"},
-            }),
-        );
+        // Only increase affinity score if we have a session actor. Don't increase
+        // affinity score if this is a system actor sending a message on behalf of an
+        // account.
+        if (context.actor.type === "Session") {
+            const sessionContext = context.actor.authorizeSession();
 
-        // Increase affinity points for all mentioned accounts with a high intent
-        // update since the user clearly wants the attention of the mentioned accounts.
-        //
-        // (If a mentioned account doesn't have access to this message should that
-        // still be a high intent update? For now we say yes since the user is
-        // explicitly choosing to reference them.)
-        for (const mentionedAccountId of mentionedAccountIds) {
-            context.process.waitUntil(async () => {
-                if (await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)) {
-                    await markSearchAffinityEntityInteraction(context, {
-                        spaceId: postItem.spaceId,
-                        entityId: `Account:${mentionedAccountId}`,
-                        interaction: {type: "HighIntentUpdate"},
-                    });
-                }
-            });
+            // Creating a comment on a post accrues affinity points to the channel the post
+            // was made in. If you're interacting with a post this probably means the topic
+            // of the post (the channel) is relevant to you as well.
+            //
+            // We don't give posts themselves affinity points. That's because posts are
+            // fairly short lived (a couple days). However, we give channels affinity
+            // points so you could quickly jump to a channel if you're looking for a
+            // certain post inside the channel.
+            context.process.waitUntil(
+                markSearchAffinityEntityInteraction(sessionContext, {
+                    spaceId: postItem.spaceId,
+                    entityId: `Channel:${postItem.channelId}`,
+                    interaction:
+                        content.nodeSize < 50
+                            ? {type: "LowIntentUpdate"}
+                            : {type: "MediumIntentUpdate"},
+                }),
+            );
+
+            // Increase affinity points for all mentioned accounts with a high intent
+            // update since the user clearly wants the attention of the mentioned accounts.
+            //
+            // (If a mentioned account doesn't have access to this message should that
+            // still be a high intent update? For now we say yes since the user is
+            // explicitly choosing to reference them.)
+            for (const mentionedAccountId of mentionedAccountIds) {
+                context.process.waitUntil(async () => {
+                    if (
+                        await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)
+                    ) {
+                        await markSearchAffinityEntityInteraction(sessionContext, {
+                            spaceId: postItem.spaceId,
+                            entityId: `Account:${mentionedAccountId}`,
+                            interaction: {type: "HighIntentUpdate"},
+                        });
+                    }
+                });
+            }
         }
 
         return {

@@ -1,5 +1,6 @@
 import {Ajv} from "ajv";
 import _addAjvFormats from "ajv-formats";
+import {parse as parseCookieHeader} from "cookie";
 import FindMyWay from "find-my-way";
 import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
@@ -10,6 +11,8 @@ import Yaml from "yaml";
 import {renderApiBrowser} from "~/server/api/api_browser.js";
 import {ApiPathsBase, apiPaths} from "~/server/api/api_paths.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
+import {getApiKeyAttributesIfExists} from "~/server/bots/bots_table.js";
+import {DynamoBotActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
@@ -17,24 +20,41 @@ import {
     standardizedRequestListener,
 } from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {
+    getSpaceAccountBotIdIfExistsWithoutAuthorization,
+    isAccountMemberOfSpaceWithoutAuthorization,
+} from "~/server/spaces/spaces_table.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {
+    BotTokenPayload,
+    BotTokenPayloadScope,
+    TokenPayload,
+} from "~/server/tokens/token_payload.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorBase, InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {isApiKey} from "~/shared/id/api_key.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -56,12 +76,17 @@ export async function createApiServiceServer(
     {
         shutdownManager,
         edgeServiceUrl,
+        tokenAgent,
     }: {
         shutdownManager: ShutdownManager;
         edgeServiceUrl: string;
+        tokenAgent: TokenAgent;
     },
 ) {
-    const requestListener = await createApiServiceRequestListener(processContext, {edgeServiceUrl});
+    const requestListener = await createApiServiceRequestListener(processContext, {
+        edgeServiceUrl,
+        tokenAgent,
+    });
 
     return createStandardizedServerBase(
         processContext.tracer.getRoot(),
@@ -74,8 +99,10 @@ export async function createApiServiceRequestListener(
     processContext: ServerProcessContext,
     {
         edgeServiceUrl,
+        tokenAgent,
     }: {
         edgeServiceUrl: string;
+        tokenAgent: TokenAgent;
     },
 ) {
     const tracer = processContext.tracer.getRoot();
@@ -100,19 +127,19 @@ export async function createApiServiceRequestListener(
         return refValue;
     }
 
-    const createRequestListener = (
+    function createRequestListener(
         route: string,
         action: (
             span: TracerSpan,
             request: Request,
             url: URL,
-            pathParams: unknown,
+            pathParams: {[key: string]: string | number | undefined},
         ) => Promise<Response>,
-    ) => {
+    ) {
         return (
             req: IncomingMessage,
             res: ServerResponse<IncomingMessage>,
-            pathParams: unknown,
+            pathParams: {[key: string]: string | number | undefined},
         ) => {
             standardizedRequestListener(tracer, req, res, async request => {
                 const url = new URL(request.url);
@@ -123,34 +150,60 @@ export async function createApiServiceRequestListener(
                 // internal API calls) since it would allow public API users to mess with our
                 // traces (though maybe it's not an issue since what's the use case for that?).
                 return traceServerResponse(tracer, request, url, route, async (span, request) => {
-                    const response = await action(span, request, url, pathParams);
+                    let isHtmlRequest = false;
 
-                    if (
-                        request.headers.has("accept") &&
-                        response.headers.get("content-type") === "application/json"
-                    ) {
+                    if (request.headers.has("accept")) {
                         const negotiator = new Negotiator(req);
                         const negotiatedMediaType = negotiator.mediaType([
                             "text/html",
                             "application/json",
                         ]);
 
-                        if (negotiatedMediaType === "text/html") {
-                            return renderApiBrowser({
-                                request,
-                                response,
-                                edgeServiceUrl,
-                                url,
-                                route,
-                            });
+                        isHtmlRequest = negotiatedMediaType === "text/html";
+                    }
+
+                    // If the request doesn't have an `Authorization` header but does have a
+                    // `Cookie` header and this is a browser requesting HTTP then create a new
+                    // `Request` object where the cookie named `authorization` is used as the
+                    // `Authorization` header.
+                    if (isHtmlRequest && !request.headers.has("authorization")) {
+                        const cookieHeader = request.headers.get("cookie");
+                        if (cookieHeader) {
+                            const authorizationCookie =
+                                parseCookieHeader(cookieHeader)["authorization"];
+
+                            if (authorizationCookie) {
+                                const headers = new Headers(request.headers);
+                                headers.delete("cookie");
+                                headers.set("authorization", authorizationCookie);
+
+                                request = new Request(request.url, {
+                                    method: request.method,
+                                    headers,
+                                    body: request.body,
+                                    signal: request.signal,
+                                });
+                            }
                         }
+                    }
+
+                    const response = await action(span, request, url, pathParams);
+
+                    if (isHtmlRequest) {
+                        return renderApiBrowser({
+                            request,
+                            response,
+                            edgeServiceUrl,
+                            url,
+                            route,
+                        });
                     }
 
                     return response;
                 });
             });
         };
-    };
+    }
 
     const defaultRequestListener = createRequestListener("/*", async () => {
         return createApiErrorResponse({
@@ -270,173 +323,469 @@ export async function createApiServiceRequestListener(
             })
             .join("/");
 
-        let firstFindMyWayMethod: string | null = null;
+        const firstValidOpenApiMethod = assertExists(
+            Object.values(OpenAPIV3.HttpMethods).find(
+                openApiMethod => !!openApiPathItem[openApiMethod],
+            ) ?? null,
+        );
+        const firstValidFindMyWayMethod =
+            firstValidOpenApiMethod.toUpperCase() as FindMyWay.HTTPMethod;
 
         for (const openApiMethod of Object.values(OpenAPIV3.HttpMethods)) {
             const findMyWayMethod = openApiMethod.toUpperCase() as FindMyWay.HTTPMethod;
-            firstFindMyWayMethod ??= findMyWayMethod;
-            const openApiOperation = openApiPathItem[openApiMethod];
 
-            const parameters = [
-                ...(openApiPathItem.parameters ?? emptyArray),
-                ...(openApiOperation?.parameters ?? emptyArray),
-            ];
-
-            const pathParamsSchema = {
-                type: "object",
-                properties: cast<{
-                    [key: string]: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
-                }>({}),
-                required: cast<Array<string>>([]),
-                additionalProperties: false,
-            } as const;
-
-            for (let parameter of parameters) {
-                parameter = resolveReference(parameter);
-                assert(parameter.in === "path");
-                assert(parameter.schema);
-                assert(!pathParamsSchema.properties[parameter.name]);
-
-                pathParamsSchema.properties[parameter.name] = parameter.schema;
-                if (parameter.required) pathParamsSchema.required.push(parameter.name);
-            }
-
-            const validatePathParams = compileWithAjv(pathParamsSchema);
-
-            // In development and test environments, we validate that the API response
-            // matches what's in our OpenAPI schema. In production for performance we
-            // don't validate and assume our code is correct.
-            const debugValidateResponseJsonContentByStatus =
-                process.env.NODE_ENV !== "production" && openApiOperation?.responses
-                    ? mapObjectValues(openApiOperation.responses, response => {
-                          response = resolveReference(response);
-                          assert(response.content?.["application/json"]?.schema);
-                          return compileWithAjv(response.content?.["application/json"]?.schema);
-                      })
-                    : null;
-
-            const executeOperation = assertExists(cast<ApiPathsBase>(apiPaths)[openApiPath])[
-                openApiMethod
-            ];
-
-            // If `openApiOperation` isn't undefined then `executeOperation` also shouldn't
-            // be undefined.
-            assert((openApiOperation === undefined) === (executeOperation === undefined));
-
-            const requestListener = createRequestListener(
+            installRoute({
+                openApiPath,
+                openApiPathItem,
+                openApiMethod,
                 findMyWayPath,
-                async (span, request, url, pathParams) => {
-                    const valid = validatePathParams(pathParams);
-                    if (!valid) {
-                        const propertyName = findMapIterable(
-                            validatePathParams.errors ?? emptyArray,
-                            error => {
-                                if (error.propertyName) {
-                                    return error.propertyName;
-                                }
+                findMyWayMethod,
+                firstValidFindMyWayMethod,
+            });
+        }
+    }
 
-                                // `ajv` seems to use `instancePath` for the error when the schema is a `$ref`.
-                                if (
-                                    error.instancePath.startsWith("/") &&
-                                    !error.instancePath.slice(1).includes("/")
-                                ) {
-                                    return error.instancePath.slice(1);
-                                }
-                            },
-                        );
+    function installRoute({
+        openApiPath,
+        openApiPathItem,
+        openApiMethod,
+        findMyWayPath,
+        findMyWayMethod,
+        firstValidFindMyWayMethod,
+    }: {
+        openApiPath: string;
+        openApiPathItem: OpenAPIV3.PathItemObject;
+        openApiMethod: OpenAPIV3.HttpMethods;
+        findMyWayPath: string;
+        findMyWayMethod: FindMyWay.HTTPMethod;
+        firstValidFindMyWayMethod: FindMyWay.HTTPMethod;
+    }) {
+        const openApiOperation = openApiPathItem[openApiMethod];
 
-                        return createApiErrorResponse({
-                            status: 400,
-                            message: propertyName
-                                ? quote`Invalid ${propertyName} path parameter.`
-                                : "Invalid path parameters.",
+        const parameters = [
+            ...(openApiPathItem.parameters ?? emptyArray),
+            ...(openApiOperation?.parameters ?? emptyArray),
+        ];
+
+        const pathParamsSchema = {
+            type: "object",
+            properties: cast<{
+                [key: string]: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
+            }>({}),
+            required: cast<Array<string>>([]),
+            additionalProperties: false,
+        } as const;
+
+        const integerParameterNames = new Set<string>();
+        const numberParameterNames = new Set<string>();
+
+        for (let parameter of parameters) {
+            parameter = resolveReference(parameter);
+            assert(parameter.in === "path");
+            assert(parameter.schema);
+            assert(!pathParamsSchema.properties[parameter.name]);
+
+            pathParamsSchema.properties[parameter.name] = parameter.schema;
+            if (parameter.required) pathParamsSchema.required.push(parameter.name);
+
+            if (parameter.schema) {
+                const parameterSchema = resolveReference(parameter.schema);
+
+                if (parameterSchema.type === "integer") {
+                    integerParameterNames.add(parameter.name);
+                } else if (parameterSchema.type === "number") {
+                    numberParameterNames.add(parameter.name);
+                }
+            }
+        }
+
+        const validatePathParams = compileWithAjv(pathParamsSchema);
+
+        const validateRequestBody = openApiOperation?.requestBody
+            ? compileWithAjv(
+                  assertExists(
+                      resolveReference(openApiOperation.requestBody).content?.["application/json"]
+                          ?.schema,
+                  ),
+              )
+            : null;
+
+        // In development and test environments, we validate that the API response
+        // matches what's in our OpenAPI schema. In production for performance we
+        // don't validate and assume our code is correct.
+        const debugValidateResponseJsonContentByStatus =
+            process.env.NODE_ENV !== "production" && openApiOperation?.responses
+                ? mapObjectValues(openApiOperation.responses, response => {
+                      response = resolveReference(response);
+                      assert(response.content?.["application/json"]?.schema);
+                      return compileWithAjv(response.content?.["application/json"]?.schema);
+                  })
+                : null;
+
+        const executeOperation = assertExists(cast<ApiPathsBase>(apiPaths)[openApiPath])[
+            openApiMethod
+        ];
+
+        // If `openApiOperation` isn't undefined then `executeOperation` also shouldn't
+        // be undefined.
+        assert((openApiOperation === undefined) === (executeOperation === undefined));
+
+        async function requestListener(
+            span: TracerSpan,
+            request: Request,
+            url: URL,
+            pathParams: {[key: string]: string | number | undefined},
+        ) {
+            const context = processContext.clone({
+                tracer: new TracerContextModule(span),
+                cache: CacheContextModule.new(),
+                batch: BatchContextModule.new(),
+            });
+
+            try {
+                /* ========================================================================== *\
+                 *                               Authorization                                *
+                \* ========================================================================== */
+
+                const authorizationHeader = request.headers.get("Authorization");
+                if (authorizationHeader === null) {
+                    return createApiErrorResponse({
+                        status: 401,
+                        message: "Missing `Authorization` header.",
+                    });
+                }
+
+                const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
+                if (authorizationHeaderMatch === null) {
+                    return createApiErrorResponse({
+                        status: 400,
+                        message:
+                            "Expected `Authorization` header to have `Bearer` authentication scheme.",
+                    });
+                }
+
+                const [apiKey = "", accessToken] = (authorizationHeaderMatch[1] ?? "").split(
+                    // A valid non-base64 character according to:
+                    // https://datatracker.ietf.org/doc/html/rfc6750#section-2.1
+                    "~",
+                    2,
+                );
+
+                if (!isApiKey(apiKey)) {
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: "Incorrectly formatted API key in `Authorization` header.",
+                    });
+                }
+
+                const [apiKeyAttributes, accessTokenPayloadResult] = await runAllPromises([
+                    // Check if the caller provided a valid API key. If this function returns a
+                    // non-null object then the caller has successfully authenticated and we'll
+                    // execute their request.
+                    getApiKeyAttributesIfExists(context, apiKey, {
+                        consistency: "Eventual",
+                    }).then(apiKeyAttributes => {
+                        if (apiKeyAttributes) return apiKeyAttributes;
+
+                        // If we couldn't find the API key with eventual consistency, try again with
+                        // strong consistency. In case the API key was just created and there's some
+                        // DynamoDB eventual consistency lag.
+                        return getApiKeyAttributesIfExists(context, apiKey, {
+                            consistency: "Strong",
                         });
-                    }
+                    }),
 
-                    if (executeOperation === undefined) {
-                        return createApiErrorResponse({
-                            status: 405,
-                            message: quote`${findMyWayMethod} method isn’t supported, try ${firstFindMyWayMethod}.`,
-                        });
-                    }
+                    (async (): Promise<Result<BotTokenPayload | null, Response>> => {
+                        if (accessToken === undefined) return {ok: true, value: null};
 
-                    try {
-                        const {content} = await executeOperation(processContext, {
-                            pathParams,
-                            searchParams: url.searchParams,
-                            headers: request.headers,
-                            span,
-                        });
+                        let accessTokenPayload: TokenPayload;
 
-                        const status = 200;
-
-                        // In development and test environments, validate that our API response matches
-                        // what's in the OpenAPI schema.
-                        if (process.env.NODE_ENV !== "production") {
-                            const debugValidateResponseJsonContent =
-                                debugValidateResponseJsonContentByStatus?.[status] ??
-                                debugValidateResponseJsonContentByStatus?.default;
-
-                            assert(
-                                debugValidateResponseJsonContent,
-                                quote`Missing response schema for ${status} status`,
+                        try {
+                            accessTokenPayload = await tokenAgent.publicSide.verifyTokenFromService(
+                                "JobQueueService",
+                                accessToken,
                             );
+                        } catch (error) {
+                            if (!(error instanceof PermissionDeniedError)) throw error;
 
-                            if (!debugValidateResponseJsonContent(content)) {
-                                throw new InternalError(
-                                    `Response schema validation failed: ${
-                                        debugValidateResponseJsonContent.errors?.[0]?.message ?? ""
-                                    }`,
-                                );
-                            }
-                        }
+                            let message: string;
 
-                        return new Response(JSON.stringify(content), {
-                            status,
-                            headers: {"content-type": "application/json"},
-                        });
-                    } catch (error) {
-                        // Make sure the error is included in our HTTP request span.
-                        span.addException(error);
-
-                        let status: number;
-                        let displayMessage: ErrorDisplayMessage;
-
-                        // If there's no display message, always return a 500. Expected errors should
-                        // always include a display message.
-                        if (!(error instanceof ErrorBase && error.displayMessage)) {
-                            status = 500;
-                            displayMessage = defaultErrorDisplayMessage;
-                        } else {
-                            displayMessage = error.displayMessage;
-
-                            switch (error.code) {
-                                case ErrorCode.NotFound:
-                                    status = 404;
+                            // Include extra details for well known errors. This is mostly so tests can
+                            // confirm they're exercising the right error case.
+                            switch (error.message) {
+                                case "signature verification failed":
+                                    message =
+                                        "Access token in `Authorization` header failed signature verification.";
                                     break;
-                                case ErrorCode.PermissionDenied:
-                                    status = 403;
+                                // eslint-disable-next-line string-quotes
+                                case 'unexpected "aud" claim value':
+                                    message =
+                                        "Access token in `Authorization` header has an incorrect audience.";
                                     break;
-                                case ErrorCode.Unauthenticated:
-                                    status = 401;
+                                // eslint-disable-next-line string-quotes
+                                case '"exp" claim timestamp check failed':
+                                    message = "Access token in `Authorization` header has expired.";
                                     break;
                                 default:
-                                    status = isSystemErrorCode(error.code) ? 500 : 400;
+                                    message = "Invalid access token in `Authorization` header.";
                                     break;
                             }
+
+                            return {
+                                ok: false,
+                                error: createApiErrorResponse({
+                                    status: 403,
+                                    message,
+                                }),
+                            };
                         }
 
+                        // Only bot actors are allowed to make API requests. So our access token should
+                        // be from `JobQueueService` (which calls our webhooks) and should be for a bot
+                        // actor. Otherwise we don't accept the token.
+                        if (accessTokenPayload.type !== "Bot") {
+                            return {
+                                ok: false,
+                                error: createApiErrorResponse({
+                                    status: 403,
+                                    message: "Expected bot access token in `Authorization` header.",
+                                }),
+                            };
+                        }
+
+                        return {ok: true, value: accessTokenPayload};
+                    })(),
+                ]);
+
+                // If we couldn't verify the access token, return the error response.
+                if (!accessTokenPayloadResult.ok) return accessTokenPayloadResult.error;
+                const accessTokenPayload = accessTokenPayloadResult.value;
+
+                if (!apiKeyAttributes) {
+                    return createApiErrorResponse({
+                        status: 403,
+                        message: "Unrecognized API key in `Authorization` header.",
+                    });
+                }
+
+                let spaceId: SpaceId;
+                let accountId: AccountId;
+                let scope: BotTokenPayloadScope;
+
+                if (apiKeyAttributes.space === null) {
+                    if (accessTokenPayload === null) {
                         return createApiErrorResponse({
-                            status,
-                            message: renderErrorDisplayMessage(displayMessage),
-                            stack: error instanceof Error ? error.stack : undefined,
+                            status: 403,
+                            message:
+                                "Missing access token for unscoped API key in `Authorization` header.",
+                        });
+                    } else {
+                        spaceId = accessTokenPayload.spaceId;
+                        accountId = accessTokenPayload.accountId;
+                        scope = accessTokenPayload.scope;
+                    }
+                } else {
+                    if (accessTokenPayload !== null) {
+                        return createApiErrorResponse({
+                            status: 403,
+                            message:
+                                "Can’t have both an access token and a scoped API key in `Authorization` header.",
+                        });
+                    } else {
+                        spaceId = apiKeyAttributes.space.spaceId;
+                        accountId = apiKeyAttributes.space.accountId;
+                        scope = apiKeyAttributes.space.scope;
+                    }
+                }
+
+                const [isMemberOfSpace, botId] = await runAllPromises([
+                    // `isAccountMemberOfSpaceWithoutAuthorization()` and
+                    // `getSpaceAccountBotIdIfExistsWithoutAuthorization()` use the same caches so
+                    // we should only need to make one database request to answer both.
+                    isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId),
+                    getSpaceAccountBotIdIfExistsWithoutAuthorization(context, spaceId, accountId),
+                ]);
+
+                if (apiKeyAttributes.botId !== botId) {
+                    return createApiErrorResponse({
+                        status: 403,
+                        message:
+                            "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                    });
+                }
+
+                if (!isMemberOfSpace) {
+                    return createApiErrorResponse({
+                        status: 403,
+                        message: "Bot account was removed from space.",
+                    });
+                }
+
+                const contextWithActor = context.clone({
+                    // We expect all reads from the API service to use strong consistency. We don't
+                    // want to expose the technical complexity of strong vs eventual consistency to
+                    // our API end users. So we always use strong consistency.
+                    dynamo: context.dynamo.expectStrongReadConsistencyReturningModule(),
+
+                    // We’ve validated the caller's API key and access token. Let them make a
+                    // request with a bot actor!
+                    actor: DynamoBotActorContextModule.dangerouslyNew(
+                        "ApiService",
+                        spaceId,
+                        accountId,
+                        scope,
+                    ),
+                });
+
+                /* ========================================================================== *\
+                 *                                 Validation                                 *
+                \* ========================================================================== */
+
+                // Parse any integer path params before validating.
+                for (const parameterName of integerParameterNames) {
+                    const pathParam = pathParams[parameterName];
+                    if (typeof pathParam === "string")
+                        pathParams[parameterName] = parseInt(pathParam, 10);
+                }
+
+                // Parse any number path params before validating.
+                for (const parameterName of numberParameterNames) {
+                    const pathParam = pathParams[parameterName];
+                    if (typeof pathParam === "string")
+                        pathParams[parameterName] = parseFloat(pathParam);
+                }
+
+                const valid = validatePathParams(pathParams);
+                if (!valid) {
+                    const propertyName = findMapIterable(
+                        validatePathParams.errors ?? emptyArray,
+                        error => {
+                            if (error.propertyName) {
+                                return error.propertyName;
+                            }
+
+                            // `ajv` seems to use `instancePath` for the error when the schema is a `$ref`.
+                            if (
+                                error.instancePath.startsWith("/") &&
+                                !error.instancePath.slice(1).includes("/")
+                            ) {
+                                return error.instancePath.slice(1);
+                            }
+                        },
+                    );
+
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: propertyName
+                            ? quote`Invalid ${propertyName} path parameter.`
+                            : "Invalid path parameters.",
+                    });
+                }
+
+                if (executeOperation === undefined) {
+                    return createApiErrorResponse({
+                        status: 405,
+                        message: quote`${findMyWayMethod} method isn’t supported, try ${firstValidFindMyWayMethod}.`,
+                    });
+                }
+
+                let requestBody: any = null;
+
+                if (validateRequestBody !== null) {
+                    requestBody = await request.json();
+
+                    const valid = validateRequestBody(requestBody);
+                    if (!valid) {
+                        return createApiErrorResponse({
+                            status: 400,
+                            message: "Invalid request body.",
                         });
                     }
-                },
-            );
+                }
 
-            router.on(findMyWayMethod, findMyWayPath, requestListener);
+                /* ========================================================================== *\
+                 *                                 Execution                                  *
+                \* ========================================================================== */
+
+                const {content} = await executeOperation(contextWithActor, {
+                    pathParams,
+                    searchParams: url.searchParams,
+                    headers: request.headers,
+                    requestBody,
+                    span,
+                });
+
+                const status = 200;
+
+                // In development and test environments, validate that our API response matches
+                // what's in the OpenAPI schema.
+                if (process.env.NODE_ENV !== "production") {
+                    const debugValidateResponseJsonContent =
+                        debugValidateResponseJsonContentByStatus?.[status] ??
+                        debugValidateResponseJsonContentByStatus?.default;
+
+                    assert(
+                        debugValidateResponseJsonContent,
+                        quote`Missing response schema for ${status} status`,
+                    );
+
+                    if (!debugValidateResponseJsonContent(content)) {
+                        throw new InternalError(
+                            `Response schema validation failed: ${
+                                debugValidateResponseJsonContent.errors?.[0]?.message ?? ""
+                            }`,
+                        );
+                    }
+                }
+
+                return new Response(JSON.stringify(content), {
+                    status,
+                    headers: {"content-type": "application/json"},
+                });
+            } catch (error) {
+                // Make sure the error is included in our HTTP request span.
+                span.addException(error);
+
+                let status: number;
+                let displayMessage: ErrorDisplayMessage;
+
+                // If there's no display message, always return a 500. Expected errors should
+                // always include a display message.
+                if (!(error instanceof ErrorBase && error.displayMessage)) {
+                    status = 500;
+                    displayMessage = defaultErrorDisplayMessage;
+                } else {
+                    displayMessage = error.displayMessage;
+
+                    switch (error.code) {
+                        case ErrorCode.NotFound:
+                            status = 404;
+                            break;
+                        case ErrorCode.PermissionDenied:
+                            status = 403;
+                            break;
+                        case ErrorCode.Unauthenticated:
+                            status = 401;
+                            break;
+                        default:
+                            status = isSystemErrorCode(error.code) ? 500 : 400;
+                            break;
+                    }
+                }
+
+                return createApiErrorResponse({
+                    status,
+                    message: renderErrorDisplayMessage(displayMessage),
+                    stack: error instanceof Error ? error.stack : undefined,
+                });
+            }
         }
+
+        router.on(
+            findMyWayMethod,
+            findMyWayPath,
+            createRequestListener(findMyWayPath, requestListener),
+        );
     }
 
     return (req: IncomingMessage, res: ServerResponse<IncomingMessage>): void => {

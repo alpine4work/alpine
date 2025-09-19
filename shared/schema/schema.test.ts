@@ -801,3 +801,607 @@ test("interface can create multiple independent implementations", () => {
     expect(() => dog3.deserialize(CatSchema)).toThrow("Expected value to be `Cat` in `.type`");
     expect(dog3.deserialize(DogSchema)).toEqual({type: "Dog", age: 2, breed: "Labrador"});
 });
+
+test("validation combinator on basic schema accepts values that pass validation", () => {
+    const evenIntegerSchema = Schema.integer.validation(
+        "must be even",
+        (value): value is number => value % 2 === 0,
+    );
+
+    expect(validate(evenIntegerSchema, 0)).toEqual(true);
+    expect(validate(evenIntegerSchema, 2)).toEqual(true);
+    expect(validate(evenIntegerSchema, -4)).toEqual(true);
+    expect(validate(evenIntegerSchema, 42)).toEqual(true);
+});
+
+test("validation combinator on basic schema rejects values that fail validation", () => {
+    const evenIntegerSchema = Schema.integer.validation(
+        "must be even",
+        (value): value is number => value % 2 === 0,
+    );
+
+    expect(validate(evenIntegerSchema, 1)).toEqual(false);
+    expect(validate(evenIntegerSchema, 3)).toEqual(false);
+    expect(validate(evenIntegerSchema, -5)).toEqual(false);
+    expect(validate(evenIntegerSchema, 99)).toEqual(false);
+});
+
+test("validation combinator on basic schema still validates underlying schema", () => {
+    const evenIntegerSchema = Schema.integer.validation(
+        "must be even",
+        (value): value is number => value % 2 === 0,
+    );
+
+    expect(validate(evenIntegerSchema, 3.14)).toEqual(false);
+    expect(validate(evenIntegerSchema, "4")).toEqual(false);
+    expect(validate(evenIntegerSchema, true)).toEqual(false);
+    expect(validate(evenIntegerSchema, null)).toEqual(false);
+    expect(validate(evenIntegerSchema, undefined)).toEqual(false);
+});
+
+test("validation combinator throws InvalidArgumentError on serialization failure", () => {
+    const evenIntegerSchema = Schema.integer.validation(
+        "must be even",
+        (value): value is number => value % 2 === 0,
+    );
+
+    expect(() => evenIntegerSchema.serialize(1)).toThrow(InvalidArgumentError);
+    expect(() => evenIntegerSchema.serialize(1)).toThrow("Validation failed: must be even");
+});
+
+test("validation combinator throws SchemaDeserializationError on deserialization failure", () => {
+    const evenIntegerSchema = Schema.integer.validation(
+        "must be even",
+        (value): value is number => value % 2 === 0,
+    );
+
+    expect(() => evenIntegerSchema.deserialize(3)).toThrow(SchemaDeserializationError);
+    expect(() => evenIntegerSchema.deserialize(3)).toThrow("Validation failed: must be even");
+});
+
+test("validation combinator can be chained with multiple validations", () => {
+    const positiveEvenIntegerSchema = Schema.integer
+        .validation("must be positive", value => value > 0)
+        .validation("must be even", value => value % 2 === 0);
+
+    expect(validate(positiveEvenIntegerSchema, 2)).toEqual(true);
+    expect(validate(positiveEvenIntegerSchema, 4)).toEqual(true);
+    expect(validate(positiveEvenIntegerSchema, 0)).toEqual(false);
+    expect(validate(positiveEvenIntegerSchema, -2)).toEqual(false);
+    expect(validate(positiveEvenIntegerSchema, 1)).toEqual(false);
+    expect(validate(positiveEvenIntegerSchema, 3)).toEqual(false);
+});
+
+test("validation combinator works with string schema", () => {
+    const nonEmptyStringSchema = Schema.string.validation(
+        "must not be empty",
+        (value): value is string => value.length > 0,
+    );
+
+    expect(validate(nonEmptyStringSchema, "hello")).toEqual(true);
+    expect(validate(nonEmptyStringSchema, "a")).toEqual(true);
+    expect(validate(nonEmptyStringSchema, "")).toEqual(false);
+});
+
+test("validation combinator works with complex validation logic", () => {
+    const validEmailSchema = Schema.string.validation(
+        "must be valid email",
+        (value): value is string => {
+            return value.includes("@") && value.includes(".") && value.length > 5;
+        },
+    );
+
+    expect(validate(validEmailSchema, "user@example.com")).toEqual(true);
+    expect(validate(validEmailSchema, "a@b.c")).toEqual(false);
+    expect(validate(validEmailSchema, "invalid")).toEqual(false);
+    expect(validate(validEmailSchema, "@example.com")).toEqual(true);
+    expect(validate(validEmailSchema, "user@")).toEqual(false);
+    expect(validate(validEmailSchema, "user.com")).toEqual(false);
+});
+
+test("validation combinator preserves original schema behavior on success", () => {
+    const trimmedNonEmptyStringSchema = Schema.string
+        .trim()
+        .validation(
+            "must not be empty after trimming",
+            (value): value is string => value.length > 0,
+        );
+
+    expect(trimmedNonEmptyStringSchema.serialize("  hello  ")).toEqual("hello");
+    expect(trimmedNonEmptyStringSchema.deserialize("  world  ")).toEqual("world");
+});
+
+test("validation combinator works with nullable schema", () => {
+    const positiveIntegerOrNullSchema = Schema.integer
+        .nullable()
+        .validation(
+            "if not null, must be positive",
+            (value): value is number | null => value === null || value > 0,
+        );
+
+    expect(validate(positiveIntegerOrNullSchema, null)).toEqual(true);
+    expect(validate(positiveIntegerOrNullSchema, 5)).toEqual(true);
+    expect(validate(positiveIntegerOrNullSchema, -1)).toEqual(false);
+    expect(validate(positiveIntegerOrNullSchema, 0)).toEqual(false);
+});
+
+test("validation combinator sets validate property to non-null function", () => {
+    const basicSchema = Schema.string;
+    const validatedSchema = Schema.string.validation("test", () => true);
+
+    expect(basicSchema.validate).toEqual(null);
+    expect(validatedSchema.validate).not.toEqual(null);
+    expect(typeof validatedSchema.validate).toEqual("function");
+});
+
+test("`ObjectSchema` validation combinator accepts objects that pass validation", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    expect(validate(rangeSchema, {min: 1, max: 10})).toEqual(true);
+    expect(validate(rangeSchema, {min: 0, max: 1})).toEqual(true);
+    expect(validate(rangeSchema, {min: -5, max: 5})).toEqual(true);
+});
+
+test("`ObjectSchema` validation combinator rejects objects that fail validation", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    expect(validate(rangeSchema, {min: 10, max: 1})).toEqual(false);
+    expect(validate(rangeSchema, {min: 5, max: 5})).toEqual(false);
+    expect(validate(rangeSchema, {min: 1, max: 0})).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator still validates object structure", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    expect(validate(rangeSchema, {min: 1.5, max: 10})).toEqual(false);
+    expect(validate(rangeSchema, {min: "1", max: 10})).toEqual(false);
+    expect(validate(rangeSchema, {max: 10})).toEqual(false);
+    expect(validate(rangeSchema, {})).toEqual(false);
+    expect(validate(rangeSchema, {min: 1, max: 10, extra: "value"})).toEqual(true);
+});
+
+test("`ObjectSchema` validation combinator throws errors with appropriate messages", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    expect(() => rangeSchema.serialize({min: 10, max: 1})).toThrow(InvalidArgumentError);
+    expect(() => rangeSchema.serialize({min: 10, max: 1})).toThrow(
+        "Validation failed: min must be less than max",
+    );
+
+    expect(() => rangeSchema.deserialize({min: 10, max: 1})).toThrow(SchemaDeserializationError);
+    expect(() => rangeSchema.deserialize({min: 10, max: 1})).toThrow(
+        "Validation failed: min must be less than max",
+    );
+});
+
+test("`ObjectSchema` validation combinator can be chained with multiple validations", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    })
+        .validation("min must be less than max", value => value.min < value.max)
+        .validation("range must be at least 2", value => value.max - value.min >= 2);
+
+    expect(validate(rangeSchema, {min: 1, max: 10})).toEqual(true);
+    expect(validate(rangeSchema, {min: 0, max: 2})).toEqual(true);
+    expect(validate(rangeSchema, {min: 1, max: 2})).toEqual(false);
+    expect(validate(rangeSchema, {min: 10, max: 1})).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator works with complex object structures", () => {
+    const personSchema = Schema.object({
+        name: Schema.string,
+        age: Schema.integer,
+        email: Schema.string.optional(),
+    })
+        .validation(
+            "if email provided, must contain @",
+            value => !value.email || value.email.includes("@"),
+        )
+        .validation("age must be non-negative", value => value.age >= 0);
+
+    expect(validate(personSchema, {name: "Alice", age: 25})).toEqual(true);
+    expect(validate(personSchema, {name: "Bob", age: 30, email: "bob@example.com"})).toEqual(true);
+    expect(validate(personSchema, {name: "Charlie", age: 35, email: "invalid"})).toEqual(false);
+    expect(validate(personSchema, {name: "David", age: -5})).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator works with nested objects", () => {
+    const userSchema = Schema.object({
+        profile: Schema.object({
+            firstName: Schema.string,
+            lastName: Schema.string,
+        }),
+        settings: Schema.object({
+            theme: Schema.enum(["light", "dark"]),
+            notifications: Schema.boolean,
+        }),
+    }).validation(
+        "first name and last name must be different",
+        value => value.profile.firstName !== value.profile.lastName,
+    );
+
+    expect(
+        validate(userSchema, {
+            profile: {firstName: "John", lastName: "Doe"},
+            settings: {theme: "light", notifications: true},
+        }),
+    ).toEqual(true);
+
+    expect(
+        validate(userSchema, {
+            profile: {firstName: "John", lastName: "John"},
+            settings: {theme: "dark", notifications: false},
+        }),
+    ).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator can access all object properties", () => {
+    const coordinateSchema = Schema.object({
+        x: Schema.integer,
+        y: Schema.integer,
+        z: Schema.integer.optional(),
+    }).validation("coordinates must form valid 2D or 3D point", value => {
+        if (value.z !== undefined) {
+            return Math.abs(value.x) + Math.abs(value.y) + Math.abs(value.z) <= 100;
+        }
+        return Math.abs(value.x) + Math.abs(value.y) <= 50;
+    });
+
+    expect(validate(coordinateSchema, {x: 10, y: 20})).toEqual(true);
+    expect(validate(coordinateSchema, {x: 30, y: 30})).toEqual(false);
+    expect(validate(coordinateSchema, {x: 10, y: 20, z: 30})).toEqual(true);
+    expect(validate(coordinateSchema, {x: 50, y: 40, z: 30})).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator prevents use of omit with validations", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+        name: Schema.string,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    expect(() => rangeSchema.omit(["name"])).toThrow(
+        "Can’t use `omit()` on object schema with validations",
+    );
+});
+
+test("`ObjectSchema` validation combinator prevents use of partial with validations", () => {
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    expect(() => rangeSchema.partial()).toThrow(
+        "Can’t use `partial()` on object schema with validations",
+    );
+});
+
+test("`ObjectSchema` validation combinator merges validations when extending", () => {
+    const baseSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    const extendedSchema = baseSchema.merge(
+        Schema.object({
+            name: Schema.string,
+        }).validation("name must not be empty", value => value.name.length > 0),
+    );
+
+    expect(validate(extendedSchema, {min: 1, max: 10, name: "test"})).toEqual(true);
+    expect(validate(extendedSchema, {min: 10, max: 1, name: "test"})).toEqual(false);
+    expect(validate(extendedSchema, {min: 1, max: 10, name: ""})).toEqual(false);
+    expect(validate(extendedSchema, {min: 10, max: 1, name: ""})).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator works with type guard validation", () => {
+    type PositiveRange = {min: number; max: number} & {__brand: "positive"};
+
+    const positiveRangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation(
+        "both min and max must be positive",
+        (value): value is PositiveRange => value.min > 0 && value.max > 0 && value.min < value.max,
+    );
+
+    expect(validate(positiveRangeSchema, {min: 1, max: 10})).toEqual(true);
+    expect(validate(positiveRangeSchema, {min: -1, max: 10})).toEqual(false);
+    expect(validate(positiveRangeSchema, {min: 1, max: -10})).toEqual(false);
+    expect(validate(positiveRangeSchema, {min: 0, max: 10})).toEqual(false);
+});
+
+test("`ObjectSchema` validation combinator creates non-null validate property", () => {
+    const baseSchema = Schema.object({min: Schema.float, max: Schema.float});
+    const validatedSchema = baseSchema.validation("test", () => true);
+
+    expect(baseSchema.validate).toEqual(null);
+    expect(validatedSchema.validate).not.toEqual(null);
+    expect(typeof validatedSchema.validate).toEqual("function");
+});
+
+test("validation combinator inside object property schemas runs validations on nested values", () => {
+    const evenNumberSchema = Schema.integer.validation("must be even", value => value % 2 === 0);
+
+    const objectSchema = Schema.object({
+        id: Schema.string,
+        count: evenNumberSchema,
+        score: Schema.integer,
+    });
+
+    expect(validate(objectSchema, {id: "test", count: 4, score: 100})).toEqual(true);
+    expect(validate(objectSchema, {id: "test", count: 2, score: 99})).toEqual(true);
+    expect(validate(objectSchema, {id: "test", count: 3, score: 100})).toEqual(false);
+    expect(validate(objectSchema, {id: "test", count: 1, score: 99})).toEqual(false);
+});
+
+test("validation combinator inside object property schemas throws appropriate errors", () => {
+    const positiveNumberSchema = Schema.integer.validation("must be positive", value => value > 0);
+
+    const objectSchema = Schema.object({
+        name: Schema.string,
+        value: positiveNumberSchema,
+    });
+
+    expect(() => objectSchema.serialize({name: "test", value: -5})).toThrow(InvalidArgumentError);
+    expect(() => objectSchema.serialize({name: "test", value: -5})).toThrow(
+        "Validation failed: must be positive",
+    );
+
+    expect(() => objectSchema.deserialize({name: "test", value: 0})).toThrow(
+        SchemaDeserializationError,
+    );
+    expect(() => objectSchema.deserialize({name: "test", value: 0})).toThrow(
+        "Validation failed: must be positive",
+    );
+});
+
+test("validation combinator inside array item schema runs validations on array elements", () => {
+    const evenNumberSchema = Schema.integer.validation("must be even", value => value % 2 === 0);
+    const arraySchema = Schema.array(evenNumberSchema);
+
+    expect(validate(arraySchema, [])).toEqual(true);
+    expect(validate(arraySchema, [2, 4, 6])).toEqual(true);
+    expect(validate(arraySchema, [0, -2, 8])).toEqual(true);
+    expect(validate(arraySchema, [1, 2, 3])).toEqual(false);
+    expect(validate(arraySchema, [2, 4, 5])).toEqual(false);
+});
+
+test("validation combinator inside array item schema throws appropriate errors", () => {
+    const positiveNumberSchema = Schema.integer.validation("must be positive", value => value > 0);
+    const arraySchema = Schema.array(positiveNumberSchema);
+
+    expect(() => arraySchema.serialize([1, 2, -3])).toThrow(InvalidArgumentError);
+    expect(() => arraySchema.serialize([1, 2, -3])).toThrow("Validation failed: must be positive");
+
+    expect(() => arraySchema.deserialize([5, 0, 10])).toThrow(SchemaDeserializationError);
+    expect(() => arraySchema.deserialize([5, 0, 10])).toThrow(
+        "Validation failed: must be positive",
+    );
+});
+
+test("validation combinator works with nested object structures containing validations", () => {
+    const emailSchema = Schema.string.validation(
+        "must be valid email",
+        value => value.includes("@") && value.includes("."),
+    );
+
+    const rangeSchema = Schema.object({
+        min: Schema.integer,
+        max: Schema.integer,
+    }).validation("min must be less than max", value => value.min < value.max);
+
+    const userSchema = Schema.object({
+        profile: Schema.object({
+            email: emailSchema,
+            name: Schema.string,
+        }),
+        settings: rangeSchema,
+        tags: Schema.array(
+            Schema.string.validation("tag must not be empty", value => value.length > 0),
+        ),
+    });
+
+    expect(
+        validate(userSchema, {
+            profile: {email: "user@example.com", name: "John"},
+            settings: {min: 1, max: 10},
+            tags: ["work", "personal"],
+        }),
+    ).toEqual(true);
+
+    expect(
+        validate(userSchema, {
+            profile: {email: "invalid-email", name: "John"},
+            settings: {min: 1, max: 10},
+            tags: ["work", "personal"],
+        }),
+    ).toEqual(false);
+
+    expect(
+        validate(userSchema, {
+            profile: {email: "user@example.com", name: "John"},
+            settings: {min: 10, max: 1},
+            tags: ["work", "personal"],
+        }),
+    ).toEqual(false);
+
+    expect(
+        validate(userSchema, {
+            profile: {email: "user@example.com", name: "John"},
+            settings: {min: 1, max: 10},
+            tags: ["work", ""],
+        }),
+    ).toEqual(false);
+});
+
+test("validation combinator inside nullable schema works correctly", () => {
+    const positiveNumberSchema = Schema.integer
+        .validation("must be positive", value => value > 0)
+        .nullable();
+
+    const objectSchema = Schema.object({
+        optionalValue: positiveNumberSchema,
+    });
+
+    expect(validate(objectSchema, {optionalValue: null})).toEqual(true);
+    expect(validate(objectSchema, {optionalValue: 5})).toEqual(true);
+    expect(validate(objectSchema, {optionalValue: -1})).toEqual(false);
+    expect(validate(objectSchema, {optionalValue: 0})).toEqual(false);
+});
+
+test("validation combinator inside optional object property works correctly", () => {
+    const positiveNumberSchema = Schema.integer.validation("must be positive", value => value > 0);
+
+    const objectSchema = Schema.object({
+        requiredValue: Schema.string,
+        optionalValue: positiveNumberSchema.optional(),
+    });
+
+    expect(validate(objectSchema, {requiredValue: "test"})).toEqual(true);
+    expect(validate(objectSchema, {requiredValue: "test", optionalValue: 5})).toEqual(true);
+    expect(validate(objectSchema, {requiredValue: "test", optionalValue: -1})).toEqual(false);
+    expect(validate(objectSchema, {requiredValue: "test", optionalValue: 0})).toEqual(false);
+});
+
+test("validation combinator inside union variant schemas works correctly", () => {
+    const positiveIntegerSchema = Schema.integer.validation("must be positive", value => value > 0);
+
+    const unionSchema = Schema.union({
+        numberVariant: Schema.object({
+            type: Schema.value("numberVariant"),
+            value: positiveIntegerSchema,
+        }),
+        stringVariant: Schema.object({
+            type: Schema.value("stringVariant"),
+            value: Schema.string.validation("must not be empty", value => value.length > 0),
+        }),
+    });
+
+    expect(validate(unionSchema, {type: "numberVariant", value: 5})).toEqual(true);
+    expect(validate(unionSchema, {type: "stringVariant", value: "hello"})).toEqual(true);
+    expect(validate(unionSchema, {type: "numberVariant", value: -1})).toEqual(false);
+    expect(validate(unionSchema, {type: "stringVariant", value: ""})).toEqual(false);
+});
+
+test("multiple validation combinators in deeply nested structures work correctly", () => {
+    const positiveSchema = Schema.integer.validation("must be positive", value => value > 0);
+    const evenSchema = Schema.integer.validation("must be even", value => value % 2 === 0);
+    const nonEmptyStringSchema = Schema.string.validation(
+        "must not be empty",
+        value => value.length > 0,
+    );
+
+    const complexSchema = Schema.object({
+        metadata: Schema.object({
+            tags: Schema.array(nonEmptyStringSchema),
+            scores: Schema.array(positiveSchema),
+        }),
+        data: Schema.array(
+            Schema.object({
+                id: nonEmptyStringSchema,
+                count: evenSchema,
+            }),
+        ),
+    });
+
+    expect(
+        validate(complexSchema, {
+            metadata: {
+                tags: ["tag1", "tag2"],
+                scores: [1, 2, 3],
+            },
+            data: [
+                {id: "item1", count: 2},
+                {id: "item2", count: 4},
+            ],
+        }),
+    ).toEqual(true);
+
+    expect(
+        validate(complexSchema, {
+            metadata: {
+                tags: ["tag1", ""],
+                scores: [1, 2, 3],
+            },
+            data: [{id: "item1", count: 2}],
+        }),
+    ).toEqual(false);
+
+    expect(
+        validate(complexSchema, {
+            metadata: {
+                tags: ["tag1", "tag2"],
+                scores: [1, -2, 3],
+            },
+            data: [{id: "item1", count: 2}],
+        }),
+    ).toEqual(false);
+
+    expect(
+        validate(complexSchema, {
+            metadata: {
+                tags: ["tag1", "tag2"],
+                scores: [1, 2, 3],
+            },
+            data: [{id: "item1", count: 3}],
+        }),
+    ).toEqual(false);
+});
+
+test("validation combinator preserves validation order in nested structures", () => {
+    const multiValidationSchema = Schema.integer
+        .validation("must be positive", value => value > 0)
+        .validation("must be even", value => value % 2 === 0);
+
+    const arraySchema = Schema.array(multiValidationSchema);
+
+    expect(validate(arraySchema, [2, 4, 6])).toEqual(true);
+    expect(validate(arraySchema, [0, 2, 4])).toEqual(false);
+    expect(validate(arraySchema, [1, 2, 4])).toEqual(false);
+    expect(validate(arraySchema, [-2, 4, 6])).toEqual(false);
+});
+
+test("validation combinator inside map value schema works correctly", () => {
+    const positiveNumberSchema = Schema.integer.validation("must be positive", value => value > 0);
+    const mapSchema = Schema.map(Schema.string, positiveNumberSchema);
+
+    const validMap = [
+        ["key1", 5],
+        ["key2", 10],
+        ["key3", 1],
+    ];
+
+    const invalidMap = [
+        ["key1", 5],
+        ["key2", -10],
+        ["key3", 1],
+    ];
+
+    expect(validate(mapSchema, validMap)).toEqual(true);
+    expect(validate(mapSchema, invalidMap)).toEqual(false);
+});
+
+test("validation combinator inside set item schema works correctly", () => {
+    const evenNumberSchema = Schema.integer.validation("must be even", value => value % 2 === 0);
+    const setSchema = Schema.set(evenNumberSchema);
+
+    const validSet = [2, 4, 6];
+    const invalidSet = [2, 3, 4];
+
+    expect(validate(setSchema, validSet)).toEqual(true);
+    expect(validate(setSchema, invalidSet)).toEqual(false);
+});

@@ -5,6 +5,7 @@ import {
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
 import {
+    TestAccountActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -80,7 +81,7 @@ export class TestChat extends TestMessageRoomBase {
     }
 
     protected override _createMessage(
-        context: TestSessionActionContext,
+        context: TestAccountActionContext,
         {
             parentMessageIndex,
             content,

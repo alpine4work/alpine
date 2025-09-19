@@ -1115,6 +1115,7 @@ async function authorizeChatAccessAndReturnItemIfPossible(
                 chatItem.attributesItem.spaceId,
                 accessPolicy,
                 "Edit",
+                options,
             );
 
             if (!ok) {
@@ -1495,13 +1496,14 @@ export async function getChatAccountIds(
 export async function getChatAccountIdsForBotScope(
     context: ServerMinimalBotActionContext,
     chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ReadonlyArray<AccountId>> {
     const scope = context.actor.getScope();
     if (scope.type !== "Chat" || scope.chatId !== chatId) {
         throw new PermissionDeniedError("Can only get `AccountId`s for the scoped chat");
     }
 
-    const chatItem = await getChatItemForAuthorization(context, chatId);
+    const chatItem = await getChatItemForAuthorization(context, chatId, options);
 
     await authorizeSpaceAccess(context, chatItem.attributesItem.spaceId);
 

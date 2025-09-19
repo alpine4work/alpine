@@ -1,20 +1,28 @@
 import {addDays} from "date-fns";
+import {parseApiMessageRoomPath} from "~/server/api/specification/parse_api_path.js";
 import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.js";
+import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, UnknownError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ApiKey, assertApiKey, generateApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {BotId, BotWebhookEventId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, BotWebhookEventId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
@@ -49,10 +57,86 @@ const BotsTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            name: "ApiKey",
+            partitionKeyAttributes: {
+                apiKey: DynamoKeyAttributeSchema.labelString<ApiKey>(),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * What bot does the API key grant access to?
+                         */
+                        botId: Schema.id<BotId>(),
+
+                        /**
+                         * The `SpaceId` this token is scoped to. Or if null then this is an unscoped
+                         * token. If `spaceId` is non-null then `space` is also non-null.
+                         *
+                         * There are two types of API keys:
+                         *
+                         * - Scoped: API keys that are scoped to some resource in an individual space.
+                         *   Individual developers at companies typically use these API keys. The API
+                         *   key can't access anything outside of the space.
+                         *
+                         * - Unscoped: API keys that aren't associated with any resource. To use
+                         *   unscoped API keys you need an access token that provides a scope.
+                         *   Integration authors use unscoped API keys and they get an access tokens
+                         *   when called from a bot webhook.
+                         *
+                         *   I'm also imagining we have an API endpoint called `/request-access-token`
+                         *   or something that returns an access token for an unscoped API key. This
+                         *   forces integrators to take basic security measures to make sure they're
+                         *   only requesting data from one space at a time.
+                         */
+                        spaceId: Schema.id<SpaceId>().nullable(),
+
+                        /**
+                         * See the comment on `spaceId` for more information.
+                         *
+                         * Ideally `spaceId` would be inside this object but we don't currently support
+                         * indexing nested properties so we have to keep `spaceId` outside.
+                         */
+                        space: Schema.object({
+                            accountId: Schema.id<AccountId>(),
+                            scope: Schema.unknown<BotTokenPayloadScope>(),
+                        }).nullable(),
+
+                        /**
+                         * When was the API key created?
+                         */
+                        createdTime: Schema.date,
+                    }).validation(
+                        "If `spaceId` is non-null then `space` is also non-null",
+                        item => (item.spaceId === null) === (item.space === null),
+                    ),
+                },
+            ],
+        },
     ],
 });
 
 type BotItem = DynamoTableItemType<typeof BotsTable, "Bot", "Attributes">;
+
+// NOTE(calebmer, 2025-08-21): We don't currently use this index but something
+// we'll definitely someday is the ability to list all of a bot's API keys.
+// Since it's hard to add an index to an existing table right now, we're
+// setting up this index on table creation.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const BotApiKeysIndex = BotsTable.addIndex({
+    name: "BotApiKeys",
+    itemTypes: [{partitionType: "ApiKey", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        botId: DynamoKeyAttributeSchema.id<BotId>(),
+    },
+    sortKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>().nullable(),
+    },
+});
 
 const botWebhookMaxRetryCount = 3;
 const botWebhookRequestTimeoutMs = 10 * 1000;
@@ -118,21 +202,74 @@ const BotWebhookEventsTable = DynamoTableSchema.new({
 
 type BotWebhookEventItem = DynamoTableItemType<typeof BotWebhookEventsTable, "BotSpace", "Event">;
 
-export async function seedTestBots(context: DynamoContext) {
+export async function seedTestBots(
+    context: DynamoContext,
+    {
+        agentServiceLocalPort,
+        chatGptLocalUnscopedApiKey,
+        chatGptLocalScopedApiKey,
+    }: {
+        agentServiceLocalPort: string;
+        chatGptLocalUnscopedApiKey: string;
+        chatGptLocalScopedApiKey: string;
+    },
+) {
     assert(process.env.NODE_ENV !== "production");
-    const {chatGptBotId} = getDynamoSeedConstants();
+    const {adminAccountId, defaultSpaceId, chatGptBotId, chatGptBotAccountIdForDefaultSpace} =
+        getDynamoSeedConstants();
 
-    await BotsTable.createItemIfNoneExists(context, {
-        partitionType: "Bot",
-        sortRangeType: "Attributes",
-        botId: chatGptBotId,
-        createdTime: new Date(),
-        name: "ChatGPT",
-        // NOTE(calebmer): We've hardcoded port 3070 from `.env.development` here. If
-        // you're overriding `AGENTS_DEV_PORT` in `.env.development.local` webhooks
-        // will be broken.
-        webhookUrl: "http://localhost:3070/chat-gpt/webhook",
-    });
+    const currentTime = new Date();
+
+    await runAllPromises([
+        BotsTable.updateItem(
+            context,
+            {
+                partitionType: "Bot",
+                sortRangeType: "Attributes",
+                botId: chatGptBotId,
+            },
+            item => {
+                const webhookUrl = `http://localhost:${agentServiceLocalPort}/chat-gpt/webhook`;
+
+                // Noop if the webhook URL is correct.
+                if (item?.webhookUrl === webhookUrl) return item;
+
+                if (item) {
+                    return {...item, webhookUrl};
+                } else {
+                    return {
+                        partitionType: "Bot",
+                        sortRangeType: "Attributes",
+                        botId: chatGptBotId,
+                        createdTime: currentTime,
+                        name: "ChatGPT",
+                        webhookUrl,
+                    };
+                }
+            },
+        ),
+        BotsTable.createItemIfNoneExists(context, {
+            partitionType: "ApiKey",
+            sortRangeType: "Attributes",
+            apiKey: assertApiKey(chatGptLocalUnscopedApiKey),
+            botId: chatGptBotId,
+            spaceId: null,
+            space: null,
+            createdTime: currentTime,
+        }),
+        BotsTable.createItemIfNoneExists(context, {
+            partitionType: "ApiKey",
+            sortRangeType: "Attributes",
+            apiKey: assertApiKey(chatGptLocalScopedApiKey),
+            botId: chatGptBotId,
+            spaceId: defaultSpaceId,
+            space: {
+                accountId: chatGptBotAccountIdForDefaultSpace,
+                scope: {type: "Account", accountId: adminAccountId},
+            },
+            createdTime: currentTime,
+        }),
+    ]);
 }
 
 export async function createBotForTest(
@@ -153,6 +290,65 @@ export async function createBotForTest(
     });
 
     return {id: botId};
+}
+
+/**
+ * Create an unscoped API key for a bot.
+ */
+export async function createUnscopedApiKeyForTest(
+    context: DynamoContext,
+    botId: BotId,
+): Promise<ApiKey> {
+    assert(import.meta.jest);
+
+    const apiKey = generateApiKey();
+
+    await BotsTable.createItem(context, {
+        partitionType: "ApiKey",
+        sortRangeType: "Attributes",
+        apiKey,
+        botId,
+        spaceId: null,
+        space: null,
+        createdTime: new Date(),
+    });
+
+    return apiKey;
+}
+
+/**
+ * Create a scoped API key for a bot. We assume the caller has validated that
+ * the space and account is an instantiation of the `BotId` and that the
+ * `scope` is a valid entity in the space.
+ */
+export async function createScopedApiKeyForTest(
+    context: DynamoContext,
+    botId: BotId,
+    {
+        spaceId,
+        accountId,
+        scope,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        scope: BotTokenPayloadScope;
+    },
+): Promise<ApiKey> {
+    assert(import.meta.jest);
+
+    const apiKey = generateApiKey();
+
+    await BotsTable.createItem(context, {
+        partitionType: "ApiKey",
+        sortRangeType: "Attributes",
+        apiKey,
+        botId,
+        spaceId,
+        space: {accountId, scope},
+        createdTime: new Date(),
+    });
+
+    return apiKey;
 }
 
 /**
@@ -183,7 +379,7 @@ export function setIsProcessCallBotWebhookJobCrashSimulatedForTest(value: boolea
  * (after 2 seconds then 4 seconds). We time out requests after 10 seconds.
  */
 export async function processCallBotWebhookJob(
-    context: ServerSystemActionContext,
+    context: Context<ServerSystemActionContextModules & {botWebhook: BotWebhookContextModule}>,
     job: CallBotWebhookJobDescription,
 ) {
     let hasLease = false;
@@ -337,7 +533,7 @@ function leaseBotWebhookEventItem(
  * ahead and make the call.
  */
 async function actuallyCallBotWebhook(
-    context: ServerSystemActionContext,
+    context: Context<ServerSystemActionContextModules & {botWebhook: BotWebhookContextModule}>,
     botItem: BotItem,
     eventItem: BotWebhookEventItem,
     job: CallBotWebhookJobDescription,
@@ -345,9 +541,40 @@ async function actuallyCallBotWebhook(
     const attemptNumber = eventItem.attempt.number;
     const botWebhookUrl = new URL(botItem.webhookUrl);
 
+    const roomPathObject = parseApiMessageRoomPath(job.event.roomPath);
+
+    let scope: BotTokenPayloadScope;
+
+    switch (roomPathObject.type) {
+        case "Chat":
+            scope = {type: "Chat", chatId: roomPathObject.chatId};
+            break;
+        case "DocumentCommentThread":
+            scope = {type: "Document", documentId: roomPathObject.documentId};
+            break;
+        case "Post":
+            scope = {type: "Post", postId: roomPathObject.postId};
+            break;
+        case "Task":
+            scope = {type: "Task", taskId: roomPathObject.taskId};
+            break;
+        default:
+            throw exhaustive(roomPathObject);
+    }
+
+    // Signing this token grants the bot access to `roomPath`! We assume whoever
+    // scheduled this job was certain the bot has access to `roomPath`.
+    const accessToken = await context.botWebhook.dangerouslySignLongLivedToken({
+        type: "Bot",
+        spaceId: job.spaceId,
+        accountId: job.botAccountId,
+        scope,
+    });
+
     const requestBody: ApiBotWebhookRequestBody = {
         spaceId: job.spaceId,
         accountId: job.botAccountId,
+        accessToken,
         eventId: job.eventId,
         event: job.event,
     };
@@ -399,7 +626,10 @@ async function actuallyCallBotWebhook(
                 // event.
                 await response.body?.cancel();
 
-                if (!response.ok) {
+                // Only retry 5xx errors. We consider 2xx, 3xx, and 4xx status codes as
+                // successful delivery. Status codes like 400 and 401 (unauthorized) probably
+                // mean the recipient server is misconfigured.
+                if (response.status >= 500) {
                     rejectedReason = "ServerErrorStatusCode";
                     throw new UnknownError(`Webhook request failed with status ${response.status}`);
                 }
@@ -474,4 +704,45 @@ async function actuallyCallBotWebhook(
             });
         }
     }
+}
+
+/**
+ * Get the information associated with an `ApiKey`. Like what bot the `ApiKey`
+ * is for and what `SpaceId` the `ApiKey` is for. If null then there's no
+ * `ApiKey` and our API shouldn't grant access for the `ApiKey`.
+ *
+ * This isn't dangerous since if an attacker has a user's `ApiKey` then the
+ * user is already cooked. Every user has access, through the API, to know
+ * whether their API key is valid or not.
+ */
+export async function getApiKeyAttributesIfExists(
+    context: DynamoContext,
+    apiKey: ApiKey,
+    {consistency}: {consistency?: DynamoReadConsistency} = {},
+): Promise<{
+    readonly botId: BotId;
+    readonly space: {
+        readonly spaceId: SpaceId;
+        readonly accountId: AccountId;
+        readonly scope: BotTokenPayloadScope;
+    } | null;
+} | null> {
+    const botApiKeyItem = await BotsTable.getItemIfExists(
+        context,
+        {partitionType: "ApiKey", sortRangeType: "Attributes", apiKey},
+        {consistency},
+    );
+    if (!botApiKeyItem) return null;
+
+    return {
+        botId: botApiKeyItem.botId,
+        space:
+            botApiKeyItem.space !== null
+                ? {
+                      spaceId: assertExists(botApiKeyItem.spaceId),
+                      accountId: botApiKeyItem.space.accountId,
+                      scope: botApiKeyItem.space.scope,
+                  }
+                : null,
+    };
 }

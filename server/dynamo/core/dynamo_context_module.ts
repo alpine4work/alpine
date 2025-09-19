@@ -163,6 +163,20 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
+     * Same as `expectStrongReadConsistency()` but always returns a context module.
+     * In case, for performance, you want to set `expectsStrongReadConsistency` to
+     * true at the same time you're adding some other context modules.
+     */
+    public expectStrongReadConsistencyReturningModule<Modules extends {}>(
+        this: ContextModuleBase<Modules> & DynamoContextModule,
+    ): DynamoContextModule {
+        return new DynamoContextModule(this._client, {
+            retryTransaction: this._retryTransaction,
+            expectsStrongReadConsistency: true,
+        });
+    }
+
+    /**
      * Stop expecting DynamoDB reads to be strongly consistent. After calling this
      * you can make eventually consistent reads that won't throw an error.
      */

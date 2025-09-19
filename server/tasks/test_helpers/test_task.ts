@@ -2,6 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
+    TestAccountActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -138,7 +139,7 @@ export class TestTask extends TestCommentRoomBase {
     }
 
     protected override _createMessage(
-        context: TestSessionActionContext,
+        context: TestAccountActionContext,
         {
             parentMessageIndex,
             content,

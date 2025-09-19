@@ -1,11 +1,14 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
+import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {
     archiveInboxEntry,
     getInboxEntries,
@@ -25,11 +28,15 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -44,9 +51,11 @@ import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
+let callBotWebhookJobs: Array<CallBotWebhookJobDescription> = [];
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
 afterEach(() => {
+    callBotWebhookJobs = [];
     processingType = "Once";
 });
 
@@ -74,10 +83,13 @@ const context = createTestContext({
                 default:
                     throw exhaustive(processingType);
             }
+        } else if (job.type === "CallBotWebhook") {
+            callBotWebhookJobs.push(job);
         } else {
             // Noop for other jobs...
         }
     },
+    chatInjection,
     searchInjection: {
         getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
             const entityIdObject = parseSearchDynamicEntityId(entityId);
@@ -117,8 +129,6 @@ for (const [currentProcessingType, processingMultiple] of [
     ["ThriceConcurrently", 3],
 ] as const) {
     describe(`processing: ${currentProcessingType}`, () => {
-        if (currentProcessingType !== "Once") return;
-
         beforeEach(() => {
             processingType = currentProcessingType;
         });
@@ -4859,6 +4869,171 @@ for (const [currentProcessingType, processingMultiple] of [
                         },
                     ],
                 ]),
+            );
+        });
+
+        test("calls bot webhook when message is sent to chat bot is in", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(session);
+
+            const chat = await TestChat.get(session, bot);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual([]);
+
+            const message = await chat.sendMessage(session);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual(
+                createArrayWithLength(processingMultiple, () =>
+                    expect.objectContaining({
+                        botAccountId: bot.id,
+                        event: expect.objectContaining({
+                            type: "NewMessage",
+                            roomPath: `/chats/${chat.id}`,
+                            index: message.index,
+                        }),
+                    }),
+                ),
+            );
+
+            // Every job should have the same `eventId`.
+            expect(new Set(callBotWebhookJobs.map(job => job.eventId))).toEqual(
+                new Set([callBotWebhookJobs[0]!.eventId]),
+            );
+        });
+
+        test("calls bot webhook for each bot in chat", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot1 = await TestBot.createAndInstantiate(session);
+            const bot2 = await TestBot.createAndInstantiate(session);
+
+            const chat = await TestChat.get(session, bot1, bot2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual([]);
+
+            const message = await chat.sendMessage(session);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                callBotWebhookJobs.sort((job1, job2) =>
+                    defaultCompareStrings(job1.botAccountId, job2.botAccountId),
+                ),
+            ).toEqual([
+                ...createArrayWithLength(processingMultiple, () =>
+                    expect.objectContaining({
+                        botAccountId: bot1.id < bot2.id ? bot1.id : bot2.id,
+                        event: expect.objectContaining({
+                            type: "NewMessage",
+                            roomPath: `/chats/${chat.id}`,
+                            index: message.index,
+                        }),
+                    }),
+                ),
+                ...createArrayWithLength(processingMultiple, () =>
+                    expect.objectContaining({
+                        botAccountId: bot1.id < bot2.id ? bot2.id : bot1.id,
+                        event: expect.objectContaining({
+                            type: "NewMessage",
+                            roomPath: `/chats/${chat.id}`,
+                            index: message.index,
+                        }),
+                    }),
+                ),
+            ]);
+
+            const bot1EventId = assertExists(
+                findMapIterable(callBotWebhookJobs, job =>
+                    job.botAccountId === bot1.id ? job.eventId : undefined,
+                ),
+            );
+
+            const bot2EventId = assertExists(
+                findMapIterable(callBotWebhookJobs, job =>
+                    job.botAccountId === bot2.id ? job.eventId : undefined,
+                ),
+            );
+
+            expect(bot1EventId).not.toEqual(bot2EventId);
+
+            // If a job for some bot account is repeated it should have the same `eventId`
+            // as all other jobs for the bot account.
+            expect(
+                new Set(
+                    filterMapArray(callBotWebhookJobs, job =>
+                        job.botAccountId === bot1.id ? job.eventId : undefined,
+                    ),
+                ),
+            ).toEqual(new Set([bot1EventId]));
+
+            // If a job for some bot account is repeated it should have the same `eventId`
+            // as all other jobs for the bot account.
+            expect(
+                new Set(
+                    filterMapArray(callBotWebhookJobs, job =>
+                        job.botAccountId === bot2.id ? job.eventId : undefined,
+                    ),
+                ),
+            ).toEqual(new Set([bot2EventId]));
+        });
+
+        test("doesn’t call bot webhook if own bot sends the message", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(session);
+
+            const chat = await TestChat.get(session, bot);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual([]);
+
+            await chat.sendMessage(bot.action({type: "Chat", chatId: chat.id}));
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual([]);
+        });
+
+        test("doesn’t call bot webhook if own bot sends the message but calls webhook for other bots", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+            const bot1 = await TestBot.createAndInstantiate(session);
+            const bot2 = await TestBot.createAndInstantiate(session);
+
+            const chat = await TestChat.get(session, bot1, bot2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual([]);
+
+            const message = await chat.sendMessage(bot1.action({type: "Chat", chatId: chat.id}));
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(callBotWebhookJobs).toEqual(
+                createArrayWithLength(processingMultiple, () =>
+                    expect.objectContaining({
+                        botAccountId: bot2.id,
+                        event: expect.objectContaining({
+                            type: "NewMessage",
+                            roomPath: `/chats/${chat.id}`,
+                            index: message.index,
+                        }),
+                    }),
+                ),
+            );
+
+            // Every job should have the same `eventId`.
+            expect(new Set(callBotWebhookJobs.map(job => job.eventId))).toEqual(
+                new Set([callBotWebhookJobs[0]!.eventId]),
             );
         });
     });

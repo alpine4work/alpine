@@ -1,5 +1,6 @@
 import {KeyLike, SignJWT, compactDecrypt, importPKCS8} from "jose";
 import {
+    BotTokenPayload,
     SessionTokenPayload,
     TokenPayload,
     TokenPayloadSchema,
@@ -97,11 +98,22 @@ export class TokenAgentPrivateSide {
         const currentTime =
             currentTimeForTest !== undefined ? currentTimeForTest.getTime() : Date.now();
 
+        // 2 minutes
+        const expirationTime = Math.floor((currentTime + 1000 * 60 * 2) / 1000);
+
+        return this._dangerouslySignToken(audience, payload, expirationTime);
+    }
+
+    protected _dangerouslySignToken(
+        audience: TokenServiceName | Array<TokenServiceName>,
+        payload: TokenPayload,
+        expirationTime: number,
+    ): Promise<string> {
         const signer = new SignJWT(
             TokenPayloadSchema.serialize(payload) as SchemaSerializedObjectValue,
         )
             .setProtectedHeader({alg: "RS256"})
-            .setExpirationTime(Math.floor((currentTime + 1000 * 60 * 2) / 1000))
+            .setExpirationTime(expirationTime)
             .setIssuer(tokenServiceShortNameByName[this._serviceName])
             .setAudience(
                 typeof audience === "string"
@@ -296,5 +308,88 @@ export class TokenAgentAppServicePrivateSide extends TokenAgentPrivateSide {
             ]);
 
         return signer.sign(this._servicePrivateKeyForRs256);
+    }
+}
+
+export class TokenAgentJobQueueServicePrivateSide extends TokenAgentPrivateSide {
+    protected constructor({
+        servicePrivateKeyForRs256,
+        servicePrivateKeyForRsaOaep,
+        secretForHs256,
+    }: {
+        servicePrivateKeyForRs256: KeyLike;
+        servicePrivateKeyForRsaOaep: KeyLike;
+        secretForHs256: Uint8Array;
+    }) {
+        super({
+            serviceName: "JobQueueService",
+            servicePrivateKeyForRs256,
+            servicePrivateKeyForRsaOaep,
+            secretForHs256,
+        });
+    }
+
+    public static override async new({
+        serviceName,
+        servicePrivateKey: servicePrivateKeyString,
+        secret: secretString,
+    }: {
+        serviceName: TokenServiceName;
+        servicePrivateKey: string;
+        secret: string;
+    }) {
+        assert(serviceName === "JobQueueService");
+
+        const [servicePrivateKeyForRs256, servicePrivateKeyForRsaOaep] = await runAllPromises([
+            importPKCS8(servicePrivateKeyString, "RS256"),
+            importPKCS8(servicePrivateKeyString, "RSA-OAEP"),
+        ]);
+
+        const secretForHs256 = decodeBase64(secretString.trim());
+        assert(secretForHs256.length === 32);
+
+        return new TokenAgentJobQueueServicePrivateSide({
+            servicePrivateKeyForRs256,
+            servicePrivateKeyForRsaOaep,
+            secretForHs256,
+        });
+    }
+
+    /**
+     * Sign a bot token for `ApiService`. The token expires after 2 hours. Which
+     * lets the bot cook for a while in response to the webhook in case it's
+     * entering a deep research style flow.
+     *
+     * If you need to immediately revoke the bot's access you can remove the bot
+     * from your space.
+     *
+     * If a bot needs to run for more than 2 hours then we should maybe consider an
+     * access token + refresh token setup. Extending the timeout may be fine too.
+     * Need to think through the cancellation model (e.g. should you be able to
+     * cancel an individual "token" or just remove a bad bot from the space
+     * immediately revoking access?)
+     *
+     * Uses RS256 as the signing algorithm. Which is an asymmetric cryptography
+     * algorithm. So each service has its own private key and other services verify
+     * it against their public key. If a service's private key is discovered by an
+     * attacker they still wouldn't be able to create keys that let them
+     * impersonate another service. (e.g. If `FileProcessorService` is compromised
+     * an attacker couldn't use that access to create a session token as
+     * `AppService`.)
+     *
+     * Dangerous since if an attacker can call this function with whatever input
+     * they want, then they can impersonate any account! So be careful with what
+     * you call this function with.
+     */
+    public dangerouslySignLongLivedTokenForBotWebhook(payload: BotTokenPayload) {
+        // Double check this is a bot token.
+        assert(payload.type === "Bot");
+
+        const currentTime = Date.now();
+
+        // 2 hours
+        const expirationTime = Math.floor((currentTime + 1000 * 60 * 60 * 2) / 1000);
+
+        return this._dangerouslySignToken("ApiService", payload, expirationTime);
     }
 }

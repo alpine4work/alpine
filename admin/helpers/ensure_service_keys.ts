@@ -5,6 +5,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {generateApiKey} from "~/shared/id/api_key.js";
 
 const mutexByDirectoryPath = new DefaultMap<string, Mutex>(() => new Mutex());
 
@@ -35,6 +36,13 @@ export async function ensureServiceKeys(directoryPath: string) {
 
                 await fs.writeFile(joinPath(directoryPath, "token_agent_secret"), secret + "\n");
             })(),
+            ...["chat_gpt_unscoped_api_key", "chat_gpt_scoped_api_key"].map(async apiKeyName => {
+                if (await fs.pathExists(joinPath(directoryPath, apiKeyName))) return;
+
+                const apiKey = generateApiKey();
+
+                await fs.writeFile(joinPath(directoryPath, apiKeyName), apiKey + "\n");
+            }),
             ...serviceNames.map(async serviceName => {
                 const privateKeyPath = joinPath(directoryPath, `${serviceName}_rsa`);
                 const publicKeyPath = joinPath(directoryPath, `${serviceName}_rsa.pub`);

@@ -10,7 +10,7 @@ import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/norma
 import {
     ApiContentMentionInlineElementTargetPathObject,
     parseApiContentMentionInlineElementTargetPath,
-} from "~/server/api/markdown/parse_api_content_mention_inline_element_target_path.js";
+} from "~/server/api/specification/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,

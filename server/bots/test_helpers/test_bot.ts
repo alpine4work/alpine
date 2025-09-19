@@ -1,10 +1,16 @@
-import {createBotForTest} from "~/server/bots/bots_table.js";
+import {
+    createBotForTest,
+    createScopedApiKeyForTest,
+    createUnscopedApiKeyForTest,
+} from "~/server/bots/bots_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {ApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BotId} from "~/shared/id/types/id_types.js";
 
@@ -63,6 +69,10 @@ export class TestBot {
         const bot = await TestBot.create(session.context);
         return bot.instantiate(session, {id: accountId});
     }
+
+    public createUnscopedApiKey(): Promise<ApiKey> {
+        return createUnscopedApiKeyForTest(this.context, this.id);
+    }
 }
 
 export class TestBotAccount extends TestAccount {
@@ -82,5 +92,24 @@ export class TestBotAccount extends TestAccount {
 
     public action(scope?: BotTokenPayloadScope) {
         return this.bot.context.botAction(this.space.id, this.id, scope);
+    }
+
+    public createUnscopedApiKey(): Promise<ApiKey> {
+        return this.bot.createUnscopedApiKey();
+    }
+
+    public createApiKey(
+        scope: BotTokenPayloadScope | TestAccount | TestSession = {type: "Space"},
+    ): Promise<ApiKey> {
+        return createScopedApiKeyForTest(this.bot.context, this.bot.id, {
+            spaceId: this.space.id,
+            accountId: this.id,
+            scope:
+                scope instanceof TestAccount
+                    ? {type: "Account", accountId: scope.id}
+                    : scope instanceof TestSession
+                    ? {type: "Account", accountId: scope.account.id}
+                    : scope,
+        });
     }
 }

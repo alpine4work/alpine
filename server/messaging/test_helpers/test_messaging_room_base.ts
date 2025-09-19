@@ -1,5 +1,7 @@
 import {Node} from "prosemirror-model";
+import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {
+    TestAccountActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -37,7 +39,7 @@ export abstract class TestMessagingRoomBase {
     protected abstract _getRoomKey(): string;
 
     protected abstract _createMessage(
-        context: TestSessionActionContext,
+        context: TestAccountActionContext,
         options: {
             parentMessageIndex: number | null;
             content: MessageContent;
@@ -68,7 +70,7 @@ export abstract class TestMessagingRoomBase {
     }
 
     protected async _actuallyCreateMessage(
-        session: TestSession,
+        session: TestSession | TestBotAccount | TestAccountActionContext,
         content: string | Node = (
             this.constructor as typeof TestMessagingRoomBase
         ).createDefaultMessageContent(),
@@ -85,16 +87,19 @@ export abstract class TestMessagingRoomBase {
             }
         }
 
-        const {index, createdTime} = await this._createMessage(session.action(), {
-            parentMessageIndex: parent?.index ?? null,
-            content:
-                typeof content === "string"
-                    ? createSimpleMessageContent(content)
-                    : assertMessageContent(content),
-            fileIds: files
-                ? Array.from(files, file => (typeof file === "string" ? file : file.id))
-                : [],
-        });
+        const {index, createdTime} = await this._createMessage(
+            "action" in session ? session.action() : session,
+            {
+                parentMessageIndex: parent?.index ?? null,
+                content:
+                    typeof content === "string"
+                        ? createSimpleMessageContent(content)
+                        : assertMessageContent(content),
+                fileIds: files
+                    ? Array.from(files, file => (typeof file === "string" ? file : file.id))
+                    : [],
+            },
+        );
 
         return TestMessage._new(this.context, this.space, this, index, createdTime);
     }
@@ -102,7 +107,7 @@ export abstract class TestMessagingRoomBase {
 
 export abstract class TestMessageRoomBase extends TestMessagingRoomBase {
     public sendMessage(
-        session: TestSession,
+        session: TestSession | TestBotAccount | TestAccountActionContext,
         content?: string | Node,
         options?: TestMessagingRoomCreateMessageOptions,
     ) {

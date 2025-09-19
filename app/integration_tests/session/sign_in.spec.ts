@@ -1,9 +1,10 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {seedDynamo} from "~/app/seed_dynamo.js";
+import {seedTestAccounts} from "~/server/accounts/accounts_actions.js";
 import {approveAlphaAccessRequest} from "~/server/alpha/alpha_access_table.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {generateId} from "~/shared/id/id.js";
@@ -12,7 +13,8 @@ const {context, services} = createTestServices();
 let adminSession: TestSpaceSession;
 
 test.beforeAll(async () => {
-    await seedDynamo(context);
+    await seedTestAccounts(context);
+    await seedTestSpaces(context);
 });
 
 // Setup an admin session in the default space before each test.

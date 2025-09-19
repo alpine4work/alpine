@@ -21,6 +21,7 @@ import {
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
@@ -1625,13 +1626,14 @@ export async function getDocumentContentForCollaborationServiceInitialization(
 export async function getDocumentAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,
     documentId: DocumentId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccessPolicy> {
     const scope = context.actor.getScope();
     if (scope.type !== "Document" || scope.documentId !== documentId) {
         throw new PermissionDeniedError("Can only get access policy for the scoped document");
     }
 
-    const item = await getDocumentItemForAuthorization(context, documentId);
+    const item = await getDocumentItemForAuthorization(context, documentId, options);
 
     await authorizeSpaceAccess(context, item.spaceId);
 
@@ -4382,7 +4384,7 @@ async function getDocumentCommentThreadItem(
  * Add a new comment to a document comment thread.
  */
 export async function createDocumentComment(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         documentId,
         commentThreadId,
@@ -4442,7 +4444,7 @@ export async function createDocumentComment(
 
         const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
-        const authorId = context.actor.getAccountId();
+        const authorId = context.actor.getPossiblyBotAccountId();
 
         const newCommentCountByAuthorId = new Map(
             commentThreadItem.commentsSummary.commentCountByAuthorId,
@@ -4517,30 +4519,37 @@ export async function createDocumentComment(
             },
         });
 
-        context.process.waitUntil(
-            markSearchAffinityEntityInteraction(context, {
-                spaceId,
-                entityId: `Document:${documentId}`,
-                interaction: {type: "MediumIntentUpdate"},
-            }),
-        );
+        // Only increase affinity score if we have a session actor. Don't increase
+        // affinity score if this is a system actor sending a message on behalf of an
+        // account.
+        if (context.actor.type === "Session") {
+            const sessionContext = context.actor.authorizeSession();
 
-        // Increase affinity points for all mentioned accounts with a high intent
-        // update since the user clearly wants the attention of the mentioned accounts.
-        //
-        // (If a mentioned account doesn't have access to this message should that
-        // still be a high intent update? For now we say yes since the user is
-        // explicitly choosing to reference them.)
-        for (const mentionedAccountId of mentionedAccountIds) {
-            context.process.waitUntil(async () => {
-                if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
-                    await markSearchAffinityEntityInteraction(context, {
-                        spaceId,
-                        entityId: `Account:${mentionedAccountId}`,
-                        interaction: {type: "HighIntentUpdate"},
-                    });
-                }
-            });
+            context.process.waitUntil(
+                markSearchAffinityEntityInteraction(sessionContext, {
+                    spaceId,
+                    entityId: `Document:${documentId}`,
+                    interaction: {type: "MediumIntentUpdate"},
+                }),
+            );
+
+            // Increase affinity points for all mentioned accounts with a high intent
+            // update since the user clearly wants the attention of the mentioned accounts.
+            //
+            // (If a mentioned account doesn't have access to this message should that
+            // still be a high intent update? For now we say yes since the user is
+            // explicitly choosing to reference them.)
+            for (const mentionedAccountId of mentionedAccountIds) {
+                context.process.waitUntil(async () => {
+                    if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
+                        await markSearchAffinityEntityInteraction(sessionContext, {
+                            spaceId,
+                            entityId: `Account:${mentionedAccountId}`,
+                            interaction: {type: "HighIntentUpdate"},
+                        });
+                    }
+                });
+            }
         }
 
         return {

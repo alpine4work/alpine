@@ -1,5 +1,6 @@
 import {Node} from "prosemirror-model";
 import {
+    TestAccountActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -186,7 +187,7 @@ export class TestPost extends TestCommentRoomBase {
     }
 
     protected override _createMessage(
-        context: TestSessionActionContext,
+        context: TestAccountActionContext,
         {
             parentMessageIndex,
             content,

@@ -688,9 +688,110 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         }
                     }
+                },
+                "ApiKey": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "apiKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "botId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "space": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "accountId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "scope": {
+                                                        "valueSchema": {
+                                                            "type": "Unknown"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            "indexes": []
+            "indexes": [
+                {
+                    "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
+                    "overloadByName": {
+                        "BotApiKeys": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "ApiKey",
+                                    "sortRangeType": "Attributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "botId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Nullable",
+                                    "nullsOrder": "First",
+                                    "schema": {
+                                        "type": "Id"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "Chat": {
             "name": "Chat",

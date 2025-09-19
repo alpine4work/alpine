@@ -1,5 +1,7 @@
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 
+export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["MessageRoomPath"];
+
 export type ApiContentMentionInlineElementTargetPath =
     ApiSpecification.components["schemas"]["ContentMentionInlineElementTargetPath"];
 
@@ -69,6 +71,8 @@ export type ApiContentInlineElementCodeMark =
 
 export type ApiContentInlineElementLinkMark =
     ApiSpecification.components["schemas"]["ContentInlineElementLinkMark"];
+
+export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
 
 export type ApiBotWebhookRequestBody =
     ApiSpecification.webhooks["bot"]["post"]["requestBody"]["content"]["application/json"];

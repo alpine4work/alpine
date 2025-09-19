@@ -38,6 +38,7 @@ import {
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {
+    ServerAccountActionContextModules,
     ServerAnonymousActionContextModules,
     ServerBotActionContextModules,
     ServerImpersonatedAccountActionContextModules,
@@ -134,6 +135,11 @@ export type TestImpersonatedAccountActionContext =
 export type TestBotActionContextModules = ServerBotActionContextModules & TestContextExtraModules;
 
 export type TestBotActionContext = Context<TestBotActionContextModules>;
+
+export type TestAccountActionContext = Context<TestAccountActionContextModules>;
+
+export type TestAccountActionContextModules = ServerAccountActionContextModules &
+    TestContextExtraModules;
 
 export type TestUnknownActionContextModules = ServerUnknownActionContextModules &
     TestContextExtraModules;

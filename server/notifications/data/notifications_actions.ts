@@ -1062,16 +1062,18 @@ async function archiveInboxEntryItemKey(
     if (loudNotificationCountDifference !== 0) {
         assert(newInboxEntryItem.isArchived);
 
-        // NOTE(calebmer): Consider turning this into a job on the job queue to
-        // guarantee notification delivery.
-        context.process.waitUntil(
-            sendPushNotificationToAccountDevices(context, {
-                accountId: context.actor.getAccountId(),
-                eventId: generateChronologicalId(),
-                newInboxEntryItem,
-                loudNotificationCountDifference,
-            }),
-        );
+        if (shouldSendPushNotification()) {
+            // NOTE(calebmer): Consider turning this into a job on the job queue to
+            // guarantee notification delivery.
+            context.process.waitUntil(
+                sendPushNotificationToAccountDevices(context, {
+                    accountId: context.actor.getAccountId(),
+                    eventId: generateChronologicalId(),
+                    newInboxEntryItem,
+                    loudNotificationCountDifference,
+                }),
+            );
+        }
     }
 
     return {archiveTime};
@@ -1471,32 +1473,11 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             decodeEventId: () => {bytes: Uint8Array; time: number};
         },
     ) {
+        // Don't send a webhook call for message sent by our bot.
+        if (event.authorId === botAccountId) return;
+
         const webhookEvent = getBotWebhookEvent(event, {info, accountId: botAccountId});
         if (webhookEvent === null) return;
-
-        // You grant a bot access to some content by mentioning the bot. Let's confirm
-        // that the AUTHOR of the message has access to the content and thus has the
-        // authority to grant the bot access to the content.
-        //
-        // NOTE(calebmer): This might be overkill. The fact that we have a
-        // `NotificationEvent` for the author is evidence that they have enough
-        // permission to create a message/comment/whatever on the target entity. This
-        // check, ideally, comes with no extra database cost: 1) the author will often
-        // also be a subscriber so we have the author's data cached, and 2) the
-        // authorization information of the underlying entity should also be cached
-        // since we need to load it for each subscriber. So given the extra safety is
-        // free, why not.
-        const result = await impersonateAccountAsSystemContext(context, event.authorId, context =>
-            authorizeAccess(
-                // We expect strong read consistency here too since we need read-after-write
-                // consistency. For example, in cases where we're sending a notification right
-                // after the account was granted access to the notification's subject.
-                context.dynamo.expectStrongReadConsistency(),
-                event,
-                {info},
-            ),
-        );
-        if (!result.ok) return;
 
         await context.tracer.withSpan(
             "Process notification event for bot account",

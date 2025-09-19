@@ -3,28 +3,60 @@ import {IncomingMessage, ServerResponse, createServer} from "http";
 import {Socket} from "net";
 import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {
+    BotWebhookContextModule,
+    BotWebhookContextModuleTokenAgentInterface,
+} from "~/server/bots/bot_webhook_context_module.js";
+import {
     processCallBotWebhookJob,
     setIsProcessCallBotWebhookJobCrashSimulatedForTest,
 } from "~/server/bots/bots_table.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TokenPayloadSchema} from "~/server/tokens/token_payload.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
+const mockTokenAgent: BotWebhookContextModuleTokenAgentInterface = {
+    privateSide: {
+        dangerouslySignLongLivedTokenForBotWebhook: async payload => {
+            const textEncoder = new TextEncoder();
+            const tokenPayload = encodeBase64(
+                textEncoder.encode(JSON.stringify(TokenPayloadSchema.serialize(payload))),
+            );
+
+            // Mock JWT. A JWT has three sections separated by dots. The header, payload,
+            // and signature. Include mock strings for the header and signature.
+            return `jwt.${tokenPayload}.signed`;
+        },
+    },
+};
+
 const context = createTestContext({
     processJob: async (context, job) => {
         if (job.type === "CallBotWebhook") {
-            await processCallBotWebhookJob(context, job);
+            await processCallBotWebhookJob(
+                context.clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+                job,
+            );
         }
     },
 });
+
+async function testProcessCallBotWebhookJob(space: TestSpace, job: CallBotWebhookJobDescription) {
+    await processCallBotWebhookJob(
+        space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+        job,
+    );
+}
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -110,7 +142,7 @@ test("if webhook is successful it’s only called once", async () => {
 
     expect(serverRequestCount).toEqual(0);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -121,7 +153,7 @@ test("if webhook is successful it’s only called once", async () => {
 
     expect(serverRequestCount).toEqual(1);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -132,7 +164,7 @@ test("if webhook is successful it’s only called once", async () => {
 
     expect(serverRequestCount).toEqual(1);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -143,7 +175,7 @@ test("if webhook is successful it’s only called once", async () => {
 
     expect(serverRequestCount).toEqual(2);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -197,35 +229,44 @@ test("if webhook is successful it’s only called once even if job is run multip
     expect(serverRequestCount).toEqual(0);
 
     await runAllPromises([
-        processCallBotWebhookJob(space.systemAction(), {
-            type: "CallBotWebhook",
-            spaceId: space.id,
-            botId: bot.id,
-            botAccountId: botAccount.id,
-            eventId: event1Id,
-            event: event1,
-        }),
-        processCallBotWebhookJob(space.systemAction(), {
-            type: "CallBotWebhook",
-            spaceId: space.id,
-            botId: bot.id,
-            botAccountId: botAccount.id,
-            eventId: event1Id,
-            event: event1,
-        }),
-        processCallBotWebhookJob(space.systemAction(), {
-            type: "CallBotWebhook",
-            spaceId: space.id,
-            botId: bot.id,
-            botAccountId: botAccount.id,
-            eventId: event1Id,
-            event: event1,
-        }),
+        processCallBotWebhookJob(
+            space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+            {
+                type: "CallBotWebhook",
+                spaceId: space.id,
+                botId: bot.id,
+                botAccountId: botAccount.id,
+                eventId: event1Id,
+                event: event1,
+            },
+        ),
+        processCallBotWebhookJob(
+            space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+            {
+                type: "CallBotWebhook",
+                spaceId: space.id,
+                botId: bot.id,
+                botAccountId: botAccount.id,
+                eventId: event1Id,
+                event: event1,
+            },
+        ),
+        processCallBotWebhookJob(
+            space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+            {
+                type: "CallBotWebhook",
+                spaceId: space.id,
+                botId: bot.id,
+                botAccountId: botAccount.id,
+                eventId: event1Id,
+                event: event1,
+            },
+        ),
     ]);
 
     expect(serverRequestCount).toEqual(1);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -237,27 +278,33 @@ test("if webhook is successful it’s only called once even if job is run multip
     expect(serverRequestCount).toEqual(1);
 
     await runAllPromises([
-        processCallBotWebhookJob(space.systemAction(), {
-            type: "CallBotWebhook",
-            spaceId: space.id,
-            botId: bot.id,
-            botAccountId: botAccount.id,
-            eventId: event2Id,
-            event: event2,
-        }),
-        processCallBotWebhookJob(space.systemAction(), {
-            type: "CallBotWebhook",
-            spaceId: space.id,
-            botId: bot.id,
-            botAccountId: botAccount.id,
-            eventId: event2Id,
-            event: event2,
-        }),
+        processCallBotWebhookJob(
+            space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+            {
+                type: "CallBotWebhook",
+                spaceId: space.id,
+                botId: bot.id,
+                botAccountId: botAccount.id,
+                eventId: event2Id,
+                event: event2,
+            },
+        ),
+        processCallBotWebhookJob(
+            space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+            {
+                type: "CallBotWebhook",
+                spaceId: space.id,
+                botId: bot.id,
+                botAccountId: botAccount.id,
+                eventId: event2Id,
+                event: event2,
+            },
+        ),
     ]);
 
     expect(serverRequestCount).toEqual(2);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -310,7 +357,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
 
     expect(serverRequestCount).toEqual(0);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -383,7 +430,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
 
     expect(serverRequestCount).toEqual(0);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -448,7 +495,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
 
     expect(serverRequestCount).toEqual(0);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -523,7 +570,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
 
     expect(serverRequestCount).toEqual(0);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -538,7 +585,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
     import.meta.jest.advanceTimersByTime(1 * 1000);
     expect(import.meta.jest.getTimerCount()).toEqual(1);
 
-    await processCallBotWebhookJob(space.systemAction(), {
+    await testProcessCallBotWebhookJob(space, {
         type: "CallBotWebhook",
         spaceId: space.id,
         botId: bot.id,
@@ -617,14 +664,17 @@ test("requests which don’t finish promptly are timed out and retried", async (
 
     expect(serverRequestCount).toEqual(0);
 
-    const jobPromise = processCallBotWebhookJob(space.systemAction(), {
-        type: "CallBotWebhook",
-        spaceId: space.id,
-        botId: bot.id,
-        botAccountId: botAccount.id,
-        eventId,
-        event,
-    });
+    const jobPromise = processCallBotWebhookJob(
+        space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+        {
+            type: "CallBotWebhook",
+            spaceId: space.id,
+            botId: bot.id,
+            botAccountId: botAccount.id,
+            eventId,
+            event,
+        },
+    );
 
     await waitForExpect(() => {
         expect(serverRequestCount).toEqual(1);
@@ -722,14 +772,17 @@ test("requests which don’t finish promptly are timed out and retried even if t
 
     expect(serverRequestCount).toEqual(0);
 
-    const jobPromise = processCallBotWebhookJob(space.systemAction(), {
-        type: "CallBotWebhook",
-        spaceId: space.id,
-        botId: bot.id,
-        botAccountId: botAccount.id,
-        eventId,
-        event,
-    });
+    const jobPromise = processCallBotWebhookJob(
+        space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+        {
+            type: "CallBotWebhook",
+            spaceId: space.id,
+            botId: bot.id,
+            botAccountId: botAccount.id,
+            eventId,
+            event,
+        },
+    );
 
     await waitForExpect(() => {
         expect(serverRequestCount).toEqual(1);
@@ -819,14 +872,17 @@ test("requests which don’t finish promptly and have a simulated process crash 
 
     expect(serverRequestCount).toEqual(0);
 
-    const job1Promise = processCallBotWebhookJob(space.systemAction(), {
-        type: "CallBotWebhook",
-        spaceId: space.id,
-        botId: bot.id,
-        botAccountId: botAccount.id,
-        eventId,
-        event,
-    });
+    const job1Promise = processCallBotWebhookJob(
+        space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+        {
+            type: "CallBotWebhook",
+            spaceId: space.id,
+            botId: bot.id,
+            botAccountId: botAccount.id,
+            eventId,
+            event,
+        },
+    );
 
     await waitForExpect(() => {
         expect(serverRequestCount).toEqual(1);
@@ -852,14 +908,17 @@ test("requests which don’t finish promptly and have a simulated process crash 
     import.meta.jest.advanceTimersByTime(10 * 1000);
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 
-    const job2Promise = processCallBotWebhookJob(space.systemAction(), {
-        type: "CallBotWebhook",
-        spaceId: space.id,
-        botId: bot.id,
-        botAccountId: botAccount.id,
-        eventId,
-        event,
-    });
+    const job2Promise = processCallBotWebhookJob(
+        space.systemAction().clone({botWebhook: new BotWebhookContextModule(mockTokenAgent)}),
+        {
+            type: "CallBotWebhook",
+            spaceId: space.id,
+            botId: bot.id,
+            botAccountId: botAccount.id,
+            eventId,
+            event,
+        },
+    );
 
     await waitForExpect(() => {
         expect(serverRequestCount).toEqual(2);

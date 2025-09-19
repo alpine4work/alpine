@@ -108,22 +108,51 @@ async function createAppService({
     shutdownManager,
     options,
 }: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
-    const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
-        createServiceTokenAgent({
-            serviceName: "AppService",
-            privateSide: TokenAgentAppServicePrivateSide,
-            options,
-        }),
-        getServiceTokenAgentKeyFromOption(
-            assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
-        ),
-        getServiceTokenAgentKeyFromOption(
-            assertExists(
-                options.apnsCertificatePrivateKey,
-                "Missing `apnsCertificatePrivateKey` option",
+    const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey, seedDynamoOptions] =
+        await runAllPromises([
+            createServiceTokenAgent({
+                serviceName: "AppService",
+                privateSide: TokenAgentAppServicePrivateSide,
+                options,
+            }),
+            getServiceTokenAgentKeyFromOption(
+                assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
             ),
-        ),
-    ]);
+            getServiceTokenAgentKeyFromOption(
+                assertExists(
+                    options.apnsCertificatePrivateKey,
+                    "Missing `apnsCertificatePrivateKey` option",
+                ),
+            ),
+            process.env.NODE_ENV !== "production" && options.shouldSeedDynamo
+                ? (async () => {
+                      const agentServiceLocalPort = assertExists(
+                          options.agentServiceLocalPort,
+                          "Missing `agentServiceLocalPort` option in development",
+                      );
+
+                      const chatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.chatGptLocalUnscopedApiKey,
+                              "Missing `chatGptLocalUnscopedApiKey` option in development",
+                          ),
+                      );
+
+                      const chatGptLocalScopedApiKey = await getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.chatGptLocalScopedApiKey,
+                              "Missing `chatGptLocalScopedApiKey` option in development",
+                          ),
+                      );
+
+                      return {
+                          agentServiceLocalPort,
+                          chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
+                          chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
+                      };
+                  })()
+                : null,
+        ]);
 
     const awsSigner = new AwsRequestSigner();
 
@@ -351,13 +380,15 @@ async function createAppService({
                             options.shouldSeedDynamo &&
                             !hasSeededDynamo
                         ) {
+                            const options = assertExists(seedDynamoOptions);
+
                             hasSeededDynamo = true;
                             processContext.process.waitUntil(
                                 processContext.tracer.withSpan(
                                     "Seeding DynamoDB",
                                     async context => {
                                         try {
-                                            await seedDynamo(context);
+                                            await seedDynamo(context, options);
                                         } catch (error) {
                                             // If there is an error, log it but don't crash the process.
                                             // eslint-disable-next-line no-console

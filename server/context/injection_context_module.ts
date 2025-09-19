@@ -88,6 +88,7 @@ export type ChatInjection = {
     getChatAccountIdsForBotScope(
         context: ServerMinimalBotActionContext,
         chatId: ChatId,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<ReadonlyArray<AccountId>>;
 };
 
@@ -128,6 +129,7 @@ export type DocumentsInjection = {
     getDocumentAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
         documentId: DocumentId,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<AccessPolicy>;
 };
 
@@ -174,6 +176,7 @@ export type ForumInjection = {
     getPostAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
         postId: PostId,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<AccessPolicy>;
 };
 
@@ -263,6 +266,7 @@ export type TasksInjection = {
     getTaskAccessPolicyForBotScope(
         context: ServerMinimalBotActionContext,
         taskId: TaskId,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<AccessPolicyWithoutGenerations>;
 };
 

@@ -13,6 +13,7 @@ import {
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {DynamoSystemActorContextModule} from "~/server/context/dynamo_actor_context_module.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
     ServerActionContextModules,
     ServerSessionActionContext,
@@ -4863,6 +4864,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
 export async function getTaskAccessPolicyForBotScope(
     context: ServerMinimalBotActionContext,
     taskId: TaskId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccessPolicyWithoutGenerations> {
     const scope = context.actor.getScope();
     if (scope.type !== "Task" || scope.taskId !== taskId) {
@@ -4921,6 +4923,7 @@ export async function getTaskAccessPolicyForBotScope(
                     context,
                     taskItem.parentTaskId.value,
                     null,
+                    options,
                 );
 
                 if (parentTaskItem.deletedTime) return;
@@ -4936,6 +4939,7 @@ export async function getTaskAccessPolicyForBotScope(
                         context,
                         collectionId,
                         null,
+                        options,
                     );
 
                     if (isTaskCollectionItemDeleted(collectionItem)) return;
@@ -4958,7 +4962,7 @@ export async function getTaskAccessPolicyForBotScope(
         ]);
     };
 
-    const rootTaskItem = await getTaskItemForAuthorization(context, taskId, null);
+    const rootTaskItem = await getTaskItemForAuthorization(context, taskId, null, options);
 
     await runAllPromises([
         authorizeSpaceAccess(context, rootTaskItem.spaceId),
@@ -5304,7 +5308,7 @@ export function deleteTaskComment(
 }
 
 export async function createTaskComment(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         taskId,
         parentCommentIndex,
@@ -5365,7 +5369,7 @@ export async function createTaskComment(
 
         const commentIndex = commentsSummaryItem?.nextCommentIndex ?? 0;
         const createdTime = new Date();
-        const authorId = context.actor.getAccountId();
+        const authorId = context.actor.getPossiblyBotAccountId();
 
         const newCommentCountByAuthorId = new Map(commentsSummaryItem?.commentCountByAuthorId);
         newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
@@ -5442,27 +5446,34 @@ export async function createTaskComment(
             },
         });
 
-        context.process.waitUntil(
-            markSearchAffinityEntityInteraction(context, {
-                spaceId: spaceId,
-                entityId: `Task:${taskId}`,
-                interaction:
-                    content.nodeSize < 50
-                        ? {type: "LowIntentUpdate"}
-                        : {type: "MediumIntentUpdate"},
-            }),
-        );
+        // Only increase affinity score if we have a session actor. Don't increase
+        // affinity score if this is a system actor sending a message on behalf of an
+        // account.
+        if (context.actor.type === "Session") {
+            const sessionContext = context.actor.authorizeSession();
 
-        for (const mentionedAccountId of mentionedAccountIds) {
-            context.process.waitUntil(async () => {
-                if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
-                    await markSearchAffinityEntityInteraction(context, {
-                        spaceId: spaceId,
-                        entityId: `Account:${mentionedAccountId}`,
-                        interaction: {type: "HighIntentUpdate"},
-                    });
-                }
-            });
+            context.process.waitUntil(
+                markSearchAffinityEntityInteraction(sessionContext, {
+                    spaceId: spaceId,
+                    entityId: `Task:${taskId}`,
+                    interaction:
+                        content.nodeSize < 50
+                            ? {type: "LowIntentUpdate"}
+                            : {type: "MediumIntentUpdate"},
+                }),
+            );
+
+            for (const mentionedAccountId of mentionedAccountIds) {
+                context.process.waitUntil(async () => {
+                    if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
+                        await markSearchAffinityEntityInteraction(sessionContext, {
+                            spaceId: spaceId,
+                            entityId: `Account:${mentionedAccountId}`,
+                            interaction: {type: "HighIntentUpdate"},
+                        });
+                    }
+                });
+            }
         }
 
         return {

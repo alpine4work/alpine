@@ -6,14 +6,14 @@ import {
 } from "~/server/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
-    ApiContentMentionInlineElementTargetPathObject,
-    printApiContentMentionInlineElementTargetPath,
-} from "~/server/api/markdown/parse_api_content_mention_inline_element_target_path.js";
-import {
     isSimpleApiContentTableBlockElementForTest,
     printApiContentMentionInlineElementTargetPathToMentionLinkUrl,
     printApiContentToMarkdown,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {
+    ApiContentMentionInlineElementTargetPathObject,
+    printApiContentMentionInlineElementTargetPath,
+} from "~/server/api/specification/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,

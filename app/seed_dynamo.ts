@@ -24,6 +24,11 @@ export function seedDynamo(
             searchInjection: SearchInjectionContextModule;
         }
     >,
+    options: {
+        agentServiceLocalPort: string;
+        chatGptLocalUnscopedApiKey: string;
+        chatGptLocalScopedApiKey: string;
+    },
 ): Promise<void> {
     assert(process.env.NODE_ENV !== "production");
 
@@ -38,7 +43,7 @@ export function seedDynamo(
 
         await runAllPromises([
             seedTestChannels(context),
-            seedTestBots(context).then(() => seedTestBotAccounts(context)),
+            seedTestBots(context, options).then(() => seedTestBotAccounts(context)),
         ]);
     });
 }

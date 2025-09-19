@@ -1280,6 +1280,14 @@ export class ObjectSchema<Value> extends Schema<Value> {
     >;
 
     /**
+     * Validations to run on the object.
+     */
+    private readonly _validations: ReadonlyArray<{
+        message: string;
+        validate: (value: Value) => boolean;
+    }> | null;
+
+    /**
      * Serialize the value. Will always serialize into an object value.
      */
     public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
@@ -1304,6 +1312,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
     private constructor(
         propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>,
+        validations: ReadonlyArray<{message: string; validate: (value: Value) => boolean}> | null,
     ) {
         const getDescription = (): SchemaSerializedValueDescription => ({
             type: "Object",
@@ -1316,6 +1325,13 @@ export class ObjectSchema<Value> extends Schema<Value> {
         });
 
         const serializeInto = (value: Value, target: {[key: string]: SchemaSerializedValue}) => {
+            if (validations !== null) {
+                for (const {message, validate} of validations) {
+                    if (!validate(value))
+                        throw new InvalidArgumentError(`Validation failed: ${message}`);
+                }
+            }
+
             for (const [key, schema] of propertySchemaByKey) {
                 const serializedKey = schema.serializedKey ?? key;
                 schema.serializeProperty(target, serializedKey, (value as any)[key]);
@@ -1344,6 +1360,13 @@ export class ObjectSchema<Value> extends Schema<Value> {
                 }
             }
 
+            if (validations !== null) {
+                for (const {message, validate} of validations) {
+                    if (!validate(newValue))
+                        throw new SchemaDeserializationError(`Validation failed: ${message}`);
+                }
+            }
+
             return newValue;
         };
 
@@ -1363,15 +1386,25 @@ export class ObjectSchema<Value> extends Schema<Value> {
             },
             deserialize: deserializeInto,
             validate:
-                validatePropertyByKey.size > 0
+                (validations !== null && validations.length > 0) || validatePropertyByKey.size > 0
                     ? value => {
                           for (const [key, validateProperty] of validatePropertyByKey) {
                               validateProperty((value as any)[key]);
+                          }
+
+                          if (validations !== null) {
+                              for (const {message, validate} of validations) {
+                                  if (!validate(value))
+                                      throw new InvalidArgumentError(
+                                          `Validation failed: ${message}`,
+                                      );
+                              }
                           }
                       }
                     : null,
         });
         this.propertySchemaByKey = propertySchemaByKey;
+        this._validations = validations;
         this.serializeInto = serializeInto;
         this.deserializeInto = deserializeInto;
     }
@@ -1392,7 +1425,34 @@ export class ObjectSchema<Value> extends Schema<Value> {
             }),
         );
 
-        return new ObjectSchema<ObjectSchemaConfigType<Config>>(propertySchemaByKey);
+        return new ObjectSchema<ObjectSchemaConfigType<Config>>(propertySchemaByKey, null);
+    }
+
+    /**
+     * Add a validation to this schema. Validations make sure `Value` is
+     * correct beyond just structural correctness based on the TypeScript type.
+     * For example if you have a `{min: number, max: number}` object and want to
+     * make sure `min` is always less than `max` you'd add a validation to make
+     * sure this is always the case.
+     *
+     * The validation is checked at serialization and deserialization time.
+     */
+    public override validation<NewValue extends Value>(
+        message: string,
+        validate: (value: Value) => value is NewValue,
+    ): ObjectSchema<NewValue>;
+    public override validation(
+        message: string,
+        validate: (value: Value) => boolean,
+    ): ObjectSchema<Value>;
+    public override validation(
+        message: string,
+        validate: (value: Value) => boolean,
+    ): ObjectSchema<Value> {
+        return new ObjectSchema<Value>(this.propertySchemaByKey, [
+            ...(this._validations ?? []),
+            {message, validate},
+        ]);
     }
 
     /**
@@ -1423,7 +1483,14 @@ export class ObjectSchema<Value> extends Schema<Value> {
             propertySchemaByKey.set(key, newPropertySchema);
         }
 
-        return new ObjectSchema(propertySchemaByKey);
+        return new ObjectSchema(
+            propertySchemaByKey,
+            // Merging validations is safe since we check all the properties being
+            // overridden by `otherSchema` are compatible with the old properties.
+            this._validations !== null || otherSchema._validations !== null
+                ? ([...(this._validations ?? []), ...(otherSchema._validations ?? [])] as any)
+                : null,
+        );
     }
 
     /**
@@ -1433,6 +1500,12 @@ export class ObjectSchema<Value> extends Schema<Value> {
     public omit<const Keys extends ReadonlyArray<string>>(
         keys: Keys,
     ): ObjectSchema<Omit<Value, Keys[number]>> {
+        // We don't know whether validations will access the omitted properties so we
+        // don't allow using `omit()` on a schema with validations.
+        if (this._validations !== null && this._validations.length > 0) {
+            throw new InternalError("Can’t use `omit()` on object schema with validations");
+        }
+
         const omitKeys = new Set(keys);
 
         return new ObjectSchema(
@@ -1442,6 +1515,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
                     return [key, propertySchema];
                 }),
             ),
+            null,
         );
     }
 
@@ -1450,6 +1524,13 @@ export class ObjectSchema<Value> extends Schema<Value> {
      * TypeScript utility.
      */
     public partial(): ObjectSchema<Partial<Value>> {
+        // We don't know whether validations will access the required properties that
+        // are now optional so we don't allow using `partial()` on a schema with
+        // validations.
+        if (this._validations !== null && this._validations.length > 0) {
+            throw new InternalError("Can’t use `partial()` on object schema with validations");
+        }
+
         return new ObjectSchema(
             new Map(
                 mapIterable(this.propertySchemaByKey, ([key, propertySchema]) => [
@@ -1457,6 +1538,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
                     propertySchema.optional(),
                 ]),
             ),
+            null,
         );
     }
 }

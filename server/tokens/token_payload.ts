@@ -106,7 +106,8 @@ export const TokenPayloadSchema = Schema.object({
                     throw new InvalidArgumentError("Token payload is missing required `aid` claim");
 
                 const scope = deserializeBotTokenPayloadScope(payload.sco);
-                if (!scope) throw new InvalidArgumentError("Invalid bot token payload scope");
+                if (scope === null)
+                    throw new InvalidArgumentError("Invalid bot token payload scope");
 
                 return {
                     type: "Bot",

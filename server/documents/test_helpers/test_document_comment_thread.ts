@@ -8,6 +8,7 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
+    TestAccountActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -98,7 +99,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
     }
 
     protected override _createMessage(
-        context: TestSessionActionContext,
+        context: TestAccountActionContext,
         {
             parentMessageIndex,
             content,

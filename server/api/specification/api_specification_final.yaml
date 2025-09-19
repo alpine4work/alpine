@@ -10,60 +10,6 @@ servers:
     - url: https://api.alpine.inc
 
 paths:
-    /ping:
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [pong]
-                                additionalProperties: false
-                                properties:
-                                    pong:
-                                        type: boolean
-                                        enum: [true]
-
-    /hello/{name}:
-        parameters:
-            - name: name
-              in: path
-              required: true
-              schema: {type: string}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [message]
-                                additionalProperties: false
-                                properties:
-                                    message: {type: string}
-
-    /documents/{id}:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [message]
-                                additionalProperties: false
-                                properties:
-                                    title: {type: string}
-
     /chats/{id}/messages/{index}:
         parameters:
             - name: id
@@ -161,13 +107,15 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, eventId, event]
+                            required: [spaceId, accountId, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
+                                accessToken:
+                                    type: string
                                 eventId:
                                     $ref: "#/components/schemas/BotWebhookEventId"
                                 event:
@@ -223,11 +171,11 @@ components:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
-        TaskId:
+        SpaceId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
-        SpaceId:
+        TaskId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 

@@ -161,6 +161,8 @@ const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
 const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
 
 const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
+const chatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_unscoped_api_key");
+const chatGptScopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_scoped_api_key");
 
 const apnsCertificatePath = joinPath(
     runfilesPath,
@@ -334,6 +336,9 @@ function createArtifacts() {
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
+                `--agentServiceLocalPort=${agentsDevPort}`,
+                `--chatGptLocalUnscopedApiKey=${chatGptUnscopedApiKeyPath}`,
+                `--chatGptLocalScopedApiKey=${chatGptScopedApiKeyPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

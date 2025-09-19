@@ -6,6 +6,7 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
     createServiceCloudflareR2ContextModule,
@@ -76,6 +77,7 @@ import {
 } from "~/server/tasks/data/create_service_task_realtime_service_router.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TokenAgentJobQueueServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -130,6 +132,7 @@ export async function run({
         await runAllPromises([
             createServiceTokenAgent({
                 serviceName: "JobQueueService",
+                privateSide: TokenAgentJobQueueServicePrivateSide,
                 options,
             }),
             getServiceTokenAgentKeyFromOption(
@@ -287,10 +290,6 @@ export async function run({
             router: createServiceTaskRealtimeServiceRouter(options),
             dangerouslyEscalateToSystemContext,
         }),
-        languageModel: new LanguageModelContextModule(languageModel),
-        apns: apnsContextModule,
-        github: githubContextModule,
-        scheduler: schedulerContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
@@ -298,10 +297,17 @@ export async function run({
         searchInjection: new SearchInjectionContextModule(searchInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
+
+        // `JobQueueService` specific stuff.
+        languageModel: new LanguageModelContextModule(languageModel),
+        apns: apnsContextModule,
+        github: githubContextModule,
+        scheduler: schedulerContextModule,
         email:
             process.env.NODE_ENV === "production"
                 ? new SesEmailContextModule()
                 : new NoopEmailContextModule(),
+        botWebhook: new BotWebhookContextModule(tokenAgent),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

@@ -17,63 +17,6 @@ servers:
     - url: https://api.alpine.inc
 
 paths:
-    # TODO(calebmer, #api): Delete this.
-    /ping:
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [pong]
-                                additionalProperties: false
-                                properties:
-                                    pong:
-                                        type: boolean
-                                        enum: [true]
-
-    # TODO(calebmer, #api): Delete this.
-    /hello/{name}:
-        parameters:
-            - name: name
-              in: path
-              required: true
-              schema: {type: string}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [message]
-                                additionalProperties: false
-                                properties:
-                                    message: {type: string}
-
-    # TODO(calebmer, #api): Delete this or give it a proper implementation.
-    /documents/{id}:
-        parameters:
-            - name: id
-              in: path
-              required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
-        get:
-            responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [message]
-                                additionalProperties: false
-                                properties:
-                                    title: {type: string}
-
     /chats/{id}/messages/{index}:
         parameters:
             - name: id
@@ -171,13 +114,15 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, eventId, event]
+                            required: [spaceId, accountId, accessToken, eventId, event]
                             additionalProperties: false
                             properties:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 accountId:
                                     $ref: "#/components/schemas/AccountId"
+                                accessToken:
+                                    type: string
                                 eventId:
                                     $ref: "#/components/schemas/BotWebhookEventId"
                                 event:
@@ -241,11 +186,11 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
-        TaskId:
+        SpaceId:
             type: string
             pattern: ^{{idRegExp}}$
 
-        SpaceId:
+        TaskId:
             type: string
             pattern: ^{{idRegExp}}$
 

@@ -2205,6 +2205,29 @@ export async function authorizeOwnSpaceAccountAccess(
 }
 
 /**
+ * If the bot is instantiated in the provided `SpaceId` then return the
+ * `AccountId` for the bot in the space.
+ *
+ * Throws if you don't have access to the space.
+ */
+export async function getBotAccountIdForSpaceIfExists(
+    context: ServerActionContext,
+    botId: BotId,
+    spaceId: SpaceId,
+): Promise<AccountId | null> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const item = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Bot",
+        sortRangeType: "Space",
+        botId,
+        spaceId,
+    });
+
+    return item?.accountId ?? null;
+}
+
+/**
  * Authorize that the provided space account isn't a bot. Throws an error if
  * either the provided space account is a bot or the space account doesn't
  * exist.
@@ -2297,16 +2320,20 @@ export async function getSpaceAccountBotIdIfExists(
 
 /**
  * Same as `getSpaceAccountBotIdIfExists()` but doesn't authorize that the
- * context has access to the space.
+ * actor has access to the space. Use only when necessary. Prefer
+ * `getSpaceAccountBotIdIfExists()` wherever possible.
+ *
+ * This function is strongly consistent. It makes an eventually consistent read
+ * to our action cache but since whether an account is or is not a bot is an
+ * immutable fact an eventually consistent read is fine.
  */
-async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
+export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         batch: BatchContextModule;
         dynamo: DynamoContextModule;
-        actor: DynamoActorContextModule;
     }>,
     spaceId: SpaceId,
     accountId: AccountId,

@@ -165,6 +165,7 @@ export async function run({
     const server = await createApiServiceServer(processContext, {
         shutdownManager,
         edgeServiceUrl,
+        tokenAgent,
     });
 
     server.listen(port, () => {
