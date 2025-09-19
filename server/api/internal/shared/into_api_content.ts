@@ -63,6 +63,12 @@ function* intoApiContentBlockElements(
         const node = nodes[nodeIndex]!;
         nodeIndex++;
 
+        if (node.type.name === "title") {
+            // Noop. Ignore document title nodes. Document titles will be
+            // handled separately.
+            continue;
+        }
+
         const typeName = node.type.name as ContentBlockNodeTypeName;
 
         switch (typeName) {

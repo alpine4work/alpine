@@ -5,6 +5,7 @@ import {
     createAccountTransactionEntry,
     createAccountWithEmailAddressTransactionEntries,
     dangerouslyGetAccountIfExistsWithoutAuthorization,
+    dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization,
     getAccountByIdAsAdmin,
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
@@ -68,6 +69,8 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -84,6 +87,7 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {Schema} from "~/shared/schema/schema.js";
 import {
     AccountModel,
+    AccountModelData,
     AccountModelDataSpaceState,
     AccountModelDataSpaceStateSchema,
 } from "~/shared/spaces/account_model.js";
@@ -327,17 +331,24 @@ type SpaceItem = SpaceAttributesItem & {
 async function getSpaceItem(
     context: DynamoContext,
     spaceId: SpaceId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<SpaceItem> {
-    const item = await getSpaceItemIfExists(context, spaceId, {consistency});
-    if (!item) throw new NotFoundError("Space not found");
+    const item = await getSpaceItemIfExists(context, spaceId, options);
+    if (!item) throw createSpaceNotFoundError(spaceId);
     return item;
+}
+
+function createSpaceNotFoundError(spaceId: SpaceId) {
+    return new NotFoundError("Space not found", {
+        aggregateDedupeKey: spaceId,
+        displayMessage: errorDisplayMessage`This space doesn’t exist.`,
+    });
 }
 
 async function getSpaceItemIfExists(
     context: DynamoContext,
     spaceId: SpaceId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<SpaceItem | null> {
     const items = await arrayFromAsyncIterable(
         SpacesTable.query(context, {
@@ -1199,13 +1210,8 @@ function removeSpaceAccountWithoutAuthorization(
             }),
         ]);
 
-        if (!spaceItem) {
-            throw new NotFoundError("Space not found");
-        }
-
-        if (!account) {
-            throw new NotFoundError("Account not found");
-        }
+        if (!spaceItem) throw createSpaceNotFoundError(spaceId);
+        if (!account) throw createSpaceAccountNotFoundError();
 
         // We don't check accountSpaceIds here because we don't add to spaceIds until the user
         // accepts the invite.
@@ -1357,22 +1363,18 @@ function createAccountModelFromItem(
     account: AccountModelWithoutSpace | null,
 ): AccountModel {
     let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
-    let spaceAccountState: AccountModelDataSpaceState;
 
     switch (item.state.type) {
         case "Active": {
             assert(account !== null);
             accountData = account.initialData;
-            spaceAccountState = {
-                type: "Active",
-            };
             break;
         }
         case "InvitePending": {
             // If the account is pending, we should use the pending account data that was
             // given when the account was invited.
+            assert(account === null);
             accountData = item.state.pendingAccountData;
-            spaceAccountState = item.state;
             break;
         }
         case "Removed": {
@@ -1380,7 +1382,6 @@ function createAccountModelFromItem(
             // present when the account was removed.
             assert(account === null);
             accountData = item.state.oldAccountData;
-            spaceAccountState = item.state;
             break;
         }
         default:
@@ -1393,10 +1394,55 @@ function createAccountModelFromItem(
         space: {
             version: item.updateLockVersion ?? 0,
             addedTime: item.addedTime,
-            state: spaceAccountState,
+            state: item.state,
             role: item.role,
         },
     });
+}
+
+function createAccountModelDataWithoutAvatarFromItem(
+    item: SpaceAccountItem,
+    activeAccountData: Omit<AccountModelWithoutSpaceData, "avatar"> | null,
+): Omit<AccountModelData, "avatar"> {
+    let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
+    let spaceAccountState: AccountModelDataSpaceState;
+
+    switch (item.state.type) {
+        case "Active": {
+            assert(activeAccountData !== null);
+            accountData = activeAccountData;
+            spaceAccountState = {type: "Active"};
+            break;
+        }
+        case "InvitePending": {
+            // If the account is pending, we should use the pending account data that was
+            // given when the account was invited.
+            assert(activeAccountData === null);
+            accountData = item.state.pendingAccountData;
+            spaceAccountState = item.state;
+            break;
+        }
+        case "Removed": {
+            // If the account was removed, we should use the old account data that was
+            // present when the account was removed.
+            assert(activeAccountData === null);
+            accountData = item.state.oldAccountData;
+            spaceAccountState = item.state;
+            break;
+        }
+        default:
+            throw exhaustive(item.state);
+    }
+
+    return {
+        ...accountData,
+        space: {
+            version: item.updateLockVersion ?? 0,
+            addedTime: item.addedTime,
+            state: spaceAccountState,
+            role: item.role,
+        },
+    };
 }
 
 type SpaceAccountsCacheData = {
@@ -2078,6 +2124,8 @@ export async function authorizeSpaceAccessIfPossible(
         actor: ActorContextModule;
     }>,
     spaceId: SpaceId,
+    expectedRole?: SpaceRole,
+    options?: {allowInvitePending?: boolean},
 ): Promise<Result<void, ErrorBase>> {
     switch (context.actor.type) {
         case "Session":
@@ -2105,7 +2153,15 @@ export async function authorizeSpaceAccessIfPossible(
                 };
             }
 
-            if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+            if (
+                !(await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    spaceId,
+                    accountId,
+                    expectedRole,
+                    options,
+                ))
+            ) {
                 let error: ErrorBase | undefined;
 
                 return {
@@ -2524,6 +2580,32 @@ export async function getAccountIfExists(
 }
 
 /**
+ * Same as `getAccountIfExists()` but doesn't load the account's avatar.
+ */
+// This lives in `server/spaces` because it needs access to both the account
+// table and the space table.
+export async function getAccountWithoutAvatarIfExists(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: ActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Omit<AccountModelData, "avatar"> | null> {
+    await authorizeSpaceAccess(context, spaceId);
+    return getAccountWithoutAvatarIfExistsWithoutAuthorization(
+        context,
+        spaceId,
+        accountId,
+        options,
+    );
+}
+
+/**
  * You're allowed to read your own account even if you don't have access to the
  * space yet. Maybe you have an `InvitePending` account state.
  */
@@ -2722,8 +2804,66 @@ async function getAccountIfExistsWithoutAuthorization(
     }
 }
 
+async function getAccountWithoutAvatarIfExistsWithoutAuthorization(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: ActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<Omit<AccountModelData, "avatar"> | null> {
+    // If we have cached account data and we're loading with eventual consistency
+    // then we can use the cached data.
+    if (consistency === "Eventual") {
+        // We can't use `getDataIfExistsWithoutLoading()` because it calls
+        // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
+        // `authorizeSpaceAccess()` looks at the cache result of this function.
+        //
+        // It's safe to skip authorization for this function, though, because we
+        // authorize space access above.
+        const accountsCacheData =
+            await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+                context,
+                spaceId,
+            );
+        if (accountsCacheData) {
+            return accountsCacheData.accountById.get(accountId)?.initialData ?? null;
+        }
+    }
+
+    // Otherwise load account data and space account data. If this is the current
+    // account, we may have already cached the account item.
+    const [account, spaceAccountItem] = await runAllPromises([
+        dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization(context, accountId, {
+            consistency,
+        }),
+        getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+            consistency,
+        }),
+    ]);
+
+    if (!spaceAccountItem) return null;
+
+    if (spaceAccountItem.state.type !== "Active") {
+        return createAccountModelDataWithoutAvatarFromItem(spaceAccountItem, null);
+    } else {
+        // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
+        // our account table.
+        if (!account) {
+            throw new DataLossError("Space account item exists but account item doesn’t");
+        }
+
+        return createAccountModelDataWithoutAvatarFromItem(spaceAccountItem, account);
+    }
+}
+
 /**
- * Throw an error if the account can not be found.
+ * Same as `getAccountIfExists()` but throws an error if the account can not
+ * be found.
  */
 // This lives in `server/spaces` because it needs access to both the account
 // table and the space table.
@@ -2740,14 +2880,36 @@ export async function getAccount(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel> {
     const account = await getAccountIfExists(context, spaceId, accountId, options);
-
-    if (!account) {
-        throw new NotFoundError("Can’t find account in space", {
-            displayMessage: errorDisplayMessage`This person doesn’t exist. Try searching “all people” to see who else is here.`,
-        });
-    }
-
+    if (!account) throw createSpaceAccountNotFoundError();
     return account;
+}
+
+/**
+ * Same as `getAccount()` but doesn't load the account's avatar.
+ */
+// This lives in `server/spaces` because it needs access to both the account
+// table and the space table.
+export async function getAccountWithoutAvatar(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+        actor: ActorContextModule;
+    }>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Omit<AccountModelData, "avatar">> {
+    const account = await getAccountWithoutAvatarIfExists(context, spaceId, accountId, options);
+    if (!account) throw createSpaceAccountNotFoundError();
+    return account;
+}
+
+function createSpaceAccountNotFoundError() {
+    return new NotFoundError("Can’t find account in space", {
+        displayMessage: errorDisplayMessage`This person doesn’t exist. Try searching “all people” to see who else is here.`,
+    });
 }
 
 /**
@@ -2814,7 +2976,6 @@ export async function updateSpaceName(
 
     return context.dynamo.retryTransaction(async context => {
         const spaceItem = await getSpaceItem(context, spaceId);
-        if (!spaceItem) throw new NotFoundError("Space not found");
 
         const newSpaceAttributesItem = {
             ...spaceItem,
@@ -3142,12 +3303,15 @@ export async function internalValidateInviteEmailAddressToSpace(
 export async function getSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
-    options?: {allowInvitePending?: boolean},
+    options?: {consistency?: DynamoCacheReadConsistency; allowInvitePending?: boolean},
 ): Promise<SpaceModel> {
-    const [, spaceItem] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId, "Member", options),
-        getSpaceItem(context, spaceId),
+    const [authorizationResult, spaceItem] = await runAllPromises([
+        captureResultPromise(authorizeSpaceAccess(context, spaceId, "Member", options)),
+        getSpaceItem(context, spaceId, {consistency: options?.consistency}),
     ]);
+
+    // Prioritize the `NotFoundError` over the `PermissionDeniedError`.
+    unwrapResult(authorizationResult);
 
     return createSpaceModelFromItem(spaceItem);
 }

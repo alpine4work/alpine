@@ -2,7 +2,6 @@
 // `//server/api/internal/chat` since we need access to some API path
 // implementations to test the service properly.
 
-import request from "supertest";
 import {apiChatPaths} from "~/server/api/internal/chat/api_chat_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
@@ -29,28 +28,25 @@ beforeAll(async () => {
 });
 
 test("not found route", async () => {
-    const response = await request(server)
-        .get("/asdf")
-        .expect("content-type", "application/json")
-        .expect(404);
-
-    expect(response.body).toEqual({error: {message: "Path not found."}});
+    expect(await server.GET("/asdf")).toEqual({
+        status: 404,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {error: {message: "Path not found."}},
+    });
 });
 
 test("redirects favicon request", async () => {
-    {
-        await request(server)
-            .get("/favicon.ico")
-            .expect("location", "https://test.alpine.inc/favicon.ico")
-            .expect(301);
-    }
+    expect(await server.GET("/favicon.ico")).toEqual({
+        status: 301,
+        headers: expect.objectContaining({location: "https://test.alpine.inc/favicon.ico"}),
+        body: "",
+    });
 
-    {
-        await request(server)
-            .get("/favicon.svg")
-            .expect("location", "https://test.alpine.inc/favicon.svg")
-            .expect(301);
-    }
+    expect(await server.GET("/favicon.svg")).toEqual({
+        status: 301,
+        headers: expect.objectContaining({location: "https://test.alpine.inc/favicon.svg"}),
+        body: "",
+    });
 });
 
 test("requires authorization header", async () => {
@@ -60,14 +56,13 @@ test("requires authorization header", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .expect("content-type", "application/json")
-        .expect(401);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Missing `Authorization` header.",
+    expect(await server.GET(`/chats/${chat.id}/messages/${message.index}`)).toEqual({
+        status: 401,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Missing `Authorization` header.",
+            },
         },
     });
 });
@@ -79,15 +74,19 @@ test("requires bearer scheme in authorization header", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", "basic YWxhZGRpbjpvcGVuc2VzYW1l")
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Expected `Authorization` header to have `Bearer` authentication scheme.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {
+                authorization: "basic YWxhZGRpbjpvcGVuc2VzYW1l",
+            },
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Expected `Authorization` header to have `Bearer` authentication scheme.",
+            },
         },
     });
 });
@@ -99,15 +98,17 @@ test("requires authorization header to have proper API key", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", "bearer asdf")
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Incorrectly formatted API key in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: "bearer asdf"},
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Incorrectly formatted API key in `Authorization` header.",
+            },
         },
     });
 });
@@ -119,15 +120,17 @@ test("requires authorization header to have proper API key (an `Id` doesn’t wo
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateId()}`)
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Incorrectly formatted API key in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateId()}`},
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Incorrectly formatted API key in `Authorization` header.",
+            },
         },
     });
 });
@@ -139,15 +142,17 @@ test("rejects improperly formatted access token", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~asdf`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Invalid access token in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~asdf`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Invalid access token in `Authorization` header.",
+            },
         },
     });
 });
@@ -169,15 +174,17 @@ test("rejects access token from the wrong service", async () => {
         },
     );
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Access token in `Authorization` header failed signature verification.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Access token in `Authorization` header failed signature verification.",
+            },
         },
     });
 });
@@ -199,15 +206,17 @@ test("rejects access token for the wrong service", async () => {
         },
     );
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Access token in `Authorization` header has an incorrect audience.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Access token in `Authorization` header has an incorrect audience.",
+            },
         },
     });
 });
@@ -230,15 +239,17 @@ test("rejects expired access token", async () => {
         {currentTimeForTest: new Date(Date.now() - 1000 * 60 * 60 * 24)},
     );
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Access token in `Authorization` header has expired.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Access token in `Authorization` header has expired.",
+            },
         },
     });
 });
@@ -258,15 +269,17 @@ test("rejects non-bot token payload", async () => {
         },
     );
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Expected bot access token in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Expected bot access token in `Authorization` header.",
+            },
         },
     });
 });
@@ -290,15 +303,17 @@ test("rejects unknown API key (with short lived token)", async () => {
         },
     );
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Unrecognized API key in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Unrecognized API key in `Authorization` header.",
+            },
         },
     });
 });
@@ -318,15 +333,17 @@ test("rejects unknown API key", async () => {
             scope: {type: "Chat", chatId: chat.id},
         });
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${generateApiKey()}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Unrecognized API key in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Unrecognized API key in `Authorization` header.",
+            },
         },
     });
 });
@@ -342,15 +359,17 @@ test("doesn’t allow an unscoped API key without an access token", async () => 
     const chat = await TestChat.get(session2, session3);
     const message = await chat.sendMessage(session2);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Missing access token for unscoped API key in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Missing access token for unscoped API key in `Authorization` header.",
+            },
         },
     });
 });
@@ -374,16 +393,18 @@ test("doesn’t allow a scoped API key with an access token", async () => {
             scope: {type: "Chat", chatId: chat.id},
         });
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message:
-                "Can’t have both an access token and a scoped API key in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message:
+                    "Can’t have both an access token and a scoped API key in `Authorization` header.",
+            },
         },
     });
 });
@@ -407,16 +428,18 @@ test("doesn’t allow non-bot account in access token", async () => {
             scope: {type: "Chat", chatId: chat.id},
         });
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message:
-                "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message:
+                    "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+            },
         },
     });
 });
@@ -441,16 +464,18 @@ test("doesn’t allow mismatched bot between API key and access token", async ()
             scope: {type: "Chat", chatId: chat.id},
         });
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message:
-                "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message:
+                    "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+            },
         },
     });
 });
@@ -476,15 +501,17 @@ test("rejects request from removed bot account", async () => {
             scope: {type: "Chat", chatId: chat.id},
         });
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(403);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Bot account was removed from space.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Bot account was removed from space.",
+            },
         },
     });
 });
@@ -508,20 +535,20 @@ test("can read message in chat with unscoped API key", async () => {
             scope: {type: "Chat", chatId: chat.id},
         });
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}~${accessToken}`)
-        .expect("content-type", "application/json")
-        .expect(200);
-
-    expect(response.body).toEqual(
-        expect.objectContaining({
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}~${accessToken}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
             message: expect.objectContaining({
                 index: 0,
                 payload: expect.objectContaining({type: "Content"}),
             }),
         }),
-    );
+    });
 });
 
 test("can read message in chat", async () => {
@@ -535,20 +562,20 @@ test("can read message in chat", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(200);
-
-    expect(response.body).toEqual(
-        expect.objectContaining({
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
             message: expect.objectContaining({
                 index: 0,
                 payload: expect.objectContaining({type: "Content"}),
             }),
         }),
-    );
+    });
 });
 
 test("can’t use unsupported method", async () => {
@@ -562,14 +589,16 @@ test("can’t use unsupported method", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .post(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(405);
-
-    expect(response.body).toEqual({
-        error: {message: "`POST` method isn’t supported, try `GET`."},
+    expect(
+        await server.POST(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 405,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {message: "`POST` method isn’t supported, try `GET`."},
+        },
     });
 });
 
@@ -584,19 +613,22 @@ test("validates response with schema in tests", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}?test-additional-property=foo`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(500);
-
-    expect(response.body).toEqual({
-        error: {
-            message:
-                "An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc",
-            stack: expect.stringMatching(
-                /^InternalError: Response schema validation failed: must NOT have additional properties\n/,
-            ),
+    expect(
+        await server.GET(
+            `/chats/${chat.id}/messages/${message.index}?test-additional-property=foo`,
+            {headers: {authorization: `bearer ${apiKey}`}},
+        ),
+    ).toEqual({
+        status: 500,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message:
+                    "An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc",
+                stack: expect.stringMatching(
+                    /^InternalError: Response schema validation failed: must NOT have additional properties\n/,
+                ),
+            },
         },
     });
 });
@@ -612,15 +644,17 @@ test("path param that doesn’t match pattern", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/abc/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Invalid `id` path parameter.",
+    expect(
+        await server.GET(`/chats/abc/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Invalid `id` path parameter.",
+            },
         },
     });
 });
@@ -636,15 +670,17 @@ test("integer path param that’s not a number", async () => {
     const chat = await TestChat.get(session1, session2);
     await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/abc`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Invalid `index` path parameter.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/abc`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Invalid `index` path parameter.",
+            },
         },
     });
 });
@@ -660,18 +696,19 @@ test("responds with pretty HTML if asked", async () => {
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("authorization", `bearer ${apiKey}`)
-        .set("accept", "text/html")
-        .expect("content-type", "text/html")
-        .expect(200);
-
     /* eslint-disable string-quotes */
 
-    expect(response.text).toContain(`\
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {authorization: `bearer ${apiKey}`, accept: "text/html"},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "text/html"}),
+        body: expect.stringContaining(`\
 <span class="tok-punctuation">{</span>
-  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`);
+  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`),
+    });
 
     /* eslint-enable string-quotes */
 });
@@ -687,18 +724,22 @@ test("responds with pretty HTML if asked using authorization cookie", async () =
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("cookie", `authorization=${encodeURIComponent(`bearer ${apiKey}`)}`)
-        .set("accept", "text/html")
-        .expect("content-type", "text/html")
-        .expect(200);
-
     /* eslint-disable string-quotes */
 
-    expect(response.text).toContain(`\
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {
+                cookie: `authorization=${encodeURIComponent(`bearer ${apiKey}`)}`,
+                accept: "text/html",
+            },
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "text/html"}),
+        body: expect.stringContaining(`\
 <span class="tok-punctuation">{</span>
-  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`);
+  <span class="tok-propertyName">&quot;spaceId&quot;</span>: <span class="tok-string">&quot;${space.id}&quot;</span>`),
+    });
 
     /* eslint-enable string-quotes */
 });
@@ -714,18 +755,22 @@ test("responds with pretty HTML with error if authorization header is invalid", 
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("cookie", `authorization=${encodeURIComponent(apiKey)}`)
-        .set("accept", "text/html")
-        .expect("content-type", "text/html")
-        .expect(400);
-
     /* eslint-disable string-quotes */
 
-    expect(response.text).toContain(`\
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {
+                cookie: `authorization=${encodeURIComponent(apiKey)}`,
+                accept: "text/html",
+            },
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "text/html"}),
+        body: expect.stringContaining(`\
 <span class="tok-punctuation">{</span>
-  <span class="tok-propertyName">&quot;error&quot;</span>: <span class="tok-punctuation">{</span>`);
+  <span class="tok-propertyName">&quot;error&quot;</span>: <span class="tok-punctuation">{</span>`),
+    });
 
     /* eslint-enable string-quotes */
 });
@@ -741,15 +786,17 @@ test("doesn’t use authorization cookie if request isn’t an HTML request", as
     const chat = await TestChat.get(session1, session2);
     const message = await chat.sendMessage(session1);
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages/${message.index}`)
-        .set("cookie", `authorization=${encodeURIComponent(`bearer ${apiKey}`)}`)
-        .expect("content-type", "application/json")
-        .expect(401);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Missing `Authorization` header.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
+            headers: {cookie: `authorization=${encodeURIComponent(`bearer ${apiKey}`)}`},
+        }),
+    ).toEqual({
+        status: 401,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Missing `Authorization` header.",
+            },
         },
     });
 });
@@ -764,24 +811,27 @@ test("invalid request body throws a validation error", async () => {
 
     const chat = await TestChat.get(session1, session2);
 
-    const response = await request(server)
-        .post(`/chats/${chat.id}/messages`)
-        .set("authorization", `bearer ${apiKey}`)
-        .send({
-            content: {
-                elements: [
-                    {
-                        type: "InvalidType",
-                        elements: [],
-                    },
-                ],
+    expect(
+        await server.POST(`/chats/${chat.id}/messages`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                content: {
+                    elements: [
+                        {
+                            type: "InvalidType",
+                            elements: [],
+                        },
+                    ],
+                },
             },
-        })
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Invalid request body (path: `#/content/elements/0`).",
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Invalid request body (path: `#/content/elements/0`).",
+            },
         },
     });
 });
@@ -797,14 +847,14 @@ test("can read messages", async () => {
 
     const message = await chat.sendMessage(session, "Hello, world!");
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(200);
+    const response = await server.GET(`/chats/${chat.id}/messages`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
 
-    expect(response.body).toEqual(
-        expect.objectContaining({
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: expect.objectContaining({
             messages: [
                 expect.objectContaining({
                     index: message.index,
@@ -812,7 +862,7 @@ test("can read messages", async () => {
                 }),
             ],
         }),
-    );
+    });
 
     expect(
         printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -832,15 +882,17 @@ test("can’t read message with invalid string query parameter", async () => {
 
     await chat.sendMessage(session, "Hello, world!");
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages?from=nope`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Invalid `from` query parameter.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages?from=nope`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Invalid `from` query parameter.",
+            },
         },
     });
 });
@@ -856,15 +908,17 @@ test("can’t read message with invalid integer query parameter", async () => {
 
     await chat.sendMessage(session, "Hello, world!");
 
-    const response = await request(server)
-        .get(`/chats/${chat.id}/messages?limit=0`)
-        .set("authorization", `bearer ${apiKey}`)
-        .expect("content-type", "application/json")
-        .expect(400);
-
-    expect(response.body).toEqual({
-        error: {
-            message: "Invalid `limit` query parameter.",
+    expect(
+        await server.GET(`/chats/${chat.id}/messages?limit=0`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 400,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: {
+                message: "Invalid `limit` query parameter.",
+            },
         },
     });
 });

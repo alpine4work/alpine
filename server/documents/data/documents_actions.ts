@@ -728,12 +728,13 @@ async function getInternalDocumentIfExists(
                 DocumentItemAuthorizationCache.set(context, consistency, documentId, item);
 
                 // Must have view access level to read the document.
-                await authorizeDocumentItemAccess(context, item, "View");
+                await authorizeDocumentItemAccess(context, item, "View", {consistency});
 
                 const commentAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
                     context,
                     attributes,
                     "Comment",
+                    {consistency},
                 );
 
                 if (!commentAuthorizationResult.ok) {

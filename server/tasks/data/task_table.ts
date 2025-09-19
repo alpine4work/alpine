@@ -4211,11 +4211,13 @@ async function authorizeTaskCollectionItemAccessIfPossible(
     context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     const result = await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
         context,
         collectionItem,
         expectedAccessLevel,
+        options,
     );
 
     // If you were authorized to view, edit, whatever, but the collection is
@@ -4275,12 +4277,14 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
     context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     const isAccessAuthorized = await evaluateAccessPolicy(
         context,
         collectionItem.spaceId,
         collectionItem.accessPolicy.value,
         expectedAccessLevel,
+        options,
     );
 
     if (isAccessAuthorized) return okResult;
@@ -4344,11 +4348,13 @@ export async function authorizeTaskCollectionAccessIfPossible(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null> {
     const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
         context,
         collectionId,
         loaders,
+        options,
     );
     if (!collectionItem) return null;
 
@@ -4356,6 +4362,7 @@ export async function authorizeTaskCollectionAccessIfPossible(
         context,
         collectionItem,
         expectedAccessLevel,
+        options,
     );
     if (!result.ok) return result;
 
@@ -4453,11 +4460,17 @@ export async function authorizeTaskAccessIfPossible(
     const taskItem = await getTaskItemForAuthorizationIfExists(context, taskId, loaders, options);
     if (!taskItem) return null;
 
-    const result = await authorizeTaskItemAccessIfPossible(context, taskItem, expectedAccessLevel, {
-        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
-        getCollectionItem: collectionId =>
-            getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
-    });
+    const result = await authorizeTaskItemAccessIfPossible(
+        context,
+        taskItem,
+        expectedAccessLevel,
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
+        },
+        options,
+    );
     if (!result.ok) return result;
 
     return {ok: true, value: {spaceId: taskItem.spaceId, createdTime: taskItem.createdTime}};
@@ -4904,12 +4917,20 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
     if (!item) return null;
 
     const [, value] = await runAllPromises([
-        authorizeTaskItemAccess(context, item, expectedAccessLevel, {
-            getTaskItem: taskId =>
-                getTaskItemForAuthorization(context, taskId, null, {consistency}),
-            getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, null, {consistency}),
-        }),
+        authorizeTaskItemAccess(
+            context,
+            item,
+            expectedAccessLevel,
+            {
+                getTaskItem: taskId =>
+                    getTaskItemForAuthorization(context, taskId, null, {consistency}),
+                getCollectionItem: collectionId =>
+                    getTaskCollectionItemForAuthorization(context, collectionId, null, {
+                        consistency,
+                    }),
+            },
+            {consistency},
+        ),
         process({
             item,
             commentsSummaryItem,
@@ -6764,6 +6785,43 @@ export function getTaskNotesContentWithoutReferences(
             spaceId: item.spaceId,
             version: notesItem?.version ?? 0,
             content: notesItem?.content ?? emptyTaskNotesContent,
+            stepCountByNonCreatorAccountId:
+                notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map()),
+        }),
+        {consistency},
+    );
+}
+
+/**
+ * Get the current notes content for some task while loading some custom
+ * references.
+ */
+export function getTaskNotesContentWithCustomReferences<Content>(
+    context: ServerAccountActionContext,
+    taskId: TaskId,
+    buildContent: (
+        context: ServerAccountActionContext,
+        spaceId: SpaceId,
+        task: {assigneeId: AccountId | null; content: TaskNotesContent},
+    ) => Promise<Content>,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    content: Content;
+    stepCountByNonCreatorAccountId: TaskStepCountByAccountId;
+}> {
+    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
+        context,
+        taskId,
+        "View",
+        async ({item, notesItem}) => ({
+            spaceId: item.spaceId,
+            version: notesItem?.version ?? 0,
+            content: await buildContent(context, item.spaceId, {
+                assigneeId: item.assigneeId.value,
+                content: notesItem?.content ?? emptyTaskNotesContent,
+            }),
             stepCountByNonCreatorAccountId:
                 notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map()),
         }),

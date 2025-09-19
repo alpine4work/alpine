@@ -100,6 +100,7 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "file",
     ]),
     EdgeService: new Set(["variant", "width"]),
+    TaskRealtimeService: new Set(["consistency"]),
     FileProcessorService: new Set(["variant", "width"]),
     ApiService: new Set(["limit", "cursor", "from"]),
 };

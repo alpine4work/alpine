@@ -17,6 +17,95 @@ servers:
     - url: https://api.alpine.inc
 
 paths:
+    # TODO(calebmer, #public-api): Document that if you have a bot and the bot is
+    # trying to read an account that was a former member of the space you'll get
+    # the account's old data at removal time instead of the latest data.
+    /accounts/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [account]
+                                additionalProperties: false
+                                properties:
+                                    account:
+                                        $ref: "#/components/schemas/AccountWithoutSpace"
+
+    /spaces/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [space]
+                                additionalProperties: false
+                                properties:
+                                    space:
+                                        $ref: "#/components/schemas/Space"
+
+    /spaces/{id}/accounts/{accountId}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [account]
+                                additionalProperties: false
+                                properties:
+                                    account:
+                                        $ref: "#/components/schemas/Account"
+
+    /chats/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, chat]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    chat:
+                                        $ref: "#/components/schemas/Chat"
+
     # TODO(calebmer, #public-api): Add a `-markdown` variant endpoint for all
     # endpoints that deal with content. This variant should return a string for
     # content instead of an AST. Also add a `-markdown` variant for any `/messages`
@@ -82,6 +171,28 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
 
+    /documents/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, document]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        $ref: "#/components/schemas/Document"
+
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
             - name: id
@@ -113,7 +224,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/DocumentThreadId"}
-
         get:
             parameters:
                 - name: limit
@@ -136,7 +246,6 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
-
         post:
             requestBody:
                 required: true
@@ -152,6 +261,50 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /channels/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, channel]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    channel:
+                                        $ref: "#/components/schemas/Channel"
+
+    /posts/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, post]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    post:
+                                        $ref: "#/components/schemas/Post"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -176,7 +329,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/PostId"}
-
         get:
             parameters:
                 - name: limit
@@ -199,7 +351,6 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
-
         post:
             requestBody:
                 required: true
@@ -215,6 +366,28 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /tasks/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, task]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    task:
+                                        $ref: "#/components/schemas/Task"
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -239,7 +412,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/TaskId"}
-
         get:
             parameters:
                 - name: limit
@@ -262,7 +434,6 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
-
         post:
             requestBody:
                 required: true
@@ -278,6 +449,28 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /task-collections/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, taskCollection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    taskCollection:
+                                        $ref: "#/components/schemas/TaskCollection"
 
 webhooks:
     bot:
@@ -367,6 +560,11 @@ components:
                                     $ref: "#/components/schemas/Message"
 
     schemas:
+        LabelString:
+            type: string
+            minLength: 1
+            maxLength: 50
+
         # =========================================================================== #
         #                                     IDs                                     #
         # =========================================================================== #
@@ -379,7 +577,15 @@ components:
             type: string
             pattern: ^{{idRegExp}}$
 
+        BotId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
         BotWebhookEventId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        ChannelId:
             type: string
             pattern: ^{{idRegExp}}$
 
@@ -404,6 +610,10 @@ components:
             pattern: ^{{idRegExp}}$
 
         TaskId:
+            type: string
+            pattern: ^{{idRegExp}}$
+
+        TaskCollectionId:
             type: string
             pattern: ^{{idRegExp}}$
 
@@ -904,6 +1114,194 @@ components:
                     Comment: "#/components/schemas/ContentInlineElementCommentMark"
 
         # =========================================================================== #
+        #                                  Entities                                   #
+        # =========================================================================== #
+
+        AccountWithoutSpace:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                botId:
+                    $ref: "#/components/schemas/BotId"
+
+        Space:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/SpaceId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Account:
+            type: object
+            required: [id, name, space]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                botId:
+                    $ref: "#/components/schemas/BotId"
+                space:
+                    type: object
+                    required: [role, addedTime]
+                    additionalProperties: false
+                    properties:
+                        role:
+                            type: string
+                            enum: [Owner, Admin, Member]
+                        addedTime:
+                            type: string
+                            format: date-time
+                        # TODO(calebmer, #public-api): Bikeshed what the right way to expose account
+                        # state over the public API is.
+                        inactive:
+                            oneOf:
+                                - type: object
+                                  required: [type]
+                                  additionalProperties: false
+                                  properties:
+                                      type:
+                                          const: Removed
+                                      removedTime:
+                                          type: string
+                                          format: date-time
+                                - type: object
+                                  required: [type]
+                                  additionalProperties: false
+                                  properties:
+                                      type:
+                                          const: InvitePending
+
+        Chat:
+            type: object
+            required: [id, members]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required: [account]
+                        additionalProperties: false
+                        properties:
+                            account:
+                                $ref: "#/components/schemas/Account"
+
+        Document:
+            type: object
+            required: [id, title, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        ChannelPreview:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Channel:
+            type: object
+            required: [id, name, description]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                description:
+                    $ref: "#/components/schemas/Content"
+
+        Post:
+            type: object
+            # `channel` is intentionally optional since we may allow users to create posts
+            # that aren't in a channel in the future.
+            required: [id, author, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                # For any useful rendering of a post, you need the author's name. Which is why
+                # we include more than just the `AccountId`.
+                author:
+                    $ref: "#/components/schemas/Account"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        Task:
+            type: object
+            required: [id, status, title, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    oneOf:
+                        - type: object
+                          required: [type, isActive]
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: Open
+                              isActive:
+                                  type: boolean
+                        - type: object
+                          required: [type]
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: Closed
+                title:
+                    type: string
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    type: object
+                    required: [date]
+                    additionalProperties: false
+                    properties:
+                        date:
+                            type: string
+                            format: date
+                priority:
+                    type: string
+                    enum: [Low, Medium, High, Urgent]
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        TaskCollection:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        # =========================================================================== #
         #                                  Messages                                   #
         # =========================================================================== #
 
@@ -915,24 +1313,10 @@ components:
                 index:
                     type: integer
                     minimum: 0
+                # For any useful rendering of a post, you need the author's name. Which is why
+                # we include more than just the `AccountId`.
                 author:
-                    type: object
-                    required: [id, name]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                        # For any useful rendering of a message, you need the author's name.
-                        #
-                        # TODO(calebmer, #public-api): Document that we load `name` with eventual
-                        # consistency. We usually return the correct name since account names don't
-                        # change often. But we the account name may be stale in certain edge cases by
-                        # ~20s (15s is the `SpaceAccountsCache` invalidation timeout, though
-                        # `ApiService` likely won't be using `SpaceAccountsCache` much).
-                        name:
-                            type: string
-                            minLength: 1
-                            maxLength: 50
+                    $ref: "#/components/schemas/Account"
                 createdTime:
                     type: string
                     format: date-time

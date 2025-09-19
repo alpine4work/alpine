@@ -1,5 +1,4 @@
-import {IncomingMessage, ServerResponse} from "http";
-import request from "supertest";
+import {TestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiMessageRoomPath} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
@@ -60,7 +59,7 @@ export const testMessagingApiImplementationSearchInjection: Partial<SearchInject
 
 export function testMessagingApiImplementation(
     context: TestContext,
-    server: (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void,
+    server: TestApiServer,
     {
         generateMissingRoomPath,
         createPrivateRoom,
@@ -92,14 +91,14 @@ export function testMessagingApiImplementation(
                 "Hello, world!",
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         author: expect.objectContaining({
@@ -109,7 +108,7 @@ export function testMessagingApiImplementation(
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -130,16 +129,18 @@ export function testMessagingApiImplementation(
 
             const message = await TestMessagingRoomBase.createMessage(room, session2);
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(403);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+            expect(
+                await server.GET(`${roomPath}/messages/${message.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
                 }),
+            ).toEqual({
+                status: 403,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+                    }),
+                },
             });
         });
 
@@ -150,16 +151,18 @@ export function testMessagingApiImplementation(
             const botAccount = await TestBot.createAndInstantiate(session);
             const apiKey = await botAccount.createApiKey(session);
 
-            const response = await request(server)
-                .get(`${generateMissingRoomPath()}/messages/0`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(404);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringContaining("doesn’t exist"),
+            expect(
+                await server.GET(`${generateMissingRoomPath()}/messages/0`, {
+                    headers: {authorization: `bearer ${apiKey}`},
                 }),
+            ).toEqual({
+                status: 404,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringContaining("doesn’t exist"),
+                    }),
+                },
             });
         });
 
@@ -174,16 +177,18 @@ export function testMessagingApiImplementation(
 
             const message = await TestMessagingRoomBase.createMessage(room, session);
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index + 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(404);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringContaining("doesn’t exist"),
+            expect(
+                await server.GET(`${roomPath}/messages/${message.index + 1}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
                 }),
+            ).toEqual({
+                status: 404,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringContaining("doesn’t exist"),
+                    }),
+                },
             });
         });
 
@@ -203,20 +208,20 @@ export function testMessagingApiImplementation(
                 "Hello, world!",
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -254,20 +259,20 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -307,20 +312,20 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -360,20 +365,20 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -411,20 +416,20 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -462,20 +467,20 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -513,20 +518,20 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages/${message.index}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages/${message.index}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index,
                         payload: expect.objectContaining({type: "Content"}),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -550,10 +555,9 @@ export function testMessagingApiImplementation(
 
             const message = await TestMessagingRoomBase.createMessage(room, session);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [
                             {
@@ -562,24 +566,26 @@ export function testMessagingApiImplementation(
                             },
                         ],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index + 1,
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
+                            botId: botAccount.bot.id,
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -595,26 +601,28 @@ export function testMessagingApiImplementation(
             const botAccount = await TestBot.createAndInstantiate(session);
             const apiKey = await botAccount.createApiKey(session);
 
-            const response = await request(server)
-                .post(`${generateMissingRoomPath()}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Hello, world!"}],
-                            },
-                        ],
+            expect(
+                await server.POST(`${generateMissingRoomPath()}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Hello, world!"}],
+                                },
+                            ],
+                        },
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(404);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringContaining("doesn’t exist"),
                 }),
+            ).toEqual({
+                status: 404,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringContaining("doesn’t exist"),
+                    }),
+                },
             });
         });
 
@@ -628,26 +636,28 @@ export function testMessagingApiImplementation(
 
             const {roomPath} = await createPrivateRoom(session2, botAccount);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Hello, world!"}],
-                            },
-                        ],
+            expect(
+                await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Hello, world!"}],
+                                },
+                            ],
+                        },
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(403);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
                 }),
+            ).toEqual({
+                status: 403,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+                    }),
+                },
             });
         });
 
@@ -663,10 +673,9 @@ export function testMessagingApiImplementation(
 
             const message = await TestMessagingRoomBase.createMessage(room, session);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [
                             {
@@ -675,12 +684,13 @@ export function testMessagingApiImplementation(
                             },
                         ],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: message.index + 1,
                         payload: expect.objectContaining({
@@ -688,7 +698,7 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -712,14 +722,15 @@ export function testMessagingApiImplementation(
                 "Hello, world!",
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -731,7 +742,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -752,16 +763,18 @@ export function testMessagingApiImplementation(
 
             const message = await TestMessagingRoomBase.createMessage(room, session2);
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(403);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+            expect(
+                await server.GET(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
                 }),
+            ).toEqual({
+                status: 403,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringMatching(/(don’t have access|You aren’t allowed)/),
+                    }),
+                },
             });
         });
 
@@ -772,16 +785,18 @@ export function testMessagingApiImplementation(
             const botAccount = await TestBot.createAndInstantiate(session);
             const apiKey = await botAccount.createApiKey(session);
 
-            const response = await request(server)
-                .get(`${generateMissingRoomPath()}/messages?limit=1`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(404);
-
-            expect(response.body).toEqual({
-                error: expect.objectContaining({
-                    message: expect.stringContaining("doesn’t exist"),
+            expect(
+                await server.GET(`${generateMissingRoomPath()}/messages?limit=1`, {
+                    headers: {authorization: `bearer ${apiKey}`},
                 }),
+            ).toEqual({
+                status: 404,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message: expect.stringContaining("doesn’t exist"),
+                    }),
+                },
             });
         });
 
@@ -801,14 +816,15 @@ export function testMessagingApiImplementation(
                 "Hello, world!",
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -816,7 +832,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -854,14 +870,15 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -869,7 +886,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -909,14 +926,15 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -924,7 +942,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -964,14 +982,15 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -979,7 +998,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -1017,14 +1036,15 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -1032,7 +1052,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -1070,14 +1090,15 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -1085,7 +1106,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -1123,14 +1144,15 @@ export function testMessagingApiImplementation(
                 ),
             );
 
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=1&cursor=${message.index - 1}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(
+                `${roomPath}/messages?limit=1&cursor=${message.index - 1}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     messages: [
                         expect.objectContaining({
                             index: message.index,
@@ -1138,7 +1160,7 @@ export function testMessagingApiImplementation(
                         }),
                     ],
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.messages[0].payload.content, {
@@ -1174,11 +1196,12 @@ export function testMessagingApiImplementation(
             }
 
             // Test with limit=5
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=5`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages?limit=5`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(5);
             expect(response.body.totalMessageCount).toBe(count + 15);
@@ -1204,11 +1227,12 @@ export function testMessagingApiImplementation(
             }
 
             // Test without limit parameter - should default to 10
-            const response = await request(server)
-                .get(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(10);
             expect(response.body.totalMessageCount).toBe(count + 15);
@@ -1236,11 +1260,12 @@ export function testMessagingApiImplementation(
             }
 
             // First page: get first 3 messages
-            const response1 = await request(server)
-                .get(`${roomPath}/messages?limit=3`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response1 = await server.GET(`${roomPath}/messages?limit=3`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response1.status).toEqual(200);
+            expect(response1.headers["content-type"]).toEqual("application/json");
 
             expect(response1.body.messages).toHaveLength(3);
             expect(response1.body.messages[0].index).toBe(0);
@@ -1249,11 +1274,13 @@ export function testMessagingApiImplementation(
             expect(response1.body.nextCursor).toBe(2);
 
             // Second page: get next 3 messages using cursor
-            const response2 = await request(server)
-                .get(`${roomPath}/messages?limit=3&cursor=${response1.body.nextCursor}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response2 = await server.GET(
+                `${roomPath}/messages?limit=3&cursor=${response1.body.nextCursor}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
+
+            expect(response2.status).toEqual(200);
+            expect(response2.headers["content-type"]).toEqual("application/json");
 
             expect(response2.body.messages).toHaveLength(3);
             expect(response2.body.messages[0].index).toBe(3);
@@ -1281,11 +1308,12 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages with limit=10 - should return all 5 with null nextCursor
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=10`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages?limit=10`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(count + 5);
             expect(response.body.nextCursor).toBeNull();
@@ -1310,11 +1338,12 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages with limit=10 - should return all 5 with null nextCursor
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=${count + 5}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages?limit=${count + 5}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(count + 5);
             expect(response.body.nextCursor).toBeNull();
@@ -1339,11 +1368,12 @@ export function testMessagingApiImplementation(
             }
 
             // Get messages from end (newest first)
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=3&from=end`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages?limit=3&from=end`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(3);
             expect(response.body.messages[0].index).toBe(count + 7);
@@ -1371,22 +1401,25 @@ export function testMessagingApiImplementation(
             }
 
             // First page from end
-            const response1 = await request(server)
-                .get(`${roomPath}/messages?limit=3&from=end`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response1 = await server.GET(`${roomPath}/messages?limit=3&from=end`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response1.status).toEqual(200);
+            expect(response1.headers["content-type"]).toEqual("application/json");
 
             expect(response1.body.messages).toHaveLength(3);
             expect(response1.body.messages[0].index).toBe(count + 7);
             expect(response1.body.nextCursor).toBe(count + 7);
 
             // Second page from end using cursor
-            const response2 = await request(server)
-                .get(`${roomPath}/messages?limit=3&from=end&cursor=${response1.body.nextCursor}`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response2 = await server.GET(
+                `${roomPath}/messages?limit=3&from=end&cursor=${response1.body.nextCursor}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
+
+            expect(response2.status).toEqual(200);
+            expect(response2.headers["content-type"]).toEqual("application/json");
 
             expect(response2.body.messages).toHaveLength(3);
             expect(response2.body.messages[0].index).toBe(count + 4);
@@ -1414,11 +1447,12 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages from end - should return all 3 with null nextCursor
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=10&from=end`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages?limit=10&from=end`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(count + 3);
             expect(response.body.messages[count + 0].index).toBe(count + 0);
@@ -1446,11 +1480,12 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages from end - should return all 3 with null nextCursor
-            const response = await request(server)
-                .get(`${roomPath}/messages?limit=${count + 3}&from=end`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages?limit=${count + 3}&from=end`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(count + 3);
             expect(response.body.messages[count + 0].index).toBe(count + 0);
@@ -1472,11 +1507,12 @@ export function testMessagingApiImplementation(
             );
 
             // Get messages from empty room
-            const response = await request(server)
-                .get(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response = await server.GET(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
 
             expect(response.body.messages).toHaveLength(count);
             expect(response.body.totalMessageCount).toBe(count);
@@ -1504,22 +1540,24 @@ export function testMessagingApiImplementation(
             );
 
             // Get messages from start
-            const response1 = await request(server)
-                .get(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response1 = await server.GET(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response1.status).toEqual(200);
+            expect(response1.headers["content-type"]).toEqual("application/json");
 
             expect(response1.body.messages).toHaveLength(count + 1);
             expect(response1.body.messages[count].index).toBe(message.index);
             expect(response1.body.nextCursor).toBeNull();
 
             // Get messages from end
-            const response2 = await request(server)
-                .get(`${roomPath}/messages?from=end`)
-                .set("authorization", `bearer ${apiKey}`)
-                .expect("content-type", "application/json")
-                .expect(200);
+            const response2 = await server.GET(`${roomPath}/messages?from=end`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response2.status).toEqual(200);
+            expect(response2.headers["content-type"]).toEqual("application/json");
 
             expect(response2.body.messages).toHaveLength(count + 1);
             expect(response2.body.messages[count].index).toBe(message.index);
@@ -1535,10 +1573,9 @@ export function testMessagingApiImplementation(
 
             const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [
                             {
@@ -1548,12 +1585,13 @@ export function testMessagingApiImplementation(
                             },
                         ],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: initialMessageCount,
                         payload: expect.objectContaining({
@@ -1561,7 +1599,7 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -1579,19 +1617,19 @@ export function testMessagingApiImplementation(
 
             const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [{type: "Divider"}],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: initialMessageCount,
                         payload: expect.objectContaining({
@@ -1599,7 +1637,7 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -1617,10 +1655,9 @@ export function testMessagingApiImplementation(
 
             const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [
                             {
@@ -1637,12 +1674,13 @@ export function testMessagingApiImplementation(
                             },
                         ],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: initialMessageCount,
                         payload: expect.objectContaining({
@@ -1650,7 +1688,7 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -1668,10 +1706,9 @@ export function testMessagingApiImplementation(
 
             const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [
                             {
@@ -1688,12 +1725,13 @@ export function testMessagingApiImplementation(
                             },
                         ],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: initialMessageCount,
                         payload: expect.objectContaining({
@@ -1701,7 +1739,7 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {
@@ -1719,10 +1757,9 @@ export function testMessagingApiImplementation(
 
             const {roomPath, initialMessageCount} = await createPrivateRoom(session, botAccount);
 
-            const response = await request(server)
-                .post(`${roomPath}/messages`)
-                .set("authorization", `bearer ${apiKey}`)
-                .send({
+            const response = await server.POST(`${roomPath}/messages`, {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
                     content: {
                         elements: [
                             {
@@ -1739,12 +1776,13 @@ export function testMessagingApiImplementation(
                             },
                         ],
                     },
-                })
-                .expect("content-type", "application/json")
-                .expect(200);
+                },
+            });
 
-            expect(response.body).toEqual(
-                expect.objectContaining({
+            expect(response).toEqual({
+                status: 200,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: expect.objectContaining({
                     message: expect.objectContaining({
                         index: initialMessageCount,
                         payload: expect.objectContaining({
@@ -1752,7 +1790,7 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 }),
-            );
+            });
 
             expect(
                 printApiContentToMarkdown(response.body.message.payload.content, {

@@ -1,10 +1,10 @@
+import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {
     ApiMessage,
     ApiMessagePayload,
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -28,21 +28,13 @@ export async function intoApiMessage(
     },
 ): Promise<ApiMessage> {
     const [author, payloadWithReferences] = await runAllPromises([
-        getAccount(
-            // We're ok loading the author name with eventual consistency.
-            context.dynamo.unexpectStrongReadConsistency(),
-            spaceId,
-            authorId,
-        ),
+        getApiAccount(context, spaceId, authorId, {consistency: "StrongWithinCache"}),
         intoApiMessagePayload(context, spaceId, payload),
     ]);
 
     return {
         index,
-        author: {
-            id: authorId,
-            name: author.initialData.name,
-        },
+        author,
         createdTime: serializeDateString(createdTime),
         payload: payloadWithReferences,
     };

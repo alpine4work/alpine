@@ -3,6 +3,7 @@ import {
     ServerActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -141,6 +142,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskModel> | null>;
 
     /**
@@ -155,11 +157,21 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * up `TaskRealtimeService` so when our client connects via WebSocket the data
      * it needs is already loaded.
      */
-    public abstract getTaskWithoutDependencies(
+    public async getTaskWithoutDependencies(
         this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-    ): Promise<TaskModel>;
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<TaskModel> {
+        const taskResult = await this.getTaskWithoutDependenciesIfPossible(
+            spaceId,
+            taskId,
+            options,
+        );
+        if (!taskResult) throw createTaskNotFoundError(taskId);
+        if (!taskResult.ok) throw taskResult.error;
+        return taskResult.value;
+    }
 
     /**
      * Get a collection.
@@ -174,6 +186,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskCollectionModel> | null>;
 
     /**
@@ -185,11 +198,17 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * up `TaskRealtimeService` so when our client connects via WebSocket the data
      * it needs is already loaded.
      */
-    public abstract getCollection(
+    public async getCollection(
         this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-    ): Promise<TaskCollectionModel>;
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<TaskCollectionModel> {
+        const collectionResult = await this.getCollectionIfPossible(spaceId, collectionId, options);
+        if (!collectionResult) throw createTaskCollectionNotFoundError(collectionId);
+        if (!collectionResult.ok) throw collectionResult.error;
+        return collectionResult.value;
+    }
 }
 
 export class TestTaskContextModule
@@ -235,7 +254,15 @@ export class TestTaskContextModule
         );
     }
 
-    public override getTaskWithoutDependenciesIfPossible(): Promise<null> {
+    public override async getTaskWithoutDependenciesIfPossible(
+        this: TestTaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        spaceId: SpaceId,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        taskId: TaskId,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<TaskModel> | null> {
         if (this._alwaysNotFound) return Promise.resolve(null);
 
         throw new UnimplementedError(
@@ -243,30 +270,19 @@ export class TestTaskContextModule
         );
     }
 
-    public override getTaskWithoutDependencies(spaceId: SpaceId, taskId: TaskId): Promise<never> {
-        if (this._alwaysNotFound) throw createTaskNotFoundError(taskId);
-
-        throw new UnimplementedError(
-            "`TestTaskContextModule.getTaskWithoutDependencies()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
-    }
-
-    public override getCollectionIfPossible(): Promise<null> {
+    public override getCollectionIfPossible(
+        this: TestTaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        spaceId: SpaceId,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        collectionId: TaskCollectionId,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<TaskCollectionModel> | null> {
         if (this._alwaysNotFound) return Promise.resolve(null);
 
         throw new UnimplementedError(
             "`TestTaskContextModule.getCollectionIfPossible()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
-        );
-    }
-
-    public override getCollection(
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-    ): Promise<never> {
-        if (this._alwaysNotFound) throw createTaskCollectionNotFoundError(collectionId);
-
-        throw new UnimplementedError(
-            "`TestTaskContextModule.getCollection()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
         );
     }
 

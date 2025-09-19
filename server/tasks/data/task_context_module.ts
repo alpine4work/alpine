@@ -7,6 +7,7 @@ import {
     TaskContextModuleActionTransaction,
     TaskContextModuleBase,
 } from "~/server/context/task_context_module_base.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
@@ -24,15 +25,12 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {
-    createTaskCollectionNotFoundError,
-    createTaskNotFoundError,
-} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetCollectionOutputSchema,
@@ -231,6 +229,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
+        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskModel> | null> {
         const [host, token] = await runAllPromises([
             this.router.getStickyAccountHost(
@@ -246,7 +245,9 @@ export class TaskContextModule extends TaskContextModuleBase {
 
         const {taskResult} = await fetchWithTracer(
             this._context.tracer.getTracer(),
-            `http://${host}/${spaceId}/getTaskWithoutDependencies/${taskId}`,
+            `http://${host}/${spaceId}/getTaskWithoutDependencies/${taskId}${
+                consistency !== "Eventual" ? `?consistency=${consistency}` : ""
+            }`,
             {
                 serviceName: "TaskRealtimeService",
                 route: "/:spaceId/getTaskWithoutDependencies/:taskId",
@@ -268,21 +269,11 @@ export class TaskContextModule extends TaskContextModuleBase {
         return taskResult;
     }
 
-    public override async getTaskWithoutDependencies(
-        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
-        spaceId: SpaceId,
-        taskId: TaskId,
-    ): Promise<TaskModel> {
-        const taskResult = await this.getTaskWithoutDependenciesIfPossible(spaceId, taskId);
-        if (!taskResult) throw createTaskNotFoundError(taskId);
-        if (!taskResult.ok) throw taskResult.error;
-        return taskResult.value;
-    }
-
     public override async getCollectionIfPossible(
         this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
+        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
         const [host, token] = await runAllPromises([
             this.router.getStickyAccountHost(
@@ -298,7 +289,9 @@ export class TaskContextModule extends TaskContextModuleBase {
 
         const {collectionResult} = await fetchWithTracer(
             this._context.tracer.getTracer(),
-            `http://${host}/${spaceId}/getCollection/${collectionId}`,
+            `http://${host}/${spaceId}/getCollection/${collectionId}${
+                consistency !== "Eventual" ? `?consistency=${consistency}` : ""
+            }`,
             {
                 serviceName: "TaskRealtimeService",
                 route: "/:spaceId/getCollection/:collectionId",
@@ -318,17 +311,6 @@ export class TaskContextModule extends TaskContextModuleBase {
         );
 
         return collectionResult;
-    }
-
-    public override async getCollection(
-        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
-        spaceId: SpaceId,
-        collectionId: TaskCollectionId,
-    ): Promise<TaskCollectionModel> {
-        const collectionResult = await this.getCollectionIfPossible(spaceId, collectionId);
-        if (!collectionResult) throw createTaskCollectionNotFoundError(collectionId);
-        if (!collectionResult.ok) throw collectionResult.error;
-        return collectionResult.value;
     }
 }
 

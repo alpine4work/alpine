@@ -305,9 +305,14 @@ export async function getTaskIndexDocsIfExist(
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
-    return context.opensearch.multiGetDocsIfExist(
+    const tasks = await context.opensearch.multiGetDocsIfExist(
         taskIds.map(taskId => new OpensearchGetDocCommand(TaskIndex, spaceId, taskId)),
     );
+
+    // Make sure we're only returning tasks from the requested `SpaceId`.
+    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
+    // So it may return tasks from other spaces.
+    return tasks.map(task => (task !== null && task.spaceId === spaceId ? task : null));
 }
 
 /**
@@ -336,10 +341,17 @@ export async function getTaskCollectionIndexDocsIfExist(
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
-    return context.opensearch.multiGetDocsIfExist(
+    const collections = await context.opensearch.multiGetDocsIfExist(
         collectionIds.map(
             collectionId => new OpensearchGetDocCommand(TaskCollectionIndex, spaceId, collectionId),
         ),
+    );
+
+    // Make sure we're only returning collections from the requested `SpaceId`.
+    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
+    // So it may return collections from other spaces.
+    return collections.map(collection =>
+        collection !== null && collection.spaceId === spaceId ? collection : null,
     );
 }
 
@@ -393,6 +405,11 @@ export async function getTaskFromIndexIfExists(
 
     const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
     if (!task) return null;
+
+    // Make sure we're only returning tasks from the requested `SpaceId`.
+    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
+    // So it may return tasks from other spaces.
+    if (task.spaceId !== spaceId) return null;
 
     const approximateActionCountByAccountId = task.approximateActionCountByAccountId;
 
@@ -506,6 +523,11 @@ export async function getTaskCollectionFromIndexIfExists(
         collectionId,
     );
     if (!collection) return null;
+
+    // Make sure we're only returning collections from the requested `SpaceId`.
+    // OpenSearch only uses `SpaceId` as a routing value to get to the right shard.
+    // So it may return collections from other spaces.
+    if (collection.spaceId !== spaceId) return null;
 
     return prepareTaskCollectionForClient(collection);
 }
@@ -1999,6 +2021,8 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
         if (!task) {
             throw retry(new InternalError("Task not found in index"));
         }
+
+        if (task.spaceId !== spaceId) throw new FailedPreconditionError("Space mismatch");
 
         const currentTime = new Date();
 

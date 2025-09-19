@@ -1,3 +1,4 @@
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -30,10 +31,11 @@ import {
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase, FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -563,12 +565,21 @@ export class TaskRealtimeServer {
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
     ): Promise<void> {
-        await authorizeTaskAccess(context, taskId, expectedAccessLevel, {
-            getTaskIndexDocIfExists: taskId =>
-                this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-            getCollectionIndexDocIfExists: collectionId =>
-                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-        });
+        const {spaceId: actualSpaceId} = await authorizeTaskAccess(
+            context,
+            taskId,
+            expectedAccessLevel,
+            {
+                getTaskIndexDocIfExists: taskId =>
+                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+        );
+
+        if (actualSpaceId !== spaceId) {
+            throw new FailedPreconditionError("Tried loading `TaskId` with the wrong `SpaceId`");
+        }
     }
 
     /**
@@ -578,17 +589,33 @@ export class TaskRealtimeServer {
      * Will use in-memory tasks/collections when available and otherwise will load
      * from DynamoDB.
      */
-    public authorizeTaskAccessIfPossible(
+    public async authorizeTaskAccessIfPossible(
         context: TaskRealtimeActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
-    ): Promise<Result<unknown, ErrorBase> | null> {
-        return authorizeTaskAccessIfPossible(context, taskId, expectedAccessLevel, {
-            getTaskIndexDocIfExists: taskId =>
-                this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
-            getCollectionIndexDocIfExists: collectionId =>
-                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<void, ErrorBase> | null> {
+        const result = await authorizeTaskAccessIfPossible(
+            context,
+            taskId,
+            expectedAccessLevel,
+            {
+                getTaskIndexDocIfExists: taskId =>
+                    this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+            options,
+        );
+        if (result === null) return null;
+
+        return mapResult(result, ({spaceId: actualSpaceId}) => {
+            if (actualSpaceId !== spaceId) {
+                throw new FailedPreconditionError(
+                    "Tried loading `TaskId` with the wrong `SpaceId`",
+                );
+            }
         });
     }
 
@@ -605,10 +632,21 @@ export class TaskRealtimeServer {
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
     ): Promise<void> {
-        await authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
-            getCollectionIndexDocIfExists: collectionId =>
-                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
-        });
+        const {spaceId: actualSpaceId} = await authorizeTaskCollectionAccess(
+            context,
+            collectionId,
+            expectedAccessLevel,
+            {
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+        );
+
+        if (actualSpaceId !== spaceId) {
+            throw new FailedPreconditionError(
+                "Tried loading `TaskCollectionId` with the wrong `SpaceId`",
+            );
+        }
     }
 
     /**
@@ -623,10 +661,26 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
-    ): Promise<Result<unknown, ErrorBase> | null> {
-        return authorizeTaskCollectionAccessIfPossible(context, collectionId, expectedAccessLevel, {
-            getCollectionIndexDocIfExists: collectionId =>
-                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<Result<void, ErrorBase> | null> {
+        const result = await authorizeTaskCollectionAccessIfPossible(
+            context,
+            collectionId,
+            expectedAccessLevel,
+            {
+                getCollectionIndexDocIfExists: collectionId =>
+                    this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+            },
+            options,
+        );
+        if (result === null) return null;
+
+        return mapResult(result, ({spaceId: actualSpaceId}) => {
+            if (actualSpaceId !== spaceId) {
+                throw new FailedPreconditionError(
+                    "Tried loading `TaskCollectionId` with the wrong `SpaceId`",
+                );
+            }
         });
     }
 }

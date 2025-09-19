@@ -3,8 +3,10 @@ import {
     ApiPaths,
 } from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
+    getChatAccountIds,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
     getChatMessagePayloadsFromStart,
@@ -19,6 +21,33 @@ import {MessageContentPayload} from "~/shared/messaging/message_model.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
+    "/chats/{id}": {
+        get: async (context, {pathParameters}) => {
+            const chatAccountIds = await getChatAccountIds(context, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId: chatAccountIds.spaceId,
+                    chat: {
+                        id: pathParameters.id,
+                        members: await runAllPromises(
+                            chatAccountIds.accountIds.map(async accountId => ({
+                                account: await getApiAccount(
+                                    context,
+                                    chatAccountIds.spaceId,
+                                    accountId,
+                                    {consistency: "StrongWithinCache"},
+                                ),
+                            })),
+                        ),
+                    },
+                },
+            };
+        },
+    },
+
     "/chats/{id}/messages/{index}": {
         get: async (context, {pathParameters, url}) => {
             const {spaceId, authorId, createdTime, payload} = await getChatMessagePayload(context, {

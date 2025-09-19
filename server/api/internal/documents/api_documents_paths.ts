@@ -1,12 +1,15 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     createDocumentComment,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
     getDocumentCommentPayloadsFromStart,
+    getDocumentContent,
 } from "~/server/documents/data/documents_actions.js";
+import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     MessageContentProsemirrorSchema,
@@ -16,6 +19,29 @@ import {MessageContentPayload} from "~/shared/messaging/message_model.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
+    "/documents/{id}": {
+        get: async (context, {pathParameters}) => {
+            const document = await getDocumentContent(context, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId: document.spaceId,
+                    document: {
+                        id: pathParameters.id,
+                        title: getDocumentContentTitleWithoutFallback(document.content),
+                        content: await intoApiContentWithReferences(
+                            context,
+                            document.spaceId,
+                            document.content,
+                        ),
+                    },
+                },
+            };
+        },
+    },
+
     "/documents/{id}/threads/{threadId}/messages/{index}": {
         get: async (context, {pathParameters}) => {
             const {spaceId, authorId, createdTime, payload} = await getDocumentCommentPayload(

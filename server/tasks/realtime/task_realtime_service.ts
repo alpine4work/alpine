@@ -7,6 +7,7 @@ import {
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {
     ActorContextModule,
@@ -30,12 +31,7 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
-import {
-    authorizeSpaceAccess,
-    authorizeSpaceAccessIfPossible,
-} from "~/server/spaces/spaces_table.js";
-import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
-import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {
     TaskRealtimeActionContext,
     TaskRealtimeProcessContextModules,
@@ -44,6 +40,8 @@ import {
     TaskRealtimeSystemActionContextModules,
 } from "~/server/tasks/data/task_realtime_context.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {getTaskCollectionForRealtime} from "~/server/tasks/realtime/get_task_collection_for_realtime.js";
+import {getTaskWithoutDependenciesForRealtime} from "~/server/tasks/realtime/get_task_without_dependencies_for_realtime.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -250,6 +248,7 @@ export async function run({
 
     const handleRequest = async (
         request: Request,
+        url: URL,
         route: Exclude<TaskRealtimeServiceRoute, {type: "HealthCheck"} | {type: "NotFound"}>,
         span: TracerSpan,
     ): Promise<Response | void> => {
@@ -404,56 +403,33 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
+                const consistencySearchParam = url.searchParams.get("consistency");
+
+                let consistency: DynamoCacheReadConsistency = "Eventual";
+
+                if (consistencySearchParam !== null) {
+                    switch (consistencySearchParam) {
+                        case "Strong":
+                        case "StrongWithinCache":
+                            consistency = consistencySearchParam;
+                            break;
+                        default:
+                            throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
+                }
+
                 const output = await baseActionContext.with(
                     {actor: actorContextModule},
                     async (
-                        originalContext,
+                        context: TaskRealtimeActionContext,
                     ): Promise<TaskRealtimeGetTaskWithoutDependenciesOutput> => {
-                        const result = await server.authorizeTaskAccessIfPossible(
-                            originalContext,
+                        return getTaskWithoutDependenciesForRealtime(context, {
+                            server,
+                            dangerouslyEscalateToSystemContext,
                             spaceId,
-                            route.taskId,
-                            "View",
-                        );
-                        if (!result?.ok) return {ok: true, taskResult: result};
-
-                        return dangerouslyEscalateToSystemContext(
-                            originalContext,
-                            spaceId,
-                            async context => {
-                                const task = await server.getTask(context, spaceId, route.taskId);
-
-                                const prepareContext = {
-                                    actor: originalContext.actor,
-                                    isSpaceAccessAuthorized: (
-                                        await authorizeSpaceAccessIfPossible(
-                                            originalContext,
-                                            spaceId,
-                                        )
-                                    ).ok,
-                                    isCollectionAccessAuthorized: async (
-                                        collectionId: TaskCollectionId,
-                                    ) => {
-                                        const result =
-                                            await server.authorizeCollectionAccessIfPossible(
-                                                context,
-                                                spaceId,
-                                                collectionId,
-                                                "View",
-                                            );
-
-                                        return result?.ok ?? false;
-                                    },
-                                };
-
-                                const taskModel = await prepareTaskForClient(task, prepareContext);
-
-                                return {
-                                    ok: true,
-                                    taskResult: {ok: true, value: taskModel},
-                                };
-                            },
-                        );
+                            taskId: route.taskId,
+                            consistency,
+                        });
                     },
                 );
 
@@ -476,35 +452,31 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
+                const consistencySearchParam = url.searchParams.get("consistency");
+
+                let consistency: DynamoCacheReadConsistency = "Eventual";
+
+                if (consistencySearchParam !== null) {
+                    switch (consistencySearchParam) {
+                        case "Strong":
+                        case "StrongWithinCache":
+                            consistency = consistencySearchParam;
+                            break;
+                        default:
+                            throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
+                }
+
                 const output = await baseActionContext.with(
                     {actor: actorContextModule},
                     async (originalContext): Promise<TaskRealtimeGetCollectionOutput> => {
-                        const result = await server.authorizeCollectionAccessIfPossible(
-                            originalContext,
+                        return getTaskCollectionForRealtime(originalContext, {
+                            server,
+                            dangerouslyEscalateToSystemContext,
                             spaceId,
-                            route.collectionId,
-                            "View",
-                        );
-                        if (!result?.ok) return {ok: true, collectionResult: result};
-
-                        return dangerouslyEscalateToSystemContext(
-                            originalContext,
-                            spaceId,
-                            async context => {
-                                const collection = await server.getCollection(
-                                    context,
-                                    spaceId,
-                                    route.collectionId,
-                                );
-
-                                const collectionModel = prepareTaskCollectionForClient(collection);
-
-                                return {
-                                    ok: true,
-                                    collectionResult: {ok: true, value: collectionModel},
-                                };
-                            },
-                        );
+                            collectionId: route.collectionId,
+                            consistency,
+                        });
                     },
                 );
 
@@ -613,7 +585,9 @@ export async function run({
                 throw new NotFoundError("Route not found");
             }
 
-            const result = await captureResultPromise(() => handleRequest(request, route, span));
+            const result = await captureResultPromise(() =>
+                handleRequest(request, url, route, span),
+            );
 
             if (result.ok) {
                 return (

@@ -8,6 +8,7 @@ ts_project(
         "//server/api/internal/documents",
         "//server/api/internal/forum",
         "//server/api/internal/shared",
+        "//server/api/internal/spaces",
         "//server/api/internal/tasks",
         "//server/api/specification",
         "//server/chat/data",

@@ -1,9 +1,11 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {
+    ServerAccountActionContextModules,
     ServerActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -13,6 +15,8 @@ import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/t
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
+import {getTaskCollectionForRealtime} from "~/server/tasks/realtime/get_task_collection_for_realtime.js";
+import {getTaskWithoutDependenciesForRealtime} from "~/server/tasks/realtime/get_task_without_dependencies_for_realtime.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -21,14 +25,23 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {SpaceId, TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -250,16 +263,54 @@ export class TestTaskRealtimeServer {
             }),
         });
     }
+
+    /**
+     * Modify `TestContext` so `context.tasks` references a `TestTaskRealtimeServer`.
+     */
+    public static with(context: TestContext): TestContext & {
+        getTaskRealtimeServer(): TestTaskRealtimeServer;
+    } {
+        let server: TestTaskRealtimeServer | undefined;
+
+        beforeEach(() => {
+            server = new TestTaskRealtimeServer(context);
+        });
+
+        afterEach(() => {
+            server = undefined;
+        });
+
+        const getServer = () => {
+            if (!server) {
+                throw new InternalError(
+                    "Can’t get `TestTaskRealtimeServer` when no test is running",
+                );
+            }
+            return server;
+        };
+
+        return Object.assign(
+            context.cloneWithHelpers({
+                tasks: new TestTaskContextModuleWithRealtimeServer({
+                    server: getServer,
+                    dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
+                }),
+            }),
+            {
+                getTaskRealtimeServer: getServer,
+            },
+        );
+    }
 }
 
 class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
-    private readonly _server: TestTaskRealtimeServer;
+    private readonly _server: TestTaskRealtimeServer | (() => TestTaskRealtimeServer);
 
     constructor({
         server,
         dangerouslyEscalateToSystemContext,
     }: {
-        server: TestTaskRealtimeServer;
+        server: TestTaskRealtimeServer | (() => TestTaskRealtimeServer);
         dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
@@ -275,6 +326,10 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
         this._server = server;
     }
 
+    private _getServer() {
+        return typeof this._server === "function" ? this._server() : this._server;
+    }
+
     public override async loadQueries(
         this: TestTaskContextModuleWithRealtimeServer &
             ContextModuleBase<ServerActionContextModules>,
@@ -282,7 +337,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
         input: TaskRealtimeLoadQueriesInput,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         const {queries, extraQueries, updateEvent} = await loadTaskRealtimeQueries(this._context, {
-            server: this._server.server,
+            server: this._getServer().server,
             dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
             spaceId,
             queries: input.queries,
@@ -293,27 +348,39 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
         return {ok: true, queries, extraQueries, updateEvent};
     }
 
-    public override getTaskWithoutDependenciesIfPossible(): Promise<never> {
-        throw new UnimplementedError(
-            "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependenciesIfPossible()` should be implementable but we haven’t implemented it yet",
-        );
+    public override async getTaskWithoutDependenciesIfPossible(
+        this: TestTaskContextModuleWithRealtimeServer &
+            ContextModuleBase<ServerAccountActionContextModules>,
+        spaceId: SpaceId,
+        taskId: TaskId,
+        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    ): Promise<Result<TaskModel> | null> {
+        const {taskResult} = await getTaskWithoutDependenciesForRealtime(this._context, {
+            server: this._getServer().server,
+            dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
+            spaceId,
+            taskId,
+            consistency,
+        });
+
+        return taskResult;
     }
 
-    public override getTaskWithoutDependencies(): Promise<never> {
-        throw new UnimplementedError(
-            "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependencies()` should be implementable but we haven’t implemented it yet",
-        );
-    }
+    public override async getCollectionIfPossible(
+        this: TestTaskContextModuleWithRealtimeServer &
+            ContextModuleBase<ServerAccountActionContextModules>,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    ): Promise<Result<TaskCollectionModel> | null> {
+        const {collectionResult} = await getTaskCollectionForRealtime(this._context, {
+            server: this._getServer().server,
+            dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
+            spaceId,
+            collectionId,
+            consistency,
+        });
 
-    public override getCollectionIfPossible(): Promise<never> {
-        throw new UnimplementedError(
-            "`TestTaskContextModuleWithRealtimeServer.getCollectionIfPossible()` should be implementable but we haven’t implemented it yet",
-        );
-    }
-
-    public override getCollection(): Promise<never> {
-        throw new UnimplementedError(
-            "`TestTaskContextModuleWithRealtimeServer.getCollection()` should be implementable but we haven’t implemented it yet",
-        );
+        return collectionResult;
     }
 }

@@ -10,6 +10,92 @@ servers:
     - url: https://api.alpine.inc
 
 paths:
+    /accounts/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [account]
+                                additionalProperties: false
+                                properties:
+                                    account:
+                                        $ref: "#/components/schemas/AccountWithoutSpace"
+
+    /spaces/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [space]
+                                additionalProperties: false
+                                properties:
+                                    space:
+                                        $ref: "#/components/schemas/Space"
+
+    /spaces/{id}/accounts/{accountId}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+            - name: accountId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/AccountId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [account]
+                                additionalProperties: false
+                                properties:
+                                    account:
+                                        $ref: "#/components/schemas/Account"
+
+    /chats/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, chat]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    chat:
+                                        $ref: "#/components/schemas/Chat"
+
     /chats/{id}/messages/{index}:
         parameters:
             - name: id
@@ -71,6 +157,28 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
 
+    /documents/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, document]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    document:
+                                        $ref: "#/components/schemas/Document"
+
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
             - name: id
@@ -102,7 +210,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/DocumentThreadId"}
-
         get:
             parameters:
                 - name: limit
@@ -125,7 +232,6 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
-
         post:
             requestBody:
                 required: true
@@ -141,6 +247,50 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /channels/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChannelId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, channel]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    channel:
+                                        $ref: "#/components/schemas/Channel"
+
+    /posts/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, post]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    post:
+                                        $ref: "#/components/schemas/Post"
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -165,7 +315,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/PostId"}
-
         get:
             parameters:
                 - name: limit
@@ -188,7 +337,6 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
-
         post:
             requestBody:
                 required: true
@@ -204,6 +352,28 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /tasks/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, task]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    task:
+                                        $ref: "#/components/schemas/Task"
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -228,7 +398,6 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/TaskId"}
-
         get:
             parameters:
                 - name: limit
@@ -251,7 +420,6 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
-
         post:
             requestBody:
                 required: true
@@ -267,6 +435,28 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /task-collections/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, taskCollection]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    taskCollection:
+                                        $ref: "#/components/schemas/TaskCollection"
 
 webhooks:
     bot:
@@ -353,11 +543,24 @@ components:
                                     $ref: "#/components/schemas/Message"
 
     schemas:
+        LabelString:
+            type: string
+            minLength: 1
+            maxLength: 50
+
         AccountId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
+        BotId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
         BotWebhookEventId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        ChannelId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
@@ -382,6 +585,10 @@ components:
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
         TaskId:
+            type: string
+            pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
@@ -852,6 +1059,184 @@ components:
                     Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
                     Comment: "#/components/schemas/ContentInlineElementCommentMark"
 
+        AccountWithoutSpace:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                botId:
+                    $ref: "#/components/schemas/BotId"
+
+        Space:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/SpaceId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Account:
+            type: object
+            required: [id, name, space]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/AccountId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                botId:
+                    $ref: "#/components/schemas/BotId"
+                space:
+                    type: object
+                    required: [role, addedTime]
+                    additionalProperties: false
+                    properties:
+                        role:
+                            type: string
+                            enum: [Owner, Admin, Member]
+                        addedTime:
+                            type: string
+                            format: date-time
+                        inactive:
+                            oneOf:
+                                - type: object
+                                  required: [type]
+                                  additionalProperties: false
+                                  properties:
+                                      type:
+                                          const: Removed
+                                      removedTime:
+                                          type: string
+                                          format: date-time
+                                - type: object
+                                  required: [type]
+                                  additionalProperties: false
+                                  properties:
+                                      type:
+                                          const: InvitePending
+
+        Chat:
+            type: object
+            required: [id, members]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                members:
+                    type: array
+                    items:
+                        type: object
+                        required: [account]
+                        additionalProperties: false
+                        properties:
+                            account:
+                                $ref: "#/components/schemas/Account"
+
+        Document:
+            type: object
+            required: [id, title, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        ChannelPreview:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
+        Channel:
+            type: object
+            required: [id, name, description]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+                description:
+                    $ref: "#/components/schemas/Content"
+
+        Post:
+            type: object
+            required: [id, author, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        Task:
+            type: object
+            required: [id, status, title, content]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    oneOf:
+                        - type: object
+                          required: [type, isActive]
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: Open
+                              isActive:
+                                  type: boolean
+                        - type: object
+                          required: [type]
+                          additionalProperties: false
+                          properties:
+                              type:
+                                  const: Closed
+                title:
+                    type: string
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    type: object
+                    required: [date]
+                    additionalProperties: false
+                    properties:
+                        date:
+                            type: string
+                            format: date
+                priority:
+                    type: string
+                    enum: [Low, Medium, High, Urgent]
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        TaskCollection:
+            type: object
+            required: [id, name]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+                name:
+                    $ref: "#/components/schemas/LabelString"
+
         Message:
             type: object
             required: [index, author, createdTime, payload]
@@ -861,16 +1246,7 @@ components:
                     type: integer
                     minimum: 0
                 author:
-                    type: object
-                    required: [id, name]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/AccountId"
-                        name:
-                            type: string
-                            minLength: 1
-                            maxLength: 50
+                    $ref: "#/components/schemas/Account"
                 createdTime:
                     type: string
                     format: date-time

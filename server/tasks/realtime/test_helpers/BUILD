@@ -3,7 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "test_helpers",
     testonly = True,
-    visibility = ["//server/tasks/realtime:__pkg__"],
+    visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@internationalized/date",
         "//server/dynamo/test_helpers",

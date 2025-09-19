@@ -26,6 +26,7 @@ import {
     getChannelContributors,
     getChannelContributorsKey,
     getChannelIfPossible,
+    getChannelNameAndDescriptionContent,
     getChannelNameAndDescriptionContentAndContributors,
     getChannelNotificationSubscribers,
     getChannelPosts,
@@ -40,6 +41,7 @@ import {
     getPostCommentsFromStart,
     getPostContentAndChannelPreview,
     getPostContentAndChannelPreviewIfPossible,
+    getPostContentWithCustomReferencesAndChannelPreview,
     getPostDraftIfExists,
     getPostIfPossible,
     getPostNotificationSubscribers,
@@ -238,6 +240,9 @@ test("can’t get a channel that does not exist", async () => {
     await expect(getChannel(session.action(), badChannelId)).rejects.toThrow(NotFoundError);
     await expect(getChannelIfPossible(session.action(), badChannelId)).resolves.toEqual(null);
     await expect(
+        getChannelNameAndDescriptionContent(session.action(), badChannelId),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
         getChannelNameAndDescriptionContentAndContributors(session.action(), badChannelId),
     ).rejects.toThrow(NotFoundError);
     await expect(
@@ -279,6 +284,9 @@ test("can’t get a channel for a different space", async () => {
     await expect(getChannel(otherSession.action(), channel.id)).rejects.toThrow(
         PermissionDeniedError,
     );
+    await expect(
+        getChannelNameAndDescriptionContent(otherSession.action(), channel.id),
+    ).rejects.toThrow(PermissionDeniedError);
     await expect(
         getChannelNameAndDescriptionContentAndContributors(otherSession.action(), channel.id),
     ).rejects.toThrow(PermissionDeniedError);
@@ -324,6 +332,9 @@ test("can’t get a private channel", async () => {
         expect.objectContaining({ok: true}),
     );
     await expect(
+        getChannelNameAndDescriptionContent(session3.action(), channel.id),
+    ).resolves.toBeTruthy();
+    await expect(
         getChannelNameAndDescriptionContentAndContributors(session3.action(), channel.id),
     ).resolves.toBeTruthy();
     await expect(
@@ -360,6 +371,9 @@ test("can’t get a private channel", async () => {
         expect.objectContaining({ok: true}),
     );
     await expect(
+        getChannelNameAndDescriptionContent(session1.action(), channel.id),
+    ).resolves.toBeTruthy();
+    await expect(
         getChannelNameAndDescriptionContentAndContributors(session1.action(), channel.id),
     ).resolves.toBeTruthy();
     await expect(
@@ -392,6 +406,9 @@ test("can’t get a private channel", async () => {
     await expect(getChannelIfPossible(session2.action(), channel.id)).resolves.toEqual(
         expect.objectContaining({ok: true}),
     );
+    await expect(
+        getChannelNameAndDescriptionContent(session2.action(), channel.id),
+    ).resolves.toBeTruthy();
     await expect(
         getChannelNameAndDescriptionContentAndContributors(session2.action(), channel.id),
     ).resolves.toBeTruthy();
@@ -433,6 +450,9 @@ test("can’t get a private channel", async () => {
         }),
     );
     await expect(
+        getChannelNameAndDescriptionContent(session3.action(), channel.id),
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    await expect(
         getChannelNameAndDescriptionContentAndContributors(session3.action(), channel.id),
     ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(
@@ -472,6 +492,9 @@ test("can get a channel", async () => {
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test");
     expect((await getChannelIfPossible(session.action(), channel.id))?.value?.model.name).toEqual(
+        "Test",
+    );
+    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
         "Test",
     );
     expect(
@@ -515,6 +538,9 @@ test("can update a channel’s name", async () => {
     });
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
+        "Test 1",
+    );
     expect(
         (await getChannelNameAndDescriptionContentAndContributors(session.action(), channel.id))
             .name,
@@ -532,6 +558,9 @@ test("can update a channel’s name", async () => {
     });
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 2");
+    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
+        "Test 2",
+    );
     expect(
         (await getChannelNameAndDescriptionContentAndContributors(session.action(), channel.id))
             .name,
@@ -1416,6 +1445,13 @@ test("can’t get a post that does not exist", async () => {
         null,
     );
     await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session.action(),
+            generateId(),
+            async (context, spaceId, content) => content,
+        ),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
         getPostAndInitialComments(session.action(), {postId: generateId(), commentLimit: 100}),
     ).rejects.toThrow(NotFoundError);
 });
@@ -1443,6 +1479,13 @@ test("can’t get a post for a different space", async () => {
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(otherSession.action(), post.id))?.error,
     ).toBeInstanceOf(PermissionDeniedError);
+    await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            otherSession.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
     await expect(
         getPostAndInitialComments(otherSession.action(), {postId: post.id, commentLimit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
@@ -1475,6 +1518,13 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
             ?.message,
     ).toContain("Actor doesn’t have `View` access level");
     await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session2.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
+    await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).rejects.toThrow("Actor doesn’t have `View` access level");
 
@@ -1489,6 +1539,13 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
     );
+    await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session2.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).resolves.toBeTruthy();
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1505,6 +1562,13 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
         true,
     );
     await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session2.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).resolves.toBeTruthy();
+    await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
 
@@ -1520,6 +1584,13 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
         true,
     );
     await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session2.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).resolves.toBeTruthy();
+    await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
 
@@ -1534,6 +1605,13 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
     );
+    await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session2.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).resolves.toBeTruthy();
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1557,6 +1635,13 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
     ).toContain("Actor doesn’t have `View` access level");
+    await expect(
+        getPostContentWithCustomReferencesAndChannelPreview(
+            session2.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).rejects.toThrow("Actor doesn’t have `View` access level");
@@ -1585,6 +1670,13 @@ test("can get a post", async () => {
     expect((await getPostAuthorAndChannelPreviewIfPossible(session.action(), post.id))?.ok).toBe(
         true,
     );
+    expect(
+        await getPostContentWithCustomReferencesAndChannelPreview(
+            session.action(),
+            post.id,
+            async (context, spaceId, content) => content,
+        ),
+    ).toBeTruthy();
     expect(
         (
             await getPostAndInitialComments(session.action(), {postId: post.id, commentLimit: 100})
@@ -5588,6 +5680,66 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(4);
     }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelNameAndDescriptionContent(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelNameAndDescriptionContentAndContributors(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
 });
 
 test("authorizing channel access after getting channel as system actor is cached", async () => {
@@ -5745,6 +5897,66 @@ test("authorizing channel access after getting channel as system actor is cached
         }
 
         expect(getCount()).toEqual(3);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelNameAndDescriptionContent(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelNameAndDescriptionContentAndContributors(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
     }
 });
 

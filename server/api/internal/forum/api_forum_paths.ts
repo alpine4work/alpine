@@ -1,11 +1,15 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
     createPostComment,
+    getChannelNameAndDescriptionContent,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
     getPostCommentPayloadsFromStart,
+    getPostContentWithCustomReferencesAndChannelPreview,
 } from "~/server/forum/data/forum_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
@@ -15,7 +19,67 @@ import {
 import {MessageContentPayload} from "~/shared/messaging/message_model.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
-export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> = {
+export const apiForumPaths: Pick<
+    ApiPaths,
+    keyof ApiPaths & (`/channels/${string}` | `/posts/${string}`)
+> = {
+    "/channels/{id}": {
+        get: async (context, {pathParameters}) => {
+            const channel = await getChannelNameAndDescriptionContent(context, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId: channel.spaceId,
+                    channel: {
+                        id: pathParameters.id,
+                        name: channel.name,
+                        description: await intoApiContentWithReferences(
+                            context,
+                            channel.spaceId,
+                            channel.description,
+                        ),
+                    },
+                },
+            };
+        },
+    },
+
+    "/posts/{id}": {
+        get: async (context, {pathParameters}) => {
+            const post = await getPostContentWithCustomReferencesAndChannelPreview(
+                context,
+                pathParameters.id,
+                async (context, spaceId, post) => {
+                    const [author, content] = await runAllPromises([
+                        getApiAccount(context, spaceId, post.authorId, {
+                            consistency: "StrongWithinCache",
+                        }),
+                        intoApiContentWithReferences(context, spaceId, post.content),
+                    ]);
+                    return {author, content};
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId: post.spaceId,
+                    post: {
+                        id: pathParameters.id,
+                        author: post.content.author,
+                        channel: {
+                            id: post.channel.id,
+                            name: post.channel.name,
+                        },
+                        content: post.content.content,
+                    },
+                },
+            };
+        },
+    },
+
     "/posts/{id}/messages/{index}": {
         get: async (context, {pathParameters}) => {
             const {spaceId, authorId, createdTime, payload} = await getPostCommentPayload(context, {

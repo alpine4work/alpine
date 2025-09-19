@@ -1127,6 +1127,53 @@ export async function getChannelPreview(
  * building a search entity which will load content references on its own in a
  * way that tracks dependencies.
  */
+export async function getChannelNameAndDescriptionContent(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    name: string;
+    description: MessageContent;
+    createdTime: Date;
+    creatorId: AccountId | null;
+    accessPolicy: AccessPolicy;
+}> {
+    const channelItemPromise = ForumRealtimeTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Attributes",
+            channelId,
+        },
+        {consistency},
+    );
+
+    // Save the channel to our authorization cache in case we need it later.
+    ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, channelItemPromise);
+
+    const channelItem = await channelItemPromise;
+    if (!channelItem) throw createChannelNotFoundError(channelId);
+
+    await authorizeChannelItemAccess(context, channelItem, "View");
+
+    return {
+        spaceId: channelItem.spaceId,
+        version: channelItem.updateLockVersion ?? 0,
+        name: channelItem.name,
+        description: channelItem.description,
+        createdTime: channelItem.createdTime,
+        creatorId: channelItem.creatorId,
+        accessPolicy: channelItem.accessPolicy,
+    };
+}
+
+/**
+ * Get the channel name and description content without references. Used for
+ * building a search entity which will load content references on its own in a
+ * way that tracks dependencies.
+ */
 export async function getChannelNameAndDescriptionContentAndContributors(
     context: ServerActionContext,
     channelId: ChannelId,
@@ -2295,6 +2342,7 @@ export async function getPostIfPossible(
     return {ok: true, value: post};
 }
 
+// Designed for `server/search/data/index/internal/get_search_entity.ts`.
 export async function getPostContentAndChannelPreview(
     context: ServerActionContext,
     postId: PostId,
@@ -2311,6 +2359,7 @@ export async function getPostContentAndChannelPreview(
     return unwrapResult(postResult);
 }
 
+// Designed for `server/search/data/index/internal/get_search_entity.ts`.
 export async function getPostContentAndChannelPreviewIfExists(
     context: ServerActionContext,
     postId: PostId,
@@ -2327,6 +2376,7 @@ export async function getPostContentAndChannelPreviewIfExists(
     return unwrapResult(postResult);
 }
 
+// Designed for `server/search/data/index/internal/get_search_entity.ts`.
 export async function getPostContentAndChannelPreviewIfPossible(
     context: ServerActionContext,
     postId: PostId,
@@ -2376,6 +2426,54 @@ export async function getPostContentAndChannelPreviewIfPossible(
     };
 }
 
+// Designed for `server/api/internal/forum/api_forum_paths.ts`.
+export async function getPostContentWithCustomReferencesAndChannelPreview<Content>(
+    context: ServerAccountActionContext,
+    postId: PostId,
+    buildContent: (
+        context: ServerAccountActionContext,
+        spaceId: SpaceId,
+        post: {authorId: AccountId; content: PostContent},
+    ) => Promise<Content>,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<{
+    spaceId: SpaceId;
+    version: number;
+    createdTime: Date;
+    channel: ChannelPreviewModel;
+    content: Content;
+}> {
+    const postItemPromise = ForumRealtimeTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {consistency},
+    );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
+
+    const postItem = await postItemPromise;
+    if (!postItem) throw createPostNotFoundError(postId);
+
+    const [channel, content] = await runAllPromises([
+        getChannelPreview(context, postItem.channelId, {consistency}),
+        buildContent(context, postItem.spaceId, postItem),
+    ]);
+
+    return {
+        spaceId: postItem.spaceId,
+        version: postItem.updateLockVersion ?? 0,
+        createdTime: postItem.createdTime,
+        channel,
+        content,
+    };
+}
+
 /**
  * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
  * the post.
@@ -2384,6 +2482,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
  * times in the same action you'll get the same result without issuing a
  * network request.
  */
+// Designed for `server/notifications/data/notifications_table.ts`.
 export async function getPostAuthorAndChannelPreviewIfPossible(
     context: ServerActionContext,
     postId: PostId,

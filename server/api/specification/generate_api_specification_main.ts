@@ -44,13 +44,16 @@ async function main() {
 
     const supportedIdTypes = [
         "AccountId",
+        "BotId",
         "BotWebhookEventId",
+        "ChannelId",
         "ChatId",
         "DocumentId",
         "DocumentThreadId",
         "PostId",
         "SpaceId",
         "TaskId",
+        "TaskCollectionId",
     ];
 
     const supportedIdTypeByMetadataPath = new Map(

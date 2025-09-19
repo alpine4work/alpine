@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
 import {join as joinPath} from "path";
+import supertest from "supertest";
 import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {createApiServiceRequestListener} from "~/server/api/internal/shared/api_service_server.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -10,14 +11,30 @@ import {TokenAgentJobQueueServicePrivateSide} from "~/server/tokens/token_agent_
 import {InternalError} from "~/shared/error/error.js";
 import {runAllObjectPromises} from "~/shared/helpers/async/run_all_promises.js";
 
-export function createTestApiServer(
-    context: TestContext,
-    paths: ApiPathsBase,
-): {
-    (req: IncomingMessage, res: ServerResponse<IncomingMessage>): void;
+type TestApiServerRequest = (
+    path: string,
+    options?: TestApiServerRequestOptions,
+) => Promise<TestApiServerResponse>;
+
+type TestApiServerRequestOptions = {
+    headers?: Record<string, string>;
+    body?: unknown;
+};
+
+type TestApiServerResponse = {
+    status: number;
+    headers: Record<string, string>;
+    body: any;
+};
+
+export type TestApiServer = {
+    readonly GET: TestApiServerRequest;
+    readonly POST: TestApiServerRequest;
     readonly jobQueueTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide>;
     readonly apiTokenAgent: TokenAgent;
-} {
+};
+
+export function createTestApiServer(context: TestContext, paths: ApiPathsBase): TestApiServer {
     let jobQueueTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | undefined;
     let apiTokenAgent: TokenAgent | undefined;
     let server: ((req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void) | undefined;
@@ -52,26 +69,57 @@ export function createTestApiServer(
         });
     });
 
-    const actualServer = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
+    async function testRequest(
+        method: "GET" | "POST",
+        path: string,
+        options?: TestApiServerRequestOptions,
+    ): Promise<TestApiServerResponse> {
         if (server === undefined) throw new InternalError("`beforeAll()` hook hasn’t run");
-        server(req, res);
-    };
 
-    Object.defineProperty(actualServer, "jobQueueTokenAgent", {
-        get: () => {
+        let request;
+
+        switch (method) {
+            case "GET":
+                request = supertest(server).get(path);
+                break;
+            case "POST":
+                request = supertest(server).post(path);
+                break;
+        }
+
+        for (const [key, value] of Object.entries(options?.headers ?? {})) {
+            request = request.set(key, value);
+        }
+
+        if (options?.body) {
+            request = request.send(options.body);
+        }
+
+        const response = await request;
+
+        return {
+            status: response.status,
+            headers: response.headers,
+            body:
+                response.headers["content-type"] === "application/json"
+                    ? response.body
+                    : response.text,
+        };
+    }
+
+    return {
+        GET: (path, options) => testRequest("GET", path, options),
+        POST: (path, options) => testRequest("POST", path, options),
+
+        get jobQueueTokenAgent() {
             if (jobQueueTokenAgent === undefined)
                 throw new InternalError("`beforeAll()` hook hasn’t run");
             return jobQueueTokenAgent;
         },
-    });
-
-    Object.defineProperty(actualServer, "apiTokenAgent", {
-        get: () => {
+        get apiTokenAgent() {
             if (apiTokenAgent === undefined)
                 throw new InternalError("`beforeAll()` hook hasn’t run");
             return apiTokenAgent;
         },
-    });
-
-    return actualServer as any;
+    };
 }
