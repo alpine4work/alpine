@@ -27,6 +27,7 @@ import {
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -136,6 +137,10 @@ export class TestTask extends TestCommentRoomBase {
 
     protected override _getRoomKey() {
         return this.id;
+    }
+
+    public override getBotScope(): BotTokenPayloadScope {
+        return {type: "Task", taskId: this.id};
     }
 
     protected override _createMessage(

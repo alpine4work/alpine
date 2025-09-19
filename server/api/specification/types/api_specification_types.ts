@@ -47,6 +47,51 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/chats/{id}/messages": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["ChatId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["ChatId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly content: components["schemas"]["Content"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": components["schemas"]["Message"];
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/documents/{id}/threads/{threadId}/messages/{index}": {
             readonly parameters: {
                 readonly query?: never;
@@ -84,6 +129,53 @@ export namespace ApiSpecification {
             };
             readonly put?: never;
             readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/documents/{id}/threads/{threadId}/messages": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["DocumentId"];
+                    readonly threadId: components["schemas"]["DocumentThreadId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly content: components["schemas"]["Content"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": components["schemas"]["Message"];
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;
@@ -131,6 +223,51 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/posts/{id}/messages": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["PostId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["PostId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly content: components["schemas"]["Content"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": components["schemas"]["Message"];
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/tasks/{id}/messages/{index}": {
             readonly parameters: {
                 readonly query?: never;
@@ -166,6 +303,51 @@ export namespace ApiSpecification {
             };
             readonly put?: never;
             readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
+        readonly "/tasks/{id}/messages": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["TaskId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly content: components["schemas"]["Content"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": components["schemas"]["Message"];
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly delete?: never;
             readonly options?: never;
             readonly head?: never;

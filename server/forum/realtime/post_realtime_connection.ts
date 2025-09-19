@@ -1,4 +1,5 @@
 import {
+    WorkerActionContext,
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
@@ -18,11 +19,13 @@ import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_serv
 import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     backfillPostComments,
     createPostComment,
@@ -89,6 +92,11 @@ export class PostRealtimeConnection {
         });
     }
 
+    public getConnectionForTest() {
+        assert(import.meta.jest);
+        return this._connection;
+    }
+
     public async authorize(context: WorkerSessionActionContext) {
         await authorizePostAccessForDurableObject(context, this._postId);
     }
@@ -144,6 +152,16 @@ export class PostRealtimeConnection {
         stopTypingInCommentInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
     };
+
+    public static broadcastNewMessage(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastNewMessageRequest,
+        iterateAllConnections: () => Iterable<PostRealtimeConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastNewMessage(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._connection),
+        );
+    }
 
     public async transformEvent(
         context: WorkerSessionActionContext,

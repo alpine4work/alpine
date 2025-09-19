@@ -1,9 +1,9 @@
 import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadSchema, MessageModel} from "~/shared/messaging/message_model.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -276,3 +276,14 @@ function testTypes(MessageSchema: Schema<any>) {
         assertEqualTypes<Procedures, MessagingRealtimeProcedures<any>>();
     }
 }
+
+export type MessagingRealtimeBroadcastNewMessageRequest = SchemaType<
+    typeof MessagingRealtimeBroadcastNewMessageRequestSchema
+>;
+
+export const MessagingRealtimeBroadcastNewMessageRequestSchema = Schema.object({
+    index: Schema.integer.min(0),
+    authorId: Schema.id<AccountId>(),
+    createdTime: Schema.date,
+    payload: MessageContentPayloadSchema,
+});

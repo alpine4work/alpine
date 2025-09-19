@@ -21,13 +21,20 @@ import {NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type DocumentCollaborationDurableObjectRoute = "Main" | "WithoutComments" | "NotFound";
+type DocumentCollaborationDurableObjectRoute =
+    | "Main"
+    | "WithoutComments"
+    | "NotFound"
+    | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -212,12 +219,23 @@ class DocumentCollaborationDurableObject {
     }
 
     public static parseRoute(url: URL): [string, DocumentCollaborationDurableObjectRoute] {
+        if (url.pathname === "/") return ["/", "Main"];
         if (url.pathname === "/view") return ["/view", "WithoutComments"];
-        if (url.pathname !== "/") return ["/*", "NotFound"];
-        return ["/", "Main"];
+
+        if (url.pathname.startsWith("/broadcast-new-message/")) {
+            const commentThreadId = url.pathname.slice(23);
+            if (isId<DocumentCommentThreadId>(commentThreadId)) {
+                return [
+                    "/broadcast-new-message/:commentThreadId",
+                    {type: "BroadcastNewMessage", commentThreadId},
+                ];
+            }
+        }
+
+        return ["/*", "NotFound"];
     }
 
-    public fetch(
+    public async fetch(
         context: WorkerActionContext,
         request: Request,
         route: DocumentCollaborationDurableObjectRoute,
@@ -227,16 +245,45 @@ class DocumentCollaborationDurableObject {
             context: {spaceId: this.spaceId, documentId: this.id},
         });
 
-        if (route === "NotFound") throw new NotFoundError("Route not found");
+        switch (route) {
+            case "NotFound": {
+                throw new NotFoundError("Route not found");
+            }
+            case "Main": {
+                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+            }
+            case "WithoutComments": {
+                return this._webSocketServerWithoutComments.upgrade(
+                    context.actor.authorizeSession(),
+                    request,
+                );
+            }
+            default: {
+                // TypeScript will error on this `cast()` if we add another route that doesn't
+                // have the `BroadcastNewMessage` type.
+                cast<"BroadcastNewMessage">(route.type);
 
-        if (route === "WithoutComments") {
-            return this._webSocketServerWithoutComments.upgrade(
-                context.actor.authorizeSession(),
-                request,
-            );
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody = MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
+                    await request.json(),
+                );
+
+                DocumentCollaborationConnection.broadcastNewMessage(
+                    context,
+                    route.commentThreadId,
+                    requestBody,
+                    () => this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
         }
-
-        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
     public connectForTest(

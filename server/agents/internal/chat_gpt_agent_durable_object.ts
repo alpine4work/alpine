@@ -8,7 +8,10 @@ import {
     ApiMessageRoomPathObject,
     parseApiMessageRoomPath,
 } from "~/server/api/specification/parse_api_path.js";
-import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiBotWebhookEvent,
+    ApiContent,
+} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -58,6 +61,15 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
                     .join("\n") +
                 "\n",
         );
+
+        // Echo messages back to the user when mentioned.
+        //
+        // TODO(calebmer, #api): We also want AI to always respond in 1:1 chats.
+        if (event.wasMentioned) {
+            await createApiMessage(apiClient, roomPathObject, {
+                content: message.payload.content,
+            });
+        }
     }
 }
 
@@ -91,6 +103,46 @@ function getApiMessage(
         case "Task": {
             return apiClient.GET("/tasks/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.taskId, index}},
+            });
+        }
+        default:
+            throw exhaustive(roomPathObject);
+    }
+}
+
+function createApiMessage(
+    apiClient: ApiClient,
+    roomPathObject: ApiMessageRoomPathObject,
+    body: {content: ApiContent},
+) {
+    switch (roomPathObject.type) {
+        case "Chat": {
+            return apiClient.POST("/chats/{id}/messages", {
+                params: {path: {id: roomPathObject.chatId}},
+                body,
+            });
+        }
+        case "DocumentCommentThread": {
+            return apiClient.POST("/documents/{id}/threads/{threadId}/messages", {
+                params: {
+                    path: {
+                        id: roomPathObject.documentId,
+                        threadId: roomPathObject.commentThreadId,
+                    },
+                },
+                body,
+            });
+        }
+        case "Post": {
+            return apiClient.POST("/posts/{id}/messages", {
+                params: {path: {id: roomPathObject.postId}},
+                body,
+            });
+        }
+        case "Task": {
+            return apiClient.POST("/tasks/{id}/messages", {
+                params: {path: {id: roomPathObject.taskId}},
+                body,
             });
         }
         default:

@@ -631,6 +631,7 @@ testMessagingRealtimeImplementation<TaskId>(context, {
         const connection = await connectForTest(context, roomKey);
 
         return {
+            getConnection: () => connection.connection.getConnectionForTest(),
             procedures: {
                 backfillMessages: async ({
                     clientMessageCount: clientCommentCount,

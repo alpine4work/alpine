@@ -112,6 +112,7 @@ import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post
 import {
     channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
     createChannelNotFoundError,
+    createPostCommentNotFoundError,
     createPostNotFoundError,
 } from "~/shared/forum/forum_error_messages.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
@@ -577,9 +578,15 @@ async function authorizeChannelItemAccess(
         | {channelId: ChannelId}
     ),
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<void> {
     unwrapResult(
-        await authorizeChannelItemAccessIfPossible(context, channelItem, expectedAccessLevel),
+        await authorizeChannelItemAccessIfPossible(
+            context,
+            channelItem,
+            expectedAccessLevel,
+            options,
+        ),
     );
 }
 
@@ -590,12 +597,14 @@ async function authorizeChannelItemAccessIfPossible(
         | {channelId: ChannelId}
     ),
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     const isAccessAuthorized = await evaluateAccessPolicy(
         context,
         channelItem.spaceId,
         channelItem.accessPolicy,
         expectedAccessLevel,
+        options,
     );
 
     if (isAccessAuthorized) return okResult;
@@ -1185,7 +1194,7 @@ export async function authorizeChannelAccess(
 ): Promise<{spaceId: SpaceId; accessPolicy: AccessPolicy}> {
     const channelItem = await getChannelPreviewItemForAuthorization(context, channelId, options);
 
-    await authorizeChannelItemAccess(context, channelItem, expectedAccessLevel);
+    await authorizeChannelItemAccess(context, channelItem, expectedAccessLevel, options);
 
     return {spaceId: channelItem.spaceId, accessPolicy: channelItem.accessPolicy};
 }
@@ -1209,6 +1218,7 @@ export async function authorizeChannelAccessIfPossible(
         context,
         channelItem,
         expectedAccessLevel,
+        options,
     );
     if (!result.ok) return result;
 
@@ -2842,11 +2852,13 @@ export async function createPostComment(
         parentCommentIndex,
         content,
         fileIds,
+        consistency = "Eventual",
     }: {
         postId: PostId;
         parentCommentIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -2854,8 +2866,6 @@ export async function createPostComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const postItemConsistency: DynamoReadConsistency = "Eventual";
-
         const postItemPromise = ForumRealtimeTable.getPartialItemIfExists(
             context,
             {
@@ -2864,7 +2874,7 @@ export async function createPostComment(
                 postId,
             },
             {
-                consistency: postItemConsistency,
+                consistency,
                 attributes: [
                     "spaceId",
                     "channelId",
@@ -2877,14 +2887,14 @@ export async function createPostComment(
 
         // After we've loaded a post, save it to the authorization cache so if we need
         // to authorize later in the action it's available.
-        PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
+        PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
 
         const [postItem] = await runAllPromises([
             postItemPromise.then(async postItem => {
                 if (!postItem) throw createPostNotFoundError(postId);
 
                 await runAllPromises([
-                    authorizeChannelAccess(context, postItem.channelId, "Comment"),
+                    authorizeChannelAccess(context, postItem.channelId, "Comment", {consistency}),
 
                     // Make sure all the provided files exist.
                     runAllPromises(
@@ -2895,6 +2905,7 @@ export async function createPostComment(
                                       postItem.spaceId,
                                       fileId,
                                       FilePostAuthorizer.bind({type: "PostComments", postId}),
+                                      {consistency},
                                   )
                                 : null,
                         ),
@@ -2916,6 +2927,7 @@ export async function createPostComment(
                         commentIndex: parentCommentIndex,
                     },
                     {
+                        consistency,
                         attributes: [],
                     },
                 );
@@ -2979,7 +2991,9 @@ export async function createPostComment(
                 let newContributionCount = 0;
 
                 await ForumRealtimeTable.updateItem(
-                    context,
+                    // This update happens asynchronously in the background. So we don't need strong
+                    // read consistency here if the context was expecting it.
+                    context.dynamo.unexpectStrongReadConsistency(),
                     {
                         partitionType: "Channel",
                         sortRangeType: "Contributors",
@@ -3138,13 +3152,15 @@ export async function getPostComment(
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizePostAccess(context, postId, "View"),
-        ForumTable.getItem(context, {
+        ForumTable.getItemIfExists(context, {
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
             commentIndex,
         }),
     ]);
+
+    if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
     return createPostCommentModelFromItem(context, spaceId, item);
 }
@@ -3172,7 +3188,7 @@ export async function getPostCommentPayload(
 }> {
     const [{channelId, channelAccessPolicy}, item] = await runAllPromises([
         authorizePostAccess(context, postId, "View", {consistency}),
-        ForumTable.getItem(
+        ForumTable.getItemIfExists(
             context,
             {
                 partitionType: "Post",
@@ -3183,6 +3199,8 @@ export async function getPostCommentPayload(
             {consistency},
         ),
     ]);
+
+    if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
     return {
         createdTime: item.createdTime,

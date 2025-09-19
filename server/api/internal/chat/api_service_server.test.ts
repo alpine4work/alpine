@@ -750,3 +750,35 @@ test("doesn’t use authorization cookie if request isn’t an HTML request", as
         },
     });
 });
+
+test("invalid request body throws a validation error", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session1);
+
+    const chat = await TestChat.get(session1, session2);
+
+    const response = await request(server)
+        .post(`/chats/${chat.id}/messages`)
+        .set("authorization", `bearer ${apiKey}`)
+        .send({
+            content: {
+                elements: [
+                    {
+                        type: "InvalidType",
+                        elements: [],
+                    },
+                ],
+            },
+        })
+        .expect(400);
+
+    expect(response.body).toEqual({
+        error: {
+            message: "Invalid request body (path: `#/content/elements/0`).",
+        },
+    });
+});

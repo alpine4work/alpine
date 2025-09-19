@@ -1,10 +1,13 @@
 import {
+    WorkerBotActionContext,
+    WorkerBotActionContextModules,
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
     WorkerSystemActionContext,
     WorkerSystemActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {
+    TestBotActionContextModules,
     TestContext,
     TestSessionActionContextModules,
     TestSystemActionContextModules,
@@ -26,6 +29,11 @@ type TestWorkerSystemActionContext = Context<TestWorkerSystemActionContextModule
 type TestWorkerSystemActionContextModules = TestSystemActionContextModules &
     Omit<WorkerSystemActionContextModules, keyof TestSystemActionContextModules>;
 
+type TestWorkerBotActionContext = Context<TestWorkerBotActionContextModules>;
+
+type TestWorkerBotActionContextModules = TestBotActionContextModules &
+    Omit<WorkerBotActionContextModules, keyof TestBotActionContextModules>;
+
 export type TestWorkerContext = Replace<
     TestContext,
     {
@@ -34,12 +42,15 @@ export type TestWorkerContext = Replace<
         systemAction(
             ...args: Parameters<TestContext["systemAction"]>
         ): TestWorkerSystemActionContext;
+
+        botAction(...args: Parameters<TestContext["botAction"]>): TestWorkerBotActionContext;
     }
 >;
 
 assertAssignableTypes<TestWorkerContext, TestContext>();
 assertAssignableTypes<TestWorkerSessionActionContext, WorkerSessionActionContext>();
 assertAssignableTypes<TestWorkerSystemActionContext, WorkerSystemActionContext>();
+assertAssignableTypes<TestWorkerBotActionContext, WorkerBotActionContext>();
 
 export function createTestWorkerContext(
     options?: Parameters<typeof createTestContext>[0],
@@ -59,6 +70,12 @@ export function createTestWorkerContext(
                 fork: new ForkActionContextModule(),
             });
         }) satisfies TestWorkerContext["systemAction"],
+        botAction: ((spaceId, botAccountId, scope, options) => {
+            return baseContext.botAction(spaceId, botAccountId, scope, options).clone({
+                rpc: new LocalRpcContextModule(),
+                fork: new ForkActionContextModule(),
+            });
+        }) satisfies TestWorkerContext["botAction"],
     });
 
     return context;

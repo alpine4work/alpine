@@ -120,7 +120,7 @@ export const MessageContentPayloadClericalSchema = Schema.union({
     }),
 });
 
-const MessageContentPayloadSchema = Schema.object({
+export const MessageContentPayloadSchema = Schema.object({
     type: Schema.value("Content"),
 
     /**

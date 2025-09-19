@@ -1,5 +1,6 @@
 import {Step} from "prosemirror-transform";
 import {
+    WorkerActionContext,
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
@@ -25,6 +26,7 @@ import {
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -35,6 +37,7 @@ import {
     TaskId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     authorizeTaskAccess,
     backfillTaskComments,
@@ -299,6 +302,21 @@ export class TaskNotesCollaborationConnection {
                 return {};
             }),
     };
+
+    public getConnectionForTest() {
+        assert(import.meta.jest);
+        return this._messagingConnection;
+    }
+
+    public static broadcastNewMessage(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastNewMessageRequest,
+        iterateAllConnections: () => Iterable<TaskNotesCollaborationConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastNewMessage(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._messagingConnection),
+        );
+    }
 
     public async transformEvent(
         context: WorkerSessionActionContext,

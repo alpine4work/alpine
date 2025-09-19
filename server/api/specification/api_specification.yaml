@@ -42,6 +42,32 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/Message"
 
+    /chats/{id}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [content]
+                            additionalProperties: false
+                            properties:
+                                content:
+                                    $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
             - name: id
@@ -59,6 +85,36 @@ paths:
                   type: integer
                   minimum: 0
         get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
+    /documents/{id}/threads/{threadId}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [content]
+                            additionalProperties: false
+                            properties:
+                                content:
+                                    $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200":
@@ -88,6 +144,32 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/Message"
 
+    /posts/{id}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [content]
+                            additionalProperties: false
+                            properties:
+                                content:
+                                    $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
     /tasks/{id}/messages/{index}:
         parameters:
             - name: id
@@ -101,6 +183,32 @@ paths:
                   type: integer
                   minimum: 0
         get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Message"
+
+    /tasks/{id}/messages:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [content]
+                            additionalProperties: false
+                            properties:
+                                content:
+                                    $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200":

@@ -4,6 +4,7 @@ import {
     createUnscopedApiKeyForTest,
 } from "~/server/bots/bots_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -90,8 +91,8 @@ export class TestBotAccount extends TestAccount {
         return new TestBotAccount(bot, space, id, initialName);
     }
 
-    public action(scope?: BotTokenPayloadScope) {
-        return this.bot.context.botAction(this.space.id, this.id, scope);
+    public action(scope?: BotTokenPayloadScope, options?: {serviceName?: ActorServiceName}) {
+        return this.bot.context.botAction(this.space.id, this.id, scope, options);
     }
 
     public createUnscopedApiKey(): Promise<ApiKey> {

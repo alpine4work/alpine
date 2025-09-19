@@ -63,6 +63,7 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -173,6 +174,11 @@ export class DocumentCollaborationConnection {
         this._iterateOtherConnections = iterateOtherConnections;
         this.resetAuthorizationTimer = resetAuthorizationTimer;
         this._killProcess = killProcess;
+    }
+
+    public getConnectionForTest(commentThreadId: DocumentCommentThreadId) {
+        assert(import.meta.jest);
+        return this._commentThreadConnectionById.getOrSetDefault(commentThreadId);
     }
 
     public async authorize(context: WorkerSessionActionContext) {
@@ -724,6 +730,19 @@ export class DocumentCollaborationConnection {
             return {};
         },
     };
+
+    public static broadcastNewMessage(
+        context: WorkerActionContext,
+        commentThreadId: DocumentCommentThreadId,
+        request: MessagingRealtimeBroadcastNewMessageRequest,
+        iterateAllConnections: () => Iterable<DocumentCollaborationConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastNewMessage(context, request, () =>
+            mapIterable(iterateAllConnections(), connection =>
+                connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
+            ),
+        );
+    }
 
     public async transformEvent(
         context: WorkerSessionActionContext,

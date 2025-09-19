@@ -1,6 +1,7 @@
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
 import {
     ActorContextModule,
+    BotActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -79,4 +80,14 @@ export type WorkerSystemActionContext = Context<WorkerSystemActionContextModules
 
 export type WorkerSystemActionContextModules = WorkerActionContextModulesBase & {
     actor: SystemActorContextModule;
+};
+
+/**
+ * Context for actions by a bot in a specified scope.
+ */
+
+export type WorkerBotActionContext = Context<WorkerBotActionContextModules>;
+
+export type WorkerBotActionContextModules = WorkerActionContextModulesBase & {
+    actor: BotActorContextModule;
 };

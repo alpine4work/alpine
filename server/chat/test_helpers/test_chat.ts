@@ -14,6 +14,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
@@ -78,6 +79,10 @@ export class TestChat extends TestMessageRoomBase {
 
     protected override _getRoomKey() {
         return this.id;
+    }
+
+    public override getBotScope(): BotTokenPayloadScope {
+        return {type: "Chat", chatId: this.id};
     }
 
     protected override _createMessage(

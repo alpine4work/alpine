@@ -5938,6 +5938,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
         const connection = await connectForTest(context, documentId);
 
         return {
+            getConnection: () => connection.connection.getConnectionForTest(commentThreadId),
             procedures: {
                 backfillMessages: async ({
                     clientMessageCount: clientCommentCount,

@@ -78,6 +78,8 @@ import {
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
+    createDocumentCommentNotFoundError,
+    createDocumentCommentThreadNotFoundError,
     createDocumentNotFoundError,
     documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/documents/document_error_messages.js";
@@ -98,7 +100,6 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -506,13 +507,6 @@ export async function getDocumentPreviewIfExists(
     const result = await getDocumentPreviewIfPossible(context, id, options);
     if (!result) return null;
     return unwrapResult(result);
-}
-
-function createDocumentCommentThreadNotFoundError(commentThreadId: DocumentCommentThreadId) {
-    return new NotFoundError("Document comment thread not found", {
-        aggregateDedupeKey: commentThreadId,
-        displayMessage: errorDisplayMessage`This comment thread doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
-    });
 }
 
 /**
@@ -1198,7 +1192,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                         archivedCommentThreadById.get(commentThreadId);
 
                     if (!commentThread)
-                        throw createDocumentCommentThreadNotFoundError(commentThreadId);
+                        throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
 
                     return createDocumentCommentThreadModelFromItem(
                         context,
@@ -4384,7 +4378,7 @@ async function getDocumentCommentThreadItem(
         shouldTryArchiveFirst,
         consistency,
     });
-    if (!item) throw new NotFoundError("Document comment thread not found");
+    if (!item) throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
     return item;
 }
 
@@ -4399,12 +4393,14 @@ export async function createDocumentComment(
         parentCommentIndex,
         content,
         fileIds,
+        consistency,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         parentCommentIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -4414,7 +4410,9 @@ export async function createDocumentComment(
     return context.dynamo.retryTransaction(async context => {
         const [spaceId, commentThreadItem, parentCommentItem] = await runAllPromises([
             (async () => {
-                const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment");
+                const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment", {
+                    consistency,
+                });
 
                 // Make sure all the provided files exist.
                 await runAllPromises(
@@ -4428,6 +4426,7 @@ export async function createDocumentComment(
                                       type: "DocumentComments",
                                       documentId,
                                   }),
+                                  {consistency},
                               )
                             : null,
                     ),
@@ -4435,20 +4434,28 @@ export async function createDocumentComment(
 
                 return spaceId;
             })(),
-            getDocumentCommentThreadItem(context, {
+            getDocumentCommentThreadItemIfExists(context, {
                 documentId,
                 commentThreadId,
+                consistency,
             }),
             typeof parentCommentIndex === "number"
-                ? DocumentsTable.getItem(context, {
-                      partitionType: "DocumentCommentThread",
-                      sortRangeType: "Comments",
-                      documentId,
-                      commentThreadId,
-                      commentIndex: parentCommentIndex,
-                  })
+                ? DocumentsTable.getItem(
+                      context,
+                      {
+                          partitionType: "DocumentCommentThread",
+                          sortRangeType: "Comments",
+                          documentId,
+                          commentThreadId,
+                          commentIndex: parentCommentIndex,
+                      },
+                      {consistency},
+                  )
                 : null,
         ]);
+
+        if (!commentThreadItem)
+            throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
 
         const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
@@ -4667,11 +4674,11 @@ async function getDocumentCommentItem(
         consistency?: DynamoCacheReadConsistency;
     },
 ) {
-    const [{spaceId, accessPolicy}, , commentItem] = await runAllPromises([
+    const [{spaceId, accessPolicy}, commentThreadItem, commentItem] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
 
         // Throws an error if the comment thread item doesn't exist.
-        getDocumentCommentThreadItem(context, {
+        getDocumentCommentThreadItemIfExists(context, {
             documentId,
             commentThreadId,
             consistency,
@@ -4690,9 +4697,11 @@ async function getDocumentCommentItem(
         ),
     ]);
 
-    if (!commentItem) {
-        throw new NotFoundError("Document comment not found");
-    }
+    if (!commentThreadItem)
+        throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
+
+    if (!commentItem)
+        throw createDocumentCommentNotFoundError(documentId, commentThreadId, commentIndex);
 
     return {
         spaceId,

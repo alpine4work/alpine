@@ -171,6 +171,7 @@ import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {
     createTaskCollectionNotFoundError,
+    createTaskCommentNotFoundError,
     createTaskNotFoundError,
     taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
     taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
@@ -4485,9 +4486,16 @@ async function authorizeTaskItemAccess(
             taskId: TaskCollectionId,
         ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<void> {
     unwrapResult(
-        await authorizeTaskItemAccessIfPossible(context, taskItem, expectedAccessLevel, loaders),
+        await authorizeTaskItemAccessIfPossible(
+            context,
+            taskItem,
+            expectedAccessLevel,
+            loaders,
+            options,
+        ),
     );
 }
 
@@ -4791,7 +4799,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     context: ServerActionContext,
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
-    consistency: DynamoCacheReadConsistency = "Eventual",
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     item: TaskEssentialAttributesItem;
     commentsSummaryItem: TaskCommentsSummaryItem | null;
@@ -4831,11 +4839,18 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     taskItem = await taskItemPromise;
     if (!taskItem) throw createTaskNotFoundError(taskId);
 
-    await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
-        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null, {consistency}),
-        getCollectionItem: collectionId =>
-            getTaskCollectionItemForAuthorization(context, collectionId, null, {consistency}),
-    });
+    await authorizeTaskItemAccess(
+        context,
+        taskItem,
+        expectedAccessLevel,
+        {
+            getTaskItem: taskId =>
+                getTaskItemForAuthorization(context, taskId, null, {consistency}),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, null, {consistency}),
+        },
+        {consistency},
+    );
 
     return {
         item: taskItem,
@@ -5072,9 +5087,9 @@ export async function getTaskComment(
     context: ServerActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
-    const [{spaceId}, commentsSummaryItem] = await runAllPromises([
+    const [{spaceId}, item] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "Comment"),
-        TaskTable.getItem(context, {
+        TaskTable.getItemIfExists(context, {
             partitionType: "Task",
             sortRangeType: "Comments",
             taskId,
@@ -5082,7 +5097,9 @@ export async function getTaskComment(
         }),
     ]);
 
-    return createTaskCommentModelFromItem(context, spaceId, commentsSummaryItem);
+    if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
+
+    return createTaskCommentModelFromItem(context, spaceId, item);
 }
 
 export async function getTaskCommentPayload(
@@ -5103,7 +5120,7 @@ export async function getTaskCommentPayload(
 }> {
     const [, item] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
-        TaskTable.getItem(
+        TaskTable.getItemIfExists(
             context,
             {
                 partitionType: "Task",
@@ -5114,6 +5131,8 @@ export async function getTaskCommentPayload(
             {consistency},
         ),
     ]);
+
+    if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
 
     return {
         createdTime: item.createdTime,
@@ -5174,12 +5193,12 @@ export async function getTaskOwnerIfPossible(
 export async function getTaskNotificationSubscribers(
     context: ServerSystemActionContext,
     id: TaskId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{
     accountIds: ReadonlySet<AccountId>;
 }> {
     const {item: taskItem, commentsSummaryItem} =
-        await authorizeTaskAccessAndGetCommentsSummaryItem(context, id, "Comment", consistency);
+        await authorizeTaskAccessAndGetCommentsSummaryItem(context, id, "Comment", options);
 
     const commentCountByAuthorId = commentsSummaryItem
         ? commentsSummaryItem.commentCountByAuthorId.keys()
@@ -5406,11 +5425,13 @@ export async function createTaskComment(
         parentCommentIndex,
         content,
         fileIds,
+        consistency,
     }: {
         taskId: TaskId;
         parentCommentIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -5421,7 +5442,9 @@ export async function createTaskComment(
         const [{spaceId, commentsSummaryItem}] = await runAllPromiseThunks(
             async () => {
                 const {item, commentsSummaryItem} =
-                    await authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment");
+                    await authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {
+                        consistency,
+                    });
                 const spaceId = item.spaceId;
 
                 // Make sure all the provided files exist.
@@ -5433,6 +5456,7 @@ export async function createTaskComment(
                                   spaceId,
                                   fileId,
                                   FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
+                                  {consistency},
                               )
                             : null,
                     ),
@@ -5452,6 +5476,7 @@ export async function createTaskComment(
                         commentIndex: parentCommentIndex,
                     },
                     {
+                        consistency,
                         attributes: [],
                     },
                 );

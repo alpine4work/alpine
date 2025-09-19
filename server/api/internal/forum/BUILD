@@ -14,6 +14,7 @@ ts_project(
     visibility = ["//server/api:__subpackages__"],
     deps = [
         "//server/api/internal/shared",
+        "//server/api/markdown",
         "//server/api/specification",
         "//server/forum/data",
         "//shared/error",

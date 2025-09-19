@@ -21,9 +21,14 @@ import {
 } from "~/shared/forum/post_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type PostRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEventTransaction" | "NotFound";
+type PostRealtimeDurableObjectRoute =
+    | "Main"
+    | "BroadcastRealtimeEventTransaction"
+    | "BroadcastNewMessage"
+    | "NotFound";
 
 class PostRealtimeDurableObject {
     public static readonly serviceName = "PostRealtimeService";
@@ -109,6 +114,10 @@ class PostRealtimeDurableObject {
             return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
         }
 
+        if (url.pathname === "/broadcast-new-message") {
+            return ["/broadcast-new-message", "BroadcastNewMessage"];
+        }
+
         return ["/*", "NotFound"];
     }
 
@@ -123,6 +132,9 @@ class PostRealtimeDurableObject {
         });
 
         switch (route) {
+            case "NotFound": {
+                throw new NotFoundError("Route not found");
+            }
             case "Main": {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
@@ -150,8 +162,24 @@ class PostRealtimeDurableObject {
 
                 return new Response();
             }
-            case "NotFound":
-                throw new NotFoundError("Route not found");
+            case "BroadcastNewMessage": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody = MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
+                    await request.json(),
+                );
+
+                PostRealtimeConnection.broadcastNewMessage(context, requestBody, () =>
+                    this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
             default:
                 throw exhaustive(route);
         }

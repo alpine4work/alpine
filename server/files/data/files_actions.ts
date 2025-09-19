@@ -5,10 +5,7 @@ import {
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
-import {
-    DynamoCacheReadConsistency,
-    DynamoReadConsistency,
-} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {
     DynamoTableItemKeyType,
@@ -1395,7 +1392,7 @@ export async function getFileIfExistsFromAttachment(
         consistency = "Eventual",
         accessLevel = "View",
     }: {
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
         accessLevel?: "View" | "Edit";
     } = {},
 ): Promise<FileModel | null> {
@@ -1419,7 +1416,7 @@ export async function getFileIfExistsFromAttachment(
                 },
             );
 
-            if (!targetItem && consistency !== "Strong") {
+            if (!targetItem && consistency === "Eventual") {
                 targetItem = await FilesTable.getItemIfExists(
                     context,
                     getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
@@ -1466,7 +1463,7 @@ export async function getFileFromAttachment(
     spaceId: SpaceId,
     fileId: FileId,
     targetAuthorizer: FileAuthorizer,
-    options?: {consistency?: DynamoReadConsistency; accessLevel?: "View" | "Edit"},
+    options?: {consistency?: DynamoCacheReadConsistency; accessLevel?: "View" | "Edit"},
 ): Promise<FileModel> {
     const file = await getFileIfExistsFromAttachment(
         context,

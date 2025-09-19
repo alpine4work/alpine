@@ -45,7 +45,10 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
+import {
+    createChatMessageNotFoundError,
+    createChatNotFoundError,
+} from "~/shared/chat/chat_error_messages.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     DataLossError,
@@ -55,6 +58,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -623,11 +627,13 @@ export function sendChatMessage(
         parentMessageIndex,
         content,
         fileIds,
+        consistency,
     }: {
         chatId: ChatId;
         parentMessageIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -641,6 +647,7 @@ export function sendChatMessage(
         parentMessageIndex,
         content,
         fileIds,
+        consistency,
     });
 }
 
@@ -655,6 +662,7 @@ function sendChatMessageForAccount(
         parentMessageIndex,
         content,
         fileIds,
+        consistency,
         clerical,
         clientRequestToken,
     }: {
@@ -663,6 +671,7 @@ function sendChatMessageForAccount(
         parentMessageIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        consistency?: DynamoCacheReadConsistency;
         clerical?: MessageContentPayloadClerical;
         clientRequestToken?: string;
     },
@@ -682,6 +691,7 @@ function sendChatMessageForAccount(
                     context,
                     chatId,
                     authorId,
+                    {consistency},
                 );
 
                 // Make sure all the provided files exist.
@@ -693,6 +703,7 @@ function sendChatMessageForAccount(
                                   items.chatAttributesItem.spaceId,
                                   fileId,
                                   FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
+                                  {consistency},
                               )
                             : null,
                     ),
@@ -712,6 +723,7 @@ function sendChatMessageForAccount(
                         messageIndex: parentMessageIndex,
                     },
                     {
+                        consistency,
                         attributes: [],
                     },
                 );
@@ -723,6 +735,7 @@ function sendChatMessageForAccount(
             throw new PermissionDeniedError("Only system actors can send clerical messages");
 
         const messageIndex = chatAttributesItem.messagesSummary.nextMessageIndex;
+
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
         const createdTime = new Date(Date.now());
@@ -1121,7 +1134,9 @@ async function authorizeChatAccessAndReturnItemIfPossible(
             if (!ok) {
                 return {
                     ok: false,
-                    error: new PermissionDeniedError("Bot actor doesn’t have access to chat"),
+                    error: new PermissionDeniedError("Bot actor doesn’t have access to chat", {
+                        displayMessage: chatPermissionDeniedErrorDisplayMessage,
+                    }),
                 };
             }
 
@@ -1199,6 +1214,8 @@ async function authorizeChatAccessForAccountAndReturnItems(
     );
 }
 
+const chatPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don’t have access to this chat.`;
+
 export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
     context: ServerActionContext,
     chatId: ChatId,
@@ -1238,7 +1255,7 @@ export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
                     // Throw if actor doesn't have access to the chat. We only return a `Result`
                     // when the account we're checking doesn't have access to the chat.
                     const attributesItem = unwrapResult(
-                        await authorizeChatAccessAndReturnItemIfPossible(context, chatId),
+                        await authorizeChatAccessAndReturnItemIfPossible(context, chatId, options),
                     );
 
                     // Make sure the account is a member of the space. If the account was removed
@@ -1271,7 +1288,12 @@ export async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
     const chatAttributesItem = chatAttributesItemResult.value;
 
     if (!chatAccountItem) {
-        return {ok: false, error: new PermissionDeniedError("Account doesn’t have access to chat")};
+        return {
+            ok: false,
+            error: new PermissionDeniedError("Account doesn’t have access to chat", {
+                displayMessage: chatPermissionDeniedErrorDisplayMessage,
+            }),
+        };
     }
 
     return {ok: true, value: {chatAttributesItem, chatAccountItem}};
@@ -1519,13 +1541,15 @@ export async function getChatMessage(
 ): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizeChatAccess(context, chatId),
-        ChatTable.getItem(context, {
+        ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Messages",
             chatId,
             messageIndex,
         }),
     ]);
+
+    if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
     return createChatMessageModelFromItem(context, spaceId, item);
 }
@@ -1551,7 +1575,7 @@ export async function getChatMessagePayload(
 }> {
     const [, item] = await runAllPromises([
         authorizeChatAccess(context, chatId, {consistency}),
-        ChatTable.getItem(
+        ChatTable.getItemIfExists(
             context,
             {
                 partitionType: "Chat",
@@ -1562,6 +1586,8 @@ export async function getChatMessagePayload(
             {consistency},
         ),
     ]);
+
+    if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
     return {
         createdTime: item.createdTime,

@@ -692,9 +692,13 @@ export async function createApiServiceRequestListener(
 
                     const valid = validateRequestBody(requestBody);
                     if (!valid) {
+                        const instancePath = validateRequestBody.errors?.[0]?.instancePath;
+
                         return createApiErrorResponse({
                             status: 400,
-                            message: "Invalid request body.",
+                            message: `Invalid request body${
+                                instancePath ? quote` (path: ${"#" + instancePath})` : ""
+                            }.`,
                         });
                     }
                 }

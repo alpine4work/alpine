@@ -2,7 +2,7 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
 export const taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
@@ -35,5 +35,12 @@ export function createTaskNotFoundError(taskId?: string) {
     return new NotFoundError("Task not found", {
         aggregateDedupeKey: taskId,
         displayMessage: errorDisplayMessage`This task doesn’t exist. Try searching “my tasks” to see tasks you’ve created.`,
+    });
+}
+
+export function createTaskCommentNotFoundError(taskId: TaskId, messageIndex: number) {
+    return new NotFoundError("Task comment not found", {
+        aggregateDedupeKey: `${taskId}-${messageIndex}`,
+        displayMessage: errorDisplayMessage`This comment doesn’t exist. Try searching “my task comments” to see your recent task comments.`,
     });
 }

@@ -13,6 +13,7 @@ import {
     isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -27,6 +28,7 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessageReferencedIds, MessageReferences} from "~/shared/messaging/message_references.js";
 import {
+    MessagingRealtimeBroadcastNewMessageRequest,
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -674,6 +676,87 @@ export class MessagingRealtimeConnection<
         });
 
         return {};
+    }
+
+    /**
+     * Broadcast a new message event that wasn't created by our Durable Object. For
+     * example messages created by `ApiService`.
+     */
+    public static broadcastNewMessage<
+        RoomKey extends string,
+        Message extends MessageModel<RoomKey>,
+        BackfillMessagesExtra = null,
+    >(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastNewMessageRequest,
+        iterateAllConnections: () => Iterable<
+            MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
+        >,
+    ) {
+        if (context.actor.serviceName !== "ApiService") {
+            throw new PermissionDeniedError(
+                "Currently, only `ApiService` is allowed to broadcast new message realtime events",
+            );
+        }
+
+        if (context.actor.type !== "Bot") {
+            throw new PermissionDeniedError(
+                "Currently, only bots are allowed to broadcast new message realtime events",
+            );
+        }
+
+        const message: MessagingRealtimeEventStubNewMessage = {
+            index: request.index,
+            authorId: request.authorId,
+            createdTime: request.createdTime,
+            payload: request.payload,
+            referencedIds: {
+                authorId: request.authorId,
+                fileIds: new Set(request.payload.fileIds),
+                contentReferencedIds: getContentReferencedIdsForNode(request.payload.content),
+            },
+        };
+
+        for (const connection of iterateAllConnections()) {
+            connection._broadcastNewMessage(context, message);
+        }
+    }
+
+    private _broadcastNewMessage(
+        context: WorkerActionContext,
+        message: MessagingRealtimeEventStubNewMessage,
+    ) {
+        context.process.waitUntil(
+            this._queuedMessagesState.withLock(async stateRef => {
+                const {nextMessageIndexToSend} = stateRef.current;
+
+                // If the connection is backfilling or we received this message out of order,
+                // queue it for later. If we have not received a message yet then we want to
+                // send it and start waiting for the message after it.
+                if (nextMessageIndexToSend !== null && message.index !== nextMessageIndexToSend) {
+                    if (message.index > nextMessageIndexToSend) {
+                        stateRef.current = {
+                            nextMessageIndexToSend,
+                            queuedMessages: [...stateRef.current.queuedMessages, message],
+                        };
+                    }
+                    return;
+                }
+
+                await this._sendEvent(context, {
+                    type: "NewMessage",
+                    message,
+                    updateOtherTypingState: null,
+                });
+
+                stateRef.current = {
+                    nextMessageIndexToSend: message.index + 1,
+                    queuedMessages: stateRef.current.queuedMessages,
+                };
+
+                await this._flushQueuedMessages(context, stateRef);
+            }),
+        );
     }
 
     public async transformEvent(

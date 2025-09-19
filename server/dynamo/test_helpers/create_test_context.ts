@@ -168,7 +168,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
         session:
             | {id: SessionId; account: {id: AccountId}}
             | {sessionId: SessionId; accountId: AccountId},
-        options?: {serviceName: ActorServiceName},
+        options?: {serviceName?: ActorServiceName},
     ): TestSessionActionContext;
 
     /**
@@ -176,13 +176,13 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
      */
     systemAction(
         spaceId: SpaceId,
-        options?: {serviceName: ActorServiceName},
+        options?: {serviceName?: ActorServiceName},
     ): TestSystemActionContext;
 
     /**
      * An anonymous action.
      */
-    anonymousAction(options?: {serviceName: ActorServiceName}): TestAnonymousActionContext;
+    anonymousAction(options?: {serviceName?: ActorServiceName}): TestAnonymousActionContext;
 
     /**
      * An authenticated impersonated account action.
@@ -190,7 +190,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     impersonatedAccountAction(
         spaceId: SpaceId,
         accountId: AccountId,
-        options?: {serviceName: ActorServiceName},
+        options?: {serviceName?: ActorServiceName},
     ): TestImpersonatedAccountActionContext;
 
     /**
@@ -203,7 +203,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
         spaceId: SpaceId,
         botAccountId: AccountId,
         scope?: BotTokenPayloadScope,
-        options?: {serviceName: ActorServiceName},
+        options?: {serviceName?: ActorServiceName},
     ): TestBotActionContext;
 
     /**

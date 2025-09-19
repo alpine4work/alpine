@@ -2,6 +2,7 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 
 export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
@@ -22,5 +23,26 @@ export function createDocumentNotFoundError(documentId?: string) {
     return new NotFoundError("Document not found", {
         aggregateDedupeKey: documentId,
         displayMessage: errorDisplayMessage`This document doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}
+
+export function createDocumentCommentThreadNotFoundError(
+    documentId: DocumentId,
+    commentThreadId: DocumentCommentThreadId,
+) {
+    return new NotFoundError("Document comment thread not found", {
+        aggregateDedupeKey: `${documentId}-${commentThreadId}`,
+        displayMessage: errorDisplayMessage`This comment thread doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}
+
+export function createDocumentCommentNotFoundError(
+    documentId: DocumentId,
+    commentThreadId: DocumentCommentThreadId,
+    commentIndex: number,
+) {
+    return new NotFoundError("Document comment not found", {
+        aggregateDedupeKey: `${documentId}-${commentThreadId}-${commentIndex}`,
+        displayMessage: errorDisplayMessage`This comment doesn’t exist. Try searching “my document comments” to see your recent document comments.`,
     });
 }

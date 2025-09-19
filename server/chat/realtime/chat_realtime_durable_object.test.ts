@@ -102,6 +102,7 @@ testMessagingRealtimeImplementation<ChatId>(context, {
         const connection = await connectForTest(context, roomKey);
 
         return {
+            getConnection: () => connection.connection.getConnectionForTest(),
             procedures: connection.procedures,
             takeEvents: () => connection.takeEvents(),
         };

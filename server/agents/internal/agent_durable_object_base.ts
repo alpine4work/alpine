@@ -199,8 +199,8 @@ export abstract class AgentDurableObjectBase<Route> {
         });
 
         apiClient.use({
-            onRequest: async ({request, schemaPath, options}) => {
-                await fetchWithTracer(
+            onRequest: ({request, schemaPath, options}) => {
+                return fetchWithTracer(
                     tracer,
                     request.url,
                     {

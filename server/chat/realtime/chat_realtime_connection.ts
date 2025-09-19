@@ -1,5 +1,6 @@
 import {authorizeChatAccessForDurableObject} from "~/server/chat/realtime/authorize_chat_access_for_durable_object.js";
 import {
+    WorkerActionContext,
     WorkerSessionActionContext,
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
@@ -17,10 +18,12 @@ import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     backfillChatMessages,
     deleteChatMessage,
@@ -75,6 +78,11 @@ export class ChatRealtimeConnection {
         });
     }
 
+    public getConnectionForTest() {
+        assert(import.meta.jest);
+        return this._connection;
+    }
+
     public async authorize(context: WorkerSessionActionContext) {
         await authorizeChatAccessForDurableObject(context, this._connection.roomKey);
     }
@@ -96,6 +104,16 @@ export class ChatRealtimeConnection {
         stopTypingInMessageInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
     };
+
+    public static broadcastNewMessage(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastNewMessageRequest,
+        iterateAllConnections: () => Iterable<ChatRealtimeConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastNewMessage(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._connection),
+        );
+    }
 
     public async transformEvent(
         context: WorkerSessionActionContext,

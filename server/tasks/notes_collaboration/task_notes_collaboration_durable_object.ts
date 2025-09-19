@@ -15,13 +15,15 @@ import {
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
-type TaskNotesCollaborationDurableObjectRoute = "Main" | "NotFound";
+type TaskNotesCollaborationDurableObjectRoute = "Main" | "BroadcastNewMessage" | "NotFound";
 
 class TaskNotesCollaborationDurableObject {
     public static readonly serviceName = "TaskNotesCollaborationService";
@@ -137,11 +139,12 @@ class TaskNotesCollaborationDurableObject {
     }
 
     public static parseRoute(url: URL): [string, TaskNotesCollaborationDurableObjectRoute] {
-        if (url.pathname !== "/") return ["/*", "NotFound"];
-        return ["/", "Main"];
+        if (url.pathname === "/") return ["/", "Main"];
+        if (url.pathname === "/broadcast-new-message") return [url.pathname, "BroadcastNewMessage"];
+        return ["/*", "NotFound"];
     }
 
-    public fetch(
+    public async fetch(
         context: WorkerActionContext,
         request: Request,
         route: TaskNotesCollaborationDurableObjectRoute,
@@ -151,8 +154,34 @@ class TaskNotesCollaborationDurableObject {
             context: {spaceId: this.spaceId, taskId: this.taskId},
         });
 
-        if (route === "NotFound") throw new NotFoundError("Route not found");
-        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+        switch (route) {
+            case "NotFound": {
+                throw new NotFoundError("Route not found");
+            }
+            case "Main": {
+                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+            }
+            case "BroadcastNewMessage": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody = MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
+                    await request.json(),
+                );
+
+                TaskNotesCollaborationConnection.broadcastNewMessage(context, requestBody, () =>
+                    this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            default:
+                throw exhaustive(route);
+        }
     }
 
     public connectForTest(context: WorkerSessionActionContext) {

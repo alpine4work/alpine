@@ -8,6 +8,7 @@ import {
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {InternalError} from "~/shared/error/error.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -38,6 +39,12 @@ export abstract class TestMessagingRoomBase {
 
     protected abstract _getRoomKey(): string;
 
+    /**
+     * All messaging rooms must also have valid bot scopes. Since you should be
+     * able to send/receive messages as a bot scoped to that room.
+     */
+    public abstract getBotScope(): BotTokenPayloadScope;
+
     protected abstract _createMessage(
         context: TestAccountActionContext,
         options: {
@@ -67,6 +74,18 @@ export abstract class TestMessagingRoomBase {
     public static createDefaultMessageContent() {
         return `Test ${this._getMessageNoun()} ${testMessageCountByConstructor.getOrSetDefault(this)
             .current++}`;
+    }
+
+    // Static method so you can't call `post.createMessage()`, you must call
+    // `post.createComment()`. However, for code working generically on any room
+    // that code can call `TestMessagingRoomBase.createMessage(room)`.
+    public static createMessage(
+        room: TestMessagingRoomBase,
+        session: TestSession | TestBotAccount | TestAccountActionContext,
+        content?: string | Node,
+        options?: TestMessagingRoomCreateMessageOptions,
+    ) {
+        return room._actuallyCreateMessage(session, content, options);
     }
 
     protected async _actuallyCreateMessage(

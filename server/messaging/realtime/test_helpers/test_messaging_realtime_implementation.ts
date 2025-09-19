@@ -1,3 +1,4 @@
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
@@ -7,6 +8,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     CreateMessageFunction,
     DeleteMessageFunction,
+    MessagingRealtimeConnection,
     UpdateMessageContentFunction,
     messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint,
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
@@ -88,6 +90,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             context: WorkerSessionActionContext,
             roomKey: RoomKey,
         ) => Promise<{
+            getConnection(): MessagingRealtimeConnection<RoomKey, MessageModel<RoomKey>, unknown>;
             procedures: MessagingRealtimeProcedures<MessageModel>;
             takeEvents(): ReadonlyArray<MessagingRealtimeEvent<MessageModel>>;
         }>;
@@ -3304,6 +3307,311 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     },
                 },
             ]);
+        });
+
+        describe("`broadcastNewMessage()`", () => {
+            test("can broadcast new message", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession();
+                const botAccount = await TestBot.createAndInstantiate(session1);
+                const room = await createRoom([session1, session2]);
+
+                const connection1 = await connectForTest(context.action(session1), room.key);
+                const connection2 = await connectForTest(context.action(session2), room.key);
+
+                await connection1.procedures.backfillMessages({
+                    clientMessageCount: room.messageCount,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 10,
+                });
+
+                await connection2.procedures.backfillMessages({
+                    clientMessageCount: room.messageCount,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 10,
+                });
+
+                connection1.takeEvents();
+                connection2.takeEvents();
+
+                MessagingRealtimeConnection.broadcastNewMessage(
+                    context.botAction(botAccount.space.id, botAccount.id, undefined, {
+                        serviceName: "ApiService",
+                    }),
+                    {
+                        index: room.messageCount,
+                        authorId: botAccount.id,
+                        createdTime: new Date(),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("foo"),
+                            contentUpdatedTime: null,
+                            fileIds: [],
+                        },
+                    },
+                    () => [connection1.getConnection(), connection2.getConnection()],
+                );
+
+                await ProcessContextModule.waitForTestTasks();
+
+                expect(connection1.takeEvents()).toEqual([
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("foo"),
+                                }),
+                            }),
+                        }),
+                    }),
+                ]);
+
+                expect(connection2.takeEvents()).toEqual([
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("foo"),
+                                }),
+                            }),
+                        }),
+                    }),
+                ]);
+            });
+
+            test("can broadcast multiple new messages", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession();
+                const botAccount = await TestBot.createAndInstantiate(session1);
+                const room = await createRoom([session1, session2]);
+
+                const connection1 = await connectForTest(context.action(session1), room.key);
+                const connection2 = await connectForTest(context.action(session2), room.key);
+
+                await connection1.procedures.backfillMessages({
+                    clientMessageCount: room.messageCount,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 10,
+                });
+
+                await connection2.procedures.backfillMessages({
+                    clientMessageCount: room.messageCount,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 10,
+                });
+
+                connection1.takeEvents();
+                connection2.takeEvents();
+
+                MessagingRealtimeConnection.broadcastNewMessage(
+                    context.botAction(botAccount.space.id, botAccount.id, undefined, {
+                        serviceName: "ApiService",
+                    }),
+                    {
+                        index: room.messageCount,
+                        authorId: botAccount.id,
+                        createdTime: new Date(),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("foo"),
+                            contentUpdatedTime: null,
+                            fileIds: [],
+                        },
+                    },
+                    () => [connection1.getConnection(), connection2.getConnection()],
+                );
+
+                await ProcessContextModule.waitForTestTasks();
+
+                connection1.takeEvents();
+                connection2.takeEvents();
+
+                MessagingRealtimeConnection.broadcastNewMessage(
+                    context.botAction(botAccount.space.id, botAccount.id, undefined, {
+                        serviceName: "ApiService",
+                    }),
+                    {
+                        index: room.messageCount + 1,
+                        authorId: botAccount.id,
+                        createdTime: new Date(),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("bar"),
+                            contentUpdatedTime: null,
+                            fileIds: [],
+                        },
+                    },
+                    () => [connection1.getConnection(), connection2.getConnection()],
+                );
+
+                await ProcessContextModule.waitForTestTasks();
+
+                expect(connection1.takeEvents()).toEqual([
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount + 1,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("bar"),
+                                }),
+                            }),
+                        }),
+                    }),
+                ]);
+
+                expect(connection2.takeEvents()).toEqual([
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount + 1,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("bar"),
+                                }),
+                            }),
+                        }),
+                    }),
+                ]);
+            });
+
+            test("can broadcast multiple new messages out-of-order", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession();
+                const botAccount = await TestBot.createAndInstantiate(session1);
+                const room = await createRoom([session1, session2]);
+
+                const connection1 = await connectForTest(context.action(session1), room.key);
+                const connection2 = await connectForTest(context.action(session2), room.key);
+
+                await connection1.procedures.backfillMessages({
+                    clientMessageCount: room.messageCount,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 10,
+                });
+
+                await connection2.procedures.backfillMessages({
+                    clientMessageCount: room.messageCount,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 10,
+                });
+
+                connection1.takeEvents();
+                connection2.takeEvents();
+
+                MessagingRealtimeConnection.broadcastNewMessage(
+                    context.botAction(botAccount.space.id, botAccount.id, undefined, {
+                        serviceName: "ApiService",
+                    }),
+                    {
+                        index: room.messageCount + 1,
+                        authorId: botAccount.id,
+                        createdTime: new Date(),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("foo"),
+                            contentUpdatedTime: null,
+                            fileIds: [],
+                        },
+                    },
+                    () => [connection1.getConnection(), connection2.getConnection()],
+                );
+
+                await ProcessContextModule.waitForTestTasks();
+
+                expect(connection1.takeEvents()).toEqual([]);
+                expect(connection2.takeEvents()).toEqual([]);
+
+                MessagingRealtimeConnection.broadcastNewMessage(
+                    context.botAction(botAccount.space.id, botAccount.id, undefined, {
+                        serviceName: "ApiService",
+                    }),
+                    {
+                        index: room.messageCount,
+                        authorId: botAccount.id,
+                        createdTime: new Date(),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("bar"),
+                            contentUpdatedTime: null,
+                            fileIds: [],
+                        },
+                    },
+                    () => [connection1.getConnection(), connection2.getConnection()],
+                );
+
+                await ProcessContextModule.waitForTestTasks();
+
+                expect(connection1.takeEvents()).toEqual([
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("bar"),
+                                }),
+                            }),
+                        }),
+                    }),
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount + 1,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("foo"),
+                                }),
+                            }),
+                        }),
+                    }),
+                ]);
+
+                expect(connection2.takeEvents()).toEqual([
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("bar"),
+                                }),
+                            }),
+                        }),
+                    }),
+                    expect.objectContaining({
+                        type: "NewMessage",
+                        message: expect.objectContaining({
+                            index: room.messageCount + 1,
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                content: expect.objectContaining({
+                                    doc: createSimpleMessageContent("foo"),
+                                }),
+                            }),
+                        }),
+                    }),
+                ]);
+            });
         });
     });
 }

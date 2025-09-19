@@ -15,6 +15,7 @@ import {
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {encodeDocumentCommentRoomKey} from "~/shared/documents/document_model.js";
 import {generateId} from "~/shared/id/id.js";
@@ -96,6 +97,10 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
 
     protected override _getRoomKey() {
         return encodeDocumentCommentRoomKey(this.document.id, this.id);
+    }
+
+    public override getBotScope(): BotTokenPayloadScope {
+        return {type: "Document", documentId: this.document.id};
     }
 
     protected override _createMessage(

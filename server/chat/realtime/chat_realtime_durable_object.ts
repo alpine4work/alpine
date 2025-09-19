@@ -14,10 +14,12 @@ import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-type ChatRealtimeDurableObjectRoute = "Main" | "NotFound";
+type ChatRealtimeDurableObjectRoute = "Main" | "BroadcastNewMessage" | "NotFound";
 
 class ChatRealtimeDurableObject {
     public static readonly serviceName = "ChatRealtimeService";
@@ -97,8 +99,9 @@ class ChatRealtimeDurableObject {
     }
 
     public static parseRoute(url: URL): [string, ChatRealtimeDurableObjectRoute] {
-        if (url.pathname !== "/") return ["/*", "NotFound"];
-        return ["/", "Main"];
+        if (url.pathname === "/") return ["/", "Main"];
+        if (url.pathname === "/broadcast-new-message") return [url.pathname, "BroadcastNewMessage"];
+        return ["/*", "NotFound"];
     }
 
     public async fetch(
@@ -111,8 +114,34 @@ class ChatRealtimeDurableObject {
             context: {spaceId: this._spaceId, chatId: this._chatId},
         });
 
-        if (route === "NotFound") throw new NotFoundError("Route not found");
-        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+        switch (route) {
+            case "NotFound": {
+                throw new NotFoundError("Route not found");
+            }
+            case "Main": {
+                return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
+            }
+            case "BroadcastNewMessage": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody = MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
+                    await request.json(),
+                );
+
+                ChatRealtimeConnection.broadcastNewMessage(context, requestBody, () =>
+                    this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            default:
+                throw exhaustive(route);
+        }
     }
 
     public connectForTest(context: WorkerSessionActionContext) {

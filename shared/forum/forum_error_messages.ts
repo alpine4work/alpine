@@ -2,6 +2,7 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 
 export const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
@@ -24,5 +25,12 @@ export function createPostNotFoundError(postId?: string) {
     return new NotFoundError("Post not found", {
         aggregateDedupeKey: postId,
         displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,
+    });
+}
+
+export function createPostCommentNotFoundError(postId: PostId, messageIndex: number) {
+    return new NotFoundError("Post comment not found", {
+        aggregateDedupeKey: `${postId}-${messageIndex}`,
+        displayMessage: errorDisplayMessage`This comment doesn’t exist. Try searching “my post comments” to see your recent post comments.`,
     });
 }

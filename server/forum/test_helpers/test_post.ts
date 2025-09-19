@@ -19,6 +19,7 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     PostContent,
@@ -184,6 +185,10 @@ export class TestPost extends TestCommentRoomBase {
 
     protected override _getRoomKey() {
         return this.id;
+    }
+
+    public override getBotScope(): BotTokenPayloadScope {
+        return {type: "Post", postId: this.id};
     }
 
     protected override _createMessage(
