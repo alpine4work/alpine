@@ -149,9 +149,6 @@ patchedDependencies:
   onnxruntime-common@1.14.0:
     hash: pe6xj53aa4w53t6a6st3utfq5a
     path: admin/patches/onnxruntime-common@1.14.0.patch
-  openapi-fetch@0.14.0:
-    hash: 5nf25snmhqf6dxhzitcgzxx6tq
-    path: admin/patches/openapi-fetch@0.14.0.patch
   outdent@0.8.0:
     hash: ybnbpvk42g5zpvi2kytcsdr4wu
     path: admin/patches/outdent@0.8.0.patch
@@ -936,13 +933,16 @@ importers:
         version: 5.19.1(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.23.8)
       openapi-fetch:
         specifier: ^0.14.0
-        version: 0.14.0(patch_hash=5nf25snmhqf6dxhzitcgzxx6tq)
+        version: 0.14.0
       openapi-types:
         specifier: ^12.1.3
         version: 12.1.3
       openapi-typescript:
         specifier: ^7.8.0
         version: 7.8.0(typescript@5.1.3)
+      openapi-typescript-helpers:
+        specifier: ^0.0.15
+        version: 0.0.15
       opentype.js:
         specifier: ^1.3.4
         version: 1.3.4
@@ -18062,7 +18062,7 @@ snapshots:
       ws: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       zod: 3.23.8
 
-  openapi-fetch@0.14.0(patch_hash=5nf25snmhqf6dxhzitcgzxx6tq):
+  openapi-fetch@0.14.0:
     dependencies:
       openapi-typescript-helpers: 0.0.15
 

@@ -3,16 +3,17 @@ import {UnknownError} from "~/shared/error/error.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 export class OpenAiClient {
-    private readonly _tracer: TracerBase;
     private readonly _client: OpenAi;
 
-    constructor(tracer: TracerBase, {apiKey}: {apiKey: string}) {
-        this._tracer = tracer;
+    constructor({apiKey}: {apiKey: string}) {
         this._client = new OpenAi({apiKey});
     }
 
-    public createResponse(body: OpenAi.Responses.ResponseCreateParamsNonStreaming) {
-        return this._tracer.withSpan("OpenAI create response", async span => {
+    public createResponse(
+        tracer: TracerBase,
+        body: OpenAi.Responses.ResponseCreateParamsNonStreaming,
+    ) {
+        return tracer.withSpan("OpenAI create response", async span => {
             span.addData({
                 openai: {
                     model: body.model,
@@ -23,12 +24,7 @@ export class OpenAiClient {
                 },
             });
 
-            const response = await this._client.responses.create({
-                ...body,
-                // Never store the response. We don't want OpenAI to hold onto customer data
-                // longer than necessary.
-                store: false,
-            });
+            const response = await this._client.responses.create(body);
 
             span.addData({
                 openai: {

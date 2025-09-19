@@ -19,6 +19,7 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
 export type AgentDurableObjectEnv = {
@@ -72,6 +73,7 @@ export abstract class AgentDurableObjectBase<Route> {
     private readonly _env: AgentDurableObjectEnv;
     private readonly _tracer: TracerRoot;
     private readonly _processContext: AgentContext;
+    private readonly _openAiClient: Lazy<OpenAiClient>;
 
     private readonly _alarmTimeMutex: MutexValue<Date | null> = new MutexValue(null);
 
@@ -104,6 +106,15 @@ export abstract class AgentDurableObjectBase<Route> {
             }),
             tracer: new TracerContextModule(this._tracer),
         });
+
+        this._openAiClient = new Lazy(() => {
+            return new OpenAiClient({
+                apiKey: assertExists(
+                    this._env.OPEN_AI_API_KEY,
+                    "Missing `OPEN_AI_API_KEY` environment variable",
+                ),
+            });
+        });
     }
 
     /**
@@ -125,7 +136,7 @@ export abstract class AgentDurableObjectBase<Route> {
     /**
      * Handle an HTTP webhook call from Alpine.
      */
-    protected abstract _webhook(request: AgentWebhookRequest): Promise<void>;
+    protected abstract _webhook(tracer: TracerBase, request: AgentWebhookRequest): Promise<void>;
 
     public async fetch(request: Request): Promise<Response> {
         // When the Durable Object's alarm is triggered, we delete all storage
@@ -184,7 +195,7 @@ export abstract class AgentDurableObjectBase<Route> {
                         accountId,
                         event,
                         room: parseApiMessageRoomPath(event.roomPath),
-                        apiClient: createApiClient(span, {
+                        apiClient: createApiClient({
                             baseUrl: assertExists(
                                 this._env.API_SERVICE_URL,
                                 "Missing `API_SERVICE_URL` environment variable",
@@ -195,17 +206,10 @@ export abstract class AgentDurableObjectBase<Route> {
                             ),
                             accessToken,
                         }),
-                        openAiClient: new Lazy(() => {
-                            return new OpenAiClient(span, {
-                                apiKey: assertExists(
-                                    this._env.OPEN_AI_API_KEY,
-                                    "Missing `OPEN_AI_API_KEY` environment variable",
-                                ),
-                            });
-                        }),
+                        openAiClient: this._openAiClient,
                     };
 
-                    await this._webhook(context);
+                    await this._webhook(span, context);
                 } catch (error) {
                     // Log errors in development since webhook errors aren't shown to the user in
                     // the UI. So we need to show webhook errors in our logs.

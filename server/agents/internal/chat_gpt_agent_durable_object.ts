@@ -30,6 +30,7 @@ import {
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
  * How many messages to load from the API at once.
@@ -69,10 +70,10 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         });
     }
 
-    protected override async _webhook(request: AgentWebhookRequest) {
+    protected override async _webhook(tracer: TracerBase, request: AgentWebhookRequest) {
         // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
         // message while the agent is responding to a previous request?
-        await requestChatGptAgent(request);
+        await requestChatGptAgent(tracer, request);
     }
 }
 
@@ -130,21 +131,27 @@ class ChatGptAgentConversationStateStore {
     }
 }
 
-async function requestChatGptAgent(request: AgentWebhookRequest): Promise<void> {
+async function requestChatGptAgent(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+): Promise<void> {
     // Check if the agent should respond before continuing.
-    if (!(await shouldChatGptAgentRespond(request))) return;
+    if (!(await shouldChatGptAgentRespond(tracer, request))) return;
 
     // Make sure we have the latest messages from the messaging room in
     // conversation history.
     //
     // TODO(calebmer, #ai): How should we handle the reply feature for the AI?
-    await ensureMessagesInChatGptAgentConversation(request);
+    await ensureMessagesInChatGptAgentConversation(tracer, request);
 
     // Send a response as ChatGPT!
-    await createChatGptAgentResponse(request);
+    await createChatGptAgentResponse(tracer, request);
 }
 
-async function shouldChatGptAgentRespond(request: AgentWebhookRequest): Promise<boolean> {
+async function shouldChatGptAgentRespond(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+): Promise<boolean> {
     // Always respond if mentioned.
     if (request.event.wasMentioned) return true;
 
@@ -156,7 +163,7 @@ async function shouldChatGptAgentRespond(request: AgentWebhookRequest): Promise<
     const chat = await ApiChatCollection.getOrPutDefault(request.storage, chatId, async () => {
         const {
             data: {chat},
-        } = await request.apiClient.GET("/chats/{id}", {
+        } = await request.apiClient.GET(tracer, "/chats/{id}", {
             params: {path: {id: chatId}},
         });
         return chat;
@@ -171,16 +178,18 @@ async function shouldChatGptAgentRespond(request: AgentWebhookRequest): Promise<
 }
 
 async function ensureMessagesInChatGptAgentConversation(
+    tracer: TracerBase,
     request: AgentWebhookRequest,
 ): Promise<void> {
     await request.storage.transaction(async transaction => {
         const state = await ChatGptAgentConversationStateStore.new(transaction);
 
-        await initializeInChatGptAgentConversationIfNeeded(request, transaction, state);
+        await initializeInChatGptAgentConversationIfNeeded(tracer, transaction, request, state);
 
         await loadNewMessagesInChatGptAgentConversation(
-            request,
+            tracer,
             transaction,
+            request,
             state,
             request.event.index,
         );
@@ -194,8 +203,9 @@ async function ensureMessagesInChatGptAgentConversation(
  * 2. Message history (up to `request.event.index`)
  */
 async function initializeInChatGptAgentConversationIfNeeded(
-    request: AgentWebhookRequest,
+    tracer: TracerBase,
     transaction: DurableObjectTransaction,
+    request: AgentWebhookRequest,
     state: ChatGptAgentConversationStateStore,
 ): Promise<void> {
     if (state.get().lastMessageIndex !== null) return;
@@ -204,23 +214,24 @@ async function initializeInChatGptAgentConversationIfNeeded(
     // maybe another process was killed during initialization?
     assert(state.get().lastOrderKey === null);
 
-    await initializeInstructionsInChatGptAgentConversation(request, transaction, state);
+    await initializeInstructionsInChatGptAgentConversation(tracer, transaction, request, state);
 
-    await initializeMessagesInChatGptAgentConversation(request, transaction, state);
+    await initializeMessagesInChatGptAgentConversation(tracer, transaction, request, state);
 
     assert(state.get().lastMessageIndex !== null);
 }
 
 async function initializeInstructionsInChatGptAgentConversation(
-    request: AgentWebhookRequest,
+    tracer: TracerBase,
     transaction: DurableObjectTransaction,
+    request: AgentWebhookRequest,
     state: ChatGptAgentConversationStateStore,
 ): Promise<void> {
     assert(state.get().lastMessageIndex === null);
 
     const {
         data: {space},
-    } = await request.apiClient.GET("/spaces/{id}", {
+    } = await request.apiClient.GET(tracer, "/spaces/{id}", {
         params: {path: {id: request.spaceId}},
     });
 
@@ -244,13 +255,15 @@ async function initializeInstructionsInChatGptAgentConversation(
 }
 
 async function initializeMessagesInChatGptAgentConversation(
-    request: AgentWebhookRequest,
+    tracer: TracerBase,
     transaction: DurableObjectTransaction,
+    request: AgentWebhookRequest,
     state: ChatGptAgentConversationStateStore,
 ): Promise<void> {
     assert(state.get().lastMessageIndex === null);
 
     const messages = await getAgentMessagesFromEndUntilLimitTokenCount(
+        tracer,
         transaction,
         request.apiClient,
         request.spaceId,
@@ -277,6 +290,7 @@ async function initializeMessagesInChatGptAgentConversation(
 }
 
 async function getAgentMessagesFromEndUntilLimitTokenCount(
+    tracer: TracerBase,
     transaction: DurableObjectTransaction,
     apiClient: ApiClient,
     spaceId: SpaceId,
@@ -291,7 +305,7 @@ async function getAgentMessagesFromEndUntilLimitTokenCount(
     while (cursor !== null && totalTokenCount < limitTokenCount) {
         const {
             data: {nextCursor, messages: currentMessages},
-        } = await getApiMessagesFromEnd(apiClient, roomPathObject, {
+        } = await getApiMessagesFromEnd(tracer, apiClient, roomPathObject, {
             limit: apiMessagesLimit,
             cursor,
         });
@@ -349,10 +363,11 @@ async function getAgentMessagesFromEndUntilLimitTokenCount(
 }
 
 async function loadNewMessagesInChatGptAgentConversation(
+    tracer: TracerBase,
+    transaction: DurableObjectTransaction,
     // We don't want to use `request.event.index` in this function. So omit it from
     // the type.
     request: Omit<AgentWebhookRequest, "event">,
-    transaction: DurableObjectTransaction,
     state: ChatGptAgentConversationStateStore,
     newMessageIndex: number,
 ): Promise<void> {
@@ -368,7 +383,7 @@ async function loadNewMessagesInChatGptAgentConversation(
     outer: while (newMessageIndex > cursor) {
         const {
             data: {nextCursor, messages: currentMessages},
-        } = await getApiMessagesFromStart(request.apiClient, request.room, {
+        } = await getApiMessagesFromStart(tracer, request.apiClient, request.room, {
             limit: Math.min(apiMessagesLimit, newMessageIndex - cursor),
             cursor,
         });
@@ -410,7 +425,10 @@ async function loadNewMessagesInChatGptAgentConversation(
     });
 }
 
-async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise<void> {
+async function createChatGptAgentResponse(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+): Promise<void> {
     const input = Array.from(
         (await ChatGptAgentConversationItemCollection.list(request.storage)).values(),
         ({item}) => item,
@@ -437,7 +455,7 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
     // something new?
     //
     // [1]: https://platform.openai.com/docs/guides/tools-web-search
-    const {output} = await request.openAiClient.get().createResponse({
+    const {output} = await request.openAiClient.get().createResponse(tracer, {
         model: "gpt-4o-mini",
         prompt_cache_key: `${request.spaceId}:${request.event.roomPath}`,
         safety_identifier: request.event.authorId,
@@ -498,15 +516,16 @@ async function createChatGptAgentResponse(request: AgentWebhookRequest): Promise
         // right after you respond.
         const {
             data: {message},
-        } = await createApiMessage(request.apiClient, request.room, {content});
+        } = await createApiMessage(tracer, request.apiClient, request.room, {content});
 
         // We're going to update our conversation with the output directly from OpenAI
         // and set `lastMessageIndex` to the new message's index. Make sure if there
         // were any messages added while we were generating our response that we add
         // them to the conversation so they're not missed.
         await loadNewMessagesInChatGptAgentConversation(
-            request,
+            tracer,
             transaction,
+            request,
             state,
             message.index - 1,
         );

@@ -1,4 +1,12 @@
-import createOpenapiClient, {Client as OpenapiClient} from "openapi-fetch";
+import createClient, {Client, FetchOptions, ParseAsResponse} from "openapi-fetch";
+import {
+    FilterKeys,
+    HttpMethod,
+    MediaType,
+    PathsWithMethod,
+    ResponseObjectMap,
+    SuccessResponse,
+} from "openapi-typescript-helpers";
 import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_path.js";
 import {
     ApiContent,
@@ -7,26 +15,52 @@ import {
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
-export type ApiClient = OpenapiClient<ApiSpecification.paths>;
-
-export function createApiClient(
+type ApiClientMethod<Paths extends {}, Method extends HttpMethod, Media extends MediaType> = <
+    Path extends PathsWithMethod<Paths, Method>,
+    Options extends FetchOptions<FilterKeys<Paths[Path], Method>>,
+>(
     tracer: TracerBase,
-    {
-        baseUrl,
-        apiKey,
-        accessToken,
-    }: {
-        baseUrl: string;
-        apiKey: string;
-        accessToken: string;
-    },
-): ApiClient {
+    url: Path,
+    options: Options,
+) => Promise<{
+    data: ParseAsResponse<
+        SuccessResponse<
+            // @ts-expect-error: This code was copied from `openapi-fetch`. It doesn't
+            // error when in `openapi-fetch`'s `.d.ts` files because we set
+            // `"skipLibCheck": true` in our `tsconfig.json`. This code might not type
+            // check here in the generic type definition but it works!
+            ResponseObjectMap<Paths[Path][Method]>,
+            Media
+        >,
+        Options
+    >;
+    response: Response;
+}>;
+
+export type ApiClient = {
+    GET: ApiClientMethod<ApiSpecification.paths, "get", MediaType>;
+    PUT: ApiClientMethod<ApiSpecification.paths, "put", MediaType>;
+    POST: ApiClientMethod<ApiSpecification.paths, "post", MediaType>;
+    DELETE: ApiClientMethod<ApiSpecification.paths, "delete", MediaType>;
+    PATCH: ApiClientMethod<ApiSpecification.paths, "patch", MediaType>;
+};
+
+export function createApiClient({
+    baseUrl,
+    apiKey,
+    accessToken,
+}: {
+    baseUrl: string;
+    apiKey: string;
+    accessToken: string;
+}): ApiClient {
     const routeBySchemaPath = new DefaultMap<string, string>(schemaPath => {
         // Convert path params from the OpenAPI format (`/hello/{name}`) to the
         // format expected by `fetchWithTracer()` (`/hello/:name`). Right now we only
@@ -52,15 +86,20 @@ export function createApiClient(
         return route;
     });
 
-    const apiClient: ApiClient = createOpenapiClient({
+    const apiClient: Client<ApiSpecification.paths> = createClient({
         baseUrl,
         headers: {
             authorization: `bearer ${apiKey}~${accessToken}`,
         },
     });
 
+    let currentTracer: TracerBase | null = null;
+
     apiClient.use({
         onRequest: ({request, schemaPath, options}) => {
+            const tracer = assertExists(currentTracer);
+            currentTracer = null;
+
             return fetchWithTracer(
                 tracer,
                 request.url,
@@ -113,22 +152,40 @@ export function createApiClient(
         },
     });
 
-    return apiClient;
+    function createRequest(method: "GET" | "PUT" | "POST" | "DELETE" | "PATCH"): any {
+        return (tracer: any, path: any, options: any) => {
+            currentTracer = tracer;
+
+            return (apiClient as any)[method](path, {
+                ...options,
+                tracer,
+            });
+        };
+    }
+
+    return {
+        GET: createRequest("GET"),
+        PUT: createRequest("PUT"),
+        POST: createRequest("POST"),
+        DELETE: createRequest("DELETE"),
+        PATCH: createRequest("PATCH"),
+    };
 }
 
 export function getApiMessage(
+    tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
     index: number,
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.GET("/chats/{id}/messages/{index}", {
+            return apiClient.GET(tracer, "/chats/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.chatId, index}},
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.GET("/documents/{id}/threads/{threadId}/messages/{index}", {
+            return apiClient.GET(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -139,12 +196,12 @@ export function getApiMessage(
             });
         }
         case "Post": {
-            return apiClient.GET("/posts/{id}/messages/{index}", {
+            return apiClient.GET(tracer, "/posts/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.postId, index}},
             });
         }
         case "Task": {
-            return apiClient.GET("/tasks/{id}/messages/{index}", {
+            return apiClient.GET(tracer, "/tasks/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.taskId, index}},
             });
         }
@@ -154,13 +211,14 @@ export function getApiMessage(
 }
 
 export function getApiMessagesFromStart(
+    tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.GET("/chats/{id}/messages", {
+            return apiClient.GET(tracer, "/chats/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.chatId},
                     query: {limit, cursor: cursor ?? undefined},
@@ -168,7 +226,7 @@ export function getApiMessagesFromStart(
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.GET("/documents/{id}/threads/{threadId}/messages", {
+            return apiClient.GET(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -179,7 +237,7 @@ export function getApiMessagesFromStart(
             });
         }
         case "Post": {
-            return apiClient.GET("/posts/{id}/messages", {
+            return apiClient.GET(tracer, "/posts/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.postId},
                     query: {limit, cursor: cursor ?? undefined},
@@ -187,7 +245,7 @@ export function getApiMessagesFromStart(
             });
         }
         case "Task": {
-            return apiClient.GET("/tasks/{id}/messages", {
+            return apiClient.GET(tracer, "/tasks/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.taskId},
                     query: {limit, cursor: cursor ?? undefined},
@@ -200,13 +258,14 @@ export function getApiMessagesFromStart(
 }
 
 export function getApiMessagesFromEnd(
+    tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.GET("/chats/{id}/messages", {
+            return apiClient.GET(tracer, "/chats/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.chatId},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
@@ -214,7 +273,7 @@ export function getApiMessagesFromEnd(
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.GET("/documents/{id}/threads/{threadId}/messages", {
+            return apiClient.GET(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -225,7 +284,7 @@ export function getApiMessagesFromEnd(
             });
         }
         case "Post": {
-            return apiClient.GET("/posts/{id}/messages", {
+            return apiClient.GET(tracer, "/posts/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.postId},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
@@ -233,7 +292,7 @@ export function getApiMessagesFromEnd(
             });
         }
         case "Task": {
-            return apiClient.GET("/tasks/{id}/messages", {
+            return apiClient.GET(tracer, "/tasks/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.taskId},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
@@ -246,19 +305,20 @@ export function getApiMessagesFromEnd(
 }
 
 export function createApiMessage(
+    tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
     body: {content: ApiContent},
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.POST("/chats/{id}/messages", {
+            return apiClient.POST(tracer, "/chats/{id}/messages", {
                 params: {path: {id: roomPathObject.chatId}},
                 body,
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.POST("/documents/{id}/threads/{threadId}/messages", {
+            return apiClient.POST(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -269,13 +329,13 @@ export function createApiMessage(
             });
         }
         case "Post": {
-            return apiClient.POST("/posts/{id}/messages", {
+            return apiClient.POST(tracer, "/posts/{id}/messages", {
                 params: {path: {id: roomPathObject.postId}},
                 body,
             });
         }
         case "Task": {
-            return apiClient.POST("/tasks/{id}/messages", {
+            return apiClient.POST(tracer, "/tasks/{id}/messages", {
                 params: {path: {id: roomPathObject.taskId}},
                 body,
             });
