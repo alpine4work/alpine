@@ -36,18 +36,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /chats/{id}/messages:
         parameters:
@@ -55,6 +44,28 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/ChatId"}
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
         post:
             requestBody:
                 required: true
@@ -69,18 +80,7 @@ paths:
                                     $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
@@ -101,18 +101,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /documents/{id}/threads/{threadId}/messages:
         parameters:
@@ -124,6 +113,30 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/DocumentThreadId"}
+
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+
         post:
             requestBody:
                 required: true
@@ -138,18 +151,7 @@ paths:
                                     $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -166,18 +168,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /posts/{id}/messages:
         parameters:
@@ -185,6 +176,30 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/PostId"}
+
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+
         post:
             requestBody:
                 required: true
@@ -199,18 +214,7 @@ paths:
                                     $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /tasks/{id}/messages/{index}:
         parameters:
@@ -227,18 +231,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
     /tasks/{id}/messages:
         parameters:
@@ -246,6 +239,30 @@ paths:
               in: path
               required: true
               schema: {$ref: "#/components/schemas/TaskId"}
+
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: integer
+                - name: from
+                  in: query
+                  schema:
+                      type: string
+                      enum: [start, end]
+                      default: start
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessages"}
+
         post:
             requestBody:
                 required: true
@@ -260,18 +277,7 @@ paths:
                                     $ref: "#/components/schemas/Content"
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, message]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    message:
-                                        $ref: "#/components/schemas/Message"
+                "200": {$ref: "#/components/responses/GetMessage"}
 
 webhooks:
     bot:
@@ -323,6 +329,42 @@ components:
                                         description:
                                             A human-readable message providing more details about
                                             the error.
+
+        GetMessage:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, message]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            message:
+                                $ref: "#/components/schemas/Message"
+
+        GetMessages:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, nextCursor, totalMessageCount, messages]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            totalMessageCount:
+                                type: integer
+                            # TODO(calebmer, #public-api): My dream is for the API browser to return this
+                            # as a link. So you can conveniently paginate through the API in your browser
+                            # by clicking `nextCursor`.
+                            nextCursor:
+                                type: [integer, "null"]
+                                minimum: 0
+                            messages:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/Message"
 
     schemas:
         # =========================================================================== #

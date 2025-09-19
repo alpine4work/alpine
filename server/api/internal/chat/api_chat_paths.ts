@@ -4,7 +4,13 @@ import {
 } from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
 import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
-import {getChatMessagePayload, sendChatMessage} from "~/server/chat/data/chat_actions.js";
+import {
+    getChatMessagePayload,
+    getChatMessagePayloadsFromEnd,
+    getChatMessagePayloadsFromStart,
+    sendChatMessage,
+} from "~/server/chat/data/chat_actions.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
@@ -15,10 +21,10 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 
 export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
     "/chats/{id}/messages/{index}": {
-        get: async (context, {pathParams, searchParams}) => {
+        get: async (context, {pathParameters, url}) => {
             const {spaceId, createdTime, payload} = await getChatMessagePayload(context, {
-                chatId: pathParams.id,
-                messageIndex: pathParams.index,
+                chatId: pathParameters.id,
+                messageIndex: pathParameters.index,
                 consistency: "StrongWithinCache",
             });
 
@@ -26,7 +32,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 {
                     spaceId,
                     message: {
-                        index: pathParams.index,
+                        index: pathParameters.index,
                         createdTime: serializeDateString(createdTime),
                         payload: await intoApiMessagePayloadWithReferences(
                             context,
@@ -38,8 +44,10 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             // We want to test that response schemas are validated in a Jest unit test. So
             // allow adding a search param to trigger a response validation failure.
-            if (import.meta.jest && searchParams.has("test-additional-property")) {
-                (content as any).additionalProperty = searchParams.get("test-additional-property");
+            if (import.meta.jest && url.searchParams.has("test-additional-property")) {
+                (content as any).additionalProperty = url.searchParams.get(
+                    "test-additional-property",
+                );
             }
 
             return {
@@ -49,13 +57,72 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
     },
 
     "/chats/{id}/messages": {
-        post: async (context, {pathParams, requestBody}) => {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const {spaceId, messageCount, messages} =
+                queryParameters.from === "end"
+                    ? await getChatMessagePayloadsFromEnd(context, {
+                          chatId: pathParameters.id,
+                          limit: queryParameters.limit ?? 10,
+                          afterMessageIndex: null,
+                          beforeMessageIndex: queryParameters.cursor ?? null,
+                          consistency: "StrongWithinCache",
+                      })
+                    : await getChatMessagePayloadsFromStart(context, {
+                          chatId: pathParameters.id,
+                          limit: queryParameters.limit ?? 10,
+                          afterMessageIndex: queryParameters.cursor ?? null,
+                          beforeMessageIndex: null,
+                          consistency: "StrongWithinCache",
+                      });
+
+            let nextCursor: number | null;
+
+            if (messages.length === 0) {
+                nextCursor = null;
+            } else {
+                if (queryParameters.from === "end") {
+                    const firstMessage = messages[0]!;
+                    if (firstMessage.index > 0) {
+                        nextCursor = firstMessage.index;
+                    } else {
+                        nextCursor = null;
+                    }
+                } else {
+                    const lastMessage = messages[messages.length - 1]!;
+                    if (lastMessage.index < messageCount - 1) {
+                        nextCursor = lastMessage.index;
+                    } else {
+                        nextCursor = null;
+                    }
+                }
+            }
+
+            return {
+                content: {
+                    spaceId,
+                    totalMessageCount: messageCount,
+                    nextCursor,
+                    messages: await runAllPromises(
+                        messages.map(async message => ({
+                            index: message.index,
+                            createdTime: serializeDateString(message.createdTime),
+                            payload: await intoApiMessagePayloadWithReferences(
+                                context,
+                                spaceId,
+                                message.payload,
+                            ),
+                        })),
+                    ),
+                },
+            };
+        },
+        post: async (context, {pathParameters, requestBody}) => {
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
             const {spaceId, index, createdTime} = await sendChatMessage(context, {
-                chatId: pathParams.id,
+                chatId: pathParameters.id,
                 parentMessageIndex: null,
                 content,
                 fileIds: [],
@@ -87,7 +154,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             // needs to reliably run after an updates to DynamoDB Stream.
             context.process.waitUntil(
                 context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/chat/${pathParams.id}/broadcast-new-message`,
+                    `/api/durable-objects/chat/${pathParameters.id}/broadcast-new-message`,
                     {
                         serviceName: "ChatRealtimeService",
                         route: "/api/durable-objects/chat/:chatId/broadcast-new-message",

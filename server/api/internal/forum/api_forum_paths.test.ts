@@ -22,6 +22,6 @@ testMessagingApiImplementation(context, server, {
     createPrivateRoom: async session => {
         const channel = await TestChannel.create(session, {access: "Private"});
         const post = await channel.createPost(session);
-        return {roomPath: `/posts/${post.id}`, room: post};
+        return {roomPath: `/posts/${post.id}`, room: post, initialMessageCount: 0};
     },
 });

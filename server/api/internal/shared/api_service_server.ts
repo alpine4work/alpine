@@ -135,13 +135,13 @@ export async function createApiServiceRequestListener(
             span: TracerSpan,
             request: Request,
             url: URL,
-            pathParams: {[key: string]: string | number | undefined},
+            pathParameters: {[key: string]: string | number | undefined},
         ) => Promise<Response>,
     ) {
         return (
             req: IncomingMessage,
             res: ServerResponse<IncomingMessage>,
-            pathParams: {[key: string]: string | number | undefined},
+            pathParameters: {[key: string]: string | number | undefined},
         ) => {
             standardizedRequestListener(tracer, req, res, async request => {
                 const url = new URL(request.url);
@@ -189,7 +189,7 @@ export async function createApiServiceRequestListener(
                         }
                     }
 
-                    const response = await action(span, request, url, pathParams);
+                    const response = await action(span, request, url, pathParameters);
 
                     if (isHtmlRequest) {
                         return renderApiBrowser({
@@ -304,10 +304,10 @@ export async function createApiServiceRequestListener(
     for (const [openApiPath, openApiPathItem] of Object.entries(apiSpecification.paths)) {
         if (!openApiPathItem) continue;
 
-        // Convert path params from the OpenAPI format (`/hello/{name}`) to the
-        // `find-my-way` format (`/hello/:name`). Right now we only support path params
-        // that are an entire path segment. Paths like `/report.{format}` aren't
-        // currently accepted.
+        // Convert path parameters from the OpenAPI format (`/hello/{name}`) to the
+        // `find-my-way` format (`/hello/:name`). Right now we only support path
+        // parameters that are an entire path segment. Paths like `/report.{format}`
+        // aren't currently accepted.
         const findMyWayPath = openApiPath
             .split("/")
             .map(pathSegment => {
@@ -369,7 +369,7 @@ export async function createApiServiceRequestListener(
             ...(openApiOperation?.parameters ?? emptyArray),
         ];
 
-        const pathParamsSchema = {
+        const pathParametersSchema = {
             type: "object",
             properties: cast<{
                 [key: string]: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
@@ -378,30 +378,67 @@ export async function createApiServiceRequestListener(
             additionalProperties: false,
         } as const;
 
-        const integerParameterNames = new Set<string>();
-        const numberParameterNames = new Set<string>();
+        const queryParametersSchema = {
+            type: "object",
+            properties: cast<{
+                [key: string]: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
+            }>({}),
+            required: cast<Array<string>>([]),
+            additionalProperties: false,
+        } as const;
+
+        const pathParameterDefinitions = new Map<string, {type: "integer" | "number" | "string"}>();
+
+        const queryParameterDefinitions = new Map<
+            string,
+            {type: "integer" | "number" | "string"}
+        >();
 
         for (let parameter of parameters) {
             parameter = resolveReference(parameter);
-            assert(parameter.in === "path");
-            assert(parameter.schema);
-            assert(!pathParamsSchema.properties[parameter.name]);
 
-            pathParamsSchema.properties[parameter.name] = parameter.schema;
-            if (parameter.required) pathParamsSchema.required.push(parameter.name);
+            switch (parameter.in) {
+                case "path": {
+                    assert(parameter.schema);
+                    assert(!pathParametersSchema.properties[parameter.name]);
 
-            if (parameter.schema) {
-                const parameterSchema = resolveReference(parameter.schema);
+                    pathParametersSchema.properties[parameter.name] = parameter.schema;
+                    if (parameter.required) pathParametersSchema.required.push(parameter.name);
 
-                if (parameterSchema.type === "integer") {
-                    integerParameterNames.add(parameter.name);
-                } else if (parameterSchema.type === "number") {
-                    numberParameterNames.add(parameter.name);
+                    const parameterSchema = resolveReference(parameter.schema);
+
+                    pathParameterDefinitions.set(parameter.name, {
+                        type:
+                            parameterSchema.type === "integer" || parameterSchema.type === "number"
+                                ? parameterSchema.type
+                                : "string",
+                    });
+                    break;
                 }
+                case "query": {
+                    assert(parameter.schema);
+                    assert(!queryParametersSchema.properties[parameter.name]);
+
+                    queryParametersSchema.properties[parameter.name] = parameter.schema;
+                    if (parameter.required) queryParametersSchema.required.push(parameter.name);
+
+                    const parameterSchema = resolveReference(parameter.schema);
+
+                    queryParameterDefinitions.set(parameter.name, {
+                        type:
+                            parameterSchema.type === "integer" || parameterSchema.type === "number"
+                                ? parameterSchema.type
+                                : "string",
+                    });
+                    break;
+                }
+                default:
+                    throw new InternalError(quote`Unexpected parameter location: ${parameter.in}`);
             }
         }
 
-        const validatePathParams = compileWithAjv(pathParamsSchema);
+        const validatePathParameters = compileWithAjv(pathParametersSchema);
+        const validateQueryParameters = compileWithAjv(queryParametersSchema);
 
         const validateRequestBody = openApiOperation?.requestBody
             ? compileWithAjv(
@@ -430,7 +467,7 @@ export async function createApiServiceRequestListener(
             span: TracerSpan,
             request: Request,
             url: URL,
-            pathParams: {[key: string]: string | number | undefined},
+            pathParameters: {[key: string]: string | number | undefined},
         ) {
             const context = processContext.clone({
                 tracer: new TracerContextModule(span),
@@ -637,24 +674,52 @@ export async function createApiServiceRequestListener(
                  *                                 Validation                                 *
                 \* ========================================================================== */
 
-                // Parse any integer path params before validating.
-                for (const parameterName of integerParameterNames) {
-                    const pathParam = pathParams[parameterName];
-                    if (typeof pathParam === "string")
-                        pathParams[parameterName] = parseInt(pathParam, 10);
+                // Parse any integer/number path parameters before validating.
+                for (const [parameterName, parameterDefinition] of pathParameterDefinitions) {
+                    const pathParameter = pathParameters[parameterName];
+
+                    switch (parameterDefinition.type) {
+                        case "integer": {
+                            if (typeof pathParameter === "string")
+                                pathParameters[parameterName] = parseInt(pathParameter, 10);
+                            break;
+                        }
+                        case "number": {
+                            if (typeof pathParameter === "string")
+                                pathParameters[parameterName] = parseFloat(pathParameter);
+                            break;
+                        }
+                    }
                 }
 
-                // Parse any number path params before validating.
-                for (const parameterName of numberParameterNames) {
-                    const pathParam = pathParams[parameterName];
-                    if (typeof pathParam === "string")
-                        pathParams[parameterName] = parseFloat(pathParam);
+                const queryParameters: {[key: string]: unknown} = {};
+
+                for (const [parameterName, parameterDefinition] of queryParameterDefinitions) {
+                    const queryParameter = url.searchParams.get(parameterName);
+                    if (queryParameter === null) continue;
+
+                    switch (parameterDefinition.type) {
+                        case "integer": {
+                            queryParameters[parameterName] = parseInt(queryParameter, 10);
+                            break;
+                        }
+                        case "number": {
+                            queryParameters[parameterName] = parseFloat(queryParameter);
+                            break;
+                        }
+                        case "string": {
+                            queryParameters[parameterName] = queryParameter;
+                            break;
+                        }
+                        default:
+                            throw exhaustive(parameterDefinition.type);
+                    }
                 }
 
-                const valid = validatePathParams(pathParams);
-                if (!valid) {
+                const arePathParametersValid = validatePathParameters(pathParameters);
+                if (!arePathParametersValid) {
                     const propertyName = findMapIterable(
-                        validatePathParams.errors ?? emptyArray,
+                        validatePathParameters.errors ?? emptyArray,
                         error => {
                             if (error.propertyName) {
                                 return error.propertyName;
@@ -675,6 +740,33 @@ export async function createApiServiceRequestListener(
                         message: propertyName
                             ? quote`Invalid ${propertyName} path parameter.`
                             : "Invalid path parameters.",
+                    });
+                }
+
+                const areQueryParametersValid = validateQueryParameters(queryParameters);
+                if (!areQueryParametersValid) {
+                    const propertyName = findMapIterable(
+                        validateQueryParameters.errors ?? emptyArray,
+                        error => {
+                            if (error.propertyName) {
+                                return error.propertyName;
+                            }
+
+                            // `ajv` seems to use `instancePath` for the error when the schema is a `$ref`.
+                            if (
+                                error.instancePath.startsWith("/") &&
+                                !error.instancePath.slice(1).includes("/")
+                            ) {
+                                return error.instancePath.slice(1);
+                            }
+                        },
+                    );
+
+                    return createApiErrorResponse({
+                        status: 400,
+                        message: propertyName
+                            ? quote`Invalid ${propertyName} query parameter.`
+                            : "Invalid query parameters.",
                     });
                 }
 
@@ -708,8 +800,9 @@ export async function createApiServiceRequestListener(
                 \* ========================================================================== */
 
                 const {content} = await executeOperation(contextWithActor, {
-                    pathParams,
-                    searchParams: url.searchParams,
+                    pathParameters,
+                    queryParameters,
+                    url,
                     headers: request.headers,
                     requestBody,
                     span,

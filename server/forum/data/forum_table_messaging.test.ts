@@ -10,6 +10,8 @@ import {
     getPost,
     getPostComment,
     getPostCommentPayload,
+    getPostCommentPayloadsFromEnd,
+    getPostCommentPayloadsFromStart,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updateChannelAccessPolicy,
@@ -200,6 +202,30 @@ testMessagingImplementation<PostId>(context, {
             otherReferencedMessages: otherReferencedComments,
             lastMessageChangeTime: lastCommentChangeTime,
         };
+    },
+    async getMessagePayloadsFromStart(
+        context,
+        {roomKey: postId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const {commentCount, comments} = await getPostCommentPayloadsFromStart(context, {
+            postId,
+            limit,
+            afterCommentIndex: afterMessageIndex,
+            beforeCommentIndex: beforeMessageIndex,
+        });
+        return {messageCount: commentCount, messages: comments};
+    },
+    async getMessagePayloadsFromEnd(
+        context,
+        {roomKey: postId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const {commentCount, comments} = await getPostCommentPayloadsFromEnd(context, {
+            postId,
+            limit,
+            afterCommentIndex: afterMessageIndex,
+            beforeCommentIndex: beforeMessageIndex,
+        });
+        return {messageCount: commentCount, messages: comments};
     },
     async backfillMessages(
         context,

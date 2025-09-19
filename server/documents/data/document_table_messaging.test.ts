@@ -9,6 +9,8 @@ import {
     getDocument,
     getDocumentComment,
     getDocumentCommentPayload,
+    getDocumentCommentPayloadsFromEnd,
+    getDocumentCommentPayloadsFromStart,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentWithOptionalComments,
@@ -321,6 +323,38 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             otherReferencedMessages: otherReferencedComments,
             lastMessageChangeTime: lastCommentChangeTime,
         };
+    },
+    async getMessagePayloadsFromStart(
+        context,
+        {roomKey, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {commentCount, comments} = await getDocumentCommentPayloadsFromStart(context, {
+            documentId,
+            commentThreadId,
+            limit,
+            afterCommentIndex: afterMessageIndex,
+            beforeCommentIndex: beforeMessageIndex,
+        });
+
+        return {messageCount: commentCount, messages: comments};
+    },
+    async getMessagePayloadsFromEnd(
+        context,
+        {roomKey, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {commentCount, comments} = await getDocumentCommentPayloadsFromEnd(context, {
+            documentId,
+            commentThreadId,
+            limit,
+            afterCommentIndex: afterMessageIndex,
+            beforeCommentIndex: beforeMessageIndex,
+        });
+
+        return {messageCount: commentCount, messages: comments};
     },
     async backfillMessages(
         context,

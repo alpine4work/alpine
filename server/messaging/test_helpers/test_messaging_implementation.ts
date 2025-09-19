@@ -29,7 +29,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContent,
@@ -147,6 +147,50 @@ type GetMessagesFromEndForTest<Message extends MessageModel> = (
     messages: Array<Message>;
     otherReferencedMessages: Array<Message>;
     lastMessageChangeTime: Date | null;
+}>;
+
+/**
+ * Load a range of message payloads (doesn't load references) starting from the beginning of the room (or
+ * starting after a message ID) and loading forwards in time.
+ */
+type GetMessagePayloadsFromStartForTest<Message extends MessageModel> = (
+    context: ServerActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+    },
+) => Promise<{
+    messageCount: number;
+    messages: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}>;
+
+/**
+ * Load a range of message payloads (doesn't load references) starting from the end of the room (or
+ * starting before a message ID) and loading backwards in time.
+ */
+type GetMessagePayloadsFromEndForTest<Message extends MessageModel> = (
+    context: ServerActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+    },
+) => Promise<{
+    messageCount: number;
+    messages: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
 }>;
 
 /**
@@ -300,6 +344,18 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     getMessagesFromEnd: GetMessagesFromEndForTest<MessageModel<RoomKey>>;
 
     /**
+     * Load a range of message payloads (doesn't load references) starting from the beginning of the room (or
+     * starting after a message ID) and loading forwards in time.
+     */
+    getMessagePayloadsFromStart: GetMessagePayloadsFromStartForTest<MessageModel<RoomKey>>;
+
+    /**
+     * Load a range of message payloads (doesn't load references) starting from the end of the room (or
+     * starting before a message ID) and loading backwards in time.
+     */
+    getMessagePayloadsFromEnd: GetMessagePayloadsFromEndForTest<MessageModel<RoomKey>>;
+
+    /**
      * Backfill messages and message changes the client is missing. Realtime could
      * be implemented by polling this method. However, this method is also
      * important for implementing push-based realtime as it fills the gap between
@@ -354,6 +410,8 @@ export function testMessagingImplementation<RoomKey extends string>(
         getMessagePayload,
         getMessagesFromStart,
         getMessagesFromEnd,
+        getMessagePayloadsFromStart,
+        getMessagePayloadsFromEnd,
         updateMessageContent,
         deleteMessage,
         backfillMessages,
@@ -8991,6 +9049,363 @@ export function testMessagingImplementation<RoomKey extends string>(
                     },
                 ],
             });
+        });
+
+        test("can get message payloads from start", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromStart(context.action(session1), {
+                roomKey: room.key,
+                limit: 10,
+                afterMessageIndex: null,
+                beforeMessageIndex: null,
+            });
+
+            expect(result.messageCount).toBe(2);
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0]!.payload.content).toEqual(content1);
+            expect(result.messages[1]!.payload.content).toEqual(content2);
+        });
+
+        test("can get message payloads from end", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromEnd(context.action(session1), {
+                roomKey: room.key,
+                limit: 10,
+                afterMessageIndex: null,
+                beforeMessageIndex: null,
+            });
+
+            expect(result.messageCount).toBe(2);
+            expect(result.messages).toHaveLength(2);
+            // FromEnd returns messages in the same order as fromStart (not reversed)
+            expect(result.messages[0]!.payload.content).toEqual(content1);
+            expect(result.messages[1]!.payload.content).toEqual(content2);
+        });
+
+        test("can’t get message payloads for room that doesn’t exist", async () => {
+            await expect(
+                getMessagePayloadsFromStart(context.action(session1), {
+                    roomKey: getMissingRoomKey(),
+                    limit: 10,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow();
+        });
+
+        test("can’t get message payloads for room in a different space", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await expect(
+                getMessagePayloadsFromStart(context.action(otherSpaceSession), {
+                    roomKey: room.key,
+                    limit: 10,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow(spacePermissionDeniedErrorMessage);
+        });
+
+        test("can’t get message payloads for anonymous actor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await expect(
+                getMessagePayloadsFromStart(context.anonymousAction(), {
+                    roomKey: room.key,
+                    limit: 10,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow();
+        });
+
+        test("can get message payloads from start with limit", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            // Create 5 messages
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromStart(context.action(session1), {
+                roomKey: room.key,
+                limit: 2,
+                afterMessageIndex: null,
+                beforeMessageIndex: null,
+            });
+
+            expect(result.messageCount).toBe(3);
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0]!.payload.content).toEqual(content1);
+            expect(result.messages[1]!.payload.content).toEqual(content2);
+        });
+
+        test("can get message payloads from end with limit", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            // Create 3 messages
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromEnd(context.action(session1), {
+                roomKey: room.key,
+                limit: 2,
+                afterMessageIndex: null,
+                beforeMessageIndex: null,
+            });
+
+            expect(result.messageCount).toBe(3);
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0]!.payload.content).toEqual(content2);
+            expect(result.messages[1]!.payload.content).toEqual(content3);
+        });
+
+        test("can’t get message payloads from end for room that doesn’t exist", async () => {
+            await expect(
+                getMessagePayloadsFromEnd(context.action(session1), {
+                    roomKey: getMissingRoomKey(),
+                    limit: 10,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow();
+        });
+
+        test("can’t get message payloads from end for room in a different space", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await expect(
+                getMessagePayloadsFromEnd(context.action(otherSpaceSession), {
+                    roomKey: room.key,
+                    limit: 10,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow(spacePermissionDeniedErrorMessage);
+        });
+
+        test("can’t get message payloads from end for anonymous actor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await expect(
+                getMessagePayloadsFromEnd(context.anonymousAction(), {
+                    roomKey: room.key,
+                    limit: 10,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow();
+        });
+
+        test("can get message payloads from end with after cursor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromEnd(context.action(session1), {
+                roomKey: room.key,
+                limit: 10,
+                afterMessageIndex: message1.index,
+                beforeMessageIndex: null,
+            });
+
+            expect(result.messageCount).toBe(3);
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0]!.payload.content).toEqual(content2);
+            expect(result.messages[1]!.payload.content).toEqual(content3);
+        });
+
+        test("can get message payloads from end with before cursor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromEnd(context.action(session1), {
+                roomKey: room.key,
+                limit: 10,
+                afterMessageIndex: null,
+                beforeMessageIndex: message2.index,
+            });
+
+            expect(result.messageCount).toBe(3);
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]!.payload.content).toEqual(content1);
+        });
+
+        test("can get message payloads from start with after cursor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromStart(context.action(session1), {
+                roomKey: room.key,
+                limit: 10,
+                afterMessageIndex: message1.index,
+                beforeMessageIndex: null,
+            });
+
+            expect(result.messageCount).toBe(3);
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0]!.payload.content).toEqual(content2);
+            expect(result.messages[1]!.payload.content).toEqual(content3);
+        });
+
+        test("can get message payloads from start with before cursor", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            const result = await getMessagePayloadsFromStart(context.action(session1), {
+                roomKey: room.key,
+                limit: 10,
+                afterMessageIndex: null,
+                beforeMessageIndex: message2.index,
+            });
+
+            expect(result.messageCount).toBe(3);
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]!.payload.content).toEqual(content1);
         });
     });
 }

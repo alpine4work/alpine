@@ -5,6 +5,7 @@
 import request from "supertest";
 import {apiChatPaths} from "~/server/api/internal/chat/api_chat_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
+import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
@@ -781,6 +782,89 @@ test("invalid request body throws a validation error", async () => {
     expect(response.body).toEqual({
         error: {
             message: "Invalid request body (path: `#/content/elements/0`).",
+        },
+    });
+});
+
+test("can read messages", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(session);
+    const apiKey = await botAccount.createApiKey(session);
+
+    const chat = await TestChat.get(session, botAccount);
+
+    const message = await chat.sendMessage(session, "Hello, world!");
+
+    const response = await request(server)
+        .get(`/chats/${chat.id}/messages`)
+        .set("authorization", `bearer ${apiKey}`)
+        .expect("content-type", "application/json")
+        .expect(200);
+
+    expect(response.body).toEqual(
+        expect.objectContaining({
+            messages: [
+                expect.objectContaining({
+                    index: message.index,
+                    payload: expect.objectContaining({type: "Content"}),
+                }),
+            ],
+        }),
+    );
+
+    expect(
+        printApiContentToMarkdown(response.body.messages[0].payload.content, {
+            spaceId: space.id,
+        }),
+    ).toEqual("Hello, world!\n");
+});
+
+test("can’t read message with invalid string query parameter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(session);
+    const apiKey = await botAccount.createApiKey(session);
+
+    const chat = await TestChat.get(session, botAccount);
+
+    await chat.sendMessage(session, "Hello, world!");
+
+    const response = await request(server)
+        .get(`/chats/${chat.id}/messages?from=nope`)
+        .set("authorization", `bearer ${apiKey}`)
+        .expect("content-type", "application/json")
+        .expect(400);
+
+    expect(response.body).toEqual({
+        error: {
+            message: "Invalid `from` query parameter.",
+        },
+    });
+});
+
+test("can’t read message with invalid integer query parameter", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(session);
+    const apiKey = await botAccount.createApiKey(session);
+
+    const chat = await TestChat.get(session, botAccount);
+
+    await chat.sendMessage(session, "Hello, world!");
+
+    const response = await request(server)
+        .get(`/chats/${chat.id}/messages?limit=0`)
+        .set("authorization", `bearer ${apiKey}`)
+        .expect("content-type", "application/json")
+        .expect(400);
+
+    expect(response.body).toEqual({
+        error: {
+            message: "Invalid `limit` query parameter.",
         },
     });
 });

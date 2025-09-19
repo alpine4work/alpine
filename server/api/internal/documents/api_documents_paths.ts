@@ -4,7 +4,10 @@ import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/
 import {
     createDocumentComment,
     getDocumentCommentPayload,
+    getDocumentCommentPayloadsFromEnd,
+    getDocumentCommentPayloadsFromStart,
 } from "~/server/documents/data/documents_actions.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
@@ -15,11 +18,11 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
     "/documents/{id}/threads/{threadId}/messages/{index}": {
-        get: async (context, {pathParams}) => {
+        get: async (context, {pathParameters}) => {
             const {spaceId, createdTime, payload} = await getDocumentCommentPayload(context, {
-                documentId: pathParams.id,
-                commentThreadId: pathParams.threadId,
-                commentIndex: pathParams.index,
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
                 consistency: "StrongWithinCache",
             });
 
@@ -27,7 +30,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 content: {
                     spaceId,
                     message: {
-                        index: pathParams.index,
+                        index: pathParameters.index,
                         createdTime: serializeDateString(createdTime),
                         payload: await intoApiMessagePayloadWithReferences(
                             context,
@@ -41,14 +44,75 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
     },
 
     "/documents/{id}/threads/{threadId}/messages": {
-        post: async (context, {pathParams, requestBody}) => {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const {spaceId, commentCount, comments} =
+                queryParameters.from === "end"
+                    ? await getDocumentCommentPayloadsFromEnd(context, {
+                          documentId: pathParameters.id,
+                          commentThreadId: pathParameters.threadId,
+                          limit: queryParameters.limit ?? 10,
+                          afterCommentIndex: null,
+                          beforeCommentIndex: queryParameters.cursor ?? null,
+                          consistency: "StrongWithinCache",
+                      })
+                    : await getDocumentCommentPayloadsFromStart(context, {
+                          documentId: pathParameters.id,
+                          commentThreadId: pathParameters.threadId,
+                          limit: queryParameters.limit ?? 10,
+                          afterCommentIndex: queryParameters.cursor ?? null,
+                          beforeCommentIndex: null,
+                          consistency: "StrongWithinCache",
+                      });
+
+            let nextCursor: number | null;
+
+            if (comments.length === 0) {
+                nextCursor = null;
+            } else {
+                if (queryParameters.from === "end") {
+                    const firstComment = comments[0]!;
+                    if (firstComment.index > 0) {
+                        nextCursor = firstComment.index;
+                    } else {
+                        nextCursor = null;
+                    }
+                } else {
+                    const lastComment = comments[comments.length - 1]!;
+                    if (lastComment.index < commentCount - 1) {
+                        nextCursor = lastComment.index;
+                    } else {
+                        nextCursor = null;
+                    }
+                }
+            }
+
+            return {
+                content: {
+                    spaceId,
+                    totalMessageCount: commentCount,
+                    nextCursor,
+                    messages: await runAllPromises(
+                        comments.map(async message => ({
+                            index: message.index,
+                            createdTime: serializeDateString(message.createdTime),
+                            payload: await intoApiMessagePayloadWithReferences(
+                                context,
+                                spaceId,
+                                message.payload,
+                            ),
+                        })),
+                    ),
+                },
+            };
+        },
+        post: async (context, {pathParameters, requestBody}) => {
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
             const {spaceId, index, createdTime} = await createDocumentComment(context, {
-                documentId: pathParams.id,
-                commentThreadId: pathParams.threadId,
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
                 parentCommentIndex: null,
                 content,
                 fileIds: [],
@@ -80,7 +144,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             // needs to reliably run after an updates to DynamoDB Stream.
             context.process.waitUntil(
                 context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/documents/${pathParams.id}/broadcast-new-message/${pathParams.threadId}`,
+                    `/api/durable-objects/documents/${pathParameters.id}/broadcast-new-message/${pathParameters.threadId}`,
                     {
                         serviceName: "DocumentCollaborationService",
                         route: "/api/durable-objects/documents/:documentId/broadcast-new-message/:commentThreadId",

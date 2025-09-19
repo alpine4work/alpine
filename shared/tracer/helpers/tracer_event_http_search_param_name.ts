@@ -46,6 +46,10 @@ type TracerEventHttpSearchParamNameMap = {
     // variant to return and to resize the file to a specific size.
     variant: true;
     width: true;
+    // `ApiService` parameters for `/messages` pagination.
+    limit: true;
+    cursor: true;
+    from: true;
 };
 
 const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
@@ -61,6 +65,9 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     file: true,
     variant: true,
     width: true,
+    limit: true,
+    cursor: true,
+    from: true,
 };
 
 /**
@@ -94,4 +101,5 @@ export const tracerEventHttpSearchParamNameByServiceName: {
     ]),
     EdgeService: new Set(["variant", "width"]),
     FileProcessorService: new Set(["variant", "width"]),
+    ApiService: new Set(["limit", "cursor", "from"]),
 };

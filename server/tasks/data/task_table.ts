@@ -5776,6 +5776,80 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
     };
 }
 
+export async function getTaskCommentPayloadsFromStart(
+    context: ServerActionContext,
+    {
+        taskId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency,
+    }: {
+        taskId: TaskId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    commentCount: number;
+    comments: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const [{item: taskItem, commentsSummaryItem}, comments] = await runAllPromises([
+        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {consistency}),
+        arrayFromAsyncIterable(
+            TaskTable.query(context, {
+                partitionKey: {
+                    partitionType: "Task",
+                    taskId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                consistency,
+            }),
+            item => ({
+                index: item.commentIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        spaceId: taskItem.spaceId,
+        commentCount: Math.max(
+            reduceIterable(
+                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+    };
+}
+
 /**
  * Efficiently load a task's notes and initial comments at the same time.
  *
@@ -6059,6 +6133,86 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
         otherReferencedComments: otherReferencedComments.sort(
             (comment1, comment2) => comment1.index - comment2.index,
         ),
+    };
+}
+
+export async function getTaskCommentPayloadsFromEnd(
+    context: ServerActionContext,
+    {
+        taskId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency,
+    }: {
+        taskId: TaskId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    commentCount: number;
+    comments: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const [{item: taskItem, commentsSummaryItem}, comments] = await runAllPromises([
+        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {consistency}),
+        arrayFromAsyncIterable(
+            TaskTable.query(context, {
+                partitionKey: {
+                    partitionType: "Task",
+                    taskId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                // at the end instead of start.
+                descending: true,
+                consistency,
+            }),
+            item => ({
+                index: item.commentIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    // We queried in descending order so put comments back in the right order.
+    comments.reverse();
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        spaceId: taskItem.spaceId,
+        commentCount: Math.max(
+            reduceIterable(
+                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
     };
 }
 

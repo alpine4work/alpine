@@ -32,6 +32,7 @@ testMessagingApiImplementation(context, server, {
         return {
             roomPath: `/documents/${document.id}/threads/${commentThread.id}`,
             room: commentThread,
+            initialMessageCount: 1,
         };
     },
 });

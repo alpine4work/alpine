@@ -24,7 +24,7 @@ testMessagingApiImplementation(context, server, {
     generateMissingRoomPath: () => `/chats/${generateId<ChatId>()}`,
     createPrivateRoom: async (session, botAccount) => {
         const chat = await TestChat.get(session, botAccount);
-        return {roomPath: `/chats/${chat.id}`, room: chat};
+        return {roomPath: `/chats/${chat.id}`, room: chat, initialMessageCount: 0};
     },
 });
 

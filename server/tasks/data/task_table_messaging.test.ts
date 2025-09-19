@@ -11,6 +11,8 @@ import {
     deleteTaskComment,
     getTaskComment,
     getTaskCommentPayload,
+    getTaskCommentPayloadsFromEnd,
+    getTaskCommentPayloadsFromStart,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskCommentsSummaryItemIfExistsForTest,
@@ -202,6 +204,30 @@ testMessagingImplementation<TaskId>(processContext, {
             otherReferencedMessages: otherReferencedComments,
             lastMessageChangeTime: lastCommentChangeTime,
         };
+    },
+    async getMessagePayloadsFromStart(
+        context,
+        {roomKey: taskId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const {commentCount, comments} = await getTaskCommentPayloadsFromStart(context, {
+            taskId,
+            limit,
+            afterCommentIndex: afterMessageIndex,
+            beforeCommentIndex: beforeMessageIndex,
+        });
+        return {messageCount: commentCount, messages: comments};
+    },
+    async getMessagePayloadsFromEnd(
+        context,
+        {roomKey: taskId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        const {commentCount, comments} = await getTaskCommentPayloadsFromEnd(context, {
+            taskId,
+            limit,
+            afterCommentIndex: afterMessageIndex,
+            beforeCommentIndex: beforeMessageIndex,
+        });
+        return {messageCount: commentCount, messages: comments};
     },
     async backfillMessages(
         context,

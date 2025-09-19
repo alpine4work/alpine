@@ -21,6 +21,6 @@ testMessagingApiImplementation(context, server, {
     generateMissingRoomPath: () => `/tasks/${generateId<TaskId>()}`,
     createPrivateRoom: async session => {
         const task = await TestTask.create(session);
-        return {roomPath: `/tasks/${task.id}`, room: task};
+        return {roomPath: `/tasks/${task.id}`, room: task, initialMessageCount: 0};
     },
 });

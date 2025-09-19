@@ -5222,7 +5222,7 @@ export async function getDocumentCommentsFromStart(
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentAuthorizationPromise,
-        getDocumentCommentThreadItem(context, {
+        getDocumentCommentThreadItemIfExists(context, {
             documentId,
             commentThreadId,
         }),
@@ -5235,6 +5235,9 @@ export async function getDocumentCommentsFromStart(
             beforeCommentIndex,
         }),
     ]);
+
+    if (!commentThreadItem)
+        throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
@@ -5379,6 +5382,94 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
 }
 
 /**
+ * Paginate through document comments from start to finish.
+ */
+export async function getDocumentCommentPayloadsFromStart(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    commentCount: number;
+    comments: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const [{spaceId}, commentThreadItem, comments] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
+        getDocumentCommentThreadItemIfExists(context, {
+            documentId,
+            commentThreadId,
+            consistency,
+        }),
+        arrayFromAsyncIterable(
+            DocumentsTable.query(context, {
+                partitionKey: {
+                    partitionType: "DocumentCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                consistency,
+            }),
+            item => ({
+                index: item.commentIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    if (!commentThreadItem)
+        throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        spaceId,
+        commentCount: Math.max(
+            reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+    };
+}
+
+/**
  * Paginate through document comments from finish to start.
  */
 export async function getDocumentCommentsFromEnd(
@@ -5406,7 +5497,7 @@ export async function getDocumentCommentsFromEnd(
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentAuthorizationPromise,
-        getDocumentCommentThreadItem(context, {
+        getDocumentCommentThreadItemIfExists(context, {
             documentId,
             commentThreadId,
         }),
@@ -5419,6 +5510,9 @@ export async function getDocumentCommentsFromEnd(
             beforeCommentIndex,
         }),
     ]);
+
+    if (!commentThreadItem)
+        throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
@@ -5558,6 +5652,98 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
         otherReferencedComments: otherReferencedComments.sort(
             (comment1, comment2) => comment1.index - comment2.index,
         ),
+    };
+}
+
+/**
+ * Paginate through document comments from finish to start.
+ */
+export async function getDocumentCommentPayloadsFromEnd(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    commentCount: number;
+    comments: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const [{spaceId}, commentThreadItem, comments] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
+        getDocumentCommentThreadItemIfExists(context, {
+            documentId,
+            commentThreadId,
+            consistency,
+        }),
+        arrayFromAsyncIterable(
+            DocumentsTable.query(context, {
+                partitionKey: {
+                    partitionType: "DocumentCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                descending: true,
+                consistency,
+            }),
+            item => ({
+                index: item.commentIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    if (!commentThreadItem)
+        throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
+
+    // We queried in descending order so put comments back in the right order.
+    comments.reverse();
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        spaceId,
+        commentCount: Math.max(
+            reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
     };
 }
 

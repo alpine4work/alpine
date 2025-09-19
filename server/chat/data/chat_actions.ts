@@ -2071,6 +2071,80 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 }
 
 /**
+ * Paginate through chat message payloads (doesn't load references) from start
+ * to finish.
+ */
+export async function getChatMessagePayloadsFromStart(
+    context: ServerActionContext,
+    {
+        chatId,
+        limit,
+        afterMessageIndex,
+        beforeMessageIndex,
+        consistency,
+    }: {
+        chatId: ChatId;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    messageCount: number;
+    messages: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const [chatItem, messages] = await runAllPromises([
+        authorizeChatAccessAndReturnItem(context, chatId, {consistency}),
+        arrayFromAsyncIterable(
+            ChatTable.query(context, {
+                partitionKey: {
+                    partitionType: "Chat",
+                    chatId,
+                },
+                startSortKey: {
+                    sortRangeType: "Messages",
+                    messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Messages",
+                    messageIndex:
+                        typeof beforeMessageIndex === "number"
+                            ? beforeMessageIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                consistency,
+            }),
+            item => ({
+                index: item.messageIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
+
+    return {
+        spaceId: chatItem.spaceId,
+        messageCount: Math.max(
+            chatItem.messagesSummary.messageCount,
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastMessageIndex + 1,
+        ),
+        messages,
+    };
+}
+
+/**
  * Paginate through chat messages from finish to start.
  */
 export async function getChatMessagesFromEnd(
@@ -2235,6 +2309,86 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
         otherReferencedMessages: otherReferencedMessages.sort(
             (message1, message2) => message1.index - message2.index,
         ),
+    };
+}
+
+/**
+ * Paginate through chat message payloads (doesn't load references) from finish
+ * to start.
+ */
+export async function getChatMessagePayloadsFromEnd(
+    context: ServerActionContext,
+    {
+        chatId,
+        limit,
+        afterMessageIndex,
+        beforeMessageIndex,
+        consistency,
+    }: {
+        chatId: ChatId;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    messageCount: number;
+    messages: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const [chatItem, messages] = await runAllPromises([
+        authorizeChatAccessAndReturnItem(context, chatId, {consistency}),
+        arrayFromAsyncIterable(
+            ChatTable.query(context, {
+                partitionKey: {
+                    partitionType: "Chat",
+                    chatId,
+                },
+                startSortKey: {
+                    sortRangeType: "Messages",
+                    messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Messages",
+                    messageIndex:
+                        typeof beforeMessageIndex === "number"
+                            ? beforeMessageIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                // at the end instead of start.
+                descending: true,
+                consistency,
+            }),
+            item => ({
+                index: item.messageIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    // Reverse the order of messages since we queried them in descending order.
+    messages.reverse();
+
+    const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
+
+    return {
+        spaceId: chatItem.spaceId,
+        messageCount: Math.max(
+            chatItem.messagesSummary.messageCount,
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastMessageIndex + 1,
+        ),
+        messages,
     };
 }
 

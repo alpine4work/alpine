@@ -3819,6 +3819,104 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
 }
 
 /**
+ * Paginate through post comments from start to finish.
+ */
+export async function getPostCommentPayloadsFromStart(
+    context: ServerActionContext,
+    {
+        postId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency = "Eventual",
+    }: {
+        postId: PostId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    commentCount: number;
+    comments: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const postItemPromise = ForumRealtimeTable.getPartialItemIfExists(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            consistency,
+            attributes: ["spaceId", "channelId", "authorId", "commentsSummary"],
+        },
+    );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
+
+    const [postItem, comments] = await runAllPromises([
+        postItemPromise.then(async postItem => {
+            if (!postItem) throw createPostNotFoundError(postId);
+            await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
+            return postItem;
+        }),
+        arrayFromAsyncIterable(
+            ForumTable.query(context, {
+                partitionKey: {
+                    partitionType: "Post",
+                    postId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                consistency,
+            }),
+            item => ({
+                index: item.commentIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        spaceId: postItem.spaceId,
+        commentCount: Math.max(
+            reduceIterable(
+                postItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+    };
+}
+
+/**
  * Paginate through post comments from finish to start.
  */
 export async function getPostCommentsFromEnd(
@@ -4012,6 +4110,108 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
         otherReferencedComments: otherReferencedComments.sort(
             (comment1, comment2) => comment1.index - comment2.index,
         ),
+    };
+}
+
+/**
+ * Paginate through post comments from finish to start.
+ */
+export async function getPostCommentPayloadsFromEnd(
+    context: ServerActionContext,
+    {
+        postId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+        consistency = "Eventual",
+    }: {
+        postId: PostId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    commentCount: number;
+    comments: Array<{
+        index: number;
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }>;
+}> {
+    const postItemPromise = ForumRealtimeTable.getPartialItemIfExists(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            consistency,
+            attributes: ["spaceId", "channelId", "authorId", "commentsSummary"],
+        },
+    );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
+
+    const [postItem, comments] = await runAllPromises([
+        postItemPromise.then(async postItem => {
+            if (!postItem) throw createPostNotFoundError(postId);
+            await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
+            return postItem;
+        }),
+        arrayFromAsyncIterable(
+            ForumTable.query(context, {
+                partitionKey: {
+                    partitionType: "Post",
+                    postId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+                descending: true,
+                consistency,
+            }),
+            item => ({
+                index: item.commentIndex,
+                createdTime: item.createdTime,
+                authorId: item.authorId,
+                payload: item.payload,
+            }),
+        ),
+    ]);
+
+    // We queried in descending order so put comments back in the right order.
+    comments.reverse();
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        spaceId: postItem.spaceId,
+        commentCount: Math.max(
+            reduceIterable(
+                postItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
     };
 }
 

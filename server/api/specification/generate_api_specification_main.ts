@@ -65,15 +65,15 @@ async function main() {
 
     const specificationTypesAst = await openapiTypescript(specificationFinalContent, {
         immutable: true,
-        transform: (schema, metadata) => {
+        transform: (schema, options) => {
             if (schema.format === "date-time") {
                 return ts.factory.createTypeReferenceNode(
                     ts.factory.createIdentifier("DateString"),
                 );
             }
 
-            const supportedIdType = metadata.path
-                ? supportedIdTypeByMetadataPath.get(metadata.path)
+            const supportedIdType = options.path
+                ? supportedIdTypeByMetadataPath.get(options.path)
                 : undefined;
 
             if (supportedIdType !== undefined) {
@@ -81,7 +81,7 @@ async function main() {
                     schema.type === "string" &&
                         hasOwnProperty(schema, "pattern") &&
                         schema.pattern === `^${idRegExp.source}$`,
-                    quote`Expected ${metadata.path} to have a string schema with \`pattern\` of \`^{{idRegExp}}$\``,
+                    quote`Expected ${options.path} to have a string schema with \`pattern\` of \`^{{idRegExp}}$\``,
                 );
 
                 if (supportedIdType === "DocumentThreadId") {
@@ -91,55 +91,29 @@ async function main() {
                 }
             }
 
-            if (metadata.path === "#/components/schemas/AccountPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/accounts/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("AccountId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
+            for (const [pathName, pathPrefix, idType] of [
+                ["AccountPath", "/accounts/", "AccountId"],
+                ["ChannelPath", "/channels/", "ChannelId"],
+                ["ChatPath", "/chats/", "ChatId"],
+                ["DocumentPath", "/documents/", "DocumentId"],
+                ["PostPath", "/posts/", "PostId"],
+                ["TaskPath", "/tasks/", "TaskId"],
+                ["TaskCollectionPath", "/task-collections/", "TaskCollectionId"],
+            ] as const) {
+                if (options.path === `#/components/schemas/${pathName}`) {
+                    return ts.factory.createTemplateLiteralType(
+                        ts.factory.createTemplateHead(pathPrefix),
+                        [
+                            ts.factory.createTemplateLiteralTypeSpan(
+                                createTsIdType(idType),
+                                ts.factory.createTemplateTail(""),
+                            ),
+                        ],
+                    );
+                }
             }
 
-            if (metadata.path === "#/components/schemas/ChannelPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/channels/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("ChannelId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
-            }
-
-            if (metadata.path === "#/components/schemas/ChatPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/chats/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("ChatId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
-            }
-
-            if (metadata.path === "#/components/schemas/DocumentPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/documents/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("DocumentId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
-            }
-
-            if (metadata.path === "#/components/schemas/DocumentThreadPath") {
+            if (options.path === "#/components/schemas/DocumentThreadPath") {
                 return ts.factory.createTemplateLiteralType(
                     ts.factory.createTemplateHead("/documents/"),
                     [
@@ -149,42 +123,6 @@ async function main() {
                         ),
                         ts.factory.createTemplateLiteralTypeSpan(
                             createTsIdType("DocumentCommentThreadId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
-            }
-
-            if (metadata.path === "#/components/schemas/PostPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/posts/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("PostId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
-            }
-
-            if (metadata.path === "#/components/schemas/TaskPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/tasks/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("TaskId"),
-                            ts.factory.createTemplateTail(""),
-                        ),
-                    ],
-                );
-            }
-
-            if (metadata.path === "#/components/schemas/TaskCollectionPath") {
-                return ts.factory.createTemplateLiteralType(
-                    ts.factory.createTemplateHead("/task-collections/"),
-                    [
-                        ts.factory.createTemplateLiteralTypeSpan(
-                            createTsIdType("TaskCollectionId"),
                             ts.factory.createTemplateTail(""),
                         ),
                     ],

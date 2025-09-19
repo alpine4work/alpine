@@ -28,17 +28,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -59,7 +49,25 @@ export namespace ApiSpecification {
                 };
                 readonly cookie?: never;
             };
-            readonly get?: never;
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: {
+                        readonly limit?: number;
+                        readonly cursor?: number;
+                        readonly from?: "start" | "end";
+                    };
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["ChatId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessages"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly put?: never;
             readonly post: {
                 readonly parameters: {
@@ -78,17 +86,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -122,17 +120,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -154,7 +142,26 @@ export namespace ApiSpecification {
                 };
                 readonly cookie?: never;
             };
-            readonly get?: never;
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: {
+                        readonly limit?: number;
+                        readonly cursor?: number;
+                        readonly from?: "start" | "end";
+                    };
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessages"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly put?: never;
             readonly post: {
                 readonly parameters: {
@@ -174,17 +181,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -216,17 +213,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -247,7 +234,25 @@ export namespace ApiSpecification {
                 };
                 readonly cookie?: never;
             };
-            readonly get?: never;
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: {
+                        readonly limit?: number;
+                        readonly cursor?: number;
+                        readonly from?: "start" | "end";
+                    };
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["PostId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessages"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly put?: never;
             readonly post: {
                 readonly parameters: {
@@ -266,17 +271,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -308,17 +303,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -339,7 +324,25 @@ export namespace ApiSpecification {
                 };
                 readonly cookie?: never;
             };
-            readonly get?: never;
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: {
+                        readonly limit?: number;
+                        readonly cursor?: number;
+                        readonly from?: "start" | "end";
+                    };
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: components["responses"]["GetMessages"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
             readonly put?: never;
             readonly post: {
                 readonly parameters: {
@@ -358,17 +361,7 @@ export namespace ApiSpecification {
                     };
                 };
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly message: components["schemas"]["Message"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetMessage"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -725,6 +718,30 @@ export namespace ApiSpecification {
                             /** @description A human-readable message providing more details about the error. */
                             readonly message: string;
                         };
+                    };
+                };
+            };
+            readonly GetMessage: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly message: components["schemas"]["Message"];
+                    };
+                };
+            };
+            readonly GetMessages: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly totalMessageCount: number;
+                        readonly nextCursor: number | null;
+                        readonly messages: readonly components["schemas"]["Message"][];
                     };
                 };
             };

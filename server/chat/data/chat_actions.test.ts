@@ -11,6 +11,8 @@ import {
     getChatAccountIdsForBotScope,
     getChatMessage,
     getChatMessagePayload,
+    getChatMessagePayloadsFromEnd,
+    getChatMessagePayloadsFromStart,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     getOptimisticChatId,
@@ -4411,6 +4413,28 @@ testMessagingImplementation<ChatId>(context, {
         {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
     ) {
         return getChatMessagesFromEnd(context.actor.authorizeSession(), {
+            chatId,
+            limit,
+            afterMessageIndex,
+            beforeMessageIndex,
+        });
+    },
+    async getMessagePayloadsFromStart(
+        context,
+        {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        return getChatMessagePayloadsFromStart(context.actor.authorizeSession(), {
+            chatId,
+            limit,
+            afterMessageIndex,
+            beforeMessageIndex,
+        });
+    },
+    async getMessagePayloadsFromEnd(
+        context,
+        {roomKey: chatId, limit, afterMessageIndex, beforeMessageIndex},
+    ) {
+        return getChatMessagePayloadsFromEnd(context.actor.authorizeSession(), {
             chatId,
             limit,
             afterMessageIndex,

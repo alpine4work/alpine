@@ -1,7 +1,13 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
 import {intoApiMessagePayloadWithReferences} from "~/server/api/internal/shared/into_api_message_payload_with_references.js";
-import {createPostComment, getPostCommentPayload} from "~/server/forum/data/forum_actions.js";
+import {
+    createPostComment,
+    getPostCommentPayload,
+    getPostCommentPayloadsFromEnd,
+    getPostCommentPayloadsFromStart,
+} from "~/server/forum/data/forum_actions.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
@@ -12,10 +18,10 @@ import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messag
 
 export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> = {
     "/posts/{id}/messages/{index}": {
-        get: async (context, {pathParams}) => {
+        get: async (context, {pathParameters}) => {
             const {spaceId, createdTime, payload} = await getPostCommentPayload(context, {
-                postId: pathParams.id,
-                commentIndex: pathParams.index,
+                postId: pathParameters.id,
+                commentIndex: pathParameters.index,
                 consistency: "StrongWithinCache",
             });
 
@@ -23,7 +29,7 @@ export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> 
                 content: {
                     spaceId,
                     message: {
-                        index: pathParams.index,
+                        index: pathParameters.index,
                         createdTime: serializeDateString(createdTime),
                         payload: await intoApiMessagePayloadWithReferences(
                             context,
@@ -37,13 +43,72 @@ export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> 
     },
 
     "/posts/{id}/messages": {
-        post: async (context, {pathParams, requestBody}) => {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const {spaceId, commentCount, comments} =
+                queryParameters.from === "end"
+                    ? await getPostCommentPayloadsFromEnd(context, {
+                          postId: pathParameters.id,
+                          limit: queryParameters.limit ?? 10,
+                          afterCommentIndex: null,
+                          beforeCommentIndex: queryParameters.cursor ?? null,
+                          consistency: "StrongWithinCache",
+                      })
+                    : await getPostCommentPayloadsFromStart(context, {
+                          postId: pathParameters.id,
+                          limit: queryParameters.limit ?? 10,
+                          afterCommentIndex: queryParameters.cursor ?? null,
+                          beforeCommentIndex: null,
+                          consistency: "StrongWithinCache",
+                      });
+
+            let nextCursor: number | null;
+
+            if (comments.length === 0) {
+                nextCursor = null;
+            } else {
+                if (queryParameters.from === "end") {
+                    const firstComment = comments[0]!;
+                    if (firstComment.index > 0) {
+                        nextCursor = firstComment.index;
+                    } else {
+                        nextCursor = null;
+                    }
+                } else {
+                    const lastComment = comments[comments.length - 1]!;
+                    if (lastComment.index < commentCount - 1) {
+                        nextCursor = lastComment.index;
+                    } else {
+                        nextCursor = null;
+                    }
+                }
+            }
+
+            return {
+                content: {
+                    spaceId,
+                    totalMessageCount: commentCount,
+                    nextCursor,
+                    messages: await runAllPromises(
+                        comments.map(async message => ({
+                            index: message.index,
+                            createdTime: serializeDateString(message.createdTime),
+                            payload: await intoApiMessagePayloadWithReferences(
+                                context,
+                                spaceId,
+                                message.payload,
+                            ),
+                        })),
+                    ),
+                },
+            };
+        },
+        post: async (context, {pathParameters, requestBody}) => {
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
             const {spaceId, index, createdTime} = await createPostComment(context, {
-                postId: pathParams.id,
+                postId: pathParameters.id,
                 parentCommentIndex: null,
                 content,
                 fileIds: [],
@@ -75,7 +140,7 @@ export const apiForumPaths: Pick<ApiPaths, keyof ApiPaths & `/posts/${string}`> 
             // needs to reliably run after an updates to DynamoDB Stream.
             context.process.waitUntil(
                 context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/posts/${pathParams.id}/broadcast-new-message`,
+                    `/api/durable-objects/posts/${pathParameters.id}/broadcast-new-message`,
                     {
                         serviceName: "PostRealtimeService",
                         route: "/api/durable-objects/posts/:postId/broadcast-new-message",

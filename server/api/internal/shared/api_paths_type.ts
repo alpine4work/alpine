@@ -11,8 +11,9 @@ export type ApiPaths = {
         readonly [Method in keyof Pick<ApiSpecification.paths[Path], OpenApiMethod>]: (
             context: ServerBotActionContext,
             options: {
-                pathParams: ApiOperationPathParametersType<Path, Method>;
-                searchParams: URLSearchParams;
+                pathParameters: ApiOperationPathParametersType<Path, Method>;
+                queryParameters: ApiOperationQueryParametersType<Path, Method>;
+                url: URL;
                 headers: Headers;
                 requestBody: ApiOperationJsonRequestType<Path, Method>;
                 span: TracerSpan;
@@ -31,8 +32,9 @@ export type ApiPathsBase = {
         readonly [method: string]: (
             context: ServerBotActionContext,
             options: {
-                pathParams: any;
-                searchParams: URLSearchParams;
+                pathParameters: any;
+                queryParameters: any;
+                url: URL;
                 headers: Headers;
                 requestBody: any;
                 span: TracerSpan;
@@ -50,6 +52,13 @@ type ApiOperationPathParametersType<
     Method extends OpenApiMethod,
 > = ApiSpecification.paths[Path][Method] extends {parameters: {path: infer PathParameters}}
     ? PathParameters
+    : {};
+
+type ApiOperationQueryParametersType<
+    Path extends keyof ApiSpecification.paths,
+    Method extends OpenApiMethod,
+> = ApiSpecification.paths[Path][Method] extends {parameters: {query?: infer QueryParameters}}
+    ? QueryParameters
     : {};
 
 export type ApiOperation200JsonResponseType<
