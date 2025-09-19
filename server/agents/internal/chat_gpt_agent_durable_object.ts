@@ -10,6 +10,7 @@ import {
     getApiMessagesFromEnd,
     getApiMessagesFromStart,
 } from "~/server/agents/internal/api_client.js";
+import {getChatGptInstructions} from "~/server/agents/internal/chat_gpt_instructions.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage.js";
 import {
@@ -96,6 +97,39 @@ const ChatGptAgentConversationItemCollection = new DurableObjectStorageCollectio
     ChatGptAgentConversationItem
 >("a2");
 
+class ChatGptAgentConversationStateStore {
+    private _state: ChatGptAgentConversationState;
+
+    private constructor(state: ChatGptAgentConversationState) {
+        this._state = state;
+    }
+
+    public static async new(transaction: DurableObjectTransaction) {
+        const state = (await ChatGptAgentConversationStateCollection.get(transaction, "")) ?? {
+            lastMessageIndex: null,
+            lastOrderKey: null,
+        };
+
+        return new ChatGptAgentConversationStateStore(state);
+    }
+
+    public get() {
+        return this._state;
+    }
+
+    public async set(
+        transaction: DurableObjectTransaction,
+        stateUpdate: Partial<ChatGptAgentConversationState>,
+    ) {
+        this._state = {
+            ...this._state,
+            ...stateUpdate,
+        };
+
+        await ChatGptAgentConversationStateCollection.put(transaction, "", this._state);
+    }
+}
+
 async function requestChatGptAgent(request: AgentWebhookRequest): Promise<void> {
     // Check if the agent should respond before continuing.
     if (!(await shouldChatGptAgentRespond(request))) return;
@@ -142,7 +176,7 @@ async function ensureMessagesInChatGptAgentConversation(
     await request.storage.transaction(async transaction => {
         const state = await ChatGptAgentConversationStateStore.new(transaction);
 
-        await initializeMessagesInChatGptAgentConversation(request, transaction, state);
+        await initializeInChatGptAgentConversationIfNeeded(request, transaction, state);
 
         await loadNewMessagesInChatGptAgentConversation(
             request,
@@ -153,37 +187,60 @@ async function ensureMessagesInChatGptAgentConversation(
     });
 }
 
-class ChatGptAgentConversationStateStore {
-    private _state: ChatGptAgentConversationState;
+/**
+ * If the conversation hasn't been initialized, then initialize:
+ *
+ * 1. Developer instructions
+ * 2. Message history (up to `request.event.index`)
+ */
+async function initializeInChatGptAgentConversationIfNeeded(
+    request: AgentWebhookRequest,
+    transaction: DurableObjectTransaction,
+    state: ChatGptAgentConversationStateStore,
+): Promise<void> {
+    if (state.get().lastMessageIndex !== null) return;
 
-    private constructor(state: ChatGptAgentConversationState) {
-        this._state = state;
-    }
+    // Make sure we haven't initialized any conversation items yet. If this throws,
+    // maybe another process was killed during initialization?
+    assert(state.get().lastOrderKey === null);
 
-    public static async new(transaction: DurableObjectTransaction) {
-        const state = (await ChatGptAgentConversationStateCollection.get(transaction, "")) ?? {
-            lastMessageIndex: null,
-            lastOrderKey: null,
-        };
+    await initializeInstructionsInChatGptAgentConversation(request, transaction, state);
 
-        return new ChatGptAgentConversationStateStore(state);
-    }
+    await initializeMessagesInChatGptAgentConversation(request, transaction, state);
 
-    public get() {
-        return this._state;
-    }
+    assert(state.get().lastMessageIndex !== null);
+}
 
-    public async set(
-        transaction: DurableObjectTransaction,
-        stateUpdate: Partial<ChatGptAgentConversationState>,
-    ) {
-        this._state = {
-            ...this._state,
-            ...stateUpdate,
-        };
+async function initializeInstructionsInChatGptAgentConversation(
+    request: AgentWebhookRequest,
+    transaction: DurableObjectTransaction,
+    state: ChatGptAgentConversationStateStore,
+): Promise<void> {
+    assert(state.get().lastMessageIndex === null);
 
-        await ChatGptAgentConversationStateCollection.put(transaction, "", this._state);
-    }
+    const {
+        data: {space},
+    } = await request.apiClient.GET("/spaces/{id}", {
+        params: {path: {id: request.spaceId}},
+    });
+
+    const instructions = getChatGptInstructions({
+        spaceName: space.name,
+        messageRoomType: request.room.type,
+    });
+
+    const orderKey = generateOrderKeyBetween(state.get().lastOrderKey, null);
+
+    await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+        item: {
+            role: "developer",
+            content: instructions,
+        },
+    });
+
+    await state.set(transaction, {
+        lastOrderKey: orderKey,
+    });
 }
 
 async function initializeMessagesInChatGptAgentConversation(
@@ -191,7 +248,7 @@ async function initializeMessagesInChatGptAgentConversation(
     transaction: DurableObjectTransaction,
     state: ChatGptAgentConversationStateStore,
 ): Promise<void> {
-    if (state.get().lastMessageIndex !== null) return;
+    assert(state.get().lastMessageIndex === null);
 
     const messages = await getAgentMessagesFromEndUntilLimitTokenCount(
         transaction,

@@ -20,9 +20,11 @@ ts_project(
     # dependencies but we try to keep them few and far between.
     deps = [
         "//:node_modules/@types/bintrees",
+        "//:node_modules/@types/mustache",
         "//:node_modules/bintrees",
         "//:node_modules/gpt-tokenizer",
         "//:node_modules/immer",
+        "//:node_modules/mustache",
         "//:node_modules/openai",
         "//:node_modules/openapi-fetch",
         "//server/api/markdown",
