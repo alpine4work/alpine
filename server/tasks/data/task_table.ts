@@ -860,7 +860,7 @@ const TaskTable = DynamoTableSchema.new({
                 spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
                 browserId: DynamoKeyAttributeSchema.id<BrowserId>(),
-                viewKey: DynamoKeyAttributeSchema.labelString,
+                viewKey: DynamoKeyAttributeSchema.labelString(),
             },
             sortRanges: [
                 {

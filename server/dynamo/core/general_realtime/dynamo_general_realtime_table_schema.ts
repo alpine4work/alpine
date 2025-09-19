@@ -177,7 +177,7 @@ const dynamoGeneralRealtimePrivateRealtimePartitionName = "Realtime";
 const dynamoGeneralRealtimePrivateRealtimePartitionConfig = {
     name: dynamoGeneralRealtimePrivateRealtimePartitionName,
     partitionKeyAttributes: {
-        realtimeKey: DynamoKeyAttributeSchema.labelString,
+        realtimeKey: DynamoKeyAttributeSchema.labelString(),
     },
     sortRanges: [
         {
@@ -221,15 +221,13 @@ const dynamoGeneralRealtimePrivateGraveyardPartitionName = "Graveyard";
 const dynamoGeneralRealtimePrivateGraveyardPartitionConfig = {
     name: dynamoGeneralRealtimePrivateGraveyardPartitionName,
     partitionKeyAttributes: {
-        deletedPartitionKey:
-            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<any> as DynamoKeyAttributeSchema<DynamoItemPartitionKey>,
+        deletedPartitionKey: DynamoKeyAttributeSchema.labelString<DynamoItemPartitionKey>(),
     },
     sortRanges: [
         {
             name: "Gravestone",
             sortKeyAttributes: {
-                deletedSortKey:
-                    DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<any> as DynamoKeyAttributeSchema<DynamoItemSortKey>,
+                deletedSortKey: DynamoKeyAttributeSchema.labelString<DynamoItemSortKey>(),
             },
             attributes: Schema.object({}),
         },

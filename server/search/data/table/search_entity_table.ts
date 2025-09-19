@@ -134,8 +134,7 @@ const SearchEntityTable = DynamoTableSchema.new({
                     // since data is already stored in the database with this sort range type.
                     name: "SearchEntityAffinity",
                     sortKeyAttributes: {
-                        entityId:
-                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchAffinityEntityId>,
+                        entityId: DynamoKeyAttributeSchema.labelString<SearchAffinityEntityId>(),
                     },
                     withExpirationTime: "RequiredNullable",
                     attributes: Schema.object({
@@ -314,8 +313,7 @@ const SearchEntityTable = DynamoTableSchema.new({
             name: "IndexSearchEntityEmbeddingChunksJob",
             partitionKeyAttributes: {
                 spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
-                entityId:
-                    DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchDynamicEntityId>,
+                entityId: DynamoKeyAttributeSchema.labelString<SearchDynamicEntityId>(),
             },
             sortRanges: [
                 /**
@@ -467,8 +465,7 @@ const AccountSearchFavoriteEntitiesIndex = SearchEntityTable.addIndex({
         favoriteOrderKey: DynamoKeyAttributeSchema.orderKey.nullable(),
         // Include the `entityId` in the index sort keys so if two items have the
         // same `favoriteOrderKey` we'll still get consistent ordering.
-        entityId:
-            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchAffinityEntityId>,
+        entityId: DynamoKeyAttributeSchema.labelString<SearchAffinityEntityId>(),
     },
     // Only include favorited items in this index.
     filter: item => typeof item.favoriteOrderKey === "string",

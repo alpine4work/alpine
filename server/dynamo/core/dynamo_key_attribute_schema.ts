@@ -545,7 +545,11 @@ export class DynamoKeyAttributeSchema<Value> {
     /**
      * A short, single-line, string that is validated with `LabelStringSchema`.
      */
-    public static labelString = new DynamoKeyAttributeSchema<string>({
+    public static labelString<Value extends string>(): DynamoKeyAttributeSchema<Value> {
+        return DynamoKeyAttributeSchema._labelString as DynamoKeyAttributeSchema<any> as DynamoKeyAttributeSchema<Value>;
+    }
+
+    private static _labelString = new DynamoKeyAttributeSchema<string>({
         description: {type: "LabelString"},
 
         minValue: minLabelString,

@@ -181,14 +181,14 @@ test("can serialize and deserialize label strings in the right order", () => {
     expect(Array.from(strings).sort()).toEqual(
         strings
             .map(string => {
-                const serializedString = DynamoKeyAttributeSchema.labelString.serialize(string);
+                const serializedString = DynamoKeyAttributeSchema.labelString().serialize(string);
                 expect(isDynamoKeyAttribute(serializedString)).toEqual(true);
                 return serializedString;
             })
             .sort()
             .map(serializedString => {
                 const deserializedString =
-                    DynamoKeyAttributeSchema.labelString.deserialize(serializedString);
+                    DynamoKeyAttributeSchema.labelString().deserialize(serializedString);
                 return deserializedString;
             }),
     );
