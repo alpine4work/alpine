@@ -315,8 +315,9 @@ export function PostContentView({
             <Box
                 ref={contentContainerRef}
                 style={{
-                    paddingLeft: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
-                    paddingRight: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
+                    // Margin since on mobile these values will be negative.
+                    marginLeft: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
+                    marginRight: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
                 }}
             >
                 {!isEditingPost ? (
@@ -710,7 +711,11 @@ function PostContentViewEditor({
             <Box
                 style={{
                     padding: subtractRemLengths(postContentViewInnerMarginY, "2"),
-                    paddingTop: isPostView ? 0 : undefined,
+                    paddingTop: isPostView
+                        ? 0
+                        : // Don't subtract `2` for padding top. Fixes:
+                          // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0cjng1831gafxd0qzz5bqnt39r
+                          postContentViewInnerMarginY,
                     // `postViewContentPaddingTop` minus `2` is negative which is why we use
                     // `marginTop`.
                     marginTop: isPostView

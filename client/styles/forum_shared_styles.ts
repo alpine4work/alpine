@@ -7,7 +7,6 @@ import {
     parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
-    spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {SpacingScale, allSpacingScales} from "~/shared/design/core/spacing_scale.js";
@@ -67,17 +66,6 @@ export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOut
 export const postContentViewFooterButtonIconSize = "4";
 
 export const postContentViewCommentMargin = "6";
-
-// On desktop there's a bit of extra margin bottom below the navigation bar and
-// post content so that when the user edits their post the focus ring won't be
-// clipped by the navigation bar.
-export const postViewNavigationBarSpace = {
-    desktop: spacing[navigationBarStyles.navigationBarHeight],
-    mobile: subtractRemLengths(
-        navigationBarStyles.navigationBarHeight,
-        postContentViewInnerMarginY,
-    ),
-};
 
 export const postViewContentPaddingTopRem =
     parseRemLength(postContentViewInnerMarginY) -

@@ -81,7 +81,6 @@ import {
     postListViewAsideMaxWidth,
     postViewContentPaddingTop,
     postViewFlex,
-    postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
@@ -1660,25 +1659,23 @@ function PostRouteShimmer() {
             <Box flexGrow="1" overflow="hidden">
                 <Box height="safe-area-inset-top" />
                 {platform === "mobile" ? (
-                    <Box style={{height: postViewNavigationBarSpace[platform]}}>
-                        <Box
-                            height={navigationBarHeight}
-                            display="flex"
-                            alignItems="center"
-                            paddingX={navigationBarMobileGap}
-                        >
-                            <MobileBackButton />
-                            <Box flexGrow="1">
-                                <PostShimmerHeader avatarSize="7" />
-                            </Box>
+                    <Box
+                        height={navigationBarHeight}
+                        display="flex"
+                        alignItems="center"
+                        paddingX={navigationBarMobileGap}
+                    >
+                        <MobileBackButton />
+                        <Box flexGrow="1">
+                            <PostShimmerHeader avatarSize="7" />
                         </Box>
                     </Box>
                 ) : (
                     <Box
                         width="full"
+                        height={navigationBarHeight}
                         maxWidth={contentStyles.contentMaxWidth}
                         marginX="center"
-                        style={{height: postViewNavigationBarSpace[platform]}}
                     >
                         <Box height={navigationBarHeight} display="flex" alignItems="center">
                             <Box flexGrow="1">

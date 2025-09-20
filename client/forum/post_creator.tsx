@@ -30,7 +30,7 @@ import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js"
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     postContentViewInnerMarginY,
-    postViewNavigationBarSpace,
+    postViewContentPaddingTop,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -277,15 +277,12 @@ export function PostCreator({
                                 maxWidth={contentStyles.contentMaxWidth}
                                 marginX="center"
                                 paddingX={screenPaddingX}
-                                marginBottom={postContentViewInnerMarginY}
-                                style={{height: postViewNavigationBarSpace[platform]}}
+                                style={{paddingBottom: postViewContentPaddingTop}}
                             >
                                 <Box
                                     display="flex"
                                     alignItems="center"
-                                    height={
-                                        platform === "desktop" ? navigationBarHeight : undefined
-                                    }
+                                    height={navigationBarHeight}
                                 >
                                     <PostContentViewHeaderBase
                                         author={currentAccount}
