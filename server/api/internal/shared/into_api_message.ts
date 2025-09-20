@@ -25,7 +25,7 @@ export async function intoApiMessage(
         message.stream
             ? runAllPromises(
                   message.stream.parts.map(part =>
-                      intoApiMessageStreamPartPayload(context, spaceId, part),
+                      intoApiMessageStreamPartPayload(context, spaceId, part.payload),
                   ),
               )
             : null,

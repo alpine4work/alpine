@@ -9,6 +9,7 @@ import {
     MessagingRealtimeEventStubNewMessage,
 } from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {
+    emptyContentReferencedIds,
     getContentReferencedIdsForNode,
     isEmptyContentReferencedIds,
 } from "~/shared/content/content_referenced_ids.js";
@@ -26,9 +27,16 @@ import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/typ
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {MessageReferencedIds, MessageReferences} from "~/shared/messaging/message_references.js";
 import {
+    MessageReferencedIds,
+    MessageReferences,
+    getMessageReferencedIds,
+} from "~/shared/messaging/message_references.js";
+import {MessagePayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequest,
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -516,22 +524,25 @@ export class MessagingRealtimeConnection<
 
             const authorId = context.actor.getAccountId();
 
+            const messagePayload: MessagePayload = {
+                type: "Content",
+                parentMessageIndex,
+                content,
+                contentUpdatedTime: null,
+                fileIds,
+            };
+
             const message: MessagingRealtimeEventStubNewMessage = {
                 index,
                 authorId,
                 createdTime,
-                payload: {
-                    type: "Content",
-                    parentMessageIndex,
-                    content,
-                    contentUpdatedTime: null,
-                    fileIds,
-                },
-                referencedIds: {
+                payload: messagePayload,
+                stream: null,
+                referencedIds: getMessageReferencedIds({
                     authorId,
-                    contentReferencedIds: getContentReferencedIdsForNode(content),
-                    fileIds: new Set(fileIds),
-                },
+                    payload: messagePayload,
+                    stream: null,
+                }),
             };
 
             context.process.waitUntil(
@@ -716,11 +727,8 @@ export class MessagingRealtimeConnection<
             authorId: request.authorId,
             createdTime: request.createdTime,
             payload: request.payload,
-            referencedIds: {
-                authorId: request.authorId,
-                fileIds: new Set(request.payload.fileIds),
-                contentReferencedIds: getContentReferencedIdsForNode(request.payload.content),
-            },
+            stream: request.stream,
+            referencedIds: getMessageReferencedIds(request),
         };
 
         for (const connection of iterateAllConnections()) {
@@ -763,6 +771,53 @@ export class MessagingRealtimeConnection<
                 await this._flushQueuedMessages(context, stateRef);
             }),
         );
+    }
+
+    public static broadcastPutMessageStreamPart<
+        RoomKey extends string,
+        Message extends MessageModel<RoomKey>,
+        BackfillMessagesExtra = null,
+    >(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+        iterateAllConnections: () => Iterable<
+            MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
+        >,
+    ) {
+        const referencedIds =
+            request.part.payload.type === "Content"
+                ? getContentReferencedIdsForNode(request.part.payload.content)
+                : emptyContentReferencedIds;
+
+        for (const connection of iterateAllConnections()) {
+            connection._sendEvent(context, {
+                type: "PutMessageStreamPart",
+                index: request.index,
+                partIndex: request.partIndex,
+                part: request.part,
+                referencedIds,
+            });
+        }
+    }
+
+    public static broadcastCompleteMessageStream<
+        RoomKey extends string,
+        Message extends MessageModel<RoomKey>,
+        BackfillMessagesExtra = null,
+    >(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+        iterateAllConnections: () => Iterable<
+            MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
+        >,
+    ) {
+        for (const connection of iterateAllConnections()) {
+            connection._sendEvent(context, {
+                type: "CompleteMessageStream",
+                index: request.index,
+                completedTime: request.completedTime,
+            });
+        }
     }
 
     public async transformEvent(
@@ -830,6 +885,34 @@ export class MessagingRealtimeConnection<
                     default:
                         throw exhaustive(eventStub.change);
                 }
+            }
+            case "PutMessageStreamPart": {
+                const {contentReferences} = !isEmptyContentReferencedIds(eventStub.referencedIds)
+                    ? await this._getMessageReferences(context, {
+                          spaceId: this.spaceId,
+                          roomKey: this.roomKey,
+                          referencedIds: {
+                              authorId: null,
+                              contentReferencedIds: eventStub.referencedIds,
+                              fileIds: emptySet,
+                          },
+                      })
+                    : {contentReferences: emptyContentReferences};
+
+                return {
+                    type: "PutMessageStreamPart",
+                    index: eventStub.index,
+                    partIndex: eventStub.partIndex,
+                    part: eventStub.part,
+                    references: contentReferences,
+                };
+            }
+            case "CompleteMessageStream": {
+                return {
+                    type: "CompleteMessageStream",
+                    index: eventStub.index,
+                    completedTime: eventStub.completedTime,
+                };
             }
             default:
                 throw exhaustive(eventStub);

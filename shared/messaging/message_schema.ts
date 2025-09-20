@@ -1,3 +1,4 @@
+import {ApiContentMentionInlineElementTargetPath} from "~/shared/api/types/api_specification_convenience_types.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -117,13 +118,25 @@ export const MessageStreamContentPartPayloadSchema = Schema.object({
     content: MessageContentSchema,
 });
 
+export type MessageStreamToolCallPartPayloadCall = SchemaType<
+    typeof MessageStreamToolCallPartPayloadCallSchema
+>;
+
+const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
+    Read: Schema.object({
+        type: Schema.value("Read"),
+        targetPath: Schema.string as Schema<ApiContentMentionInlineElementTargetPath>,
+        title: Schema.string,
+    }),
+});
+
 export type MessageStreamToolCallPartPayload = SchemaType<
     typeof MessageStreamToolCallPartPayloadSchema
 >;
 
-// TODO(calebmer, #ai): This will be flushed out in a future PR.
 export const MessageStreamToolCallPartPayloadSchema = Schema.object({
     type: Schema.value("ToolCall"),
+    call: MessageStreamToolCallPartPayloadCallSchema,
 });
 
 export type MessageStreamPartPayload = SchemaType<typeof MessageStreamPartPayloadSchema>;
@@ -131,4 +144,16 @@ export type MessageStreamPartPayload = SchemaType<typeof MessageStreamPartPayloa
 export const MessageStreamPartPayloadSchema = Schema.union({
     Content: MessageStreamContentPartPayloadSchema,
     ToolCall: MessageStreamToolCallPartPayloadSchema,
+});
+
+export type MessageStream = SchemaType<typeof MessageStreamSchema>;
+
+export const MessageStreamSchema = Schema.object({
+    completedTime: Schema.date.nullable(),
+    parts: Schema.array(
+        Schema.object({
+            version: Schema.integer,
+            payload: MessageStreamPartPayloadSchema,
+        }),
+    ),
 });

@@ -1527,11 +1527,33 @@ components:
 
         MessageStreamToolCallPartPayload:
             type: object
-            required: [type]
+            required: [type, call]
             additionalProperties: false
             properties:
                 type:
                     const: ToolCall
+                call:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall"
+
+        MessageStreamToolCallPartPayloadCall:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
+
+        MessageStreamToolCallPartPayloadReadCall:
+            type: object
+            required: [type, targetPath, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Read
+                targetPath:
+                    $ref: "#/components/schemas/ContentMentionInlineElementTargetPath"
+                title:
+                    type: string
 
         BotWebhookEvent:
             oneOf:

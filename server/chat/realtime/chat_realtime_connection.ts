@@ -23,7 +23,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+    MessagingRealtimeBroadcastNewMessageRequest,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     backfillChatMessages,
     deleteChatMessage,
@@ -115,6 +119,26 @@ export class ChatRealtimeConnection {
         );
     }
 
+    public static broadcastPutMessageStreamPart(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+        iterateAllConnections: () => Iterable<ChatRealtimeConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastPutMessageStreamPart(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._connection),
+        );
+    }
+
+    public static broadcastCompleteMessageStream(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+        iterateAllConnections: () => Iterable<ChatRealtimeConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._connection),
+        );
+    }
+
     public async transformEvent(
         context: WorkerSessionActionContext,
         eventStub: MessagingRealtimeEventStub,
@@ -202,5 +226,6 @@ const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> =
                 assertExists(references.fileById.get(fileId)),
             ),
         },
+        stream: message.stream,
     });
 };

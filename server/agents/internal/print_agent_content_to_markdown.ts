@@ -20,6 +20,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export type AgentConversationLinkReference = {
+    readonly originalLabel: string;
     readonly mentionTargetPath: ApiContentMentionInlineElementTargetPath;
 };
 
@@ -53,7 +54,7 @@ let putAgentContentLinkReferenceMutex: Mutex | null = null;
 export async function putAgentContentLinkReference(
     storage: DurableObjectStorageInterface,
     originalLabel: string,
-    reference: AgentConversationLinkReference,
+    mentionTargetPath: ApiContentMentionInlineElementTargetPath,
 ): Promise<AgentConversationLink> {
     // Use a process-wide mutex to avoid concurrent calls writing different
     // mentions to the same label. This will be the only process ever writing to
@@ -72,11 +73,16 @@ export async function putAgentContentLinkReference(
                     label,
                 );
                 if (existingReference === undefined) break;
-                if (existingReference.mentionTargetPath === reference.mentionTargetPath) break;
+                if (existingReference.mentionTargetPath === mentionTargetPath) break;
 
                 dedupeNumber += 1;
                 label = `${originalLabel} ${dedupeNumber}`;
             }
+
+            const reference: AgentConversationLinkReference = {
+                originalLabel,
+                mentionTargetPath,
+            };
 
             await AgentContentLinkReferenceCollection.put(transaction, label, reference);
 
@@ -167,9 +173,11 @@ export async function printAgentContentToMarkdownTree(
                 const originalLinkLabel = printMarkdownPhrasingContentText(childNode.children);
 
                 promiseWaiter.waitUntil(async () => {
-                    const {label} = await putAgentContentLinkReference(storage, originalLinkLabel, {
+                    const {label} = await putAgentContentLinkReference(
+                        storage,
+                        originalLinkLabel,
                         mentionTargetPath,
-                    });
+                    );
 
                     node.children[index] = {
                         type: "linkReference",

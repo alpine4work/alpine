@@ -4,7 +4,10 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadClericalSchema,
+    MessageStream,
+} from "~/shared/messaging/message_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -30,6 +33,16 @@ export interface MessageModelBase {
      * will be rendered.
      */
     readonly payload: MessagePayloadModel;
+
+    /**
+     * If this message is a stream then this property will be set and will contain
+     * the stream's parts.
+     *
+     * The references for content parts will be in
+     * `MessagePayloadModel.content.references`. So if a message references the
+     * same content multiple times we only include it once in the message model.
+     */
+    readonly stream: MessageStream | null;
 }
 
 /**
@@ -64,7 +77,7 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * Clone the model object, replacing any values with those provided in the
      * partial value.
      */
-    clone(partialValue: {payload?: MessagePayloadModel}): this;
+    clone(partialValue: {payload?: MessagePayloadModel; stream?: MessageStream}): this;
 
     // Available for TypeScript to access this property on a union.
     readonly isOptimistic?: undefined;

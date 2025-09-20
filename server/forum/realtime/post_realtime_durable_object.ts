@@ -21,13 +21,19 @@ import {
 } from "~/shared/forum/post_realtime_protocol.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 type PostRealtimeDurableObjectRoute =
     | "Main"
     | "BroadcastRealtimeEventTransaction"
     | "BroadcastNewMessage"
+    | "BroadcastPutMessageStreamPart"
+    | "BroadcastCompleteMessageStream"
     | "NotFound";
 
 class PostRealtimeDurableObject {
@@ -111,11 +117,19 @@ class PostRealtimeDurableObject {
         if (url.pathname === "/") return ["/", "Main"];
 
         if (url.pathname === "/broadcast-realtime-event-transaction") {
-            return ["/broadcast-realtime-event-transaction", "BroadcastRealtimeEventTransaction"];
+            return [url.pathname, "BroadcastRealtimeEventTransaction"];
         }
 
         if (url.pathname === "/broadcast-new-message") {
-            return ["/broadcast-new-message", "BroadcastNewMessage"];
+            return [url.pathname, "BroadcastNewMessage"];
+        }
+
+        if (url.pathname === "/broadcast-put-message-stream-part") {
+            return [url.pathname, "BroadcastPutMessageStreamPart"];
+        }
+
+        if (url.pathname === "/broadcast-complete-message-stream") {
+            return [url.pathname, "BroadcastCompleteMessageStream"];
         }
 
         return ["/*", "NotFound"];
@@ -175,6 +189,44 @@ class PostRealtimeDurableObject {
                 );
 
                 PostRealtimeConnection.broadcastNewMessage(context, requestBody, () =>
+                    this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastPutMessageStreamPart": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                PostRealtimeConnection.broadcastPutMessageStreamPart(context, requestBody, () =>
+                    this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastCompleteMessageStream": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                PostRealtimeConnection.broadcastCompleteMessageStream(context, requestBody, () =>
                     this._webSocketServer.iterateAllConnections(),
                 );
 

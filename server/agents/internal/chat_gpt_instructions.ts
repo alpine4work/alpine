@@ -78,8 +78,12 @@ const chatGptInstructionsTemplate = markdown`
 -   Alpine links are formatted as \`[link text][]\`. These can be accessed and read using the
     \`read_link\` tool. Alpine links may refer to people, documents, tasks, forum posts, etc.
 -   Linking to a person (e.g., \`[Alice][]\`) is equivalent to @ mentioning them and sends a
-    notification. Do this only when their attention is necessary. Linking to documents, tasks,
-    posts, and other Alpine content is encouraged for user convenience.
+    notification. Do this only when their attention is necessary.
+-   Linking to documents, tasks, posts, and other Alpine content is strongly encouraged. If you’re
+    going to use the name of a document or task in your output always link to it as well!
+    -   Example 1: If the user asks “Summarize [My Document][]” respond with “Here’s a summary of
+        [My Document][]…”.
+    -   Example 2: If you’re referencing a previous document “According to [Relevant Document][]…”
 -   ChatGPT has access to all Alpine resources available to every user in the current conversation.
     If any participant lacks access, ChatGPT does not have access. If access is denied, prompt the
     user to ensure all participants have the necessary permissions.

@@ -983,6 +983,7 @@ export function putChatMessageStreamPart(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -1039,7 +1040,22 @@ export function putChatMessageStreamPart(
             };
         }
 
+        let version: number;
+
         if (partIndex === item.partCount) {
+            const createPartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
+                partitionType: "Chat",
+                sortRangeType: "Messages#StreamPart",
+                chatId,
+                messageIndex,
+                partIndex,
+                payload,
+                // `updateLockVersion: 0` is always represented as `undefined`.
+                updateLockVersion: undefined,
+            });
+
+            version = createPartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -1048,16 +1064,7 @@ export function putChatMessageStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                ChatTable.transactionCreateOrReplaceItem({
-                    partitionType: "Chat",
-                    sortRangeType: "Messages#StreamPart",
-                    chatId,
-                    messageIndex,
-                    partIndex,
-                    payload,
-                    // `updateLockVersion: 0` is always represented as `undefined`.
-                    updateLockVersion: undefined,
-                }),
+                createPartTransactionEntry,
             ]);
         } else {
             if (partIndex !== item.partCount - 1) {
@@ -1073,6 +1080,18 @@ export function putChatMessageStreamPart(
 
             assert(item.lastPartUpdateLockVersion !== null);
 
+            const updatePartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
+                partitionType: "Chat",
+                sortRangeType: "Messages#StreamPart",
+                chatId,
+                messageIndex,
+                partIndex,
+                payload,
+                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+            });
+
+            version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -1080,15 +1099,7 @@ export function putChatMessageStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                ChatTable.transactionCreateOrReplaceItem({
-                    partitionType: "Chat",
-                    sortRangeType: "Messages#StreamPart",
-                    chatId,
-                    messageIndex,
-                    partIndex,
-                    payload,
-                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
-                }),
+                updatePartTransactionEntry,
             ]);
         }
 
@@ -1108,7 +1119,7 @@ export function putChatMessageStreamPart(
             );
         }
 
-        return {spaceId};
+        return {spaceId, version};
     });
 }
 
@@ -1901,6 +1912,7 @@ async function createChatMessageModelFromItem(
             spaceId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             item.payload,
+            item.stream,
         ),
     ]);
 
@@ -1910,6 +1922,7 @@ async function createChatMessageModelFromItem(
         author,
         createdTime: item.createdTime,
         payload,
+        stream: item.stream,
     });
 }
 

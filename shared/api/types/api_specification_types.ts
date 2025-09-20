@@ -1487,6 +1487,17 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "ToolCall";
+                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall"];
+            };
+            readonly MessageStreamToolCallPartPayloadCall: components["schemas"]["MessageStreamToolCallPartPayloadReadCall"];
+            readonly MessageStreamToolCallPartPayloadReadCall: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Read";
+                readonly targetPath: components["schemas"]["ContentMentionInlineElementTargetPath"];
+                readonly title: string;
             };
             readonly BotWebhookEvent: components["schemas"]["BotWebhookNewMessageEvent"];
             readonly BotWebhookNewMessageEvent: {

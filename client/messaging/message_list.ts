@@ -1,4 +1,5 @@
 import createTree, {Tree} from "functional-red-black-tree";
+import {ContentReferences, mergeContentReferences} from "~/shared/content/content_references.js";
 import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -6,12 +7,14 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {Id} from "~/shared/id/id.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageModel,
     OptimisticMessageModel,
     areMessagePayloadModelsEqual,
     getLastChangedMessage,
 } from "~/shared/messaging/message_model.js";
+import {MessageStream, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export type MessageListItem<Message extends MessageModel> =
@@ -918,6 +921,124 @@ export class MessageList<Message extends MessageModel> {
             typingStateByConnectionId: typingState
                 ? this._typingStateByConnectionId.set(connectionId, typingState)
                 : this._typingStateByConnectionId.delete(connectionId),
+        });
+    }
+
+    public putMessageStreamPart(event: {
+        index: number;
+        partIndex: number;
+        part: {
+            version: number;
+            payload: MessageStreamPartPayload;
+        };
+        references: ContentReferences;
+    }) {
+        const iterator = this._messages.find(event.index);
+        if (!iterator.value) return this;
+
+        const message = iterator.value;
+        if (message.payload.type !== "Content") return this;
+        if (!message.stream) return this;
+
+        // We already have a part at this index greater than the part we're receiving.
+        if (
+            event.partIndex < message.stream.parts.length &&
+            event.part.version <= message.stream.parts[event.partIndex]!.version
+        ) {
+            return this;
+        }
+
+        const newParts = [...message.stream.parts];
+
+        if (event.partIndex < newParts.length) {
+            newParts[event.partIndex] = event.part;
+        } else {
+            // For when we receive parts out of order. Put a placeholder part to make sure
+            // we're inserting the new part at the correct index.
+            //
+            // TODO(calebmer, #ai-realtime-hacks): This is a bad UX. A better UX would be
+            // to have a list of "pending parts" and wait to add those parts until we
+            // receive all preceding parts. But I'm moving fast today so not
+            // implementing this.
+            //
+            // TODO(calebmer, #ai-realtime-hacks): Relatedly, we continue applying part
+            // updates even after the stream is completed. That's also not a great UX if
+            // we're showing a loading spinner while the stream hasn't completed. Ideally
+            // the completion event would go into a "pending" list as well if we're waiting
+            // on a part update.
+            for (let i = newParts.length; i < event.partIndex; i++) {
+                newParts.push({
+                    version: -1,
+                    payload: {type: "Content", content: createSimpleMessageContent()},
+                });
+            }
+
+            assert(newParts.length === event.partIndex);
+            newParts.push(event.part);
+        }
+
+        const newStream: MessageStream = {
+            ...message.stream,
+            parts: newParts,
+        };
+
+        // Merge in the new references for the stream part. All stream parts in a
+        // single message share the same references object.
+        const newReferences = mergeContentReferences(
+            message.payload.content.references,
+            event.references,
+        );
+
+        const messages =
+            // Optimization: Don't update the `payload` object if references didn't change.
+            newReferences === message.payload.content.references
+                ? iterator.update(message.clone({stream: newStream}))
+                : iterator.update(
+                      message.clone({
+                          payload: {
+                              ...message.payload,
+                              content: {...message.payload.content, references: newReferences},
+                          },
+                          stream: newStream,
+                      }),
+                  );
+
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages,
+            unloadedMessages: this._unloadedMessages,
+            optimisticMessages: this._optimisticMessages,
+            lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
+        });
+    }
+
+    public completeMessageStream(event: {index: number; completedTime: Date}) {
+        const iterator = this._messages.find(event.index);
+        if (!iterator.value) return this;
+
+        const message = iterator.value;
+        if (!message.stream) return this;
+
+        // Already completed! Don't complete again.
+        if (message.stream.completedTime) return this;
+
+        const newStream: MessageStream = {
+            ...message.stream,
+            completedTime: event.completedTime,
+        };
+
+        const messages = iterator.update(message.clone({stream: newStream}));
+
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages,
+            unloadedMessages: this._unloadedMessages,
+            optimisticMessages: this._optimisticMessages,
+            lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
         });
     }
 }

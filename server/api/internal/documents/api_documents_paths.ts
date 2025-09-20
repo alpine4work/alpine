@@ -20,7 +20,11 @@ import {
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
-import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
     "/documents/{id}": {
@@ -167,6 +171,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
                             payload,
+                            stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                         }),
                     },
                 ),
@@ -196,6 +201,30 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 consistency: "StrongWithinCache",
             });
 
+            // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+            // sending this realtime event the user might not see an update to their
+            // message in realtime.
+            //
+            // Should we send this broadcast event in a DynamoDB Streams listener that
+            // reacts to the update? We plan to move `NotificationEvent`,
+            // `IndexSearchEntity`, and other processing that needs to reliably run after
+            // an updates to DynamoDB Streams.
+            context.process.waitUntil(
+                context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/documents/${pathParameters.id}/broadcast-complete-message-stream/${pathParameters.threadId}`,
+                    {
+                        serviceName: "DocumentCollaborationService",
+                        route: "/api/durable-objects/documents/:documentId/broadcast-complete-message-stream/:commentThreadId",
+                        body: MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.serialize(
+                            {
+                                index: pathParameters.index,
+                                completedTime,
+                            },
+                        ),
+                    },
+                ),
+            );
+
             return {
                 content: {
                     spaceId,
@@ -207,14 +236,41 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
 
     "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}": {
         put: async (context, {pathParameters, requestBody}) => {
-            const {spaceId} = await putDocumentCommentStreamPart(context, {
+            const payload = fromApiMessageStreamPartPayload(requestBody.payload);
+
+            const {spaceId, version} = await putDocumentCommentStreamPart(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
-                payload: fromApiMessageStreamPartPayload(requestBody.payload),
+                payload,
                 consistency: "StrongWithinCache",
             });
+
+            // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+            // sending this realtime event the user might not see an update to their
+            // message in realtime.
+            //
+            // Should we send this broadcast event in a DynamoDB Streams listener that
+            // reacts to the update? We plan to move `NotificationEvent`,
+            // `IndexSearchEntity`, and other processing that needs to reliably run after
+            // an updates to DynamoDB Streams.
+            context.process.waitUntil(
+                context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/documents/${pathParameters.id}/broadcast-put-message-stream-part/${pathParameters.threadId}`,
+                    {
+                        serviceName: "DocumentCollaborationService",
+                        route: "/api/durable-objects/documents/:documentId/broadcast-put-message-stream-part/:commentThreadId",
+                        body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize(
+                            {
+                                index: pathParameters.index,
+                                partIndex: pathParameters.partIndex,
+                                part: {version, payload},
+                            },
+                        ),
+                    },
+                ),
+            );
 
             return {content: {spaceId}};
         },

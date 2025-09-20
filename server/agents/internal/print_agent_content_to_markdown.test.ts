@@ -91,7 +91,12 @@ test("mention preserves structure but removes URL", async () => {
             ],
         },
         `Check out [My Document][] here.\n`,
-        new Map([["My Document", {mentionTargetPath: `/documents/${documentId}`}]]),
+        new Map([
+            [
+                "My Document",
+                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+            ],
+        ]),
     );
 });
 
@@ -203,7 +208,12 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
             ],
         },
         `See *[Important Task][]* for details.\n`,
-        new Map([["Important Task", {mentionTargetPath: `/tasks/${taskId}`}]]),
+        new Map([
+            [
+                "Important Task",
+                {originalLabel: "Important Task", mentionTargetPath: `/tasks/${taskId}`},
+            ],
+        ]),
     );
 });
 
@@ -232,7 +242,9 @@ test("mixed mentions and external links", async () => {
             ],
         },
         `Check [This Post][] and also visit [the docs][missing-link].\n`,
-        new Map([["This Post", {mentionTargetPath: `/posts/${postId}`}]]),
+        new Map([
+            ["This Post", {originalLabel: "This Post", mentionTargetPath: `/posts/${postId}`}],
+        ]),
     );
 });
 
@@ -256,7 +268,12 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
             ],
         },
         `See <a href="missing-link">[Important Task][]</a> for details.\n`,
-        new Map([["Important Task", {mentionTargetPath: `/tasks/${taskId}`}]]),
+        new Map([
+            [
+                "Important Task",
+                {originalLabel: "Important Task", mentionTargetPath: `/tasks/${taskId}`},
+            ],
+        ]),
     );
 });
 
@@ -356,8 +373,14 @@ test("mentions with conflicting labels get dedupe numbers", async () => {
         },
         `First: [My Document][] and second: [My Document 2][].\n`,
         new Map([
-            ["My Document", {mentionTargetPath: `/documents/${documentId}`}],
-            ["My Document 2", {mentionTargetPath: `/documents/${otherDocumentId}`}],
+            [
+                "My Document",
+                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+            ],
+            [
+                "My Document 2",
+                {originalLabel: "My Document", mentionTargetPath: `/documents/${otherDocumentId}`},
+            ],
         ]),
     );
 });
@@ -387,7 +410,12 @@ test("identical mentions with same label and target path reuse the same referenc
             ],
         },
         `First: [My Document][] and again: [My Document][].\n`,
-        new Map([["My Document", {mentionTargetPath: `/documents/${documentId}`}]]),
+        new Map([
+            [
+                "My Document",
+                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+            ],
+        ]),
     );
 });
 
@@ -443,8 +471,14 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
 
     expect(await listAgentContentLinkReferences(storage)).toEqual(
         new Map([
-            ["My Document", {mentionTargetPath: `/documents/${documentId}`}],
-            ["My Document 2", {mentionTargetPath: `/documents/${otherDocumentId}`}],
+            [
+                "My Document",
+                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+            ],
+            [
+                "My Document 2",
+                {originalLabel: "My Document", mentionTargetPath: `/documents/${otherDocumentId}`},
+            ],
         ]),
     );
 });
@@ -503,12 +537,15 @@ test("mentions with same label increment dedupe numbers up to 5", async () => {
         },
         `First: [Task][], second: [Task 2][], third: [Task 3][], fourth: [Task 4][], fifth: [Task 5][], and sixth: [Task 6][].\n`,
         new Map([
-            ["Task", {mentionTargetPath: `/documents/${documentId}`}],
-            ["Task 2", {mentionTargetPath: `/tasks/${taskId}`}],
-            ["Task 3", {mentionTargetPath: `/posts/${postId}`}],
-            ["Task 4", {mentionTargetPath: `/documents/${thirdDocumentId}`}],
-            ["Task 5", {mentionTargetPath: `/documents/${fourthDocumentId}`}],
-            ["Task 6", {mentionTargetPath: `/documents/${fifthDocumentId}`}],
+            ["Task", {originalLabel: "Task", mentionTargetPath: `/documents/${documentId}`}],
+            ["Task 2", {originalLabel: "Task", mentionTargetPath: `/tasks/${taskId}`}],
+            ["Task 3", {originalLabel: "Task", mentionTargetPath: `/posts/${postId}`}],
+            ["Task 4", {originalLabel: "Task", mentionTargetPath: `/documents/${thirdDocumentId}`}],
+            [
+                "Task 5",
+                {originalLabel: "Task", mentionTargetPath: `/documents/${fourthDocumentId}`},
+            ],
+            ["Task 6", {originalLabel: "Task", mentionTargetPath: `/documents/${fifthDocumentId}`}],
         ]),
     );
 });

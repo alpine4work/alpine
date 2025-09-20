@@ -63,7 +63,11 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+    MessagingRealtimeBroadcastNewMessageRequest,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -744,6 +748,32 @@ export class DocumentCollaborationConnection {
         );
     }
 
+    public static broadcastPutMessageStreamPart(
+        context: WorkerActionContext,
+        commentThreadId: DocumentCommentThreadId,
+        request: MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+        iterateAllConnections: () => Iterable<DocumentCollaborationConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastPutMessageStreamPart(context, request, () =>
+            mapIterable(iterateAllConnections(), connection =>
+                connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
+            ),
+        );
+    }
+
+    public static broadcastCompleteMessageStream(
+        context: WorkerActionContext,
+        commentThreadId: DocumentCommentThreadId,
+        request: MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+        iterateAllConnections: () => Iterable<DocumentCollaborationConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
+            mapIterable(iterateAllConnections(), connection =>
+                connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
+            ),
+        );
+    }
+
     public async transformEvent(
         context: WorkerSessionActionContext,
         eventStub: DocumentCollaborationEventStub,
@@ -1055,6 +1085,7 @@ export class DocumentCollaborationConnection {
                 contentUpdatedTime: null,
                 files,
             },
+            stream: null,
         });
     }
 
@@ -1124,5 +1155,6 @@ const createMessageModel: CreateMessageModelFunction<
                 assertExists(references.fileById.get(fileId)),
             ),
         },
+        stream: message.stream,
     });
 };

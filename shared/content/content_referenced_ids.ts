@@ -67,6 +67,14 @@ export function getContentReferencedIdsForNode(node: Node): ContentReferencedIds
     });
 }
 
+export function getContentReferencedIdsForNodes(nodes: Iterable<Node>): ContentReferencedIds {
+    return collectContentReferencedIds(visitor => {
+        for (const node of nodes) {
+            visitProsemirrorNode(node, visitor);
+        }
+    });
+}
+
 export function getContentReferencedIdsForFragment(fragment: Fragment): ContentReferencedIds {
     return collectContentReferencedIds(visitor => {
         visitProsemirrorFragment(fragment, visitor);

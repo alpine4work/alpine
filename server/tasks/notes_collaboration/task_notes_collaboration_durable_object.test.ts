@@ -685,6 +685,7 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             createdTime,
             author,
             payload,
+            stream: null,
         });
     },
     createMessage(

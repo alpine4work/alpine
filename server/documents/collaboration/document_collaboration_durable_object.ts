@@ -21,12 +21,15 @@ import {NotFoundError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -34,7 +37,9 @@ type DocumentCollaborationDurableObjectRoute =
     | "Main"
     | "WithoutComments"
     | "NotFound"
-    | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId};
+    | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
+    | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
+    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -232,6 +237,26 @@ class DocumentCollaborationDurableObject {
             }
         }
 
+        if (url.pathname.startsWith("/broadcast-put-message-stream-part/")) {
+            const commentThreadId = url.pathname.slice(35);
+            if (isId<DocumentCommentThreadId>(commentThreadId)) {
+                return [
+                    "/broadcast-put-message-stream-part/:commentThreadId",
+                    {type: "BroadcastPutMessageStreamPart", commentThreadId},
+                ];
+            }
+        }
+
+        if (url.pathname.startsWith("/broadcast-complete-message-stream/")) {
+            const commentThreadId = url.pathname.slice(35);
+            if (isId<DocumentCommentThreadId>(commentThreadId)) {
+                return [
+                    "/broadcast-complete-message-stream/:commentThreadId",
+                    {type: "BroadcastCompleteMessageStream", commentThreadId},
+                ];
+            }
+        }
+
         return ["/*", "NotFound"];
     }
 
@@ -259,29 +284,76 @@ class DocumentCollaborationDurableObject {
                 );
             }
             default: {
-                // TypeScript will error on this `cast()` if we add another route that doesn't
-                // have the `BroadcastNewMessage` type.
-                cast<"BroadcastNewMessage">(route.type);
+                switch (route.type) {
+                    case "BroadcastNewMessage": {
+                        if (request.method !== "POST") {
+                            return new Response("405 Method Not Allowed", {
+                                status: 405,
+                                headers: {"content-type": "text/plain"},
+                            });
+                        }
 
-                if (request.method !== "POST") {
-                    return new Response("405 Method Not Allowed", {
-                        status: 405,
-                        headers: {"content-type": "text/plain"},
-                    });
+                        const requestBody =
+                            MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
+                                await request.json(),
+                            );
+
+                        DocumentCollaborationConnection.broadcastNewMessage(
+                            context,
+                            route.commentThreadId,
+                            requestBody,
+                            () => this._webSocketServer.iterateAllConnections(),
+                        );
+
+                        return new Response(null, {status: 200});
+                    }
+                    case "BroadcastPutMessageStreamPart": {
+                        if (request.method !== "POST") {
+                            return new Response("405 Method Not Allowed", {
+                                status: 405,
+                                headers: {"content-type": "text/plain"},
+                            });
+                        }
+
+                        const requestBody =
+                            MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.deserialize(
+                                await request.json(),
+                            );
+
+                        DocumentCollaborationConnection.broadcastPutMessageStreamPart(
+                            context,
+                            route.commentThreadId,
+                            requestBody,
+                            () => this._webSocketServer.iterateAllConnections(),
+                        );
+
+                        return new Response(null, {status: 200});
+                    }
+                    case "BroadcastCompleteMessageStream": {
+                        if (request.method !== "POST") {
+                            return new Response("405 Method Not Allowed", {
+                                status: 405,
+                                headers: {"content-type": "text/plain"},
+                            });
+                        }
+
+                        const requestBody =
+                            MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.deserialize(
+                                await request.json(),
+                            );
+
+                        DocumentCollaborationConnection.broadcastCompleteMessageStream(
+                            context,
+                            route.commentThreadId,
+                            requestBody,
+                            () => this._webSocketServer.iterateAllConnections(),
+                        );
+
+                        return new Response(null, {status: 200});
+                    }
+                    default:
+                        throw exhaustive(route);
                 }
-
-                const requestBody = MessagingRealtimeBroadcastNewMessageRequestSchema.deserialize(
-                    await request.json(),
-                );
-
-                DocumentCollaborationConnection.broadcastNewMessage(
-                    context,
-                    route.commentThreadId,
-                    requestBody,
-                    () => this._webSocketServer.iterateAllConnections(),
-                );
-
-                return new Response(null, {status: 200});
             }
         }
     }

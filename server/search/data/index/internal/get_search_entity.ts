@@ -740,8 +740,8 @@ function mergeMessageItemStreamIntoPayload(messageItem: MessageItem): MessagePay
             }
 
             for (const part of messageItem.stream.parts) {
-                if (part.type === "Content") {
-                    for (const node of part.content.content.content) {
+                if (part.payload.type === "Content") {
+                    for (const node of part.payload.content.content.content) {
                         nodes.push(node);
                     }
                 }

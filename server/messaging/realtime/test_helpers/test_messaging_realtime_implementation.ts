@@ -3350,6 +3350,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             contentUpdatedTime: null,
                             fileIds: [],
                         },
+                        stream: null,
                     },
                     () => [connection1.getConnection(), connection2.getConnection()],
                 );
@@ -3427,6 +3428,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             contentUpdatedTime: null,
                             fileIds: [],
                         },
+                        stream: null,
                     },
                     () => [connection1.getConnection(), connection2.getConnection()],
                 );
@@ -3451,6 +3453,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             contentUpdatedTime: null,
                             fileIds: [],
                         },
+                        stream: null,
                     },
                     () => [connection1.getConnection(), connection2.getConnection()],
                 );
@@ -3528,6 +3531,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             contentUpdatedTime: null,
                             fileIds: [],
                         },
+                        stream: null,
                     },
                     () => [connection1.getConnection(), connection2.getConnection()],
                 );
@@ -3552,6 +3556,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             contentUpdatedTime: null,
                             fileIds: [],
                         },
+                        stream: null,
                     },
                     () => [connection1.getConnection(), connection2.getConnection()],
                 );

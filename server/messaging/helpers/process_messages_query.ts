@@ -1,6 +1,10 @@
 import {DataLossError} from "~/shared/error/error.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessagePayload, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessagePayload,
+    MessageStream,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 
 type MessageQueryItem = {
     readonly sortRangeType: "Messages";
@@ -22,6 +26,7 @@ type MessageQueryStreamPartItem = {
     readonly messageIndex: number;
     readonly partIndex: number;
     readonly payload: MessageStreamPartPayload;
+    readonly updateLockVersion?: number;
 };
 
 export type MessageItem = {
@@ -29,10 +34,7 @@ export type MessageItem = {
     readonly createdTime: Date;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
-    readonly stream: {
-        readonly completedTime: Date | null;
-        readonly parts: ReadonlyArray<MessageStreamPartPayload>;
-    } | null;
+    readonly stream: MessageStream | null;
 };
 
 /**
@@ -61,7 +63,7 @@ export async function* processMessagesQuery(
 
         let stream: {
             completedTime: Date | null;
-            parts: Array<MessageStreamPartPayload>;
+            parts: Array<{version: number; payload: MessageStreamPartPayload}>;
         } | null = null;
 
         if (
@@ -76,7 +78,11 @@ export async function* processMessagesQuery(
                 throw new DataLossError("Stream item not found for message that is a stream");
             }
 
-            const parts = currentStreamPartItems?.map(part => part.payload) ?? [];
+            const parts =
+                currentStreamPartItems?.map(partItem => ({
+                    version: partItem.updateLockVersion ?? 0,
+                    payload: partItem.payload,
+                })) ?? [];
 
             // Since we queried in descending order, we need to reverse the parts to put
             // them in the right order.

@@ -147,6 +147,7 @@ testMessagingRealtimeImplementation<PostId>(context, {
             createdTime,
             author,
             payload,
+            stream: null,
         });
     },
     createMessage(

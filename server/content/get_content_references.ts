@@ -11,6 +11,7 @@ import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     ContentReferencedIds,
     getContentReferencedIdsForNode,
+    getContentReferencedIdsForNodes,
     getContentReferencedIdsForSteps,
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
@@ -47,6 +48,16 @@ export function getMessageContentReferencesForNode(
     content: MessageContent,
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForNode(content);
+    return getContentReferences(context, spaceId, "AssertHasNoFiles", referencedIds);
+}
+
+// `MessageContent` doesn't have files so you don't need a `FileAuthorizer`.
+export function getMessageContentReferencesForNodes(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    content: Iterable<MessageContent>,
+): Promise<ContentReferences> {
+    const referencedIds = getContentReferencedIdsForNodes(content);
     return getContentReferences(context, spaceId, "AssertHasNoFiles", referencedIds);
 }
 

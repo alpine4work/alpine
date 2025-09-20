@@ -94,7 +94,9 @@ export class EdgeServiceContextModule
             },
             async response => {
                 if (response.status !== 200 && response.status !== 412) {
-                    throw new InternalError(quote`Fetch to ${route} failed`);
+                    throw new InternalError(
+                        quote`Fetch to ${route} failed with status code ${response.status}`,
+                    );
                 }
             },
         );

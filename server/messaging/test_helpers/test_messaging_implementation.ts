@@ -115,7 +115,10 @@ type GetMessagePayloadFunctionForTest<Message extends MessageModel> = (
     payload: MessagePayload;
     stream: {
         completedTime: Date | null;
-        parts: ReadonlyArray<MessageStreamPartPayload>;
+        parts: ReadonlyArray<{
+            version: number;
+            payload: MessageStreamPartPayload;
+        }>;
     } | null;
 }>;
 
@@ -208,7 +211,7 @@ type GetMessagePayloadsFromStartForTest<Message extends MessageModel> = (
         payload: MessagePayload;
         stream: {
             completedTime: Date | null;
-            parts: ReadonlyArray<MessageStreamPartPayload>;
+            parts: ReadonlyArray<{version: number; payload: MessageStreamPartPayload}>;
         } | null;
     }>;
 }>;
@@ -234,7 +237,10 @@ type GetMessagePayloadsFromEndForTest<Message extends MessageModel> = (
         payload: MessagePayload;
         stream: {
             completedTime: Date | null;
-            parts: ReadonlyArray<MessageStreamPartPayload>;
+            parts: ReadonlyArray<{
+                version: number;
+                payload: MessageStreamPartPayload;
+            }>;
         } | null;
     }>;
 }>;
@@ -9685,8 +9691,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -9936,16 +9945,25 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 2"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 2"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 3"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 3"),
+                                },
                             },
                         ],
                     }),
@@ -10011,8 +10029,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 3"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 3"),
+                                },
                             },
                         ],
                     }),
@@ -10098,16 +10119,25 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 2"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 2"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 5"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 5"),
+                                },
                             },
                         ],
                     }),
@@ -10177,12 +10207,18 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 2"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 2"),
+                                },
                             },
                         ],
                     }),
@@ -10236,8 +10272,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -10311,16 +10350,25 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 2"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 2"),
+                                },
                             },
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 3"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 3"),
+                                },
                             },
                         ],
                     }),
@@ -10386,8 +10434,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -10453,8 +10504,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -10527,8 +10581,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: completedTime1,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -10611,8 +10668,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -10680,8 +10740,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -10736,8 +10799,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                         completedTime: null,
                         parts: [
                             {
-                                type: "Content",
-                                content: createSimpleMessageContent("Test part 1"),
+                                version: expect.any(Number),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
                             },
                         ],
                     }),
@@ -11338,10 +11404,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             ) {
                                                 expect(message.stream.parts).toEqual(
                                                     createArrayWithLength(3, i => ({
-                                                        type: "Content",
-                                                        content: createSimpleMessageContent(
-                                                            `Test part ${i + 1}`,
-                                                        ),
+                                                        version: expect.any(Number),
+                                                        payload: {
+                                                            type: "Content",
+                                                            content: createSimpleMessageContent(
+                                                                `Test part ${i + 1}`,
+                                                            ),
+                                                        },
                                                     })),
                                                 );
 
@@ -11355,10 +11424,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             ) {
                                                 expect(message.stream.parts).toEqual(
                                                     createArrayWithLength(5, i => ({
-                                                        type: "Content",
-                                                        content: createSimpleMessageContent(
-                                                            `Test part ${i + 1}`,
-                                                        ),
+                                                        version: expect.any(Number),
+                                                        payload: {
+                                                            type: "Content",
+                                                            content: createSimpleMessageContent(
+                                                                `Test part ${i + 1}`,
+                                                            ),
+                                                        },
                                                     })),
                                                 );
 

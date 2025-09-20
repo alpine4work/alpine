@@ -3311,6 +3311,7 @@ export function putPostCommentStreamPart(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -3367,7 +3368,22 @@ export function putPostCommentStreamPart(
             };
         }
 
+        let version: number;
+
         if (partIndex === item.partCount) {
+            const createPartTransactionEntry = ForumTable.transactionCreateOrReplaceItem({
+                partitionType: "Post",
+                sortRangeType: "Comments#StreamPart",
+                postId,
+                commentIndex,
+                partIndex,
+                payload,
+                // `updateLockVersion: 0` is always represented as `undefined`.
+                updateLockVersion: undefined,
+            });
+
+            version = createPartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 ForumTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -3376,16 +3392,7 @@ export function putPostCommentStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                ForumTable.transactionCreateOrReplaceItem({
-                    partitionType: "Post",
-                    sortRangeType: "Comments#StreamPart",
-                    postId,
-                    commentIndex,
-                    partIndex,
-                    payload,
-                    // `updateLockVersion: 0` is always represented as `undefined`.
-                    updateLockVersion: undefined,
-                }),
+                createPartTransactionEntry,
             ]);
         } else {
             if (partIndex !== item.partCount - 1) {
@@ -3401,6 +3408,18 @@ export function putPostCommentStreamPart(
 
             assert(item.lastPartUpdateLockVersion !== null);
 
+            const updatePartTransactionEntry = ForumTable.transactionCreateOrReplaceItem({
+                partitionType: "Post",
+                sortRangeType: "Comments#StreamPart",
+                postId,
+                commentIndex,
+                partIndex,
+                payload,
+                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+            });
+
+            version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 ForumTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -3408,15 +3427,7 @@ export function putPostCommentStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                ForumTable.transactionCreateOrReplaceItem({
-                    partitionType: "Post",
-                    sortRangeType: "Comments#StreamPart",
-                    postId,
-                    commentIndex,
-                    partIndex,
-                    payload,
-                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
-                }),
+                updatePartTransactionEntry,
             ]);
         }
 
@@ -3436,7 +3447,7 @@ export function putPostCommentStreamPart(
             );
         }
 
-        return {spaceId};
+        return {spaceId, version};
     });
 }
 
@@ -3606,6 +3617,7 @@ async function createPostCommentModelFromItem(
             spaceId,
             FilePostAuthorizer.bind({type: "PostComments", postId}),
             item.payload,
+            item.stream,
         ),
     ]);
 
@@ -3615,6 +3627,7 @@ async function createPostCommentModelFromItem(
         author,
         createdTime: item.createdTime,
         payload,
+        stream: item.stream,
     });
 }
 

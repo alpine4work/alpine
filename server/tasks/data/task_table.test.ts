@@ -20115,6 +20115,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20131,6 +20132,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20147,6 +20149,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
             ],
         },
@@ -20208,6 +20211,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20224,6 +20228,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20240,6 +20245,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
             ],
         },
@@ -20278,6 +20284,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20294,6 +20301,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20310,6 +20318,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
             ],
         },
@@ -20348,6 +20357,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20364,6 +20374,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20380,6 +20391,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
             ],
         },
@@ -20418,6 +20430,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20434,6 +20447,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
                 new TaskCommentModel({
                     taskId: task.id,
@@ -20450,6 +20464,7 @@ test("returns null for users that only have view access when trying to get initi
                         contentUpdatedTime: null,
                         files: [],
                     },
+                    stream: null,
                 }),
             ],
         },

@@ -5239,6 +5239,7 @@ async function createTaskCommentModelFromItem(
             spaceId,
             FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
             item.payload,
+            item.stream,
         ),
     ]);
 
@@ -5248,6 +5249,7 @@ async function createTaskCommentModelFromItem(
         author,
         createdTime: item.createdTime,
         payload,
+        stream: item.stream,
     });
 }
 
@@ -5746,6 +5748,7 @@ export function putTaskCommentStreamPart(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -5802,7 +5805,22 @@ export function putTaskCommentStreamPart(
             };
         }
 
+        let version: number;
+
         if (partIndex === item.partCount) {
+            const createPartTransactionEntry = TaskTable.transactionCreateOrReplaceItem({
+                partitionType: "Task",
+                sortRangeType: "Comments#StreamPart",
+                taskId,
+                commentIndex,
+                partIndex,
+                payload,
+                // `updateLockVersion: 0` is always represented as `undefined`.
+                updateLockVersion: undefined,
+            });
+
+            version = createPartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 TaskTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -5811,16 +5829,7 @@ export function putTaskCommentStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                TaskTable.transactionCreateOrReplaceItem({
-                    partitionType: "Task",
-                    sortRangeType: "Comments#StreamPart",
-                    taskId,
-                    commentIndex,
-                    partIndex,
-                    payload,
-                    // `updateLockVersion: 0` is always represented as `undefined`.
-                    updateLockVersion: undefined,
-                }),
+                createPartTransactionEntry,
             ]);
         } else {
             if (partIndex !== item.partCount - 1) {
@@ -5836,6 +5845,18 @@ export function putTaskCommentStreamPart(
 
             assert(item.lastPartUpdateLockVersion !== null);
 
+            const updatePartTransactionEntry = TaskTable.transactionCreateOrReplaceItem({
+                partitionType: "Task",
+                sortRangeType: "Comments#StreamPart",
+                taskId,
+                commentIndex,
+                partIndex,
+                payload,
+                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+            });
+
+            version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 TaskTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -5843,15 +5864,7 @@ export function putTaskCommentStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                TaskTable.transactionCreateOrReplaceItem({
-                    partitionType: "Task",
-                    sortRangeType: "Comments#StreamPart",
-                    taskId,
-                    commentIndex,
-                    partIndex,
-                    payload,
-                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
-                }),
+                updatePartTransactionEntry,
             ]);
         }
 
@@ -5871,7 +5884,7 @@ export function putTaskCommentStreamPart(
             );
         }
 
-        return {spaceId};
+        return {spaceId, version};
     });
 }
 

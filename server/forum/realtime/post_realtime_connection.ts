@@ -25,7 +25,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+    MessagingRealtimeBroadcastNewMessageRequest,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     backfillPostComments,
     createPostComment,
@@ -163,6 +167,26 @@ export class PostRealtimeConnection {
         );
     }
 
+    public static broadcastPutMessageStreamPart(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+        iterateAllConnections: () => Iterable<PostRealtimeConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastPutMessageStreamPart(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._connection),
+        );
+    }
+
+    public static broadcastCompleteMessageStream(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+        iterateAllConnections: () => Iterable<PostRealtimeConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._connection),
+        );
+    }
+
     public async transformEvent(
         context: WorkerSessionActionContext,
         eventStub: PostRealtimeEventStub,
@@ -288,5 +312,6 @@ const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> =
                 assertExists(references.fileById.get(fileId)),
             ),
         },
+        stream: message.stream,
     });
 };

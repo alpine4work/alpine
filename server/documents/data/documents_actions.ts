@@ -4637,6 +4637,7 @@ export function putDocumentCommentStreamPart(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -4694,7 +4695,23 @@ export function putDocumentCommentStreamPart(
             };
         }
 
+        let version: number;
+
         if (partIndex === item.partCount) {
+            const createPartTransactionEntry = DocumentsTable.transactionCreateOrReplaceItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments#StreamPart",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                partIndex,
+                payload,
+                // `updateLockVersion: 0` is always represented as `undefined`.
+                updateLockVersion: undefined,
+            });
+
+            version = createPartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -4703,17 +4720,7 @@ export function putDocumentCommentStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                DocumentsTable.transactionCreateOrReplaceItem({
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Comments#StreamPart",
-                    documentId,
-                    commentThreadId,
-                    commentIndex,
-                    partIndex,
-                    payload,
-                    // `updateLockVersion: 0` is always represented as `undefined`.
-                    updateLockVersion: undefined,
-                }),
+                createPartTransactionEntry,
             ]);
         } else {
             if (partIndex !== item.partCount - 1) {
@@ -4729,6 +4736,19 @@ export function putDocumentCommentStreamPart(
 
             assert(item.lastPartUpdateLockVersion !== null);
 
+            const updatePartTransactionEntry = DocumentsTable.transactionCreateOrReplaceItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments#StreamPart",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                partIndex,
+                payload,
+                updateLockVersion: item.lastPartUpdateLockVersion + 1,
+            });
+
+            version = updatePartTransactionEntry.newItem.updateLockVersion ?? 0;
+
             await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
@@ -4736,16 +4756,7 @@ export function putDocumentCommentStreamPart(
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
-                DocumentsTable.transactionCreateOrReplaceItem({
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Comments#StreamPart",
-                    documentId,
-                    commentThreadId,
-                    commentIndex,
-                    partIndex,
-                    payload,
-                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
-                }),
+                updatePartTransactionEntry,
             ]);
         }
 
@@ -4766,7 +4777,7 @@ export function putDocumentCommentStreamPart(
             );
         }
 
-        return {spaceId};
+        return {spaceId, version};
     });
 }
 
@@ -5025,6 +5036,7 @@ async function createDocumentCommentModelFromItem(
             spaceId,
             FileDocumentAuthorizer.bind({type: "DocumentComments", documentId}),
             item.payload,
+            item.stream,
         ),
     ]);
 
@@ -5035,6 +5047,7 @@ async function createDocumentCommentModelFromItem(
         author,
         createdTime: item.createdTime,
         payload,
+        stream: item.stream,
     });
 }
 

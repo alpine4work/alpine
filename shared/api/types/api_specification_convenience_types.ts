@@ -105,6 +105,9 @@ export type ApiMessageStreamPartPayload =
 export type ApiMessageContentPayload =
     ApiSpecification.components["schemas"]["MessageContentPayload"];
 
+export type ApiMessageStreamToolCallPartPayloadCall =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
+
 export type ApiErrorResponseBody =
     ApiSpecification.components["responses"]["Error"]["content"]["application/json"];
 

@@ -22,7 +22,11 @@ import {
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
-import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -220,6 +224,7 @@ export const apiTasksPaths: Pick<
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
                             payload,
+                            stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                         }),
                     },
                 ),
@@ -248,6 +253,30 @@ export const apiTasksPaths: Pick<
                 consistency: "StrongWithinCache",
             });
 
+            // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+            // sending this realtime event the user might not see an update to their
+            // message in realtime.
+            //
+            // Should we send this broadcast event in a DynamoDB Streams listener that
+            // reacts to the update? We plan to move `NotificationEvent`,
+            // `IndexSearchEntity`, and other processing that needs to reliably run after
+            // an updates to DynamoDB Streams.
+            context.process.waitUntil(
+                context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/task-notes/${pathParameters.id}/broadcast-complete-message-stream`,
+                    {
+                        serviceName: "TaskNotesCollaborationService",
+                        route: "/api/durable-objects/task-notes/:taskId/broadcast-complete-message-stream",
+                        body: MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.serialize(
+                            {
+                                index: pathParameters.index,
+                                completedTime,
+                            },
+                        ),
+                    },
+                ),
+            );
+
             return {
                 content: {
                     spaceId,
@@ -259,13 +288,40 @@ export const apiTasksPaths: Pick<
 
     "/tasks/{id}/messages/{index}/stream/parts/{partIndex}": {
         put: async (context, {pathParameters, requestBody}) => {
-            const {spaceId} = await putTaskCommentStreamPart(context, {
+            const payload = fromApiMessageStreamPartPayload(requestBody.payload);
+
+            const {spaceId, version} = await putTaskCommentStreamPart(context, {
                 taskId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
-                payload: fromApiMessageStreamPartPayload(requestBody.payload),
+                payload,
                 consistency: "StrongWithinCache",
             });
+
+            // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+            // sending this realtime event the user might not see an update to their
+            // message in realtime.
+            //
+            // Should we send this broadcast event in a DynamoDB Streams listener that
+            // reacts to the update? We plan to move `NotificationEvent`,
+            // `IndexSearchEntity`, and other processing that needs to reliably run after
+            // an updates to DynamoDB Streams.
+            context.process.waitUntil(
+                context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/task-notes/${pathParameters.id}/broadcast-put-message-stream-part`,
+                    {
+                        serviceName: "TaskNotesCollaborationService",
+                        route: "/api/durable-objects/task-notes/:taskId/broadcast-put-message-stream-part",
+                        body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize(
+                            {
+                                index: pathParameters.index,
+                                partIndex: pathParameters.partIndex,
+                                part: {version, payload},
+                            },
+                        ),
+                    },
+                ),
+            );
 
             return {content: {spaceId}};
         },

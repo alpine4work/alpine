@@ -1727,6 +1727,39 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "value": "ToolCall"
                                                                     },
                                                                     "optional": false
+                                                                },
+                                                                "call": {
+                                                                    "valueSchema": {
+                                                                        "type": "Union",
+                                                                        "typeKey": "type",
+                                                                        "variantSchemaByTypeValue": {
+                                                                            "Read": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "type": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Value",
+                                                                                            "value": "Read"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "targetPath": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "String"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "title": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "String"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "optional": false
                                                                 }
                                                             }
                                                         }

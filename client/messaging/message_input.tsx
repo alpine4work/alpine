@@ -271,6 +271,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     }
                 }),
             },
+            stream: null,
         };
 
         // If the input was focused then after we reset our input state, we want to

@@ -37,7 +37,11 @@ import {
     TaskId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequest} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+    MessagingRealtimeBroadcastNewMessageRequest,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     authorizeTaskAccess,
     backfillTaskComments,
@@ -318,6 +322,26 @@ export class TaskNotesCollaborationConnection {
         );
     }
 
+    public static broadcastPutMessageStreamPart(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastPutMessageStreamPartRequest,
+        iterateAllConnections: () => Iterable<TaskNotesCollaborationConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastPutMessageStreamPart(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._messagingConnection),
+        );
+    }
+
+    public static broadcastCompleteMessageStream(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastCompleteMessageStreamRequest,
+        iterateAllConnections: () => Iterable<TaskNotesCollaborationConnection>,
+    ) {
+        MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
+            mapIterable(iterateAllConnections(), connection => connection._messagingConnection),
+        );
+    }
+
     public async transformEvent(
         context: WorkerSessionActionContext,
         eventStub: TaskNotesCollaborationEventStub,
@@ -451,5 +475,6 @@ const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> =
                 assertExists(references.fileById.get(fileId)),
             ),
         },
+        stream: message.stream,
     });
 };

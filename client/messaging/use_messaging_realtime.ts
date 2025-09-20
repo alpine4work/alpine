@@ -85,6 +85,14 @@ export function useMessagingRealtime<
                 );
                 break;
             }
+            case "PutMessageStreamPart": {
+                onUpdateMessages(messages => messages.putMessageStreamPart(event), null);
+                break;
+            }
+            case "CompleteMessageStream": {
+                onUpdateMessages(messages => messages.completeMessageStream(event), null);
+                break;
+            }
             default:
                 throw exhaustive(event);
         }

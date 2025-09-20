@@ -17,13 +17,22 @@ import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
-type TaskNotesCollaborationDurableObjectRoute = "Main" | "BroadcastNewMessage" | "NotFound";
+type TaskNotesCollaborationDurableObjectRoute =
+    | "Main"
+    | "BroadcastNewMessage"
+    | "BroadcastPutMessageStreamPart"
+    | "BroadcastCompleteMessageStream"
+    | "NotFound";
 
 class TaskNotesCollaborationDurableObject {
     public static readonly serviceName = "TaskNotesCollaborationService";
@@ -140,7 +149,19 @@ class TaskNotesCollaborationDurableObject {
 
     public static parseRoute(url: URL): [string, TaskNotesCollaborationDurableObjectRoute] {
         if (url.pathname === "/") return ["/", "Main"];
-        if (url.pathname === "/broadcast-new-message") return [url.pathname, "BroadcastNewMessage"];
+
+        if (url.pathname === "/broadcast-new-message") {
+            return [url.pathname, "BroadcastNewMessage"];
+        }
+
+        if (url.pathname === "/broadcast-put-message-stream-part") {
+            return [url.pathname, "BroadcastPutMessageStreamPart"];
+        }
+
+        if (url.pathname === "/broadcast-complete-message-stream") {
+            return [url.pathname, "BroadcastCompleteMessageStream"];
+        }
+
         return ["/*", "NotFound"];
     }
 
@@ -175,6 +196,48 @@ class TaskNotesCollaborationDurableObject {
 
                 TaskNotesCollaborationConnection.broadcastNewMessage(context, requestBody, () =>
                     this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastPutMessageStreamPart": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                TaskNotesCollaborationConnection.broadcastPutMessageStreamPart(
+                    context,
+                    requestBody,
+                    () => this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastCompleteMessageStream": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                TaskNotesCollaborationConnection.broadcastCompleteMessageStream(
+                    context,
+                    requestBody,
+                    () => this._webSocketServer.iterateAllConnections(),
                 );
 
                 return new Response(null, {status: 200});

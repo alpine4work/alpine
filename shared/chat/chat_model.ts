@@ -1,5 +1,6 @@
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
+import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -29,6 +30,7 @@ export class ChatMessageModel
             author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,
+            stream: MessageStreamSchema.nullable(),
         }),
     )
     implements MessageModel<ChatId>

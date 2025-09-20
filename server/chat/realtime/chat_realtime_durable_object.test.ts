@@ -114,6 +114,7 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             createdTime,
             author,
             payload,
+            stream: null,
         });
     },
     createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {

@@ -40,6 +40,8 @@ import {
     ApiContent,
     ApiContentMentionInlineElementTargetPath,
     ApiMessage,
+    ApiMessageStreamPartPayload,
+    ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
@@ -177,13 +179,8 @@ async function requestChatGptAgent(
     // TODO(calebmer, #ai): How should we handle the reply feature for the AI?
     await ensureMessagesInChatGptAgentConversation(tracer, request);
 
-    const {index: messageIndex} = await createChatGptAgentEmptyStreamMessage(tracer, request);
-
-    try {
-        await createChatGptAgentResponse(tracer, request, messageIndex);
-    } finally {
-        await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
-    }
+    // Send a message from ChatGPT.
+    await createChatGptAgentMessage(tracer, request);
 }
 
 async function shouldChatGptAgentRespond(
@@ -466,6 +463,100 @@ async function loadNewMessagesInChatGptAgentConversation(
     });
 }
 
+type ChatGptAgentMessageState = {
+    pushText(text: string): void;
+    pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall): void;
+};
+
+async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebhookRequest) {
+    const {index: messageIndex} = await createChatGptAgentEmptyStreamMessage(tracer, request);
+
+    const content = new AgentMessageStream({
+        spaceId: request.spaceId,
+        getMentionTargetPathIfExists: async label => {
+            const reference = await getAgentContentLinkReference(request.storage, label);
+            return reference?.mentionTargetPath ?? null;
+        },
+    });
+
+    const updateThrottleMs = 100;
+    let updateTimeout: Timeout | null = null;
+    const updateMutex = new Mutex();
+
+    const update = (
+        newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
+    ) => {
+        void updateMutex.withLock(async () => {
+            await tracer.withSpan("Update message stream", async tracer => {
+                const putParts = await content.update(newPartPayloads);
+
+                // TODO(calebmer): We should consider adding a batch `PUT` API. That would be
+                // more efficient than making two separate `PUT` requests when `update()`
+                // returns multiple parts.
+                for (let part of putParts) {
+                    if (part.payload.type === "Content") {
+                        let content = part.payload.content;
+
+                        // Convert all straight quotes (`'` and `"`) into proper curly quotes
+                        // (`“`, `”`, `‘`, `’`). Since LLMs typically only output straight quotes.
+                        // Curly quotes are proper typography and are consistent with text written in
+                        // Alpine where we automatically convert quotes into curly quotes.
+                        content = convertApiContentToProperQuotes(part.payload.content);
+
+                        if (content !== part.payload.content) {
+                            part = {...part, payload: {...part.payload, content}};
+                        }
+                    }
+
+                    await putApiMessageStreamPart(
+                        tracer,
+                        request.apiClient,
+                        request.room,
+                        messageIndex,
+                        part.index,
+                        {payload: part.payload},
+                    );
+                }
+            });
+        });
+    };
+
+    const messageState: ChatGptAgentMessageState = {
+        pushText: text => {
+            content.pushText(text);
+
+            // We throttle updates to once every 200ms instead of once every token
+            // OpenAI sends us.
+            if (updateTimeout === null) {
+                updateTimeout = createTimeout(() => {
+                    updateTimeout = null;
+                    update();
+                }, updateThrottleMs);
+            }
+        },
+        pushToolCall: call => {
+            updateTimeout?.clear();
+            updateTimeout = null;
+            update([{type: "ToolCall", call}]);
+        },
+    };
+
+    try {
+        await createChatGptAgentResponse(tracer, request, messageState);
+    } finally {
+        // @ts-expect-error: TypeScript is dumb and doesn't realize
+        // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
+        // `updateTimeout`.
+        updateTimeout?.clear();
+        updateTimeout = null;
+        update();
+
+        await updateMutex.waitForUnlock();
+
+        await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
+    }
+}
+
 function createChatGptAgentEmptyStreamMessage(
     tracer: TracerBase,
     request: AgentWebhookRequest,
@@ -515,13 +606,17 @@ function createChatGptAgentEmptyStreamMessage(
 async function createChatGptAgentResponse(
     tracer: TracerBase,
     request: AgentWebhookRequest,
-    messageIndex: number,
+    messageState: ChatGptAgentMessageState,
 ): Promise<void> {
     // Calls any pending functions in the conversation history. Important for our
     // ChatGPT agent loop. If an agent response has function calls then we call
     // `createChatGptAgentResponse()` again. Which starts with this function that
     // actually executes the function calls.
-    const input = await getChatGptAgentConversationItemsAndCallPendingFunctions(tracer, request);
+    const input = await getChatGptAgentConversationItemsAndCallPendingFunctions(
+        tracer,
+        request,
+        messageState,
+    );
 
     // TODO(calebmer, #ai): Tool calls to implement:
     //
@@ -558,57 +653,13 @@ async function createChatGptAgentResponse(
 
     let hasFunctionCallOutputItem = false;
 
-    const content = new AgentMessageStream({
-        spaceId: request.spaceId,
-        getMentionTargetPathIfExists: async label => {
-            const reference = await getAgentContentLinkReference(request.storage, label);
-            return reference?.mentionTargetPath ?? null;
-        },
-    });
-
-    const updateThrottleMs = 200;
-    let updateTimeout: Timeout | null = null;
-    const updateMutex = new Mutex();
-
-    const update = () => {
-        void updateMutex.withLock(async () => {
-            await tracer.withSpan("Update message stream", async tracer => {
-                const putParts = await content.update();
-
-                // TODO(calebmer): We should consider adding a batch `PUT` API. That would be
-                // more efficient than making two separate `PUT` requests when `update()`
-                // returns multiple parts.
-                for (let part of putParts) {
-                    if (part.payload.type === "Content") {
-                        let content = part.payload.content;
-
-                        // Convert all straight quotes (`'` and `"`) into proper curly quotes
-                        // (`“`, `”`, `‘`, `’`). Since LLMs typically only output straight quotes.
-                        // Curly quotes are proper typography and are consistent with text written in
-                        // Alpine where we automatically convert quotes into curly quotes.
-                        content = convertApiContentToProperQuotes(part.payload.content);
-
-                        if (content !== part.payload.content) {
-                            part = {...part, payload: {...part.payload, content}};
-                        }
-                    }
-
-                    await putApiMessageStreamPart(
-                        tracer,
-                        request.apiClient,
-                        request.room,
-                        messageIndex,
-                        part.index,
-                        {payload: part.payload},
-                    );
-                }
-            });
-        });
-    };
-
     for await (const event of responseStream) {
         switch (event.type) {
             case "response.output_item.done": {
+                // TODO(calebmer, #ai): If OpenAI gives us a `reasoning` output item then we
+                // should render that. So far I haven't seen any reasoning summary in the
+                // output item. Can we add one?
+
                 // If there are function calls, we'll need to execute the function calls and
                 // generate a new response.
                 if (event.item.type === "function_call") {
@@ -632,41 +683,25 @@ async function createChatGptAgentResponse(
                 break;
             }
             case "response.output_text.delta": {
-                content.pushText(event.delta);
-
-                // We throttle updates to once every 200ms instead of once every token
-                // OpenAI sends us.
-                if (updateTimeout === null) {
-                    updateTimeout = createTimeout(() => {
-                        updateTimeout = null;
-                        update();
-                    }, updateThrottleMs);
-                }
+                messageState.pushText(event.delta);
                 break;
             }
         }
     }
-
-    // The response stream is done. If there's a pending update, run it now.
-    updateTimeout?.clear();
-    updateTimeout = null;
-    update();
 
     // If there was a tool call, then try generating the response again! When we
     // load the conversation history, it'll include the incomplete function call.
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        await createChatGptAgentResponse(tracer, request, messageIndex);
+        await createChatGptAgentResponse(tracer, request, messageState);
     }
-
-    // Make sure all `update()` calls finish before leaving this function.
-    await updateMutex.waitForUnlock();
 }
 
 function getChatGptAgentConversationItemsAndCallPendingFunctions(
     tracer: TracerBase,
     request: AgentWebhookRequest,
+    messageState: ChatGptAgentMessageState,
 ) {
     // Perform all function calls in a transaction so we only call each function
     // once. There won't be any concurrent function calling.
@@ -703,7 +738,13 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                         tracer,
                     ): Promise<OpenAi.Responses.ResponseInputItem.FunctionCallOutput> => {
                         const result = await captureResultPromise(
-                            callChatGptAgentFunction(tracer, transaction, request, functionCall),
+                            callChatGptAgentFunction(
+                                tracer,
+                                transaction,
+                                request,
+                                messageState,
+                                functionCall,
+                            ),
                         );
 
                         if (!result.ok) {
@@ -802,6 +843,7 @@ async function callChatGptAgentFunction(
     tracer: TracerBase,
     transaction: DurableObjectTransaction,
     request: AgentWebhookRequest,
+    messageState: ChatGptAgentMessageState,
     functionCall: OpenAi.Responses.ResponseFunctionToolCall,
 ): Promise<string> {
     let functionCallArguments: unknown;
@@ -838,6 +880,12 @@ async function callChatGptAgentFunction(
                     displayMessage: errorDisplayMessage`Couldn’t find a link with label “${label}”. Make sure the label exactly matches the link’s text within square brackets. So if you have a link whose Markdown looks like this: “[My Document][]”, then the correct label would be “My Document”.`,
                 });
             }
+
+            messageState.pushToolCall({
+                type: "Read",
+                targetPath: linkReference.mentionTargetPath,
+                title: linkReference.originalLabel,
+            });
 
             return readMentionContentForChatGptAgent(
                 tracer,
@@ -954,14 +1002,18 @@ async function actuallyReadMentionContentForChatGptAgent(
                 params: {path: {id: entity.postId}},
             });
 
-            const authorLink = await putAgentContentLinkReference(transaction, post.author.name, {
-                mentionTargetPath: `/accounts/${post.author.id}`,
-            });
+            const authorLink = await putAgentContentLinkReference(
+                transaction,
+                post.author.name,
+                `/accounts/${post.author.id}`,
+            );
 
             const channelLink = post.channel
-                ? await putAgentContentLinkReference(transaction, post.channel.name, {
-                      mentionTargetPath: `/channels/${post.channel.id}`,
-                  })
+                ? await putAgentContentLinkReference(
+                      transaction,
+                      post.channel.name,
+                      `/channels/${post.channel.id}`,
+                  )
                 : undefined;
 
             return {
@@ -996,9 +1048,11 @@ async function actuallyReadMentionContentForChatGptAgent(
             });
 
             const assigneeLink = task.assignee
-                ? await putAgentContentLinkReference(transaction, task.assignee.name, {
-                      mentionTargetPath: `/accounts/${task.assignee.id}`,
-                  })
+                ? await putAgentContentLinkReference(
+                      transaction,
+                      task.assignee.name,
+                      `/accounts/${task.assignee.id}`,
+                  )
                 : undefined;
 
             // TODO(calebmer, #ai): We should include the first few child tasks in

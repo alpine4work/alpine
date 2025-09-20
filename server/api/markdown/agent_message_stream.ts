@@ -76,72 +76,106 @@ export class AgentMessageStream {
      * and correctness. We don't want to update the entire agent message at once
      * while it's streaming but we need a blocks worth of content to correctly
      * parse styles like bold and italics.
+     *
+     * You may pass in `newParts` to add non-content parts to the stream.
      */
-    public async update(): Promise<Array<AgentMessageStreamPart>> {
-        const markdownParts = await this._parseTextIntoMarkdownParts();
-        if (markdownParts.length === 0) return [];
-
-        const originalText = this._text;
+    public async update(
+        newPartPayloads: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>> = [],
+    ): Promise<Array<AgentMessageStreamPart>> {
         const putParts: Array<AgentMessageStreamPart> = [];
 
-        // The first Markdown part updates the last part in `AgentStreamMessage`. Or if
-        // there are no parts in `AgentStreamMessage` yet it creates the first part.
-        {
-            const firstMarkdownPart = markdownParts[0]!;
+        const markdownParts = await this._parseTextIntoMarkdownParts();
+        if (markdownParts.length > 0) {
+            const originalText = this._text;
 
-            const firstPartContent = parseApiContentFromMarkdownTree(
-                {type: "root", children: firstMarkdownPart},
-                {spaceId: this._spaceId},
-            );
+            // The first Markdown part updates the last part in `AgentStreamMessage`. Or if
+            // there are no parts in `AgentStreamMessage` yet it creates the first part.
+            {
+                const firstMarkdownPart = markdownParts[0]!;
 
-            if (this._parts.length === 0) {
-                const firstPart: AgentMessageStreamPart = {
-                    index: 0,
-                    payload: {type: "Content", content: firstPartContent},
-                };
+                const firstPartContent = parseApiContentFromMarkdownTree(
+                    {type: "root", children: firstMarkdownPart},
+                    {spaceId: this._spaceId},
+                );
 
-                putParts.push(firstPart);
-                this._parts.push(firstPart);
-            } else {
-                const firstPart: AgentMessageStreamPart = {
-                    index: this._parts.length - 1,
-                    payload: {type: "Content", content: firstPartContent},
-                };
+                if (
+                    this._parts.length === 0 ||
+                    // If the last part is not content (e.g. a tool call) then create a new content
+                    // part instead of updating the last part.
+                    this._parts[this._parts.length - 1]!.payload.type !== "Content"
+                ) {
+                    const firstPart: AgentMessageStreamPart = {
+                        index: this._parts.length,
+                        payload: {type: "Content", content: firstPartContent},
+                    };
 
-                // We only need to update the last part if it actually changed.
-                if (!isDeepEqual(this._parts[this._parts.length - 1]!, firstPart)) {
                     putParts.push(firstPart);
-                    this._parts[this._parts.length - 1] = firstPart;
+                    this._parts.push(firstPart);
+                } else {
+                    const firstPart: AgentMessageStreamPart = {
+                        index: this._parts.length - 1,
+                        payload: {type: "Content", content: firstPartContent},
+                    };
+
+                    // We only need to update the last part if it actually changed.
+                    if (!isDeepEqual(this._parts[this._parts.length - 1]!, firstPart)) {
+                        putParts.push(firstPart);
+                        this._parts[this._parts.length - 1] = firstPart;
+                    }
                 }
+            }
+
+            // The remaining parts are newly created. We update `this._text` to exclude the
+            // previous part (which can no longer be updated, only this new part can be
+            // updated).
+            for (let index = 1; index < markdownParts.length; index++) {
+                const markdownPart = markdownParts[index]!;
+
+                const partContent = parseApiContentFromMarkdownTree(
+                    {type: "root", children: markdownPart},
+                    {spaceId: this._spaceId},
+                );
+
+                const part: AgentMessageStreamPart = {
+                    index: this._parts.length,
+                    payload: {type: "Content", content: partContent},
+                };
+
+                putParts.push(part);
+                this._parts.push(part);
+
+                const previousMarkdownPart = markdownParts[index - 1]!;
+                assert(previousMarkdownPart.length > 0);
+                const previousMarkdownPartLastContent =
+                    previousMarkdownPart[previousMarkdownPart.length - 1]!;
+                assert(previousMarkdownPartLastContent.position?.end.offset !== undefined);
+
+                this._text = originalText.slice(
+                    previousMarkdownPartLastContent.position.end.offset,
+                );
             }
         }
 
-        // The remaining parts are newly created. We update `this._text` to exclude the
-        // previous part (which can no longer be updated, only this new part can be
-        // updated).
-        for (let index = 1; index < markdownParts.length; index++) {
-            const markdownPart = markdownParts[index]!;
+        if (newPartPayloads.length > 0) {
+            // Reset the text. Any new text won't be replacing previous parts. It'll create
+            // new parts.
+            this._text = "";
 
-            const partContent = parseApiContentFromMarkdownTree(
-                {type: "root", children: markdownPart},
-                {spaceId: this._spaceId},
-            );
+            for (const newPartPayload of newPartPayloads) {
+                // @ts-expect-error: We excluded `Content` from the TypeScript type. But double
+                // check here that we're not adding a content part. Content parts are only
+                // updated by `pushText()`. If we add a content part here then it'll be
+                // replaced by the next `pushText()` + `update()` call.
+                assert(newPartPayload.type !== "Content");
 
-            const part: AgentMessageStreamPart = {
-                index: this._parts.length,
-                payload: {type: "Content", content: partContent},
-            };
+                const part: AgentMessageStreamPart = {
+                    index: this._parts.length,
+                    payload: newPartPayload,
+                };
 
-            putParts.push(part);
-            this._parts.push(part);
-
-            const previousMarkdownPart = markdownParts[index - 1]!;
-            assert(previousMarkdownPart.length > 0);
-            const previousMarkdownPartLastContent =
-                previousMarkdownPart[previousMarkdownPart.length - 1]!;
-            assert(previousMarkdownPartLastContent.position?.end.offset !== undefined);
-
-            this._text = originalText.slice(previousMarkdownPartLastContent.position.end.offset);
+                putParts.push(part);
+                this._parts.push(part);
+            }
         }
 
         return putParts;

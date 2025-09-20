@@ -1,10 +1,16 @@
+import {ContentReferences, ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {MessageContentPayloadSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadSchema,
+    MessageStreamPartPayload,
+    MessageStreamPartPayloadSchema,
+    MessageStreamSchema,
+} from "~/shared/messaging/message_schema.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -191,6 +197,21 @@ export type MessagingRealtimeEvent<Message extends MessageModel> =
           readonly type: "UpdateOtherTypingState";
           readonly connectionId: WebSocketConnectionId;
           readonly typingState: MessagingTypingState | null;
+      }
+    | {
+          readonly type: "PutMessageStreamPart";
+          readonly index: number;
+          readonly partIndex: number;
+          readonly part: {
+              readonly version: number;
+              readonly payload: MessageStreamPartPayload;
+          };
+          readonly references: ContentReferences;
+      }
+    | {
+          readonly type: "CompleteMessageStream";
+          readonly index: number;
+          readonly completedTime: Date;
       };
 
 export function createMessagingRealtimeEventSchemas<Message extends MessageModel>(
@@ -250,6 +271,29 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
             connectionId: Schema.id<WebSocketConnectionId>(),
             typingState: MessagingTypingStateSchema.nullable(),
         }),
+
+        /**
+         * A streaming message's part was updated (or created).
+         */
+        PutMessageStreamPart: Schema.object({
+            type: Schema.value("PutMessageStreamPart"),
+            index: Schema.integer.min(0),
+            partIndex: Schema.integer.min(0),
+            part: Schema.object({
+                version: Schema.integer.min(0),
+                payload: MessageStreamPartPayloadSchema,
+            }),
+            references: ContentReferencesSchema,
+        }),
+
+        /**
+         * A message stream was completed.
+         */
+        CompleteMessageStream: Schema.object({
+            type: Schema.value("CompleteMessageStream"),
+            index: Schema.integer.min(0),
+            completedTime: Schema.date,
+        }),
     };
 }
 
@@ -288,4 +332,27 @@ export const MessagingRealtimeBroadcastNewMessageRequestSchema = Schema.object({
     authorId: Schema.id<AccountId>(),
     createdTime: Schema.date,
     payload: MessageContentPayloadSchema,
+    stream: MessageStreamSchema.nullable(),
+});
+
+export type MessagingRealtimeBroadcastPutMessageStreamPartRequest = SchemaType<
+    typeof MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema
+>;
+
+export const MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema = Schema.object({
+    index: Schema.integer.min(0),
+    partIndex: Schema.integer.min(0),
+    part: Schema.object({
+        version: Schema.integer.min(0),
+        payload: MessageStreamPartPayloadSchema,
+    }),
+});
+
+export type MessagingRealtimeBroadcastCompleteMessageStreamRequest = SchemaType<
+    typeof MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema
+>;
+
+export const MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema = Schema.object({
+    index: Schema.integer.min(0),
+    completedTime: Schema.date,
 });

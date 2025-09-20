@@ -45,6 +45,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
+import {MessageStreamView} from "~/client/messaging/internal/message_stream_view.js";
 import {
     MessageViewEditor,
     MessageViewEditorRef,
@@ -861,7 +862,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // animations it's important to keep it fast.
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
-        if (isContentEmpty(message.payload.content.doc)) return null;
+
+        if (message.stream) {
+            return (
+                <MessageStreamView
+                    content={message.payload.content}
+                    stream={message.stream}
+                    withUserSelectNone={!canPrimaryInputHover}
+                    getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                />
+            );
+        }
 
         // Render the message as a big emoji message if the content is just emojis.
         if (messageTextForBigEmojiMessage) {
@@ -940,7 +951,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [
         canPrimaryInputHover,
         events.getClipboardSerializerPrefix,
-        message.payload,
+        message,
         messageTextForBigEmojiMessage,
     ]);
 
