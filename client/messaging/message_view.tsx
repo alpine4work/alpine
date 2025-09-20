@@ -1281,6 +1281,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 shouldMergeWithPreviousMessage
                                             }
                                             messageEditing={messageEditing}
+                                            lastContentUpdatedTime={
+                                                message.payload.contentUpdatedTime
+                                            }
                                         />
                                     )
                                 ) : (

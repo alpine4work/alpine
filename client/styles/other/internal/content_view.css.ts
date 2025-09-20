@@ -10,6 +10,18 @@ export const updatedNoteClassName = style({
     userSelect: "none",
 });
 
+export const updatedNotePlaceholderClassName = style({
+    selectors: {
+        "&::after": {
+            content: '" (edited)"',
+            ...fontSizes["50"],
+            color: colorSchemeVars["grey-50"],
+            visibility: "hidden",
+            pointerEvents: "none",
+        },
+    },
+});
+
 export const seeButtonClassName = style({
     ...paragraphFontSize,
     ...fontStyles["semi-bold"],
