@@ -265,10 +265,16 @@ paths:
                       minimum: 1
                       maximum: 100
                       default: 10
+                # TODO(calebmer, #public-api): Bikeshed this naming. I like it because we can
+                # consistently communicate the same pagination concept across all paginated API
+                # endpoints. But `index` here could be clearer for messages.
                 - name: cursor
                   in: query
                   schema:
                       type: integer
+                # TODO(calebmer, #public-api): Bikeshed this name when we ship the public API.
+                # Ian's proposal is `order=ascending`/`order=descending`. Which matches SQL
+                # language, could feel more natural.
                 - name: from
                   in: query
                   schema:
@@ -764,7 +770,7 @@ components:
         LabelString:
             type: string
             minLength: 1
-            maxLength: 50
+            maxLength: {{maxLabelStringLength}}
 
         # =========================================================================== #
         #                                     IDs                                     #

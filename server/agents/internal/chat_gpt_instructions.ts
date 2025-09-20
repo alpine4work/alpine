@@ -133,10 +133,11 @@ const chatGptInstructionsTemplate = markdown`
 const chatGptReadLinkDescription = markdown`
 Read the contents of an Alpine link (e.g. \`[link text][]\`).
 
-Will return the content as Markdown with YAML frontmatter metadata (containing e.g. the \`type\` of
-content or the \`title\` of the content). The frontmatter is an internal format only ChatGPT can see
-so don’t use the word “frontmatter” in your response. The Markdown and frontmatter may contain links
-(e.g. \`[link text][]\`) to other stuff which you can read with this tool.
+Will return the content as Markdown with YAML frontmatter (containing e.g. the \`type\` of content
+or the \`title\` of the content). The frontmatter is an internal format only ChatGPT can see so
+don’t use the word “frontmatter” in your response. When relevant, explain the information in a human
+friendly way. The Markdown and frontmatter may contain links (e.g. \`[link text][]\`) to other stuff
+which you can read with this tool.
 `;
 
 export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({

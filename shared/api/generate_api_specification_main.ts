@@ -16,6 +16,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 async function main() {
     /* ========================================================================== *\
@@ -31,6 +32,7 @@ async function main() {
         specificationContent,
         {
             idRegExp: idRegExp.source,
+            maxLabelStringLength,
             codeBlockLanguageIds: JSON.stringify(contentCodeBlockLanguageIds),
         },
         undefined,
