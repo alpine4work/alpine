@@ -68,9 +68,9 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
                 promiseWaiter,
                 honeycombApiKey,
             });
-            ({span: parentSpan, finishSpan: finishParentSpan} = tracer.startSpan(
-                lambdaContext.functionName,
-            ));
+            ({span: parentSpan, finishSpan: finishParentSpan} = tracer
+                .getRoot()
+                .startSpan(lambdaContext.functionName));
 
             tokenAgentAndOptionsPromise ??= parentSpan.withSpan(
                 "Allocate token agent and context options",
