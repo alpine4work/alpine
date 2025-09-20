@@ -7,6 +7,7 @@ import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {IdentityType} from "~/shared/helpers/types/identity_type.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
+import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import type {ObjectSchema, SchemaType} from "~/shared/schema/schema.js";
 import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
@@ -121,14 +122,38 @@ export namespace DynamoTableSchemaTypes {
     export type ItemType<
         PartitionConfig extends Partition.ConfigBase,
         SortRangeConfig extends SortRange.ConfigBase,
+    > =
+        | MergeObjectIntersection<
+              {
+                  readonly partitionType: PartitionConfig["name"];
+                  readonly sortRangeType: SortRangeConfig["name"];
+              } & KeyAttributes.Type<PartitionConfig["partitionKeyAttributes"]> &
+                  KeyAttributes.Type<SortRangeConfig["sortKeyAttributes"]> &
+                  SchemaType<SortRangeConfig["attributes"]> &
+                  ExpirationTimeType<SortRangeConfig["withExpirationTime"]> &
+                  ItemSharedAttributes
+          >
+        | (SortRangeConfig extends {childSortRanges: ReadonlyArray<SortRange.ChildConfigBase>}
+              ? SortRange.ChildItemTypes<
+                    PartitionConfig,
+                    SortRangeConfig,
+                    SortRangeConfig["childSortRanges"]
+                >
+              : never);
+
+    type ChildItemType<
+        PartitionConfig extends Partition.ConfigBase,
+        ParentSortRangeConfig extends SortRange.ConfigBase,
+        ChildSortRangeConfig extends SortRange.ChildConfigBase,
     > = MergeObjectIntersection<
         {
             readonly partitionType: PartitionConfig["name"];
-            readonly sortRangeType: SortRangeConfig["name"];
+            readonly sortRangeType: `${ParentSortRangeConfig["name"]}#${ChildSortRangeConfig["name"]}`;
         } & KeyAttributes.Type<PartitionConfig["partitionKeyAttributes"]> &
-            KeyAttributes.Type<SortRangeConfig["sortKeyAttributes"]> &
-            SchemaType<SortRangeConfig["attributes"]> &
-            ExpirationTimeType<SortRangeConfig["withExpirationTime"]> &
+            KeyAttributes.Type<ParentSortRangeConfig["sortKeyAttributes"]> &
+            KeyAttributes.Type<ChildSortRangeConfig["sortKeyAttributes"]> &
+            SchemaType<ChildSortRangeConfig["attributes"]> &
+            ExpirationTimeType<ChildSortRangeConfig["withExpirationTime"]> &
             ItemSharedAttributes
     >;
 
@@ -314,72 +339,163 @@ export namespace DynamoTableSchemaTypes {
          * you will get a tuple of sort range types between start and end. The
          * `query()` function returns an item type that only includes items from those
          * sort ranges.
+         *
+         * Remember sort range types can be formatted as
+         * `${parentSortRange}#${childSortRange}` when the sort range has children. If
+         * a query starts/ends in a child sort range then the result of this map is no
+         * different than if the query starts/ends in the parent sort range. Because
+         * child sort range items can be interleaved within their parent sort range.
+         * Their type won't be homogenous.
          */
         export type QueryKeyMapType<Config extends ReadonlyArray<ConfigBase>> = ObjectFromEntries<{
             [Index in keyof Config]: [
                 Config[Index]["name"],
                 QueryKeyMapTypeStartMap<
                     Config[Index]["sortRanges"],
-                    SortRangeTypeTuple<Config[Index]["sortRanges"]>
+                    SortRangesTypeTuple<Config[Index]["sortRanges"]>
                 >,
             ];
         }>;
 
-        type SortRangeTypeTuple<Config extends ConfigBase["sortRanges"]> = {
-            [Index in keyof Config]: Config[Index]["name"];
-        };
-
         type QueryKeyMapTypeStartMap<
-            Config extends ConfigBase["sortRanges"],
+            Config extends ReadonlyArray<SortRange.ConfigBase>,
             SortTypes,
-        > = ObjectFromEntries<{
-            [StartIndex in keyof Config]: [
-                Config[StartIndex]["name"],
-                QueryKeyMapTypeEndMap<Config, SortTypes, Config[StartIndex]["name"]>,
-            ];
-        }>;
-
-        type QueryKeyMapTypeEndMap<
-            Config extends ConfigBase["sortRanges"],
-            SortTypes,
-            StartSortType extends string,
-        > = IdentityType<
-            MergeObjectIntersection<
-                ObjectFromEntries<{
-                    [EndIndex in keyof Config]: [
-                        Config[EndIndex]["name"],
-                        TupleDropBeforeAndTakeUntil<
-                            SortTypes,
-                            StartSortType,
-                            Config[EndIndex]["name"]
-                        >[number],
-                    ];
-                }>
+        > = MergeObjectIntersection<
+            UnionToIntersection<
+                {
+                    [StartIndex in keyof Config]: QueryKeyMapTypeStartMapInner<
+                        Config,
+                        SortTypes,
+                        Config[StartIndex]
+                    >;
+                }[number]
             >
         >;
+
+        type QueryKeyMapTypeStartMapInner<
+            AllConfigs extends ReadonlyArray<SortRange.ConfigBase>,
+            SortTypes,
+            Config extends SortRange.ConfigBase,
+        > =
+            | Record<Config["name"], QueryKeyMapTypeEndMap<AllConfigs, SortTypes, Config["name"]>>
+            | (Config extends {
+                  childSortRanges: infer ChildConfig extends ReadonlyArray<SortRange.ChildConfigBase>;
+              }
+                  ? ChildQueryKeyMapTypeStartMap<AllConfigs, SortTypes, Config, ChildConfig>
+                  : never);
+
+        type ChildQueryKeyMapTypeStartMap<
+            AllConfigs extends ReadonlyArray<SortRange.ConfigBase>,
+            SortTypes,
+            ParentConfig extends SortRange.ConfigBase,
+            ChildConfigs extends ReadonlyArray<SortRange.ConfigBase>,
+        > = {
+            [Index in keyof ChildConfigs]: Record<
+                `${ParentConfig["name"]}#${ChildConfigs[Index]["name"]}`,
+                // If we start the query in a child sort range named
+                // `${parentSortRange}#${childSortRange}` then treat it the same as if we had
+                // just queried `${parentSortRange}`. Since you can have child sort range items
+                // of different types interleaved within the parent sort range.
+                QueryKeyMapTypeEndMap<AllConfigs, SortTypes, ParentConfig["name"]>
+            >;
+        }[number];
+
+        type QueryKeyMapTypeEndMap<
+            Config extends ReadonlyArray<SortRange.ConfigBase>,
+            SortTypes,
+            StartSortType extends string,
+        > = MergeObjectIntersection<
+            UnionToIntersection<
+                {
+                    [EndIndex in keyof Config]: QueryKeyMapTypeEndMapInner<
+                        SortTypes,
+                        StartSortType,
+                        Config[EndIndex]
+                    >;
+                }[number]
+            >
+        >;
+
+        type QueryKeyMapTypeEndMapInner<
+            SortTypes,
+            StartSortType extends string,
+            Config extends SortRange.ConfigBase,
+        > =
+            | Record<
+                  Config["name"],
+                  TupleDropBeforeAndTakeUntil<SortTypes, StartSortType, Config["name"]>[number]
+              >
+            | (Config extends {
+                  childSortRanges: infer ChildConfig extends ReadonlyArray<SortRange.ChildConfigBase>;
+              }
+                  ? ChildQueryKeyMapTypeEndMap<SortTypes, StartSortType, Config, ChildConfig>
+                  : never);
+
+        type ChildQueryKeyMapTypeEndMap<
+            SortTypes,
+            StartSortType extends string,
+            ParentConfig extends SortRange.ConfigBase,
+            ChildConfigs extends ReadonlyArray<SortRange.ConfigBase>,
+        > = {
+            [EndIndex in keyof ChildConfigs]: Record<
+                `${ParentConfig["name"]}#${ChildConfigs[EndIndex]["name"]}`,
+                // If we end the query in a child sort range named
+                // `${parentSortRange}#${childSortRange}` then treat it the same as if we had
+                // just queried `${parentSortRange}`. Since you can have child sort range items
+                // of different types interleaved within the parent sort range.
+                TupleDropBeforeAndTakeUntil<SortTypes, StartSortType, ParentConfig["name"]>[number]
+            >;
+        }[number];
+
+        export type SortRangesTypeTuple<Config extends ReadonlyArray<SortRange.ConfigBase>> =
+            TupleFlat<{
+                [Index in keyof Config]: SortRangeTypeTuple<Config[Index]>;
+            }>;
+
+        type SortRangeTypeTuple<Config extends SortRange.ConfigBase> = [
+            Config["name"],
+            ...(Config extends {
+                childSortRanges: infer ChildConfig extends ReadonlyArray<SortRange.ChildConfigBase>;
+            }
+                ? ChildSortRangesTypeTuple<Config, ChildConfig>
+                : []),
+        ];
+
+        type ChildSortRangesTypeTuple<
+            ParentConfig extends SortRange.ConfigBase,
+            ChildConfig extends ReadonlyArray<SortRange.ChildConfigBase>,
+        > = {
+            [Index in keyof ChildConfig]: `${ParentConfig["name"]}#${ChildConfig[Index]["name"]}`;
+        };
 
         /**
          * Take a `Tuple` and return values between `DropBefore` and `TakeUntil`.
          *
          * So `TakeDropBeforeAndTakeUntil<["a", "b", "c", "d"], "b", "d">` is the
          * same as `["b", "c", "d"]`.
+         *
+         * We also return any values after `TakeUntil` that are prefixed by
+         * `${TakeUntil}#` to support child sort ranges.
          */
-        export type TupleDropBeforeAndTakeUntil<Tuple, DropBefore, TakeUntil> =
-            Tuple extends readonly [DropBefore, ...any]
-                ? TupleTakeUntil<Tuple, TakeUntil, []>
-                : Tuple extends readonly [any, ...infer Tail]
-                ? TupleDropBeforeAndTakeUntil<Tail, DropBefore, TakeUntil>
-                : Tuple extends readonly []
-                ? // If don't find `DropBefore` in the tuple then return `never`.
-                  never
-                : never;
+        export type TupleDropBeforeAndTakeUntil<
+            Tuple,
+            DropBefore extends string,
+            TakeUntil extends string,
+        > = Tuple extends readonly [DropBefore, ...any]
+            ? TupleTakeUntil<Tuple, TakeUntil, []>
+            : Tuple extends readonly [any, ...infer Tail]
+            ? TupleDropBeforeAndTakeUntil<Tail, DropBefore, TakeUntil>
+            : Tuple extends readonly []
+            ? // If don't find `DropBefore` in the tuple then return `never`.
+              never
+            : never;
 
         type TupleTakeUntil<
             Tuple,
-            TakeUntil,
+            TakeUntil extends string,
             AccTuple extends ReadonlyArray<any>,
-        > = Tuple extends readonly [TakeUntil, ...any]
-            ? [TakeUntil, ...AccTuple]
+        > = Tuple extends readonly [TakeUntil, ...infer Tail]
+            ? TupleTakeWhilePrefix<Tail, TakeUntil, [TakeUntil, ...AccTuple]>
             : Tuple extends readonly [infer Head, ...infer Tail]
             ? // Optimization: We use tail recursion to optimize this type. Linked list
               // iteration can typically be written in a tail recursive fashion but it
@@ -400,6 +516,28 @@ export namespace DynamoTableSchemaTypes {
             ? // If we don't find `TakeUntil` in the tuple then return `never`.
               never
             : never;
+
+        // Take any values in the tuple that are prefixed by `${TakeWhilePrefix}#`.
+        // These represent child sort ranges which should be included in any query that
+        // includes their parent sort range.
+        type TupleTakeWhilePrefix<
+            Tuple,
+            TakeWhilePrefix extends string,
+            AccTuple extends ReadonlyArray<any>,
+        > = Tuple extends readonly [
+            infer Head extends `${TakeWhilePrefix}#${string}`,
+            ...infer Tail,
+        ]
+            ? TupleTakeWhilePrefix<Tail, TakeWhilePrefix, [Head, ...AccTuple]>
+            : AccTuple;
+
+        type TupleFlat<Tuple extends ReadonlyArray<ReadonlyArray<unknown>>> =
+            Tuple extends readonly [
+                infer Head extends ReadonlyArray<unknown>,
+                ...infer Tail extends ReadonlyArray<ReadonlyArray<unknown>>,
+            ]
+                ? [...Head, ...TupleFlat<Tail>]
+                : Tuple;
     }
 
     export namespace SortRange {
@@ -407,6 +545,7 @@ export namespace DynamoTableSchemaTypes {
             readonly name: string;
             readonly sortKeyAttributes: KeyAttributes.ConfigBase;
             readonly attributes: ObjectSchema<any>;
+
             /**
              * Enables the use of the `expirationTime` property for setting a [DynamoDB TTL
              * on items][1].
@@ -419,7 +558,153 @@ export namespace DynamoTableSchemaTypes {
              * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-how-to.html
              */
             readonly withExpirationTime?: "Optional" | "Required" | "RequiredNullable";
+
+            /**
+             * A sort range may have child sort ranges. This lets you have heterogenous
+             * data mixed within a sort range. Normally when you have multiple sort ranges,
+             * the data within the sort range is totally homogenous. Imagine the following
+             * partition:
+             *
+             * ```
+             * const partitionConfig = {
+             *     name: "Task",
+             *     partitionKeyAttributes: {
+             *         taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+             *     },
+             *     sortRanges: [
+             *         {
+             *             name: "Attributes",
+             *             sortKeyAttributes: {},
+             *         },
+             *         {
+             *             name: "Comments",
+             *             sortKeyAttributes: {
+             *                 commentIndex: DynamoKeyAttributeSchema.integer,
+             *             },
+             *             attributes: Schema.object({
+             *                 // ...
+             *             }),
+             *         },
+             *         {
+             *             name: "Activity",
+             *             sortKeyAttributes: {
+             *                 createdTime: DynamoKeyAttributeSchema.integer,
+             *             },
+             *             attributes: Schema.object({
+             *                 // ...
+             *             }),
+             *         },
+             *     ],
+             * };
+             * ```
+             *
+             * This represents a task. `Comments` are the comments on the task and
+             * `Activity` is a "change history" for the task. For example it contains
+             * items like "task assignee updated" or "task notes updated". (As of
+             * 2025-09-17 this feature hasn't been implemented, we may not design the data
+             * structure this way when we actually implement the feature.)
+             *
+             * Let's say we have data that looks like this:
+             *
+             * ```
+             * comment 0 (2:00pm): Hello, world!
+             * comment 1 (2:01pm): My name is Caleb.
+             * comment 2 (2:02pm): My name is Josh.
+             * comment 3 (2:03pm): Josh Meredith or Josh Johnson?
+             * comment 4 (2:04pm): I'm Josh Johnson! Not the rapper Josh Meredith.
+             * comment 5 (4:01pm): How's your day going?
+             * comment 6 (4:02pm): It's going well, what about you?
+             * comment 7 (4:04pm): I'm doing good thanks, writing some TypeScript types.
+             * comment 8 (4:05pm): Must be fun.
+             * comment 9 (4:06pm): Yeah.
+             *
+             * activity 0 (1:00pm): Task created.
+             * activity 1 (1:01pm): Task assigned to Caleb.
+             * activity 2 (4:00pm): Caleb updated the task priority to "High".
+             * activity 3 (4:03pm): Caleb updated the task notes.
+             * ```
+             *
+             * Now let's say we want to query the task's comments + activities in
+             * chronological order. The chronological order of this data is:
+             *
+             * ```
+             * activity 0 (1:00pm): Task created.
+             * activity 1 (1:01pm): Task assigned to Caleb.
+             *
+             * comment 0 (2:00pm): Hello, world!
+             * comment 1 (2:01pm): My name is Caleb.
+             * comment 2 (2:02pm): My name is Josh.
+             * comment 3 (2:03pm): Josh Meredith or Josh Johnson?
+             * comment 4 (2:04pm): I'm Josh Johnson! Not the rapper Josh Meredith.
+             *
+             * activity 2 (4:00pm): Caleb updated the task priority to "High".
+             *
+             * comment 5 (4:01pm): How's your day going?
+             * comment 6 (4:02pm): It's going well, what about you?
+             *
+             * activity 3 (4:03pm): Caleb updated the task notes.
+             *
+             * comment 7 (4:04pm): I'm doing good thanks, writing some TypeScript types.
+             * comment 8 (4:05pm): Must be fun.
+             * comment 9 (4:06pm): Yeah.
+             * ```
+             *
+             * If we want the last 8 comment + activity items that would be two activities
+             * and six comments.
+             *
+             * Returning to our `partitionConfig` this query isn't supported because all
+             * the data in a sort range is homogenous! We can only load comments and
+             * activities separately. We can't run one query to load comments and
+             * activities together (stopping once we reach some limit).
+             *
+             * `childSortRanges` lets you have heterogenous data mixed within a
+             * sort range. Instead if you model the partition like this:
+             *
+             * ```
+             * const partitionConfig = {
+             *     name: "Task",
+             *     partitionKeyAttributes: {
+             *         taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+             *     },
+             *     sortRanges: [
+             *         {
+             *             name: "Attributes",
+             *             sortKeyAttributes: {},
+             *         },
+             *         {
+             *             name: "Comments",
+             *             sortKeyAttributes: {
+             *                 commentIndex: DynamoKeyAttributeSchema.integer,
+             *             },
+             *             attributes: Schema.object({
+             *                 // ...
+             *             }),
+             *             childSortRanges: [
+             *                 {
+             *                     name: "Activity",
+             *                     sortKeyAttributes: {
+             *                         createdTime: DynamoKeyAttributeSchema.integer,
+             *                     },
+             *                     attributes: Schema.object({
+             *                         // ...
+             *                     }),
+             *                 },
+             *             ],
+             *         },
+             *     ],
+             * };
+             * ```
+             *
+             * Now you can have `Comment#Activity` items that are interleaved with
+             * `Comment` items. `Comment#Activity` items have a sort key that's the parent
+             * `sortKeyAttributes` plus the child `sortKeyAttributes` (so `commentIndex`
+             * plus `createdTime` in this case). They're sorted under the parent item with
+             * the same sort key.
+             */
+            readonly childSortRanges?: ReadonlyArray<ChildConfigBase>;
         };
+
+        export type ChildConfigBase = Omit<ConfigBase, "childSortRanges">;
 
         export type Description = {
             readonly id: number;
@@ -428,37 +713,119 @@ export namespace DynamoTableSchemaTypes {
                 readonly [key: string]: DynamoKeyAttributeSchemaDescription;
             };
             readonly attributesSchema: SchemaSerializedValueDescription;
+            readonly childSortRangeByType: {
+                readonly [type: string]: ChildDescription;
+            };
         };
+
+        type ChildDescription = Omit<Description, "childSortRangeByType">;
 
         export type SortKeyTypes<Config extends ReadonlyArray<ConfigBase>> = {
             [Index in keyof Config]: SortKeyType<Config[Index]>;
         }[number];
 
-        type SortKeyType<Config extends ConfigBase> = MergeObjectIntersection<
+        type SortKeyType<Config extends ConfigBase> =
+            | MergeObjectIntersection<
+                  {
+                      readonly sortRangeType: Config["name"];
+                  } & KeyAttributes.Type<Config["sortKeyAttributes"]>
+              >
+            | (Config extends {
+                  childSortRanges: infer ChildConfig extends ReadonlyArray<ChildConfigBase>;
+              }
+                  ? ChildSortKeyTypes<Config, ChildConfig>
+                  : never);
+
+        type ChildSortKeyTypes<
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ReadonlyArray<ChildConfigBase>,
+        > = {
+            [Index in keyof ChildConfig]: ChildSortKeyType<ParentConfig, ChildConfig[Index]>;
+        }[number];
+
+        type ChildSortKeyType<
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ChildConfigBase,
+        > = MergeObjectIntersection<
             {
-                readonly sortRangeType: Config["name"];
-            } & KeyAttributes.Type<Config["sortKeyAttributes"]>
+                readonly sortRangeType: `${ParentConfig["name"]}#${ChildConfig["name"]}`;
+            } & KeyAttributes.Type<ChildConfig["sortKeyAttributes"]>
         >;
 
         export type ItemTypeTypes<Config extends ReadonlyArray<ConfigBase>> = {
-            [Index in keyof Config]: {
-                readonly sortRangeType: Config[Index]["name"];
-            };
+            [Index in keyof Config]: ItemTypeType<Config[Index]>;
         }[number];
+
+        type ItemTypeType<Config extends ConfigBase> =
+            | {
+                  readonly sortRangeType: Config["name"];
+              }
+            | (Config extends {
+                  childSortRanges: infer ChildConfig extends ReadonlyArray<ChildConfigBase>;
+              }
+                  ? ChildItemTypeTypes<Config, ChildConfig>
+                  : never);
+
+        type ChildItemTypeTypes<
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ReadonlyArray<ChildConfigBase>,
+        > = {
+            [Index in keyof ChildConfig]: ChildItemTypeType<ParentConfig, ChildConfig[Index]>;
+        }[number];
+
+        type ChildItemTypeType<
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ChildConfigBase,
+        > = {
+            readonly sortRangeType: `${ParentConfig["name"]}#${ChildConfig["name"]}`;
+        };
 
         export type ItemKeyTypes<Config extends ReadonlyArray<ConfigBase>> = {
             [Index in keyof Config]: ItemKeyType<Config[Index]>;
         }[number];
 
-        type ItemKeyType<Config extends ConfigBase> = {
-            readonly sortRangeType: Config["name"];
-        } & KeyAttributes.Type<Config["sortKeyAttributes"]>;
+        type ItemKeyType<Config extends ConfigBase> =
+            | ({
+                  readonly sortRangeType: Config["name"];
+              } & KeyAttributes.Type<Config["sortKeyAttributes"]>)
+            | (Config extends {
+                  childSortRanges: infer ChildConfig extends ReadonlyArray<ChildConfigBase>;
+              }
+                  ? ChildItemKeyTypes<Config, ChildConfig>
+                  : never);
+
+        type ChildItemKeyTypes<
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ReadonlyArray<ChildConfigBase>,
+        > = {
+            [Index in keyof ChildConfig]: ChildItemKeyType<ParentConfig, ChildConfig[Index]>;
+        }[number];
+
+        type ChildItemKeyType<
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ChildConfigBase,
+        > = {
+            readonly sortRangeType: `${ParentConfig["name"]}#${ChildConfig["name"]}`;
+        } & KeyAttributes.Type<ParentConfig["sortKeyAttributes"]> &
+            KeyAttributes.Type<ChildConfig["sortKeyAttributes"]>;
 
         export type ItemTypes<
             PartitionConfig extends Partition.ConfigBase,
             Config extends ReadonlyArray<ConfigBase>,
         > = {
             [Index in keyof Config]: ItemType<PartitionConfig, Config[Index]>;
+        }[number];
+
+        export type ChildItemTypes<
+            PartitionConfig extends Partition.ConfigBase,
+            ParentConfig extends ConfigBase,
+            ChildConfig extends ReadonlyArray<ChildConfigBase>,
+        > = {
+            [Index in keyof ChildConfig]: ChildItemType<
+                PartitionConfig,
+                ParentConfig,
+                ChildConfig[Index]
+            >;
         }[number];
     }
 

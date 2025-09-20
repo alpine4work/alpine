@@ -115,6 +115,24 @@ export const ChatTable = DynamoTableSchema.new({
                         createdTime: Schema.date,
                         payload: MessagePayloadSchema,
                     }),
+                    childSortRanges: [
+                        {
+                            name: "AgentResponse",
+                            sortKeyAttributes: {},
+                            attributes: Schema.object({
+                                test1: Schema.integer,
+                            }),
+                        },
+                        {
+                            name: "AgentResponsePart",
+                            sortKeyAttributes: {
+                                partIndex: DynamoKeyAttributeSchema.integer,
+                            },
+                            attributes: Schema.object({
+                                test2: Schema.integer,
+                            }),
+                        },
+                    ],
                 },
 
                 /**

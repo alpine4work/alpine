@@ -72,6 +72,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {
@@ -83,26 +84,33 @@ import {
     objectSchemaMissingPropertySymbol,
 } from "~/shared/schema/schema.js";
 
+// Never actually used at runtime. Only used by the type system.
+declare const typesSymbol: unique symbol;
+
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
-    Schema extends DynamoTableSchema<infer Types> ? Types : never;
+    Schema[typeof typesSymbol];
 
 export type DynamoTableItemKeyType<
     Schema extends DynamoTableSchema<any>,
     PartitionType extends string,
     SortRangeType extends string,
 > = MergeObjectIntersection<
-    DynamoTableSchemaGetTypes<Schema>["ItemKey"] & {
-        readonly partitionType: PartitionType;
-        readonly sortRangeType: SortRangeType;
-    }
+    Extract<
+        DynamoTableSchemaGetTypes<Schema>["ItemKey"],
+        {
+            readonly partitionType: PartitionType;
+            readonly sortRangeType: SortRangeType;
+        }
+    >
 >;
 
 export type DynamoTableItemType<
     Schema extends DynamoTableSchema<any>,
     PartitionType extends string,
     SortRangeType extends string,
-> = MergeObjectIntersection<
-    DynamoTableSchemaGetTypes<Schema>["Item"] & {
+> = Extract<
+    DynamoTableSchemaGetTypes<Schema>["Item"],
+    {
         readonly partitionType: PartitionType;
         readonly sortRangeType: SortRangeType;
     }
@@ -115,7 +123,7 @@ export type DynamoTableIndexItemType<Schema extends DynamoTableSchemaIndex<any, 
         infer IndexPartitionKey,
         infer IndexSortKey
     >
-        ? MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>
+        ? Extract<QueryItem, IndexPartitionKey & IndexSortKey>
         : never;
 
 const DynamoTableItemSharedAttributesSchema: ObjectSchema<DynamoTableSchemaTypes.ItemSharedAttributes> =
@@ -254,6 +262,8 @@ export type DynamoTableSchemaTypesBase = Replace<
  * - Queries use async iterators to transparently paginate.
  */
 export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
+    public readonly [typesSymbol]!: Types;
+
     private readonly _name: string;
 
     /**
@@ -275,6 +285,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 string,
                 DynamoTableSchemaTypes.SortRange.ConfigBase & {
                     readonly index: number;
+                    readonly childSortRangeByName: Map<
+                        string,
+                        DynamoTableSchemaTypes.SortRange.ChildConfigBase & {
+                            readonly index: number;
+                        }
+                    >;
                 }
             >;
         }
@@ -460,7 +476,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     sortRangeByName: new Map(
                         partitionConfig.sortRanges.map((sortRange, index) => [
                             sortRange.name,
-                            Object.assign(sortRange, {index}),
+                            Object.assign(sortRange, {
+                                index,
+                                childSortRangeByName: new Map(
+                                    (sortRange.childSortRanges ?? []).map(
+                                        (childSortRange, index) => [
+                                            childSortRange.name,
+                                            Object.assign(childSortRange, {index}),
+                                        ],
+                                    ),
+                                ),
+                            }),
                         ]),
                     ),
                 }),
@@ -909,24 +935,63 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     private _serializeSortKey<PartitionKey extends Types["PartitionKey"]>(
         partitionKey: PartitionKey,
         sortKey: Types["SortKeyMap"][PartitionKey["partitionType"]],
-    ) {
+    ): string {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType);
         const partitionDescription =
             this._initializationState.description.partitionByType[partitionKey.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
-        const sortRangeConfig = partitionConfig.sortRangeByName.get(sortKey.sortRangeType);
-        const sortRangeDescription = partitionDescription.sortRangeByType[sortKey.sortRangeType];
-        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
-        const sortKeyEntries = [sortRangeDescription.orderKey, sortKey.sortRangeType];
-        for (const [attributeKey, attributeSchema] of Object.entries(
-            sortRangeConfig.sortKeyAttributes,
-        )) {
-            sortKeyEntries.push(attributeSchema.serialize(sortKey[attributeKey]));
+        if (!sortKey.sortRangeType.includes("#")) {
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortKey.sortRangeType);
+            const sortRangeDescription =
+                partitionDescription.sortRangeByType[sortKey.sortRangeType];
+            assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+            const sortKeyEntries = [sortRangeDescription.orderKey, sortKey.sortRangeType];
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                sortKeyEntries.push(attributeSchema.serialize(sortKey[attributeKey]));
+            }
+
+            return sortKeyEntries.join(dynamoKeySeparator);
+        } else {
+            const [sortRangeType, childSortRangeType] = sortKey.sortRangeType.split("#", 2) as [
+                string,
+                string,
+            ];
+
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
+            const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
+            assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+            const childSortRangeConfig =
+                sortRangeConfig.childSortRangeByName.get(childSortRangeType);
+            const childSortRangeDescription =
+                sortRangeDescription.childSortRangeByType[childSortRangeType];
+            assert(childSortRangeConfig && childSortRangeDescription, "Invalid child sort range");
+
+            const sortKeyEntries = [sortRangeDescription.orderKey, sortRangeType];
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                sortKeyEntries.push(attributeSchema.serialize(sortKey[attributeKey]));
+            }
+
+            sortKeyEntries.push(childSortRangeDescription.orderKey, childSortRangeType);
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                childSortRangeConfig.sortKeyAttributes,
+            )) {
+                sortKeyEntries.push(attributeSchema.serialize(sortKey[attributeKey]));
+            }
+
+            const serializedSortKey = sortKeyEntries.join(dynamoKeySeparator);
+
+            return serializedSortKey;
         }
-
-        return sortKeyEntries.join(dynamoKeySeparator);
     }
 
     private _serializeItemKey(key: Types["ItemKey"] | Types["Item"]): {
@@ -939,9 +1004,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const partitionDescription =
             this._initializationState.description.partitionByType[key.partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition");
-        const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
-        const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
-        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
         const partitionKeyEntries = [key.partitionType];
         for (const [attributeKey, attributeSchema] of Object.entries(
@@ -950,21 +1012,67 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
         }
 
-        const sortKeyEntries = [sortRangeDescription.orderKey, key.sortRangeType];
-        for (const [attributeKey, attributeSchema] of Object.entries(
-            sortRangeConfig.sortKeyAttributes,
-        )) {
-            sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
-        }
-
         const serializedPartitionKey = partitionKeyEntries.join(dynamoKeySeparator);
-        const serializedSortKey = sortKeyEntries.join(dynamoKeySeparator);
 
-        return {
-            partitionKey: serializedPartitionKey,
-            sortKey: serializedSortKey,
-            attributesSchema: sortRangeConfig.attributes,
-        };
+        if (!key.sortRangeType.includes("#")) {
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
+            const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
+            assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+            const sortKeyEntries = [sortRangeDescription.orderKey, key.sortRangeType];
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+            }
+
+            const serializedSortKey = sortKeyEntries.join(dynamoKeySeparator);
+
+            return {
+                partitionKey: serializedPartitionKey,
+                sortKey: serializedSortKey,
+                attributesSchema: sortRangeConfig.attributes,
+            };
+        } else {
+            const [sortRangeType, childSortRangeType] = key.sortRangeType.split("#", 2) as [
+                string,
+                string,
+            ];
+
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
+            const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
+            assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+            const childSortRangeConfig =
+                sortRangeConfig.childSortRangeByName.get(childSortRangeType);
+            const childSortRangeDescription =
+                sortRangeDescription.childSortRangeByType[childSortRangeType];
+            assert(childSortRangeConfig && childSortRangeDescription, "Invalid child sort range");
+
+            const sortKeyEntries = [sortRangeDescription.orderKey, sortRangeType];
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+            }
+
+            sortKeyEntries.push(childSortRangeDescription.orderKey, childSortRangeType);
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                childSortRangeConfig.sortKeyAttributes,
+            )) {
+                sortKeyEntries.push(attributeSchema.serialize(key[attributeKey]));
+            }
+
+            const serializedSortKey = sortKeyEntries.join(dynamoKeySeparator);
+
+            return {
+                partitionKey: serializedPartitionKey,
+                sortKey: serializedSortKey,
+                attributesSchema: childSortRangeConfig.attributes,
+            };
+        }
     }
 
     /**
@@ -993,6 +1101,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const partitionDescription =
             this._initializationState.description.partitionByType[partitionType];
         assert(partitionConfig && partitionDescription, "Invalid partition key");
+
         const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
         const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeType];
         assert(sortRangeConfig && sortRangeDescription, "Invalid sort key");
@@ -1002,6 +1111,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const key: any = {partitionType};
 
         let partitionKeyEntryIndex = 1;
+
         for (const [attributeKey, attributeSchema] of Object.entries(
             partitionConfig.partitionKeyAttributes,
         )) {
@@ -1012,9 +1122,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             );
         }
 
+        assert(partitionKeyEntryIndex === partitionKeyEntries.length, "Invalid partition key");
+
         key.sortRangeType = sortRangeType;
 
         let sortKeyEntryIndex = 2;
+
         for (const [attributeKey, attributeSchema] of Object.entries(
             sortRangeConfig.sortKeyAttributes,
         )) {
@@ -1023,10 +1136,46 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             key[attributeKey] = attributeSchema.deserialize(sortKeyEntry as DynamoKeyAttribute);
         }
 
-        return {
-            key,
-            attributesSchema: sortRangeConfig.attributes,
-        };
+        if (sortKeyEntryIndex === sortKeyEntries.length) {
+            return {
+                key,
+                attributesSchema: sortRangeConfig.attributes,
+            };
+        } else {
+            const childSortRangeType = sortKeyEntries[sortKeyEntryIndex + 1];
+            assert(childSortRangeType, "Invalid sort key");
+
+            const childSortRangeConfig =
+                sortRangeConfig.childSortRangeByName.get(childSortRangeType);
+            const childSortRangeDescription =
+                sortRangeDescription.childSortRangeByType[childSortRangeType];
+            assert(childSortRangeConfig && childSortRangeDescription, "Invalid sort key");
+
+            assert(
+                sortKeyEntries[sortKeyEntryIndex] === childSortRangeDescription.orderKey,
+                "Invalid sort key",
+            );
+
+            key.sortRangeType += `#${childSortRangeType}`;
+
+            sortKeyEntryIndex++;
+            sortKeyEntryIndex++;
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                childSortRangeConfig.sortKeyAttributes,
+            )) {
+                const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
+                assert(sortKeyEntry !== undefined, "Invalid sort key");
+                key[attributeKey] = attributeSchema.deserialize(sortKeyEntry as DynamoKeyAttribute);
+            }
+
+            assert(sortKeyEntryIndex === sortKeyEntries.length, "Invalid sort key");
+
+            return {
+                key,
+                attributesSchema: childSortRangeConfig.attributes,
+            };
+        }
     }
 
     private _serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): {
@@ -1590,7 +1739,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
-    ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
+    ): Promise<MergeObjectIntersection<
+        Key & Pick<Extract<Types["Item"], Key>, Attributes>
+    > | null> {
         const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
@@ -1702,7 +1853,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             attributes: Array<Attributes>;
             consistency?: DynamoCacheReadConsistency;
         },
-    ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>>> {
+    ): Promise<MergeObjectIntersection<Key & Pick<Extract<Types["Item"], Key>, Attributes>>> {
         const item = await this.getPartialItemIfExists(context, key, options);
 
         if (!item) {
@@ -1924,7 +2075,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     ? initialItem
                     : await this.getItemIfExists(context, key);
 
-            const newItem: (Types["Item"] & Key) | null = await (update as any)(item);
+            const newItem: Extract<Types["Item"], Key> | null = await (update as any)(item);
 
             // Noop update if item didn't change.
             if (item === newItem) {
@@ -2210,7 +2361,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         {
             condition,
         }: {
-            condition?: DynamoCondition<Types["Item"] & Key>;
+            condition?: DynamoCondition<Extract<Types["Item"], Key>>;
         } = {},
     ): Promise<void> {
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
@@ -2277,7 +2428,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             isConditionCheckErrorRetriable,
         }:
             | {
-                  condition: DynamoCondition<Types["Item"] & Key>;
+                  condition: DynamoCondition<Extract<Types["Item"], Key>>;
                   /**
                    * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
                    * is set.
@@ -2649,7 +2800,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         {
             condition,
         }: {
-            condition?: DynamoCondition<Types["Item"] & Key>;
+            condition?: DynamoCondition<Extract<Types["Item"], Key>>;
         } = {},
     ) {
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
@@ -2698,7 +2849,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             isConditionCheckErrorRetriable,
         }:
             | {
-                  condition: DynamoCondition<Types["Item"] & Key>;
+                  condition: DynamoCondition<Extract<Types["Item"], Key>>;
                   /**
                    * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
                    * is set.
@@ -2781,7 +2932,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public transactionConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
-        condition?: DynamoCondition<Types["Item"] & Key>,
+        condition?: DynamoCondition<Extract<Types["Item"], Key>>,
         {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
@@ -2903,7 +3054,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     >(
         key: Key,
         attribute: Attribute,
-        attributeValue: (Types["Item"] & Key)[Attribute],
+        attributeValue: Extract<Types["Item"], Key>[Attribute],
         {updateLockVersion}: {updateLockVersion: number | undefined},
     ): DynamoTransactionEntry {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
@@ -3115,7 +3266,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         context: DynamoContext,
         keys: Keys,
     ): Promise<{
-        [Index in keyof Keys]: MergeObjectIntersection<Types["Item"] & Keys[Index]> | null;
+        [Index in keyof Keys]: Extract<Types["Item"], Keys[Index]> | null;
     }> {
         const run = async (retry: (error?: unknown) => never) => {
             const client = await this._getClient(context, false);
@@ -3207,11 +3358,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             endSortKey?: EndSortKey | undefined;
             isStartSortKeyExclusive?: boolean;
             isEndSortKeyExclusive?: boolean;
-            afterItemKey?: MergeObjectIntersection<
-                Types["ItemKey"] &
-                    PartitionKey & {
-                        readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
-                    }
+            afterItemKey?: Extract<
+                Types["ItemKey"],
+                PartitionKey & {
+                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                }
             >;
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
@@ -3222,11 +3373,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             allowsEventualReadConsistency?: boolean;
         },
     ): AsyncIterableIterator<
-        MergeObjectIntersection<
-            Types["Item"] &
-                PartitionKey & {
-                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
-                }
+        Extract<
+            Types["Item"],
+            PartitionKey & {
+                readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+            }
         >
     > {
         const client = await this._getClient(context, false);
@@ -3355,6 +3506,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 const partitionDescription =
                     this._initializationState.description.partitionByType[filter.partitionType];
                 assert(partitionDescription, "Invalid partition");
+
+                // NOTE(calebmer): There's no reason we couldn't support a child sort range
+                // here. We just haven't needed it yet. To support we'd need to use the
+                // `contains(sortKey, childSortRangeType)` DynamoDB filter expression with the
+                // child sort range and we'd probably also need to double check the filter when
+                // iterating over items since `contains(sortKey, childSortRangeType)` might
+                // catch the sort range type in a string key attribute.
+                if (filter.sortRangeType.includes("#")) {
+                    throw new UnimplementedError(
+                        "Child sort range support isn’t implemented for filters in `expensiveScan()`",
+                    );
+                }
+
                 const sortRangeDescription =
                     partitionDescription.sortRangeByType[filter.sortRangeType];
                 assert(sortRangeDescription, "Invalid sort range");
@@ -3912,6 +4076,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         for (const {partitionType, sortRangeType} of itemTypes) {
             const partitionConfig = this._partitionConfigByName.get(partitionType);
             assert(partitionConfig, "Invalid partition");
+
+            // NOTE(calebmer): There's no reason we couldn't support a child sort range
+            // here. We just haven't needed it yet. To support we'd need to look at the
+            // child sort range's attributes instead of `sortRangeConfig.attributes`.
+            if (sortRangeType.includes("#")) {
+                throw new UnimplementedError(
+                    "Child sort range support isn’t implemented for `addIndex()`",
+                );
+            }
+
             const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
             assert(sortRangeConfig, "Invalid sort range");
 
@@ -4771,8 +4945,8 @@ export type DynamoTableSchemaIndexKeyAttributesConfigBase<
     Types extends DynamoTableSchemaTypesBase,
     ItemTypes extends Types["ItemType"],
 > = {
-    [K in keyof (Types["Item"] & ItemTypes)]?: DynamoKeyAttributeSchema<
-        (Types["Item"] & ItemTypes)[K]
+    [K in keyof Extract<Types["Item"], ItemTypes>]?: DynamoKeyAttributeSchema<
+        Extract<Types["Item"], ItemTypes>[K]
     >;
 };
 
@@ -4827,7 +5001,7 @@ export type DynamoTableSchemaIndexConfigOptions<
      */
     filter?: (
         item: MergeObjectIntersection<
-            (Types["ItemKey"] & ItemTypes) &
+            Extract<Types["ItemKey"], ItemTypes> &
                 DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig> &
                 DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
         >,
@@ -4998,242 +5172,15 @@ function getAndCheckDynamoTableSchemaDescriptions(
 } {
     const lastDescription = dynamoGeneratedSchemaDescription.tableByName[config.name] ?? null;
 
-    const partitionIds = new Set();
-
-    // Add all of the last partition IDs to a set so we don't reuse them for new
-    // partitions...
-    for (const lastPartitionDescription of Object.values(lastDescription?.partitionByType ?? {})) {
-        assert(
-            !partitionIds.has(lastPartitionDescription.id),
-            "Found duplicate partition ID in table",
-        );
-        partitionIds.add(lastPartitionDescription.id);
-    }
-
     const description: DynamoTableSchemaTypes.Description = {
         name: config.name,
-        partitionByType: Object.fromEntries(
-            config.partitions.map(partitionConfig => {
-                const lastPartitionDescription =
-                    lastDescription?.partitionByType[partitionConfig.name];
-
-                // Iterate through all our sort ranges, in order, finding contiguous subsets of
-                // the list which do not have an `OrderKey` in the last description. For these
-                // sort ranges generate new `OrderKey`s for our new description.
-                const sortRangeOrderKeyByType = new Map<string, OrderKey>();
-                let lastExistingSortRangeOrderKey: OrderKey | null = null;
-                let sortRangeTypesWithoutExistingOrderKey = [];
-
-                for (const sortRangeConfig of partitionConfig.sortRanges) {
-                    const existingSortRangeOrderKey =
-                        lastPartitionDescription?.sortRangeByType[sortRangeConfig.name]?.orderKey;
-
-                    if (!existingSortRangeOrderKey) {
-                        sortRangeTypesWithoutExistingOrderKey.push(sortRangeConfig.name);
-                    } else {
-                        // The order of `sortRanges` in our config object matters! It must be the same
-                        // as the order key order. Throw an error if we detect the developer may have
-                        // moved things around. That's a backwards incompatible change.
-                        if (
-                            lastExistingSortRangeOrderKey !== null &&
-                            lastExistingSortRangeOrderKey >= existingSortRangeOrderKey
-                        ) {
-                            throw new InvalidArgumentError(
-                                `Order key for sort range \`${sortRangeConfig.name}\` is less than a previous sort range order key. Did you reorder your sort range object?`,
-                            );
-                        }
-
-                        const newSortRangeOrderKeys = generateOrderKeysBetween(
-                            lastExistingSortRangeOrderKey,
-                            existingSortRangeOrderKey,
-                            sortRangeTypesWithoutExistingOrderKey.length,
-                        );
-
-                        for (
-                            let index = 0;
-                            index < sortRangeTypesWithoutExistingOrderKey.length;
-                            index++
-                        ) {
-                            sortRangeOrderKeyByType.set(
-                                sortRangeTypesWithoutExistingOrderKey[index]!,
-                                newSortRangeOrderKeys[index]!,
-                            );
-                        }
-
-                        lastExistingSortRangeOrderKey = existingSortRangeOrderKey;
-                        sortRangeTypesWithoutExistingOrderKey = [];
-                        sortRangeOrderKeyByType.set(
-                            sortRangeConfig.name,
-                            existingSortRangeOrderKey,
-                        );
-                    }
-                }
-
-                const newSortRangeOrderKeys = generateOrderKeysBetween(
-                    lastExistingSortRangeOrderKey,
-                    null,
-                    sortRangeTypesWithoutExistingOrderKey.length,
-                );
-
-                for (let index = 0; index < sortRangeTypesWithoutExistingOrderKey.length; index++) {
-                    sortRangeOrderKeyByType.set(
-                        sortRangeTypesWithoutExistingOrderKey[index]!,
-                        newSortRangeOrderKeys[index]!,
-                    );
-                }
-
-                // Assign our partition an ID if one was not already assigned. IDs are used in
-                // binary encodings related to the table.
-                let partitionId;
-                if (lastPartitionDescription && typeof lastPartitionDescription.id === "number") {
-                    // We already tested that `lastDescription` has unique partition IDs.
-                    partitionId = lastPartitionDescription.id;
-                } else {
-                    // Generate a new, unique, partition ID.
-                    partitionId = 0;
-                    while (partitionIds.has(partitionId)) {
-                        partitionId++;
-                    }
-                    partitionIds.add(partitionId);
-                }
-
-                // Partition IDs should be a valid uint8 so we can write it into a byte.
-                assert(
-                    Number.isInteger(partitionId) && partitionId >= 0 && partitionId <= 2 ** 8 - 1,
-                    "Invalid partition ID",
-                );
-
-                const sortRangeIds = new Set();
-
-                if (lastPartitionDescription) {
-                    for (const {id: sortRangeId} of Object.values(
-                        lastPartitionDescription.sortRangeByType,
-                    )) {
-                        assert(
-                            !sortRangeIds.has(sortRangeId),
-                            "Found duplicate sort range ID in partition",
-                        );
-
-                        sortRangeIds.add(sortRangeId);
-                    }
-                }
-
-                const partitionDescription: DynamoTableSchemaTypes.Partition.Description = {
-                    id: partitionId,
-                    partitionKeyAttributeByKey: mapObjectValues(
-                        partitionConfig.partitionKeyAttributes,
-                        keyAttribute => keyAttribute.description,
-                    ),
-                    sortRangeByType: Object.fromEntries(
-                        partitionConfig.sortRanges.map(sortRangeConfig => {
-                            const lastSortRangeDescription =
-                                lastPartitionDescription?.sortRangeByType[sortRangeConfig.name];
-
-                            // Assign our sort range an ID if one was not already assigned. IDs are used in
-                            // binary encodings related to the partition.
-                            let sortRangeId;
-                            if (
-                                lastSortRangeDescription &&
-                                typeof lastSortRangeDescription.id === "number"
-                            ) {
-                                sortRangeId = lastSortRangeDescription.id;
-                            } else {
-                                sortRangeId = 0;
-                                while (sortRangeIds.has(sortRangeId)) {
-                                    sortRangeId++;
-                                }
-
-                                assert(
-                                    !sortRangeIds.has(sortRangeId),
-                                    "Found duplicate sort range ID in partition",
-                                );
-
-                                sortRangeIds.add(sortRangeId);
-                            }
-
-                            // Partition IDs should be a valid uint8 so we can write it into a byte.
-                            assert(
-                                Number.isInteger(sortRangeId) &&
-                                    sortRangeId >= 0 &&
-                                    sortRangeId <= 2 ** 8 - 1,
-                                "Invalid sort range ID",
-                            );
-
-                            const sortRangeDescription: DynamoTableSchemaTypes.SortRange.Description =
-                                {
-                                    id: sortRangeId,
-                                    orderKey: sortRangeOrderKeyByType.get(sortRangeConfig.name)!,
-                                    sortKeyAttributeByKey: mapObjectValues(
-                                        sortRangeConfig.sortKeyAttributes,
-                                        keyAttribute => keyAttribute.description,
-                                    ),
-                                    attributesSchema: sortRangeConfig.attributes.getDescription(),
-                                };
-
-                            return [sortRangeConfig.name, sortRangeDescription];
-                        }),
-                    ),
-                };
-
-                return [partitionConfig.name, partitionDescription];
-            }),
+        partitionByType: getDynamoTableSchemaPartitionDescriptionByType(
+            lastDescription?.partitionByType,
+            config.partitions,
         ),
-        indexes: indexDescriptions.map((indexDescription, index) => {
-            const lastIndexDescription = lastDescription?.indexes[index];
-
-            // If the last index description uses a `Separate` partition key (e.g. indexes
-            // created before we added this reused partition key feature) then continue to
-            // use a `Separate` partition key.
-            const doesLastIndexDescriptionHaveSeparatePartitionKey =
-                !!lastIndexDescription &&
-                (lastIndexDescription.partitionKeyBehavior?.type ?? "Separate") === "Separate";
-
-            const canReusePartitionKeySet = new Set(
-                Object.values(indexDescription.overloadByName).map(
-                    indexOverloadDescription => indexOverloadDescription.canReusePartitionKey,
-                ),
-            );
-            assert(
-                canReusePartitionKeySet.size === 1,
-                "All overloads in index must have the same `canReusePartitionKey` setting",
-            );
-
-            const partitionTypeSet = new Set(
-                Object.values(indexDescription.overloadByName).flatMap(indexOverloadDescription =>
-                    indexOverloadDescription.itemTypes.map(({partitionType}) => partitionType),
-                ),
-            );
-
-            let partitionKeyBehavior: {type: "Separate"} | {type: "Reused"; partitionType: string};
-
-            if (!canReusePartitionKeySet.has(true)) {
-                partitionKeyBehavior = {type: "Separate"};
-            } else {
-                assert(
-                    partitionTypeSet.size === 1,
-                    "All overloads in index reusing partition key must have the same `partitionType`",
-                );
-
-                if (doesLastIndexDescriptionHaveSeparatePartitionKey) {
-                    partitionKeyBehavior = {type: "Separate"};
-                } else {
-                    partitionKeyBehavior = {
-                        type: "Reused",
-                        partitionType: Array.from(partitionTypeSet)[0]!,
-                    };
-                }
-            }
-
-            return {
-                projection: indexDescription.projection,
-                partitionKeyBehavior,
-                overloadByName: mapObjectValues(
-                    indexDescription.overloadByName,
-                    ({canReusePartitionKey, ...indexOverloadDescription}) =>
-                        indexOverloadDescription,
-                ),
-            };
-        }),
+        indexes: indexDescriptions.map((indexDescription, index) =>
+            getDynamoTableSchemaIndexDescription(lastDescription, indexDescription, index),
+        ),
     };
 
     // If we have a description saved, then verify our new description is backwards
@@ -5271,6 +5218,291 @@ function getAndCheckDynamoTableSchemaDescriptions(
         description,
         readCompatibilityError,
         writeCompatibilityError,
+    };
+}
+
+function getDynamoTableSchemaPartitionDescriptionByType(
+    lastPartitionDescriptionByType:
+        | {[key: string]: DynamoTableSchemaTypes.Partition.Description}
+        | undefined,
+    partitionConfigs: ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
+): {[key: string]: DynamoTableSchemaTypes.Partition.Description} {
+    const partitionIds = new Set<number>();
+
+    // Add all of the last partition IDs to a set so we don't reuse them for new
+    // partitions...
+    for (const lastPartitionDescription of Object.values(lastPartitionDescriptionByType ?? {})) {
+        assert(
+            !partitionIds.has(lastPartitionDescription.id),
+            "Found duplicate partition ID in table",
+        );
+        partitionIds.add(lastPartitionDescription.id);
+    }
+
+    return Object.fromEntries(
+        partitionConfigs.map(partitionConfig => {
+            const lastPartitionDescription = lastPartitionDescriptionByType?.[partitionConfig.name];
+
+            // Assign our partition an ID if one was not already assigned. IDs are used in
+            // binary encodings related to the table.
+            let partitionId;
+            if (lastPartitionDescription && typeof lastPartitionDescription.id === "number") {
+                // We already tested that `lastDescription` has unique partition IDs.
+                partitionId = lastPartitionDescription.id;
+            } else {
+                // Generate a new, unique, partition ID.
+                partitionId = 0;
+                while (partitionIds.has(partitionId)) {
+                    partitionId++;
+                }
+                partitionIds.add(partitionId);
+            }
+
+            // Partition IDs should be a valid uint8 so we can write it into a byte.
+            assert(
+                Number.isInteger(partitionId) && partitionId >= 0 && partitionId <= 2 ** 8 - 1,
+                "Invalid partition ID",
+            );
+
+            const partitionDescription: DynamoTableSchemaTypes.Partition.Description = {
+                id: partitionId,
+                partitionKeyAttributeByKey: mapObjectValues(
+                    partitionConfig.partitionKeyAttributes,
+                    keyAttribute => keyAttribute.description,
+                ),
+                sortRangeByType: getDynamoTableSchemaSortRangeDescriptionByType(
+                    lastPartitionDescription?.sortRangeByType,
+                    partitionConfig.sortRanges,
+                    {withChildSortRanges: true},
+                ),
+            };
+
+            return [partitionConfig.name, partitionDescription];
+        }),
+    );
+}
+
+function getDynamoTableSchemaSortRangeDescriptionByType(
+    lastSortRangeDescriptionByType:
+        | {[key: string]: DynamoTableSchemaTypes.SortRange.Description}
+        | undefined,
+    sortRangeConfigs: ReadonlyArray<DynamoTableSchemaTypes.SortRange.ConfigBase>,
+    options: {withChildSortRanges: true},
+): {
+    [name: string]: DynamoTableSchemaTypes.SortRange.Description;
+};
+function getDynamoTableSchemaSortRangeDescriptionByType(
+    lastSortRangeDescriptionByType:
+        | {
+              [key: string]: Omit<
+                  DynamoTableSchemaTypes.SortRange.Description,
+                  "childSortRangeByType"
+              >;
+          }
+        | undefined,
+    sortRangeConfigs: ReadonlyArray<DynamoTableSchemaTypes.SortRange.ChildConfigBase>,
+    options: {withChildSortRanges: false},
+): {
+    [name: string]: Omit<DynamoTableSchemaTypes.SortRange.Description, "childSortRangeByType">;
+};
+function getDynamoTableSchemaSortRangeDescriptionByType(
+    lastSortRangeDescriptionByType:
+        | {
+              [key: string]: PartialBy<
+                  DynamoTableSchemaTypes.SortRange.Description,
+                  "childSortRangeByType"
+              >;
+          }
+        | undefined,
+    sortRangeConfigs: ReadonlyArray<DynamoTableSchemaTypes.SortRange.ConfigBase>,
+    {withChildSortRanges}: {withChildSortRanges: boolean},
+): {
+    [name: string]: PartialBy<DynamoTableSchemaTypes.SortRange.Description, "childSortRangeByType">;
+} {
+    // Iterate through all our sort ranges, in order, finding contiguous subsets of
+    // the list which do not have an `OrderKey` in the last description. For these
+    // sort ranges generate new `OrderKey`s for our new description.
+    const sortRangeOrderKeyByType = new Map<string, OrderKey>();
+    let lastExistingSortRangeOrderKey: OrderKey | null = null;
+    let sortRangeTypesWithoutExistingOrderKey = [];
+
+    for (const sortRangeConfig of sortRangeConfigs) {
+        const existingSortRangeOrderKey =
+            lastSortRangeDescriptionByType?.[sortRangeConfig.name]?.orderKey;
+
+        if (!existingSortRangeOrderKey) {
+            sortRangeTypesWithoutExistingOrderKey.push(sortRangeConfig.name);
+        } else {
+            // The order of `sortRanges` in our config object matters! It must be the same
+            // as the order key order. Throw an error if we detect the developer may have
+            // moved things around. That's a backwards incompatible change.
+            if (
+                lastExistingSortRangeOrderKey !== null &&
+                lastExistingSortRangeOrderKey >= existingSortRangeOrderKey
+            ) {
+                throw new InvalidArgumentError(
+                    `Order key for sort range \`${sortRangeConfig.name}\` is less than a previous sort range order key. Did you reorder your sort range object?`,
+                );
+            }
+
+            const newSortRangeOrderKeys = generateOrderKeysBetween(
+                lastExistingSortRangeOrderKey,
+                existingSortRangeOrderKey,
+                sortRangeTypesWithoutExistingOrderKey.length,
+            );
+
+            for (let index = 0; index < sortRangeTypesWithoutExistingOrderKey.length; index++) {
+                sortRangeOrderKeyByType.set(
+                    sortRangeTypesWithoutExistingOrderKey[index]!,
+                    newSortRangeOrderKeys[index]!,
+                );
+            }
+
+            lastExistingSortRangeOrderKey = existingSortRangeOrderKey;
+            sortRangeTypesWithoutExistingOrderKey = [];
+            sortRangeOrderKeyByType.set(sortRangeConfig.name, existingSortRangeOrderKey);
+        }
+    }
+
+    const newSortRangeOrderKeys = generateOrderKeysBetween(
+        lastExistingSortRangeOrderKey,
+        null,
+        sortRangeTypesWithoutExistingOrderKey.length,
+    );
+
+    for (let index = 0; index < sortRangeTypesWithoutExistingOrderKey.length; index++) {
+        sortRangeOrderKeyByType.set(
+            sortRangeTypesWithoutExistingOrderKey[index]!,
+            newSortRangeOrderKeys[index]!,
+        );
+    }
+
+    const sortRangeIds = new Set<number>();
+
+    for (const {id: sortRangeId} of Object.values(lastSortRangeDescriptionByType ?? {})) {
+        assert(!sortRangeIds.has(sortRangeId), "Found duplicate sort range ID in partition");
+
+        sortRangeIds.add(sortRangeId);
+    }
+
+    return Object.fromEntries(
+        sortRangeConfigs.map(sortRangeConfig => {
+            const lastSortRangeDescription = lastSortRangeDescriptionByType?.[sortRangeConfig.name];
+
+            // Assign our sort range an ID if one was not already assigned. IDs are used in
+            // binary encodings related to the partition.
+            let sortRangeId;
+            if (lastSortRangeDescription && typeof lastSortRangeDescription.id === "number") {
+                sortRangeId = lastSortRangeDescription.id;
+            } else {
+                sortRangeId = 0;
+                while (sortRangeIds.has(sortRangeId)) {
+                    sortRangeId++;
+                }
+
+                assert(
+                    !sortRangeIds.has(sortRangeId),
+                    "Found duplicate sort range ID in partition",
+                );
+
+                sortRangeIds.add(sortRangeId);
+            }
+
+            // Partition IDs should be a valid uint8 so we can write it into a byte.
+            assert(
+                Number.isInteger(sortRangeId) && sortRangeId >= 0 && sortRangeId <= 2 ** 8 - 1,
+                "Invalid sort range ID",
+            );
+
+            const sortRangeDescription: PartialBy<
+                DynamoTableSchemaTypes.SortRange.Description,
+                "childSortRangeByType"
+            > = {
+                id: sortRangeId,
+                orderKey: assertExists(sortRangeOrderKeyByType.get(sortRangeConfig.name)),
+                sortKeyAttributeByKey: mapObjectValues(
+                    sortRangeConfig.sortKeyAttributes,
+                    keyAttribute => keyAttribute.description,
+                ),
+                attributesSchema: sortRangeConfig.attributes.getDescription(),
+                childSortRangeByType: withChildSortRanges
+                    ? getDynamoTableSchemaSortRangeDescriptionByType(
+                          lastSortRangeDescription?.childSortRangeByType,
+                          sortRangeConfig.childSortRanges ?? [],
+                          {withChildSortRanges: false},
+                      )
+                    : undefined,
+            };
+
+            return [sortRangeConfig.name, sortRangeDescription];
+        }),
+    );
+}
+
+function getDynamoTableSchemaIndexDescription(
+    lastDescription: DynamoTableSchemaTypes.Description | null,
+    indexDescription: {
+        readonly projection: "KeysOnly" | "All";
+        readonly overloadByName: {
+            [name: string]: DynamoTableSchemaTypes.Index.OverloadDescription & {
+                readonly canReusePartitionKey: boolean;
+            };
+        };
+    },
+    index: number,
+): DynamoTableSchemaTypes.Index.Description {
+    const lastIndexDescription = lastDescription?.indexes[index];
+
+    // If the last index description uses a `Separate` partition key (e.g. indexes
+    // created before we added this reused partition key feature) then continue to
+    // use a `Separate` partition key.
+    const doesLastIndexDescriptionHaveSeparatePartitionKey =
+        !!lastIndexDescription &&
+        (lastIndexDescription.partitionKeyBehavior?.type ?? "Separate") === "Separate";
+
+    const canReusePartitionKeySet = new Set(
+        Object.values(indexDescription.overloadByName).map(
+            indexOverloadDescription => indexOverloadDescription.canReusePartitionKey,
+        ),
+    );
+    assert(
+        canReusePartitionKeySet.size === 1,
+        "All overloads in index must have the same `canReusePartitionKey` setting",
+    );
+
+    const partitionTypeSet = new Set(
+        Object.values(indexDescription.overloadByName).flatMap(indexOverloadDescription =>
+            indexOverloadDescription.itemTypes.map(({partitionType}) => partitionType),
+        ),
+    );
+
+    let partitionKeyBehavior: {type: "Separate"} | {type: "Reused"; partitionType: string};
+
+    if (!canReusePartitionKeySet.has(true)) {
+        partitionKeyBehavior = {type: "Separate"};
+    } else {
+        assert(
+            partitionTypeSet.size === 1,
+            "All overloads in index reusing partition key must have the same `partitionType`",
+        );
+
+        if (doesLastIndexDescriptionHaveSeparatePartitionKey) {
+            partitionKeyBehavior = {type: "Separate"};
+        } else {
+            partitionKeyBehavior = {
+                type: "Reused",
+                partitionType: Array.from(partitionTypeSet)[0]!,
+            };
+        }
+    }
+
+    return {
+        projection: indexDescription.projection,
+        partitionKeyBehavior,
+        overloadByName: mapObjectValues(
+            indexDescription.overloadByName,
+            ({canReusePartitionKey, ...indexOverloadDescription}) => indexOverloadDescription,
+        ),
     };
 }
 
@@ -5361,14 +5593,21 @@ function checkDynamoTableSchemaPartitionDescriptionBackwardsCompatibility(
         }
     }
 
-    for (const sortRange of missingSortRangeTypes)
-        throw new InvalidArgumentError(`Sort range \`${sortRange}\` is missing`);
+    for (const sortRangeType of missingSortRangeTypes) {
+        throw new InvalidArgumentError(`Sort range \`${sortRangeType}\` is missing`);
+    }
 }
 
 function checkDynamoTableSchemaSortRangeDescriptionBackwardsCompatibility(
     type: string,
-    lastDescription: DynamoTableSchemaTypes.SortRange.Description,
-    nextDescription: DynamoTableSchemaTypes.SortRange.Description,
+    lastDescription: PartialBy<
+        DynamoTableSchemaTypes.SortRange.Description,
+        "childSortRangeByType"
+    >,
+    nextDescription: PartialBy<
+        DynamoTableSchemaTypes.SortRange.Description,
+        "childSortRangeByType"
+    >,
 ): void {
     const lastKeyAttributeDescriptions = Object.values(lastDescription.sortKeyAttributeByKey);
     const nextKeyAttributeDescriptions = Object.values(nextDescription.sortKeyAttributeByKey);
@@ -5385,6 +5624,28 @@ function checkDynamoTableSchemaSortRangeDescriptionBackwardsCompatibility(
         lastDescription.attributesSchema,
         nextDescription.attributesSchema,
     );
+
+    if (lastDescription.childSortRangeByType) {
+        const missingChildSortRangeTypes = new Set(
+            Object.keys(lastDescription.childSortRangeByType),
+        );
+
+        for (const [childSortRangeType, nextSortRangeSchemaDescription] of Object.entries(
+            nextDescription.childSortRangeByType ?? {},
+        )) {
+            if (missingChildSortRangeTypes.delete(childSortRangeType)) {
+                checkDynamoTableSchemaSortRangeDescriptionBackwardsCompatibility(
+                    `${type}#${childSortRangeType}`,
+                    lastDescription.childSortRangeByType[childSortRangeType]!,
+                    nextSortRangeSchemaDescription,
+                );
+            }
+        }
+
+        for (const childSortRangeType of missingChildSortRangeTypes) {
+            throw new InvalidArgumentError(`Child sort range \`${childSortRangeType}\` is missing`);
+        }
+    }
 }
 
 function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(

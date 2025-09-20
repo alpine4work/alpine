@@ -73,4 +73,36 @@ test("`TupleDropBeforeAndTakeUntil` returns a tuple of types between two strings
             "f"
         >
     >().toEqualTypeOf<never>();
+
+    expectTypeOf<
+        DynamoTableSchemaTypes.Partition.TupleDropBeforeAndTakeUntil<
+            [
+                "Attributes",
+                "Account",
+                "Messages",
+                "Messages#AgentResponse",
+                "Messages#AgentResponsePart",
+                "MessageChangeLog",
+            ],
+            "Messages",
+            "Messages"
+        >
+    >().toEqualTypeOf<["Messages#AgentResponsePart", "Messages#AgentResponse", "Messages"]>();
+
+    expectTypeOf<
+        DynamoTableSchemaTypes.Partition.TupleDropBeforeAndTakeUntil<
+            [
+                "Attributes",
+                "Account",
+                "Messages",
+                "Messages#AgentResponse",
+                "Messages#AgentResponsePart",
+                "MessageChangeLog",
+            ],
+            "Messages",
+            "MessageChangeLog"
+        >
+    >().toEqualTypeOf<
+        ["MessageChangeLog", "Messages#AgentResponsePart", "Messages#AgentResponse", "Messages"]
+    >();
 });

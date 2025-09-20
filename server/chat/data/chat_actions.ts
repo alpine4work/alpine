@@ -2044,6 +2044,10 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 
     const messages = await runAllPromises(
         messageItems.map(item => {
+            // TODO(calebmer, #ai): We don't use the agent response child sort range
+            // here yet.
+            assert(item.sortRangeType === "Messages");
+
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedMessage(item.payload.parentMessageIndex);
             }
@@ -2121,12 +2125,18 @@ export async function getChatMessagePayloadsFromStart(
                 limit,
                 consistency,
             }),
-            item => ({
-                index: item.messageIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            item => {
+                // TODO(calebmer, #ai): We don't use the agent response child sort range
+                // here yet.
+                assert(item.sortRangeType === "Messages");
+
+                return {
+                    index: item.messageIndex,
+                    createdTime: item.createdTime,
+                    authorId: item.authorId,
+                    payload: item.payload,
+                };
+            },
         ),
     ]);
 
@@ -2286,6 +2296,10 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
 
     const messages = await runAllPromises(
         messageItems.map(item => {
+            // TODO(calebmer, #ai): We don't use the agent response child sort range
+            // here yet.
+            assert(item.sortRangeType === "Messages");
+
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedMessage(item.payload.parentMessageIndex);
             }
@@ -2366,12 +2380,18 @@ export async function getChatMessagePayloadsFromEnd(
                 descending: true,
                 consistency,
             }),
-            item => ({
-                index: item.messageIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            item => {
+                // TODO(calebmer, #ai): We don't use the agent response child sort range
+                // here yet.
+                assert(item.sortRangeType === "Messages");
+
+                return {
+                    index: item.messageIndex,
+                    createdTime: item.createdTime,
+                    authorId: item.authorId,
+                    payload: item.payload,
+                };
+            },
         ),
     ]);
 

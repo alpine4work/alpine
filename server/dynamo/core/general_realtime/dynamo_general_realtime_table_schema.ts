@@ -39,7 +39,7 @@ import {
     DynamoItemPartitionKey,
     DynamoItemSortKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -512,6 +512,20 @@ export class DynamoGeneralRealtimeTableSchema<
         DynamoGeneralRealtimeTableSchemaModelMapType<ModelsConfig>
     > {
         assert(modelSchema instanceof Schema);
+
+        for (const partition of partitions) {
+            for (const sortRange of partition.sortRanges) {
+                // NOTE(calebmer): There's no reason we couldn't support a child sort range
+                // here. We just haven't needed it yet. It's unclear what we'd need to fully
+                // implement child sort ranges for general realtime tables. Opaque item key
+                // serialization/deserialization probably needs to be updated.
+                if (sortRange.childSortRanges) {
+                    throw new UnimplementedError(
+                        "Child sort range support isn’t implemented for `DynamoGeneralRealtimeTableSchema`",
+                    );
+                }
+            }
+        }
 
         return new DynamoGeneralRealtimeTableSchema({
             table: DynamoTableSchema.new({
@@ -1860,7 +1874,7 @@ export class DynamoGeneralRealtimeTableSchema<
     >(
         itemKey: ItemKey,
         attribute: Attribute,
-        attributeValue: (Types["Item"] & ItemKey)[Attribute],
+        attributeValue: Extract<Types["Item"], ItemKey>[Attribute],
         options: {updateLockVersion: number | undefined},
     ): DynamoTransactionEntry {
         assert(

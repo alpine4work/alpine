@@ -84,7 +84,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Avatar": {
                             "id": 1,
@@ -120,7 +121,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Settings": {
                             "id": 2,
@@ -151,7 +153,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -230,7 +233,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -286,7 +290,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -319,7 +324,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -397,7 +403,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -495,7 +502,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -635,7 +643,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -685,7 +694,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -755,7 +765,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -871,7 +882,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Account": {
                             "id": 1,
@@ -909,7 +921,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Messages": {
                             "id": 2,
@@ -1590,6 +1603,44 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
+                            },
+                            "childSortRangeByType": {
+                                "AgentResponse": {
+                                    "id": 0,
+                                    "orderKey": "a0",
+                                    "sortKeyAttributeByKey": {},
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "test1": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": false
+                                            }
+                                        }
+                                    }
+                                },
+                                "AgentResponsePart": {
+                                    "id": 1,
+                                    "orderKey": "a1",
+                                    "sortKeyAttributeByKey": {
+                                        "partIndex": {
+                                            "type": "Integer"
+                                        }
+                                    },
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "test2": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": false
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         },
                         "MessageChangeLog": {
@@ -1662,7 +1713,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -1827,7 +1879,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -2893,7 +2946,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Attributes": {
                             "id": 0,
@@ -3033,7 +3087,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "StepTransactionsAfterSnapshot": {
                             "id": 1,
@@ -3883,7 +3938,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Snapshot": {
                             "id": 2,
@@ -3912,7 +3968,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "ReferencedCommentThread": {
                             "id": 3,
@@ -4813,7 +4870,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "ArchivedCommentThread": {
                             "id": 4,
@@ -4860,7 +4918,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "StepTransactionsBeforeSnapshot": {
                             "id": 5,
@@ -4912,7 +4971,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -4964,7 +5024,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "CommentChangeLog": {
                             "id": 1,
@@ -5036,7 +5097,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -5074,7 +5136,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Entry": {
                             "id": 1,
@@ -5303,7 +5366,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -5338,7 +5402,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Entry": {
                             "id": 1,
@@ -5368,7 +5433,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -5427,7 +5493,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "EntryBlock": {
                             "id": 1,
@@ -5466,7 +5533,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -5510,7 +5578,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "File": {
                             "id": 1,
@@ -6298,7 +6367,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -6337,7 +6407,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "DocumentAttachmentTarget": {
                             "id": 2,
@@ -6363,7 +6434,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "DocumentCommentsAttachmentTarget": {
                             "id": 3,
@@ -6389,7 +6461,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "PostAttachmentTarget": {
                             "id": 4,
@@ -6415,7 +6488,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "PostDraftAttachmentTarget": {
                             "id": 8,
@@ -6444,7 +6518,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "PostCommentsAttachmentTarget": {
                             "id": 5,
@@ -6470,7 +6545,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "TaskNotesAttachmentTarget": {
                             "id": 6,
@@ -6496,7 +6572,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "TaskCommentsAttachmentTarget": {
                             "id": 7,
@@ -6522,7 +6599,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -6621,7 +6699,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Subscription": {
                             "id": 1,
@@ -6647,7 +6726,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -7338,7 +7418,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Comments": {
                             "id": 1,
@@ -7377,7 +7458,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "CommentChangeLog": {
                             "id": 2,
@@ -7449,7 +7531,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -7498,7 +7581,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -7607,7 +7691,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Contributors": {
                             "id": 2,
@@ -7650,7 +7735,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "PostFiles": {
                             "id": 1,
@@ -7691,7 +7777,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -7804,7 +7891,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -7901,7 +7989,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -7931,7 +8020,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -8092,7 +8182,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -8222,7 +8313,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "PostCommentsEntry": {
                             "id": 2,
@@ -8342,7 +8434,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "ChannelPostsEntry": {
                             "id": 3,
@@ -8443,7 +8536,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "DocumentCommentThreadEntry": {
                             "id": 4,
@@ -8553,7 +8647,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "DocumentNewCommentThreadsEntry": {
                             "id": 5,
@@ -8660,7 +8755,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "TaskEntry": {
                             "id": 6,
@@ -8761,7 +8857,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -8804,7 +8901,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -8834,7 +8932,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -9044,7 +9143,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -9112,7 +9212,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -9180,7 +9281,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -9290,7 +9392,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -9462,7 +9565,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "AvatarLightTheme": {
                             "id": 3,
@@ -9492,7 +9596,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "AvatarDarkTheme": {
                             "id": 4,
@@ -9522,7 +9627,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Account": {
                             "id": 1,
@@ -9688,7 +9794,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "AccountAvatarOverride": {
                             "id": 5,
@@ -9722,7 +9829,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "AccountSettings": {
                             "id": 2,
@@ -9748,7 +9856,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -9786,7 +9895,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -9822,7 +9932,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -10653,7 +10764,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
@@ -10721,7 +10833,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "TaskCollectionAffinity": {
                             "id": 1,
@@ -10759,7 +10872,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "TaskActionTransactionLease": {
                             "id": 2,
@@ -10795,7 +10909,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -10962,7 +11077,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -11153,7 +11269,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "CommentsSummary": {
                             "id": 2,
@@ -11208,7 +11325,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Notes": {
                             "id": 1,
@@ -11827,7 +11945,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "Comments": {
                             "id": 3,
@@ -11866,7 +11985,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": true
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         },
                         "CommentChangeLog": {
                             "id": 4,
@@ -11938,7 +12058,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -11985,7 +12106,8 @@ export const dynamoGeneratedSchemaDescription: {
                                         "optional": false
                                     }
                                 }
-                            }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 }
