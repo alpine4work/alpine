@@ -30,20 +30,10 @@ function InternalSpaceAvatar({
     size: Spacing;
     theme: AvatarTheme;
 }) {
-    let avatarContent = null;
-    let avatarContentBackgroundColor: ColorSchemeVar | undefined = undefined;
-
-    // If we're showing a dynamic avatar and the space doesn't have the theme icon,
-    // just default to one we do have mode icon.
-    if (theme === "dark" && !space.avatars?.darkTheme?.content) {
-        avatarContent = space.avatars?.lightTheme?.content;
-        // Render the light theme avatar icon on a dark background.
-        avatarContentBackgroundColor = "grey-0-const";
-    } else if (theme === "light" && !space.avatars?.lightTheme?.content) {
-        avatarContent = space.avatars?.darkTheme?.content;
-        // Render the dark theme avatar icon on a light background.
-        avatarContentBackgroundColor = "grey-100-const";
-    }
+    const {avatarContent, avatarContentBackgroundColor} = getContentForThemeAndBackgroundColors(
+        space,
+        theme,
+    );
 
     const backgroundColor = avatarContent ? avatarContentBackgroundColor : "grey-30-const";
 
@@ -63,4 +53,38 @@ function InternalSpaceAvatar({
             )}
         </Box>
     );
+}
+
+function getContentForThemeAndBackgroundColors(
+    space: SpaceModel,
+    theme: AvatarTheme,
+): {
+    avatarContent: Uint8Array | undefined | null;
+    avatarContentBackgroundColor: ColorSchemeVar | undefined;
+} {
+    const darkThemeAvatarContent = space.avatars?.darkTheme?.content;
+    const lightThemeAvatarContent = space.avatars?.lightTheme?.content;
+
+    if (theme === "dark" && !darkThemeAvatarContent && lightThemeAvatarContent) {
+        // If user is using dark theme and there's no dark theme avatar content, but there
+        // IS a light theme avatar, use the light theme avatar on a light background.
+        return {
+            avatarContent: lightThemeAvatarContent,
+            avatarContentBackgroundColor: "grey-0-const",
+        };
+    } else if (theme === "light" && !lightThemeAvatarContent && darkThemeAvatarContent) {
+        // If user is using light theme and there's no light theme avatar content, but there
+        // IS a dark theme avatar, use the dark theme avatar on a dark background.
+        return {
+            avatarContent: darkThemeAvatarContent,
+            avatarContentBackgroundColor: "grey-100-const",
+        };
+    } else {
+        // If there is an avatar for the theme, or if there are no avatars for either theme,
+        // use the avatar for the theme (which can be null)
+        return {
+            avatarContent: theme === "dark" ? darkThemeAvatarContent : lightThemeAvatarContent,
+            avatarContentBackgroundColor: undefined,
+        };
+    }
 }
