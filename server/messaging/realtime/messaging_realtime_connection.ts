@@ -378,7 +378,7 @@ export class MessagingRealtimeConnection<
     private _sendMessageChange(
         context: WorkerActionContext,
         messageChange: MessagingRealtimeEventStubChange,
-    ) {
+    ): SafeFloatingPromise<void> {
         // It's ok to send message change events even while we're backfilling. Since on
         // the frontend `MessageList` holds onto message changes even if the change
         // effects a message the client hasn't loaded yet.
@@ -386,7 +386,7 @@ export class MessagingRealtimeConnection<
         // So if a message change occurs for a message we're currently backfilling, the
         // client will receive the change first then the backfill and will apply the
         // change to the backfilled message.
-        this._sendEvent(context, {
+        return this._sendEvent(context, {
             type: "ChangeMessage",
             change: messageChange,
         });
@@ -589,10 +589,13 @@ export class MessagingRealtimeConnection<
             contentUpdatedTime,
         };
 
-        this._sendMessageChange(context, change);
+        const sendOurEventPromise = this._sendMessageChange(context, change);
 
         for (const connection of this._iterateOtherConnections())
             connection._sendMessageChange(context, change);
+
+        // Wait until we send our update message event before finishing the RPC.
+        await sendOurEventPromise;
 
         return {};
     }
@@ -614,10 +617,13 @@ export class MessagingRealtimeConnection<
             deletedTime,
         };
 
-        this._sendMessageChange(context, messageChange);
+        const sendOurEventPromise = this._sendMessageChange(context, messageChange);
 
         for (const connection of this._iterateOtherConnections())
             connection._sendMessageChange(context, messageChange);
+
+        // Wait until we send our update message event before finishing the RPC.
+        await sendOurEventPromise;
 
         return {};
     }
