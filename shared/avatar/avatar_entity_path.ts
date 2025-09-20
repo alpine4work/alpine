@@ -100,6 +100,7 @@ export function printAvatarEntityObjectIntoTracerRoute(
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const avatarVariants = ["original", "small", "profile"] as const;
 
 /**

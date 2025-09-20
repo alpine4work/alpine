@@ -204,7 +204,7 @@ export async function fetchFile(
                         let responseError;
                         try {
                             responseError = ErrorSchema.deserialize(body.error);
-                        } catch (error) {
+                        } catch {
                             throw new InternalError("Unexpected JSON response from file processor");
                         }
 

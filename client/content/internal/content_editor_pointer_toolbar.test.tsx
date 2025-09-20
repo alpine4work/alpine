@@ -1,3 +1,5 @@
+/* eslint-disable testing-library/no-node-access */
+
 import {setInteractionModality} from "@react-aria/interactions";
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";

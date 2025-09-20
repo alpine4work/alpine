@@ -211,6 +211,9 @@ export function testFileProcessorContentTypes(
                         "content-type": contentType,
                         "content-length": String(body.length),
                     },
+                    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                    // fixing for now.
+                    // @ts-expect-error
                     body,
                 });
 
@@ -400,7 +403,14 @@ export function testFileProcessorContentTypes(
                                     ),
                                 );
 
-                                expect(contents.equals(actualContents)).toEqual(true);
+                                expect(
+                                    contents.equals(
+                                        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                                        // fixing for now.
+                                        // @ts-expect-error
+                                        actualContents,
+                                    ),
+                                ).toEqual(true);
                             }
 
                             const imagePreviewPlaceholder =
@@ -565,6 +575,9 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                                         i + 1
                                     }.avif`,
                                 ),
+                                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                                // fixing for now.
+                                // @ts-expect-error
                                 actualPageContents,
                             ),
                             fs.writeFile(
@@ -575,6 +588,9 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                                         i + 1
                                     }.avif`,
                                 ),
+                                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                                // fixing for now.
+                                // @ts-expect-error
                                 expectedPageContents,
                             ),
                             result.diffImage?.save(
@@ -668,7 +684,7 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
 
                 try {
                     actualMetadata = JSON.parse(actualMetadataString);
-                } catch (error) {
+                } catch {
                     throw new InternalError(
                         quote`JSON parsing failed for: ${actualMetadataString}`,
                     );
@@ -676,7 +692,7 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
 
                 try {
                     expectedMetadata = JSON.parse(expectedMetadataString);
-                } catch (error) {
+                } catch {
                     throw new InternalError(
                         quote`JSON parsing failed for: ${expectedMetadataString}`,
                     );
@@ -950,6 +966,9 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                         "actual",
                         expectedAlternative.similarPath,
                     ),
+                    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                    // fixing for now.
+                    // @ts-expect-error
                     actualContents,
                 ),
                 fs.copyFile(
@@ -1044,6 +1063,9 @@ async function testFileProcessorServiceContentTypeExpectedImagePreviewContentSim
                     "actual",
                     expectedImagePreviewContent.similarPath,
                 ),
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now.
+                // @ts-expect-error
                 actualImageContents,
             ),
             fs.writeFile(
@@ -1052,6 +1074,9 @@ async function testFileProcessorServiceContentTypeExpectedImagePreviewContentSim
                     "expected",
                     expectedImagePreviewContent.similarPath,
                 ),
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now.
+                // @ts-expect-error
                 expectedImageContents,
             ),
             result.diffImage?.save(

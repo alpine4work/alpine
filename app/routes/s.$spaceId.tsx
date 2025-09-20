@@ -1210,7 +1210,7 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
                     }
 
                     if (currentNode instanceof Text) {
-                        range.setEnd(currentNode, currentNode.textContent!.length);
+                        range.setEnd(currentNode, currentNode.textContent.length);
                     }
                 }
 

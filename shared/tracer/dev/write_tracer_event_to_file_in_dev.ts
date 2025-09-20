@@ -10,6 +10,9 @@ const isNode = typeof process !== "undefined" && !!process.versions.node;
 const nodeSetupPromise = new Lazy(async () => {
     assert(isNode);
 
+    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+    // fixing for now.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     const [{join: joinPath}, {default: fs}, {default: createEnvPaths}]: [
         typeof import("path"),
         {default: typeof import("fs-extra")},

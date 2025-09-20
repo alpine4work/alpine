@@ -47,7 +47,7 @@ export async function runProcess(
         /**
          * Data to pipe into stdin.
          */
-        stdin?: string | Uint8Array | ReadableStream;
+        stdin?: string | Uint8Array | Buffer | ReadableStream;
 
         /**
          * Allows aborting the child process.

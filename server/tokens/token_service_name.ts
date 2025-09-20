@@ -13,6 +13,7 @@ const tokenEdgeServiceFamilyNames = [
     "TaskNotesCollaborationService",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const tokenServiceNames = [
     "AppService",
     "TaskRealtimeService",

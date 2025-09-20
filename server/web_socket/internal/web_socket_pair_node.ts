@@ -49,7 +49,7 @@ assert(process.versions.node);
 // { a: A, b: B, ... } => A | B | ...
 type ValueOf<T> = T[keyof T];
 
-function viewToBuffer(view: ArrayBufferView): ArrayBuffer {
+function viewToBuffer(view: ArrayBufferView<ArrayBuffer>): ArrayBuffer {
     return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
 }
 
@@ -372,7 +372,7 @@ export async function coupleWebSocket(ws: StandardWebSocket, pair: WebSocket): P
 
     // Forward events from client to worker (register this before `open` to ensure
     // events queued before other pair `accept`s to release)
-    ws.on("message", (message: Buffer, isBinary: boolean) => {
+    ws.on("message", (message: Uint8Array<ArrayBuffer>, isBinary: boolean) => {
         // Silently discard messages received after close:
         // https://www.rfc-editor.org/rfc/rfc6455#section-1.4
         if (!pair[kClosedOutgoing]) {
@@ -381,7 +381,7 @@ export async function coupleWebSocket(ws: StandardWebSocket, pair: WebSocket): P
             pair[kSend](isBinary ? viewToBuffer(message) : message.toString());
         }
     });
-    ws.on("close", (code: number, reason: Buffer) => {
+    ws.on("close", (code: number, reason: Uint8Array<ArrayBuffer>) => {
         // Silently discard closes received after close
         if (!pair[kClosedOutgoing]) {
             // Note `[kClose]` skips accept check and will queue messages if other

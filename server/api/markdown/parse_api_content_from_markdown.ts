@@ -705,7 +705,7 @@ function* parseApiContentBlockElementFromMarkdown(
                                     );
                                 }
 
-                                if ("td" && textElements.length > 0) {
+                                if (textElements.length > 0) {
                                     handleElement({type: "Paragraph", elements: textElements});
                                     textElements = [];
                                 }

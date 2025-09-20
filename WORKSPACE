@@ -92,6 +92,8 @@ install_pypi_deps()
 http_archive(
     name = "rules_nodejs",
     patch_args = ["-p1"],
+    # Patches are made in this repo:
+    # https://github.com/cyberworlds/rules_nodejs/tree/cyberworlds-v6
     patches = ["//admin/patches:bazel/rules_nodejs.patch"],
     sha256 = "158619723f1d8bd535dd6b93521f4e03cf24a5e107126d05685fbd9540ccad10",
     strip_prefix = "rules_nodejs-6.3.2",
@@ -101,6 +103,8 @@ http_archive(
 http_archive(
     name = "aspect_rules_js",
     patch_args = ["-p1"],
+    # Patches are made in this repo:
+    # https://github.com/cyberworlds/rules_js/tree/cyberworlds-v2
     patches = ["//admin/patches:bazel/aspect_rules_js.patch"],
     sha256 = "75c25a0f15a9e4592bbda45b57aa089e4bf17f9176fd735351e8c6444df87b52",
     strip_prefix = "rules_js-2.1.0",
@@ -124,6 +128,8 @@ rules_js_register_toolchains(
 http_archive(
     name = "aspect_rules_ts",
     patch_args = ["-p1"],
+    # Patches are made in this repo:
+    # https://github.com/cyberworlds/rules_ts/tree/cyberworlds-v3
     patches = ["//admin/patches:bazel/aspect_rules_ts.patch"],
     sha256 = "9acd128abe77397505148eaa6895faed57839560dbf2177dd6285e51235e2724",
     strip_prefix = "rules_ts-3.3.1",
@@ -165,6 +171,8 @@ npm_repositories()
 http_archive(
     name = "aspect_rules_swc",
     patch_args = ["-p1"],
+    # Patches are made in this repo:
+    # https://github.com/cyberworlds/rules_swc/tree/cyberworlds-v2
     patches = ["//admin/patches:bazel/aspect_rules_swc.patch"],
     sha256 = "e5ac926ebe1bbef1f38d245a65626d86f114eb1f3c68362e8a33472351d83608",
     strip_prefix = "rules_swc-2.0.1",
@@ -195,6 +203,8 @@ swc_register_toolchains(
 http_archive(
     name = "aspect_rules_esbuild",
     patch_args = ["-p1"],
+    # Patches are made in this repo:
+    # https://github.com/cyberworlds/rules_esbuild/tree/cyberworlds-v0.21
     patches = ["//admin/patches:bazel/aspect_rules_esbuild.patch"],
     sha256 = "550e33ddeb86a564b22b2c5d3f84748c6639b1b2b71fae66bf362c33392cbed8",
     strip_prefix = "rules_esbuild-0.21.0",
@@ -308,13 +318,13 @@ oci_pull(
     image = "docker.io/ifitzsimmons/cyberworlds-lambda-nodejs22",
     platforms = ["linux/arm64/v8"],
 )
+
 oci_pull(
     name = "lambda_node22_libreoffice",
     digest = "sha256:f22cbf9a4a5d6cc9634daf72261c87d065e098c52987f529d798654a73cf325d",
     image = "docker.io/ifitzsimmons/cyberworlds-lambda-nodejs22-libreoffice",
     platforms = ["linux/arm64/v8"],
 )
-
 
 # =========================================================================== #
 #                                OpenSearch                                   #

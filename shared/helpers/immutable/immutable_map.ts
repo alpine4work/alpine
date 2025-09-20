@@ -1,5 +1,26 @@
 import createTree, {Tree} from "functional-red-black-tree";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
+
+// A bunch of methods have been added to `ReadonlyMap` iterator methods like
+// `ReadonlyMap.values()` after upgrading to TypeScript 5.9.2 like `take()` and
+// `drop()`. It would be nice to implement these on `ImmutableMap` someday but
+// for now adhere to this more limited `ReadonlyMap` interface.
+//
+// TODO(calebmer, #typescript-5.9.2): Switch back to
+// `implements ReadonlyMap<K, V>` instead of `implements OldReadonlyMap<K, V>`.
+interface OldReadonlyMap<K, V> {
+    forEach(callbackfn: (value: V, key: K, map: OldReadonlyMap<K, V>) => void, thisArg?: any): void;
+    get(key: K): V | undefined;
+    has(key: K): boolean;
+    readonly size: number;
+    [Symbol.iterator](): IterableIterator<[K, V]>;
+    entries(): IterableIterator<[K, V]>;
+    keys(): IterableIterator<K>;
+    values(): IterableIterator<V>;
+}
+
+assertAssignableTypes<ReadonlyMap<unknown, unknown>, OldReadonlyMap<unknown, unknown>>();
 
 /**
  * A [persistent data structure][1] containing entries of key-value pairs. Each
@@ -23,7 +44,9 @@ import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetri
  * [2]: https://immutable-js.com/
  * [3]: https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
  */
-export class ImmutableMap<Key extends string | number, Value> implements ReadonlyMap<Key, Value> {
+export class ImmutableMap<Key extends string | number, Value>
+    implements OldReadonlyMap<Key, Value>
+{
     private readonly _tree: Tree<Key, Value>;
 
     private constructor(tree: Tree<Key, Value>) {

@@ -57,7 +57,7 @@ export function isScheduleDateTimeString(string: string): string is ScheduleDate
     if (string.match(ScheduleDateTimeMatcher) === null) return false;
     try {
         parseAbsolute(string, "UTC");
-    } catch (error) {
+    } catch {
         return false;
     }
     return true;
@@ -85,7 +85,7 @@ export const ScheduleDateTimeSchema = Schema.date.transform<ScheduleDateTime>({
     deserialize: value => {
         try {
             return serializeScheduleDateTime(value);
-        } catch (error) {
+        } catch {
             throw new SchemaDeserializationError(
                 "Cannot deserialize `Date` value into `ScheduleDateTime`",
             );

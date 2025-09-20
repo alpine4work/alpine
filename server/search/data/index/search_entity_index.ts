@@ -1658,7 +1658,7 @@ function getManualMatchBoolPrefixOpensearchShouldQueryClauses<FlattenedKeys exte
         const lastMatch = matches[matches.length - 1]!;
 
         const queryStart = query.slice(0, lastMatch.index);
-        const queryEnd = query.slice(lastMatch.index! + lastMatch[0].length);
+        const queryEnd = query.slice(lastMatch.index + lastMatch[0].length);
 
         queryClauses.push({
             match: {

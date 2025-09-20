@@ -11,7 +11,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
  */
 export function iterateEmojis(string: string): Iterable<{index: number; emoji: string}> {
     return filterMapIterable(string.matchAll(emojiRegex()), match => {
-        const index = match.index!;
+        const index = match.index;
         let emoji = match[0];
 
         // It would appear that `emoji-regex` has a bug where it does not consider

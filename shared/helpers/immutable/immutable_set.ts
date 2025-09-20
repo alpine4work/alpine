@@ -1,4 +1,24 @@
 import createTree, {Tree} from "functional-red-black-tree";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+
+// A bunch of methods have been added to `ReadonlySet` after upgrading to
+// TypeScript 5.9.2 like `union()` and `intersection()`. It would be nice to
+// implement these on `ImmutableSet` someday but for now adhere to this more
+// limited `ReadonlySet` interface.
+//
+// TODO(calebmer, #typescript-5.9.2): Switch back to
+// `implements ReadonlySet<T>` instead of `implements OldReadonlySet<T>`.
+interface OldReadonlySet<T> {
+    forEach(callbackfn: (value: T, value2: T, set: OldReadonlySet<T>) => void, thisArg?: any): void;
+    has(value: T): boolean;
+    readonly size: number;
+    [Symbol.iterator](): IterableIterator<T>;
+    entries(): IterableIterator<[T, T]>;
+    keys(): IterableIterator<T>;
+    values(): IterableIterator<T>;
+}
+
+assertAssignableTypes<ReadonlySet<unknown>, OldReadonlySet<unknown>>();
 
 /**
  * A [persistent data structure][1] containing entries of key-value pairs. Each
@@ -22,7 +42,7 @@ import createTree, {Tree} from "functional-red-black-tree";
  * [2]: https://immutable-js.com/
  * [3]: https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
  */
-export class ImmutableSet<Value extends string | number> implements ReadonlySet<Value> {
+export class ImmutableSet<Value extends string | number> implements OldReadonlySet<Value> {
     private constructor(private readonly _tree: Tree<Value, true>) {}
 
     private static readonly _empty = new ImmutableSet(createTree<any, any>());

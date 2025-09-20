@@ -52,7 +52,7 @@ function getSign(intArray: Uint8Array) {
 }
 
 function setSign(sign: 0 | 1, intArray: Uint8Array) {
-    intArray[7] |= shiftLeft(sign, 7);
+    intArray[7]! |= shiftLeft(sign, 7);
 }
 
 function getExponent(intArray: Uint8Array) {
@@ -66,8 +66,8 @@ function setExponent(exponent: number, intArray: Uint8Array) {
     assert(exponent >= 0);
     assert(exponent <= maxExponent);
 
-    intArray[7] |= shiftRight(exponent, 4);
-    intArray[6] |= shiftLeft(exponent & 0xf, 4);
+    intArray[7]! |= shiftRight(exponent, 4);
+    intArray[6]! |= shiftLeft(exponent & 0xf, 4);
 }
 
 function getMantissa(intArray: Uint8Array) {
@@ -86,13 +86,13 @@ function setMantissa(mantissa: number, intArray: Uint8Array) {
     assert(mantissa >= 0);
     assert(mantissa <= maxMantissa);
 
-    intArray[6] |= shiftRight(mantissa, 48) & 0xff;
-    intArray[5] |= shiftRight(mantissa, 40) & 0xff;
-    intArray[4] |= shiftRight(mantissa, 32) & 0xff;
-    intArray[3] |= shiftRight(mantissa, 24) & 0xff;
-    intArray[2] |= shiftRight(mantissa, 16) & 0xff;
-    intArray[1] |= shiftRight(mantissa, 8) & 0xff;
-    intArray[0] |= mantissa & 0xff;
+    intArray[6]! |= shiftRight(mantissa, 48) & 0xff;
+    intArray[5]! |= shiftRight(mantissa, 40) & 0xff;
+    intArray[4]! |= shiftRight(mantissa, 32) & 0xff;
+    intArray[3]! |= shiftRight(mantissa, 24) & 0xff;
+    intArray[2]! |= shiftRight(mantissa, 16) & 0xff;
+    intArray[1]! |= shiftRight(mantissa, 8) & 0xff;
+    intArray[0]! |= mantissa & 0xff;
 }
 
 function shiftLeft(n: number, bits: number) {

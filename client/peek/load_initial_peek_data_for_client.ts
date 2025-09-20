@@ -40,6 +40,7 @@ export async function loadInitialPeekDataForClient(
                 const shouldCallLazy = match.route.id.startsWith("routes/s.$spaceId.peek");
 
                 const [result] = await Promise.race([
+                    // eslint-disable-next-line @typescript-eslint/await-thenable
                     await runAllPromises([
                         typeof match.route.loader === "function"
                             ? match.route.loader({

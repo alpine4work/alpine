@@ -68,7 +68,7 @@ const TracerEventExceptionDataBaseWithCauseSchema = {
  * `TracerEventFullData` is in a `types` directory so that none of its
  * dependencies are a part of client bundles.
  */
-export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
+const TracerEventDataSchema = {
     name: Schema.string.singleLine().minLength(1),
     durationMs: Schema.float,
     service: {
@@ -539,7 +539,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             },
         },
     },
-};
+} satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**
  * Schema for the flat event data. The map keys are the snake cased key paths.

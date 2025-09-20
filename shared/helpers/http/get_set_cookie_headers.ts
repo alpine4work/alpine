@@ -1,14 +1,6 @@
 declare global {
     interface Headers {
         /**
-         * Available on the `Headers` object to allow proper interpretation of the
-         * `Set-Cookie` header.
-         *
-         * https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie
-         */
-        getSetCookie?(): ReadonlyArray<string>;
-
-        /**
          * [Available in `node-fetch`][1] but not in browsers. Implemented before the
          * standard `getSetCookie()` function for the purpose of parsing `Set-Cookie`.
          *

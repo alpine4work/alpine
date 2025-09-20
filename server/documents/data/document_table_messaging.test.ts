@@ -113,7 +113,6 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
                                                   level: (["Comment", "Edit"] as const)[
                                                       count++ % 2
                                                   ]!,
-                                                  generation: 1,
                                               },
                                     ],
                                 ),

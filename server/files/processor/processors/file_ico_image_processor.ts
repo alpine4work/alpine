@@ -43,10 +43,10 @@ export function createFileIcoImageProcessor(
                 const stream = object.Body;
                 assert(stream instanceof ReadableStream);
 
-                const chunks: Array<Buffer> = [];
+                const chunks: Array<Uint8Array> = [];
 
                 const writableStream = new WritableStream({
-                    write: (data: Buffer, encoding, callback) => {
+                    write: (data: Uint8Array, encoding, callback) => {
                         chunks.push(data);
                         callback();
                     },
@@ -59,7 +59,12 @@ export function createFileIcoImageProcessor(
 
                 const data = Buffer.concat(chunks);
 
-                const bestImage = decodeIco(data).sort(
+                const bestImage = decodeIco(
+                    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                    // fixing for now.
+                    // @ts-expect-error
+                    data,
+                ).sort(
                     (image1, image2) => image2.width * image2.height - image1.width * image1.height,
                 )[0];
                 if (!bestImage) {

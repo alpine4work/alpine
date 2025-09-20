@@ -57,6 +57,9 @@ test("`looks-same` dependency works", async () => {
 
 test("`decode-ico` dependency can parse ico files with png and with bmp", async () => {
     const result1 = decodeIco(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         await fs.readFile(
             joinPath(
                 runfilesPath,
@@ -73,6 +76,9 @@ test("`decode-ico` dependency can parse ico files with png and with bmp", async 
     ]);
 
     const result2 = decodeIco(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         await fs.readFile(
             joinPath(
                 runfilesPath,
@@ -89,6 +95,9 @@ test("`decode-ico` dependency can parse ico files with png and with bmp", async 
     ]);
 
     const result3 = decodeIco(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         await fs.readFile(
             joinPath(
                 runfilesPath,

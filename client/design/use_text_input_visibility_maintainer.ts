@@ -196,8 +196,8 @@ export function useTextInputVisibilityMaintainer() {
                         flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                     } else {
                         requestAnimationFrame(() => {
-                            scrollableElement!.scrollTop = scrollTop;
-                            flushNavigationBarScrollEventEmitter.emit(scrollableElement!);
+                            scrollableElement.scrollTop = scrollTop;
+                            flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                         });
                     }
                 }
@@ -218,8 +218,8 @@ export function useTextInputVisibilityMaintainer() {
                         flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                     } else {
                         requestAnimationFrame(() => {
-                            scrollableElement!.scrollTop = scrollTop;
-                            flushNavigationBarScrollEventEmitter.emit(scrollableElement!);
+                            scrollableElement.scrollTop = scrollTop;
+                            flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                         });
                     }
                 }

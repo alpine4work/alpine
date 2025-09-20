@@ -388,7 +388,7 @@ export class ApnsConnection {
                 });
 
                 let headers: http2.IncomingHttpHeaders & http2.IncomingHttpStatusHeader = {};
-                const bodyChunks: Array<Buffer> = [];
+                const bodyChunks: Array<Uint8Array> = [];
 
                 request.on("response", newHeaders => (headers = newHeaders));
                 request.on("data", bodyChunk => bodyChunks.push(bodyChunk));

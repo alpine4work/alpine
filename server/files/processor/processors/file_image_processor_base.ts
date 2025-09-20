@@ -30,7 +30,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
  */
 export async function processFileImagePreviewPlaceholder(
     context: FileProcessorActionContext,
-    input: string | Buffer | ArrayBuffer | Uint8Array,
+    input: string | Buffer | ArrayBuffer | Uint8Array | Uint8ClampedArray,
     {
         contentType,
         contentLength,
@@ -93,10 +93,15 @@ export async function processFileImagePreviewPlaceholder(
     if (aspectRatio < minFilePreviewAspectRatio) {
         const croppedHeight = Math.round(width / minFilePreviewAspectRatio);
 
+        const outputDataSubarray = outputData.subarray(0, width * croppedHeight * channels);
+
         return FileImagePreviewPlaceholder.fromSerialized([
             channels === 4,
             width,
-            outputData.subarray(0, width * croppedHeight * channels),
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            outputDataSubarray,
         ]);
     } else if (aspectRatio > maxFilePreviewAspectRatio) {
         const croppedWidth = Math.round(height * maxFilePreviewAspectRatio);
@@ -118,7 +123,14 @@ export async function processFileImagePreviewPlaceholder(
             croppedOutputData,
         ]);
     } else {
-        return FileImagePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
+        return FileImagePreviewPlaceholder.fromSerialized([
+            channels === 4,
+            width,
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            outputData,
+        ]);
     }
 }
 

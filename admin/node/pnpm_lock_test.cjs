@@ -120,6 +120,10 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["prettier", ["2.8.7", "3.6.2"]],
     ["restore-cursor", ["3.1.0", "5.1.0"]],
 
+    // NOTE(calebmer, 2025-09-20): Duplicate packages after upgrading TypeScript
+    // to v5.9.2.
+    ["ignore", ["5.3.1", "7.0.5"]],
+
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
     // duplicate packages could be an issue and we tried to fix some easy
@@ -134,11 +138,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["@types/mdast", ["3.0.10", "4.0.3"]],
     ["@types/node", ["20.3.2", "22.1.0"]],
     ["@types/unist", ["2.0.6", "3.0.2"]],
-    ["@typescript-eslint/scope-manager", ["5.60.1", "7.13.1"]],
-    ["@typescript-eslint/types", ["5.60.1", "7.13.1"]],
-    ["@typescript-eslint/typescript-estree", ["5.60.1", "7.13.1"]],
-    ["@typescript-eslint/utils", ["5.60.1", "7.13.1"]],
-    ["@typescript-eslint/visitor-keys", ["5.60.1", "7.13.1"]],
     ["ansi-regex", ["5.0.1", "6.0.1"]],
     ["ansi-styles", ["4.3.0", "5.2.0", "6.2.1"]],
     ["argparse", ["1.0.10", "2.0.1"]],
@@ -165,7 +164,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["entities", ["4.5.0", "6.0.1"]],
     ["escape-string-regexp", ["2.0.0", "4.0.0", "5.0.0"]],
     ["eslint-scope", ["5.1.1", "7.2.2"]],
-    ["eslint-visitor-keys", ["1.3.0", "2.1.0", "3.4.3"]],
+    ["eslint-visitor-keys", ["1.3.0", "2.1.0", "3.4.3", "4.2.1"]],
     ["estraverse", ["4.3.0", "5.3.0"]],
     ["estree-util-is-identifier-name", ["1.1.0", "2.0.1"]],
     ["estree-walker", ["0.6.1", "3.0.1"]],
@@ -175,7 +174,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["fsevents", ["2.3.2", "2.3.3"]],
     ["glob-parent", ["5.1.2", "6.0.2"]],
     ["glob", ["7.2.3", "10.3.15", "11.0.1"]],
-    ["globby", ["11.1.0", "13.1.3"]],
     ["htmlparser2", ["8.0.2", "10.0.0"]],
     ["http-proxy-agent", ["4.0.1", "5.0.0", "7.0.2"]],
     ["human-signals", ["2.1.0", "3.0.1"]],
@@ -248,7 +246,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["strip-final-newline", ["2.0.0", "3.0.0"]],
     ["supports-color", ["7.2.0", "8.1.1", "10.0.0"]],
     ["tsconfig-paths", ["3.14.1", "4.2.0"]],
-    ["tslib", ["1.14.1", "2.4.0", "2.6.3"]],
+    ["tslib", ["2.4.0", "2.6.3"]],
     ["type-fest", ["0.20.2", "0.21.3", "4.41.0"]],
     ["type", ["1.2.0", "2.7.2"]],
     ["undici", ["5.28.4", "6.17.0"]],

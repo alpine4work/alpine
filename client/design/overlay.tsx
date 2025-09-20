@@ -404,7 +404,7 @@ function Overlay(
 
                 const paddingPx = convertRemLengthToPx("1", spacingScale);
 
-                const portalRect = portalElement!.getBoundingClientRect();
+                const portalRect = portalElement.getBoundingClientRect();
                 const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
                 const padding = {
@@ -960,13 +960,13 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
 
         if (shouldExcludeTarget) {
             coverRects = coverRects.flatMap(coverRect =>
-                coverRect.difference(Rectangle.from(rects!.target)),
+                coverRect.difference(Rectangle.from(rects.target)),
             );
         }
 
         if (shouldExcludeOverlay) {
             coverRects = coverRects.flatMap(coverRect =>
-                coverRect.difference(Rectangle.from(rects!.overlay)),
+                coverRect.difference(Rectangle.from(rects.overlay)),
             );
         }
 

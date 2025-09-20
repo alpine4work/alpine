@@ -68,13 +68,13 @@ export async function runProcessWithInheritedStdio(
          * Called when the process emits some data to stdout. Allows you to inspect the
          * data and perform any additional processing.
          */
-        onStdoutData?: (chunk: Buffer) => void;
+        onStdoutData?: (chunk: Uint8Array) => void;
 
         /**
          * Called when the process emits some data to stderr. Allows you to inspect the
          * data and perform any additional processing.
          */
-        onStderrData?: (chunk: Buffer) => void;
+        onStderrData?: (chunk: Uint8Array) => void;
     } = {},
 ): Promise<void> {
     const flattenedArgs: Array<string | undefined | null | false> =
@@ -103,14 +103,14 @@ export async function runProcessWithInheritedStdio(
     }
 
     if (onStdoutData) {
-        subprocess.stdout.on("data", (chunk: Buffer) => {
+        subprocess.stdout.on("data", (chunk: Uint8Array) => {
             process.stdout.write(chunk);
             onStdoutData(chunk);
         });
     }
 
     if (onStderrData) {
-        subprocess.stderr.on("data", (chunk: Buffer) => {
+        subprocess.stderr.on("data", (chunk: Uint8Array) => {
             process.stderr.write(chunk);
             onStderrData(chunk);
         });

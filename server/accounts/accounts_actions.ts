@@ -1229,6 +1229,9 @@ export async function getOurLastOpenedSpaceId(
         !accountSettingsItem?.lastOpenedSpaceId ||
         !spaceIds.has(accountSettingsItem.lastOpenedSpaceId)
     ) {
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         return spaceIds.size > 0 ? spaceIds.values().next().value : null;
     }
 

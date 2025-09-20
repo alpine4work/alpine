@@ -15,7 +15,7 @@ export function convertApiContentToProperQuotes(content: ApiContent): ApiContent
             let text = element.text;
 
             for (const match of element.text.matchAll(/['"]/g)) {
-                const index = match.index!;
+                const index = match.index;
                 const quoteChar = text[index];
 
                 let charBefore: string | null = null;

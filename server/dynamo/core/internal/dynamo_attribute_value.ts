@@ -78,7 +78,14 @@ export function fromDynamoAttributeValue(value: types.AttributeValue): SchemaSer
     // instead of the AWS SDK, `B` is a base64 encoded string not a `Uint8Array`.
     if (value.B !== undefined) {
         const array = typeof value.B === "string" ? decodeBase64((value as any).B) : value.B;
-        return new JsonStringifiableUint8Array(array.buffer, array.byteOffset, array.byteLength);
+        return new JsonStringifiableUint8Array(
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            array.buffer,
+            array.byteOffset,
+            array.byteLength,
+        );
     }
 
     if (value.M !== undefined) return fromDynamoAttributeValueObject(value.M);

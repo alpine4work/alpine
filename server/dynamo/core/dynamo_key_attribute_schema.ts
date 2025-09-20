@@ -253,7 +253,7 @@ export class DynamoKeyAttributeSchema<Value> {
 
                 // Flip the first bit so the negative sign is 0 instead of 1 putting negative
                 // numbers first.
-                bytes[byteOffset] ^= 0b10000000;
+                bytes[byteOffset]! ^= 0b10000000;
             },
             deserializeBytes: (bytes, byteOffset) => {
                 // Clone the bytes before manipulating them so we don't mess up the bytes we
@@ -261,7 +261,7 @@ export class DynamoKeyAttributeSchema<Value> {
                 const clonedBuffer = new ArrayBuffer(8);
                 const clonedBytes = new Uint8Array(clonedBuffer);
                 clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
-                clonedBytes[0] ^= 0b10000000;
+                clonedBytes[0]! ^= 0b10000000;
 
                 const view = new DataView(clonedBytes.buffer);
                 const bigintValue = view.getBigInt64(0, false);
@@ -302,7 +302,7 @@ export class DynamoKeyAttributeSchema<Value> {
 
                 // Flip the first bit so the negative sign is 0 instead of 1 putting negative
                 // numbers first.
-                bytes[byteOffset] ^= 0b10000000;
+                bytes[byteOffset]! ^= 0b10000000;
             },
             deserializeBytes: (bytes, byteOffset) => {
                 // Clone the bytes before manipulating them so we don't mess up the bytes we
@@ -310,7 +310,7 @@ export class DynamoKeyAttributeSchema<Value> {
                 const clonedBuffer = new ArrayBuffer(8);
                 const clonedBytes = new Uint8Array(clonedBuffer);
                 clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
-                clonedBytes[0] ^= 0b10000000;
+                clonedBytes[0]! ^= 0b10000000;
 
                 const view = new DataView(clonedBytes.buffer);
                 const bigintValue = view.getBigInt64(0, false);
@@ -405,7 +405,7 @@ export class DynamoKeyAttributeSchema<Value> {
 
                 // Flip the first bit so the negative sign is 0 instead of 1 putting negative
                 // numbers first.
-                bytes[byteOffset] ^= 0b10000000;
+                bytes[byteOffset]! ^= 0b10000000;
             },
             deserializeBytes: (bytes, byteOffset) => {
                 // Clone the bytes before manipulating them so we don't mess up the bytes we
@@ -413,7 +413,7 @@ export class DynamoKeyAttributeSchema<Value> {
                 const clonedBuffer = new ArrayBuffer(8);
                 const clonedBytes = new Uint8Array(clonedBuffer);
                 clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
-                clonedBytes[0] ^= 0b10000000;
+                clonedBytes[0]! ^= 0b10000000;
 
                 const view = new DataView(clonedBytes.buffer);
                 const bigintValue = view.getBigInt64(0, false);

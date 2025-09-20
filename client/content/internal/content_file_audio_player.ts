@@ -345,7 +345,7 @@ type ContentFileAudioVisualizationState = {
     audioContext: AudioContext;
     audioSourceNode: MediaElementAudioSourceNode;
     audioAnalyserNode: AnalyserNode;
-    audioAnalyserByteFrequencyData: Uint8Array;
+    audioAnalyserByteFrequencyData: Uint8Array<ArrayBuffer>;
 };
 
 /**

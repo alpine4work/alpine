@@ -48,7 +48,7 @@ if (typeof window !== "undefined") {
 
         element.addEventListener("scroll", () => {
             console.log(
-                `[ScrollEventDebugger#${debugId!}] scroll event`,
+                `[ScrollEventDebugger#${debugId}] scroll event`,
                 element.scrollTop,
                 element.scrollLeft,
             );

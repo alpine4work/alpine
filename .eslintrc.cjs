@@ -108,11 +108,19 @@ const typeCheckingConfigOverride = {
         "@typescript-eslint/no-floating-promises": [
             "error",
             {
+                checkThenables: true,
                 // We define a promise type that doesn't have to be awaited since in some cases
                 // that's ok.
                 allowForKnownSafePromises: ["SafeFloatingPromise", "SafeFloatingPromiseLike"],
             },
         ],
+
+        // We may rethrow `unknown` typed errors, in Remix we throw `Response` objects,
+        // and this rule also warns on `retry()` calls from
+        // `retryWithExponentialBackoff()` which is incorrect. Our developers are
+        // perfectly capable of throwing values of the right type.
+        "@typescript-eslint/only-throw-error": "off",
+        "@typescript-eslint/prefer-promise-reject-errors": "off",
 
         // The recommended type checking rules upgrade this to an error.
         "prefer-const": "warn",
@@ -358,46 +366,15 @@ module.exports = {
                 // advanced tools as they need them.
                 "@typescript-eslint/no-namespace": "off",
 
-                // Remove `{}` and `object` from the ban types rule. The default lint rule
-                // is too picky.
-                //
-                // Default can be found at:
-                // https://github.com/typescript-eslint/typescript-eslint/blob/v3.0.2/packages/eslint-plugin/docs/rules/ban-types.md
-                "@typescript-eslint/ban-types": [
-                    "error",
-                    {
-                        extendDefaults: false,
-                        types: {
-                            String: {
-                                message: "Use string instead",
-                                fixWith: "string",
-                            },
-                            Boolean: {
-                                message: "Use boolean instead",
-                                fixWith: "boolean",
-                            },
-                            Number: {
-                                message: "Use number instead",
-                                fixWith: "number",
-                            },
-                            Symbol: {
-                                message: "Use symbol instead",
-                                fixWith: "symbol",
-                            },
-                            Object: {
-                                message: "Use object instead",
-                                fixWith: "object",
-                            },
-                            Function: {
-                                message:
-                                    "The `Function` type accepts any function-like value. " +
-                                    "It provides no type safety when calling the function, which can be a common source of bugs. " +
-                                    "It also accepts things like class declarations, which will throw at runtime as they will not be called with `new`. " +
-                                    "If you are expecting the function to accept certain arguments, you should explicitly define the function shape.",
-                            },
-                        },
-                    },
-                ],
+                // Ban `Function`, `Object`, `Number`, `Symbol`, etc. which as a developer you
+                // should basically never use.
+                "@typescript-eslint/no-unsafe-function-type": "error",
+                "@typescript-eslint/no-wrapper-object-types": "error",
+
+                // `{}` isn't hurting anybody. Yes it's a slightly confusing type but it's
+                // misuse causes zero damage. See this comment from the TypeScript team:
+                // https://github.com/typescript-eslint/typescript-eslint/issues/8700#issuecomment-2002627702
+                "@typescript-eslint/no-empty-object-type": "off",
 
                 // Inconvenient to annotate every type import with `import type`.
                 "@typescript-eslint/consistent-type-imports": "off",

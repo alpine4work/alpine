@@ -216,7 +216,7 @@ export class TaskRealtimeServer {
 
                             try {
                                 store.evict(context);
-                            } catch (error) {
+                            } catch {
                                 span.addException(span);
 
                                 // Don't rethrow the error. If an eviction call fails we report it in our span

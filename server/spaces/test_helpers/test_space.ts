@@ -227,6 +227,9 @@ export class TestSpace {
                     ? "rejectedAsSpam"
                     : result.unexpectedFailureEmailAddresses.size
                     ? `unexpectedFailure:\n${
+                          // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                          // fixing for now.
+                          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                           result.unexpectedFailureEmailAddresses.values().next().value
                       }`
                     : "none"

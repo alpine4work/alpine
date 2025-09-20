@@ -20,20 +20,9 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Store} from "~/shared/store/store.js";
 
 declare module "prosemirror-view" {
-    class DecorationSet {
-        public readonly local: ReadonlyArray<Decoration>;
-        public readonly children: ReadonlyArray<number | DecorationSet>;
-
-        // The [internal ProseMirror `DecorationSet` constructor signature][1]. We want
-        // to construct `DecorationSet` directly to avoid an [expensive `buildTree()`
-        // function][2] that keeps looping over the full decoration set.
-        //
-        // [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L278-L281
-        // [2]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
-        constructor(
-            local: ReadonlyArray<Decoration>,
-            children: ReadonlyArray<number | DecorationSet>,
-        );
+    interface DecorationSet {
+        readonly local: ReadonlyArray<Decoration>;
+        readonly children: ReadonlyArray<number | DecorationSet>;
     }
 }
 
@@ -781,6 +770,14 @@ function createContentCodeBlockIncrementalParserDecorationSet(
                 nodeChildDecorations.push(
                     relativeOffset,
                     relativeOffset + lineNode.nodeSize,
+                    // The [internal ProseMirror `DecorationSet` constructor signature][1]. We want
+                    // to construct `DecorationSet` directly to avoid an [expensive `buildTree()`
+                    // function][2] that keeps looping over the full decoration set.
+                    //
+                    // [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L278-L281
+                    // [2]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+                    //
+                    // @ts-expect-error
                     new DecorationSet(lineNodeDecorations, emptyArray),
                 );
             }
@@ -792,11 +789,27 @@ function createContentCodeBlockIncrementalParserDecorationSet(
             rootChildDecorations.push(
                 offset,
                 offset + node.nodeSize,
+                // The [internal ProseMirror `DecorationSet` constructor signature][1]. We want
+                // to construct `DecorationSet` directly to avoid an [expensive `buildTree()`
+                // function][2] that keeps looping over the full decoration set.
+                //
+                // [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L278-L281
+                // [2]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+                //
+                // @ts-expect-error
                 new DecorationSet(nodeDecorations, nodeChildDecorations),
             );
         }
     }
 
+    // The [internal ProseMirror `DecorationSet` constructor signature][1]. We want
+    // to construct `DecorationSet` directly to avoid an [expensive `buildTree()`
+    // function][2] that keeps looping over the full decoration set.
+    //
+    // [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L278-L281
+    // [2]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+    //
+    // @ts-expect-error
     return new DecorationSet(rootDecorations, rootChildDecorations);
 }
 

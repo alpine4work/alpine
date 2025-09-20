@@ -296,6 +296,10 @@ function ChatMessagingView({
                 input => getChatMessagesFromEnd(context, {...input, chatId: chat.id}),
                 [chat.id, context],
             )}
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now. Only errs when Bazel runs TypeScript which is strange.
+            // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+            // @ts-ignore
             backfillMessages={procedures.backfillMessages}
             createMessage={procedures.createMessage}
             updateMessageContent={procedures.updateMessageContent}
@@ -303,6 +307,10 @@ function ChatMessagingView({
             startTypingInMessageInput={procedures.startTypingInMessageInput}
             stopTypingInMessageInput={procedures.stopTypingInMessageInput}
             isConnected={isConnected}
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now. Only errs when Bazel runs TypeScript which is strange.
+            // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+            // @ts-ignore
             subscribeToEvents={subscribeToEvents}
             getMessageUrl={useCallback(
                 messageIndex =>

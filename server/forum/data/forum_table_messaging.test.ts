@@ -63,10 +63,7 @@ testMessagingImplementation<PostId>(context, {
                             insideSession.account.id,
                             insideSession.account.id === context.actor.getAccountId()
                                 ? {level: "Manage", generation: 0}
-                                : {
-                                      level: (["Comment", "Edit"] as const)[count++ % 2]!,
-                                      generation: 1,
-                                  },
+                                : {level: (["Comment", "Edit"] as const)[count++ % 2]!},
                         ],
                     ),
                     [insideViewerSession.account.id, {level: "View"}],

@@ -29,7 +29,7 @@ export function isTimeZone(string: string): string is TimeZone {
         Intl.DateTimeFormat(undefined, {timeZone: string});
         validTimeZones.add(string);
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

@@ -92,7 +92,7 @@ if (import.meta && import.meta.hot) {
                                 }
                                 const imported = await import(
                                     /* @vite-ignore */
-                                    assetsManifest.routes[id]!.module +
+                                    assetsManifest.routes[id].module +
                                         `?t=${assetsManifest.hmr?.timestamp}`
                                 );
                                 return [

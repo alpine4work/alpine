@@ -287,6 +287,10 @@ export function TaskCommentsView({
                 fileAttachmentTarget={fileAttachmentTarget}
                 getMessagesFromStart={getMessagesFromStart}
                 getMessagesFromEnd={getMessagesFromEnd}
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now. Only errs when Bazel runs TypeScript which is strange.
+                // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+                // @ts-ignore
                 backfillMessages={backfillMessages}
                 createMessage={createMessage}
                 updateMessageContent={updateMessageContent}
@@ -294,6 +298,10 @@ export function TaskCommentsView({
                 startTypingInMessageInput={procedures.startTypingInCommentInput}
                 stopTypingInMessageInput={procedures.stopTypingInCommentInput}
                 isConnected={isConnected}
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now. Only errs when Bazel runs TypeScript which is strange.
+                // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+                // @ts-ignore
                 subscribeToEvents={subscribeToEvents}
                 getMessageUrl={getCommentUrl}
             />

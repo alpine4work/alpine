@@ -149,6 +149,9 @@ async function uploadFileForTest(
                 "content-type": contentType,
                 "content-length": String(body.length),
             },
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
             body,
         });
 
@@ -2062,7 +2065,13 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
 
             await runAllPromises([
                 fs.copyFile(expectedPath, joinPath(testlogsOutputDirectoryPath, "expected.avif")),
-                fs.writeFile(joinPath(testlogsOutputDirectoryPath, "actual.avif"), actualContents),
+                fs.writeFile(
+                    joinPath(testlogsOutputDirectoryPath, "actual.avif"),
+                    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                    // fixing for now.
+                    // @ts-expect-error
+                    actualContents,
+                ),
                 result.diffImage.save(joinPath(testlogsOutputDirectoryPath, "diff.avif")),
             ]);
 
@@ -2185,7 +2194,13 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
 
             await runAllPromises([
                 fs.copyFile(expectedPath, joinPath(testlogsOutputDirectoryPath, "expected.avif")),
-                fs.writeFile(joinPath(testlogsOutputDirectoryPath, "actual.avif"), actualContents),
+                fs.writeFile(
+                    joinPath(testlogsOutputDirectoryPath, "actual.avif"),
+                    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                    // fixing for now.
+                    // @ts-expect-error
+                    actualContents,
+                ),
                 result.diffImage.save(joinPath(testlogsOutputDirectoryPath, "diff.avif")),
             ]);
 

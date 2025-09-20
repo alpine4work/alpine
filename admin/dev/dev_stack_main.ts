@@ -305,6 +305,9 @@ async function runPrCommand({continue: shouldContinue = false}: {continue: boole
                 ],
                 {
                     onStderrData: chunk => {
+                        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                        // fixing for now.
+                        // @ts-expect-error
                         ghPrCreateStderr += chunk.toString("utf8");
                     },
                 },
@@ -485,8 +488,8 @@ async function runGh(
         onStdoutData,
         onStderrData,
     }: {
-        onStdoutData?: (chunk: Buffer) => void;
-        onStderrData?: (chunk: Buffer) => void;
+        onStdoutData?: (chunk: Uint8Array) => void;
+        onStderrData?: (chunk: Uint8Array) => void;
     } = {},
 ) {
     const flattenedArgs: Array<string | undefined | null | false> =

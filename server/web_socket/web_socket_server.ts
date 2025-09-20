@@ -79,6 +79,7 @@ type _WebSocketConnectionProcedures<
     ) => Promise<Procedures[Name]["output"]>;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare const anySecret: unique symbol;
 
 export interface WebSocketServerConnectionBase<
@@ -722,7 +723,7 @@ interface WebSocketServerConnectionWrapperBase<
      * Soft closes the connection. Does nothing if the connection is already
      * closed.
      */
-    softClose(context: Context<ProcessContextModules>): void;
+    softClose(context: Context<ProcessContextModules>): Promise<void>;
 
     /**
      * Send an event over our WebSocket connection. You provide this function an
@@ -731,7 +732,7 @@ interface WebSocketServerConnectionWrapperBase<
     sendEvent(
         context: Context<ProcessContextModules> | Context<ActionContextModules>,
         eventStub: EventStub,
-    ): void;
+    ): SafeFloatingPromise<void>;
 
     /**
      * The WebSocket server will try to occasionally expire connections that have

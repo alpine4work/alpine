@@ -200,11 +200,9 @@ export const FileCodePreviewContent = createSchemaLazyTransformClass<
             maxFileCodePreviewByteLength / 2 ** maxFileCodePreviewByteLength2FactorCount;
         assert(Number.isInteger(initialByteLength));
 
-        const buffer = new ArrayBuffer(
-            initialByteLength,
-            // @ts-expect-error: This property works but it's not in the TypeScript types.
-            {maxByteLength: maxFileCodePreviewByteLength},
-        );
+        const buffer = new ArrayBuffer(initialByteLength, {
+            maxByteLength: maxFileCodePreviewByteLength,
+        });
         let byteOffset = 0;
         let lineCount = 0;
         let lineCodePointCount = 0;
@@ -243,7 +241,6 @@ export const FileCodePreviewContent = createSchemaLazyTransformClass<
                             1 >
                         buffer.byteLength
                     ) {
-                        // @ts-expect-error: This function works but it's not in the TypeScript types.
                         buffer.resize(buffer.byteLength * 2);
                     }
 
@@ -290,7 +287,6 @@ export const FileCodePreviewContent = createSchemaLazyTransformClass<
             }
         }
 
-        // @ts-expect-error: This function works but it's not in the TypeScript types.
         buffer.resize(byteOffset);
 
         return new JsonStringifiableUint8Array(buffer);

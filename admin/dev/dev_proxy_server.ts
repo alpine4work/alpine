@@ -153,7 +153,7 @@ export async function createDevProxyServer(
         }
     });
 
-    proxyServer.on("upgrade", (proxyReq, proxySocket, proxyHead) => {
+    proxyServer.on("upgrade", (proxyReq, proxySocket, proxyHead: Uint8Array<ArrayBuffer>) => {
         assert(proxySocket instanceof net.Socket);
 
         let isProxyReqEnded = false;

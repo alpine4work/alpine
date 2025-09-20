@@ -550,6 +550,8 @@ function makeSpaceDataRouteShowLoadingIndicator(route: DataRouteObject) {
         const routeLoaderPromise = originalRouteLoader(...args);
 
         const result = await Promise.race([
+            // Either a promise or the value available synchronously.
+            // eslint-disable-next-line @typescript-eslint/await-thenable
             routeLoaderPromise,
             wait(delayScreenTransitionLoadingIndicatorLimitMs).then(
                 (): typeof makeSpaceDataRouteShowLoadingIndicatorSymbol =>

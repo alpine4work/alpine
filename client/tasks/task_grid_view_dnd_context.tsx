@@ -15,7 +15,7 @@ import type {
     MouseSensorProps,
     PointerEventHandlers,
     PointerSensorProps,
-} from "@dnd-kit/core/dist/sensors";
+} from "@dnd-kit/core/dist/sensors/index.d.ts";
 import {ReactNode, RefObject, useContext, useMemo, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";

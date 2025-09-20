@@ -1430,7 +1430,13 @@ export class DynamoGeneralRealtimeTableSchema<
 
         return {
             getEventTransaction: (context, schema) => {
-                const actions = actionsBySchema.get(schema);
+                const actions = actionsBySchema.get(
+                    // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                    // fixing for now.
+                    // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+                    // @ts-ignore
+                    schema,
+                );
 
                 return runAllPromises(
                     (actions ?? emptyArray).map(action => {

@@ -260,6 +260,7 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function testTypes(MessageSchema: Schema<any>) {
     {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const eventSchema = Schema.union(createMessagingRealtimeEventSchemas(MessageSchema));
         assertEqualTypes<typeof eventSchema, UnionSchema<MessagingRealtimeEvent<any>>>();
     }

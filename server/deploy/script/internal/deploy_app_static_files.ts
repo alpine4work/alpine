@@ -182,9 +182,19 @@ async function getFileMd5Hash(path: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const hash = crypto.createHash("md5");
         const stream = fs.createReadStream(path);
+
         stream.on("error", reject);
-        stream.on("data", chunk => hash.update(chunk));
-        stream.on("end", () => resolve(hash.digest("base64")));
+
+        stream.on("data", chunk => {
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            hash.update(chunk);
+        });
+
+        stream.on("end", () => {
+            resolve(hash.digest("base64"));
+        });
     });
 }
 

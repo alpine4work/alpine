@@ -1072,7 +1072,12 @@ function fetchWithXhr(
         xhr.setRequestHeader(headerName, headerValue);
     }
 
-    xhr.send(body);
+    xhr.send(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
+        body,
+    );
 
     return responsePromise;
 }

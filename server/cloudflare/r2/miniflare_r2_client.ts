@@ -162,7 +162,9 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                                   ),
                               transformToString: (encoding?: string) =>
                                   waitForReadableStreamString(
-                                      object.body as globalThis.ReadableStream<Uint8Array>,
+                                      object.body as globalThis.ReadableStream<
+                                          Uint8Array<ArrayBuffer>
+                                      >,
                                       encoding,
                                   ),
                               transformToWebStream: () =>

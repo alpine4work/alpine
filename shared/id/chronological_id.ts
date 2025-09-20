@@ -55,7 +55,7 @@ export function generateChronologicalId<Value extends ChronologicalId>(): Value 
         for (let i = bytes.length - 1; i >= 2; i--) {
             if (bytes[i]! < 255) {
                 wasIncremented = true;
-                bytes[i]++;
+                bytes[i]!++;
                 break;
             }
         }

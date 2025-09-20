@@ -4,7 +4,7 @@
  * if `encoding` is not provided.
  */
 export async function waitForReadableStreamString(
-    stream: ReadableStream<Uint8Array>,
+    stream: ReadableStream<Uint8Array<ArrayBuffer>>,
     encoding?: string,
 ): Promise<string> {
     let string = "";

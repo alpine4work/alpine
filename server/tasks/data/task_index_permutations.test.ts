@@ -42,7 +42,7 @@ beforeAll(() => {
 
     try {
         fs.utimesSync(shardStatusPath, currentTime, currentTime);
-    } catch (e) {
+    } catch {
         const descriptor = fs.openSync(shardStatusPath, "a");
         fs.closeSync(descriptor);
     }

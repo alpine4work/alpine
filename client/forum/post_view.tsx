@@ -93,8 +93,8 @@ export function PostView({
             post: postResult.post,
             onStartEditingPost: () => {
                 assertExists(postListRef.current).startEditingPost(
-                    postResult!.post.id,
-                    postResult!.post.content,
+                    postResult.post.id,
+                    postResult.post.content,
                 );
             },
         }),

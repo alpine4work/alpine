@@ -582,7 +582,12 @@ Content-Length: 33002\r\n\
 
     const fileContent = await fs.readFile(jpegTestFixturePath);
 
-    socket.write(fileContent);
+    socket.write(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
+        fileContent,
+    );
 
     await socketClosePromise;
 
@@ -643,6 +648,9 @@ Content-Length: 33102\r\n\
     const jpegTestFixtureContents = await fs.readFile(jpegTestFixturePath);
 
     socket.write(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         jpegTestFixtureContents.subarray(0, Math.floor(jpegTestFixtureContents.length / 2)),
     );
 
@@ -735,6 +743,9 @@ Content-Length: 33102\r\n\
     const jpegTestFixtureContents = await fs.readFile(jpegTestFixturePath);
 
     socket.write(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         jpegTestFixtureContents.subarray(0, Math.floor(jpegTestFixtureContents.length / 2)),
     );
 
@@ -758,7 +769,12 @@ Content-Length: 33102\r\n\
         }),
     );
 
-    socket.write(jpegTestFixtureContents.subarray(Math.floor(jpegTestFixtureContents.length / 2)));
+    socket.write(
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
+        jpegTestFixtureContents.subarray(Math.floor(jpegTestFixtureContents.length / 2)),
+    );
 
     await socketClosePromise;
 
@@ -873,6 +889,9 @@ test("can’t process image with the wrong content type", async () => {
             cookie: await sessionCookie(session),
             "content-type": "image/png",
         },
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         body: await fs.readFile(jpegTestFixturePath),
     });
     const responseBody = UploadFileResponseSchema.deserialize(await response.json());
@@ -932,6 +951,9 @@ test("can upload and process image", async () => {
             cookie: await sessionCookie(session),
             "content-type": "image/jpeg",
         },
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         body: await fs.readFile(jpegTestFixturePath),
     });
     const responseBody = UploadFileResponseSchema.deserialize(await response.json());
@@ -990,6 +1012,9 @@ test("can upload and process large image", async () => {
             cookie: await sessionCookie(session),
             "content-type": "image/jpeg",
         },
+        // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+        // fixing for now.
+        // @ts-expect-error
         body: await fs.readFile(
             joinPath(
                 runfilesPath,
@@ -1057,6 +1082,9 @@ test("can upload image with a provided id", async () => {
                 cookie: await sessionCookie(session),
                 "content-type": "image/jpeg",
             },
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
             body: await fs.readFile(jpegTestFixturePath),
         },
     );
@@ -1121,6 +1149,9 @@ test("can’t upload image with the same provided id twice", async () => {
                     cookie: await sessionCookie(session),
                     "content-type": "image/jpeg",
                 },
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now.
+                // @ts-expect-error
                 body: await fs.readFile(jpegTestFixturePath),
             },
         );
@@ -1179,6 +1210,9 @@ test("can’t upload image with the same provided id twice", async () => {
                     cookie: await sessionCookie(session),
                     "content-type": "image/jpeg",
                 },
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now.
+                // @ts-expect-error
                 body: await fs.readFile(jpegTestFixturePath),
             },
         );
@@ -1212,6 +1246,9 @@ test("can upload image with a provided that has a time way before the current ti
                 cookie: await sessionCookie(session),
                 "content-type": "image/jpeg",
             },
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
             body: await fs.readFile(jpegTestFixturePath),
         },
     );
@@ -1248,6 +1285,9 @@ test("can upload image with a provided `FileId` that has a time way after the cu
                 cookie: await sessionCookie(session),
                 "content-type": "image/jpeg",
             },
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
             body: await fs.readFile(jpegTestFixturePath),
         },
     );

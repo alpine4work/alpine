@@ -267,7 +267,7 @@ export class ForkActionContextModuleDetachedForker<
                     // correct.
                     assert(
                         this._baseForkedModules[key] &&
-                            module instanceof this._baseForkedModules[key]!.constructor,
+                            module instanceof this._baseForkedModules[key].constructor,
                         "If replacing a forked context module, the new context module should be a subclass of the forked context module",
                     );
 

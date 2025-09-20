@@ -2011,7 +2011,7 @@ export class UnionSchema<Value> extends Schema<Value> {
                 }
 
                 // Use the type to select the schema we'll use to parse the value.
-                const serializedTypeValue = value[serializedTypeKey] as string;
+                const serializedTypeValue = value[serializedTypeKey];
 
                 // Always use the serialized type name, never use the current type name in
                 // code. We don't have code that will serialize using the current type name.
@@ -2723,6 +2723,9 @@ export class BytesSchema extends Schema<Uint8Array> {
         serialize: value => {
             if (value instanceof JsonStringifiableUint8Array) return value;
             return new JsonStringifiableUint8Array(
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now.
+                // @ts-expect-error
                 value.buffer,
                 value.byteOffset,
                 value.byteLength,

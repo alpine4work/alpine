@@ -3,9 +3,8 @@ import {DOMParser, Node, ParseOptions, ParseRule, Schema, Slice} from "prosemirr
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/from_dom.ts#L161
 declare module "prosemirror-model" {
-    class DOMParser {
+    interface DOMParser {
         normalizeLists: boolean;
-        static schemaRules(schema: Schema): ReadonlyArray<ParseRule>;
     }
 }
 
@@ -18,6 +17,9 @@ export class ContentEditorDomParser extends DOMParser {
             schema.cached.contentEditorDomParser ||
             (schema.cached.contentEditorDomParser = new ContentEditorDomParser(
                 schema,
+                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                // fixing for now.
+                // @ts-expect-error
                 DOMParser.schemaRules(schema),
             ))
         );

@@ -381,7 +381,14 @@ test("can perform a multipart upload", async () => {
     expectedData.fill(2, 1e8, 2e8);
     expectedData.fill(3, 2e8);
 
-    expect(Buffer.from(actualData).compare(Buffer.from(expectedData))).toBe(0);
+    expect(
+        Buffer.from(actualData).compare(
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            Buffer.from(expectedData),
+        ),
+    ).toBe(0);
 });
 
 test("can perform a multipart upload where parts are uploaded in parallel", async () => {
@@ -552,7 +559,14 @@ test("can perform a multipart upload where parts are uploaded in parallel", asyn
     expectedData.fill(2, 1e8, 2e8);
     expectedData.fill(3, 2e8);
 
-    expect(Buffer.from(actualData).compare(Buffer.from(expectedData))).toBe(0);
+    expect(
+        Buffer.from(actualData).compare(
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            Buffer.from(expectedData),
+        ),
+    ).toBe(0);
 });
 
 test("can perform a multipart upload where parts are out of order", async () => {
@@ -704,7 +718,14 @@ test("can perform a multipart upload where parts are out of order", async () => 
     expectedData.fill(2, 1e8, 2e8);
     expectedData.fill(3, 2e8);
 
-    expect(Buffer.from(actualData).compare(Buffer.from(expectedData))).toBe(0);
+    expect(
+        Buffer.from(actualData).compare(
+            // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+            // fixing for now.
+            // @ts-expect-error
+            Buffer.from(expectedData),
+        ),
+    ).toBe(0);
 });
 
 test("can’t perform a multipart upload with an invalid content type", async () => {

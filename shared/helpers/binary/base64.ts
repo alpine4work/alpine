@@ -85,7 +85,10 @@ function getBase64StringLengths(string: string, includesPadding: boolean) {
     return {dataLength, paddingLength};
 }
 
-export function decodeBase64(string: string, dictionary: Base64Dictionary = "Rfc4648"): Uint8Array {
+export function decodeBase64(
+    string: string,
+    dictionary: Base64Dictionary = "Rfc4648",
+): Uint8Array<ArrayBuffer> {
     const {valueByCharCode, includesPadding} = dictionaries[dictionary];
     const {dataLength, paddingLength} = getBase64StringLengths(string, includesPadding);
     const bytes = new Uint8Array(((dataLength + paddingLength) * 3) / 4 - paddingLength);

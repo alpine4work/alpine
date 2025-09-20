@@ -4497,7 +4497,11 @@ export function testTaskActionPermutations({
                             const promise = applyTaskAction(action, nextPromiseResolver.resolve);
                             promises.push(promise);
 
-                            await Promise.race([promise, nextPromiseResolver.promise]);
+                            await Promise.race([
+                                // eslint-disable-next-line @typescript-eslint/await-thenable
+                                promise,
+                                nextPromiseResolver.promise,
+                            ]);
                         }
 
                         await runAllPromises(promises);

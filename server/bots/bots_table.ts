@@ -668,7 +668,7 @@ async function actuallyCallBotWebhook(
             },
             {initialItem: eventItem},
         );
-    } catch (error) {
+    } catch {
         timeout.clear();
 
         // Unit test helper for simulating a process crash.

@@ -24,6 +24,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {
     AccountId,
     SpaceId,
@@ -42,7 +43,10 @@ export interface TaskRealtimeUpdateEventConnection {
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
     readonly actor: TaskRealtimeActorInterface;
-    sendEvent(context: TaskRealtimeProcessContext, event: TaskRealtimeEvent): void;
+    sendEvent(
+        context: TaskRealtimeProcessContext,
+        event: TaskRealtimeEvent,
+    ): SafeFloatingPromise<void>;
     isReferencedCollectionAccessAuthorized(
         context: TaskRealtimeSystemActionContext,
         collectionId: TaskCollectionId,

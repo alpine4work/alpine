@@ -1,5 +1,5 @@
 import {ClientRect, DndContext, Modifier, useDraggable} from "@dnd-kit/core";
-import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
+import type {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities/index.d.ts";
 import {PressEvent} from "@react-types/shared";
 import {
     Action,
