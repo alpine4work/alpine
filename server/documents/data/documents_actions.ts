@@ -1,4 +1,4 @@
-import {differenceInMinutes} from "date-fns";
+import {addSeconds, differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {
     AddMarkStep,
@@ -23,6 +23,7 @@ import {
 import {
     ServerAccountActionContext,
     ServerActionContext,
+    ServerBotActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {
@@ -49,6 +50,9 @@ import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
+import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
@@ -100,6 +104,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -143,7 +148,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayload} from "~/shared/messaging/message_model.js";
+import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
@@ -208,12 +213,6 @@ type DocumentArchivedCommentThreadItem = DynamoTableItemType<
     typeof DocumentsTable,
     "Document",
     "ArchivedCommentThread"
->;
-
-type DocumentCommentItem = DynamoTableItemType<
-    typeof DocumentsTable,
-    "DocumentCommentThread",
-    "Comments"
 >;
 
 /**
@@ -4394,6 +4393,7 @@ export async function createDocumentComment(
         parentCommentIndex,
         content,
         fileIds,
+        isStream,
         consistency,
     }: {
         documentId: DocumentId;
@@ -4401,6 +4401,7 @@ export async function createDocumentComment(
         parentCommentIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
@@ -4462,6 +4463,10 @@ export async function createDocumentComment(
         const createdTime = new Date();
         const authorId = context.actor.getPossiblyBotAccountId();
 
+        if (isStream && context.actor.type !== "Bot") {
+            throw new PermissionDeniedError("Only bots can send `Stream` messages");
+        }
+
         const newCommentCountByAuthorId = new Map(
             commentThreadItem.commentsSummary.commentCountByAuthorId,
         );
@@ -4488,6 +4493,7 @@ export async function createDocumentComment(
                     content,
                     contentUpdatedTime: null,
                     fileIds,
+                    clerical: isStream ? {type: "Stream"} : undefined,
                 },
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
@@ -4501,6 +4507,29 @@ export async function createDocumentComment(
                 },
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
+
+            // If this is a stream comment then create the stream state item.
+            // Create-or-replace is safe since we know the comment index doesn't exist from
+            // our other condition checks.
+            ...(isStream
+                ? [
+                      DocumentsTable.transactionCreateOrReplaceItem({
+                          partitionType: "DocumentCommentThread",
+                          sortRangeType: "Comments#Stream",
+                          documentId,
+                          commentThreadId,
+                          commentIndex,
+                          authorId,
+                          completedTime: null,
+                          partCount: 0,
+                          lastPartUpdateLockVersion: null,
+                          lastIndexSearchEntityJob: {
+                              sendTime: createdTime,
+                              delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+                          },
+                      }),
+                  ]
+                : []),
         ]);
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
@@ -4523,17 +4552,20 @@ export async function createDocumentComment(
             },
         });
 
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId,
-            update: {
-                type: "DocumentComment",
-                documentId,
-                commentThreadId,
-                commentIndex,
-                updatedTraits: {type: "Any"},
+        context.jobs.send(
+            {
+                type: "IndexSearchEntity",
+                spaceId,
+                update: {
+                    type: "DocumentComment",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    updatedTraits: {type: "Any"},
+                },
             },
-        });
+            {delaySeconds: isStream ? messageStreamIndexSearchEntityDelaySeconds : 0},
+        );
 
         // Only increase affinity score if we have a session actor. Don't increase
         // affinity score if this is a system actor sending a message on behalf of an
@@ -4577,6 +4609,237 @@ export async function createDocumentComment(
 }
 
 /**
+ * Update a part of the comment stream.
+ *
+ * Comment streams are made up of multiple parts. Only the bot that created a
+ * stream can update the stream. A bot can only create new parts or update the
+ * last part of the stream.
+ *
+ * Currently, you completely replace a part when you update it. We may allow
+ * more granular part updates in the future.
+ */
+export function putDocumentCommentStreamPart(
+    context: ServerBotActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        partIndex,
+        payload,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        partIndex: number;
+        payload: MessageStreamPartPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
+
+            DocumentsTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments#Stream",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw new FailedPreconditionError("The stream has already been completed", {
+                displayMessage: errorDisplayMessage`The stream has already been completed.`,
+            });
+        }
+
+        // Use `Date.now()` so tests can mock the `Date.now()` function.
+        const currentTime = new Date(Date.now());
+
+        let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
+
+        if (
+            isDatePossiblyLessThanWithUncertaintyWindow(
+                addSeconds(
+                    item.lastIndexSearchEntityJob.sendTime,
+                    item.lastIndexSearchEntityJob.delaySeconds,
+                ),
+                currentTime,
+            )
+        ) {
+            nextIndexSearchEntityJob = {
+                sendTime: currentTime,
+                delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+            };
+        }
+
+        if (partIndex === item.partCount) {
+            await DynamoTableSchema.executeTransaction(context, [
+                DocumentsTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    partCount: partIndex + 1,
+                    lastPartUpdateLockVersion: 0,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                DocumentsTable.transactionCreateOrReplaceItem({
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments#StreamPart",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    partIndex,
+                    payload,
+                    // `updateLockVersion: 0` is always represented as `undefined`.
+                    updateLockVersion: undefined,
+                }),
+            ]);
+        } else {
+            if (partIndex !== item.partCount - 1) {
+                throw new FailedPreconditionError(
+                    "Only the last part of the stream or the next part can be updated",
+                    {
+                        displayMessage: errorDisplayMessage`Only the last part of the stream (index ${
+                            item.partCount - 1
+                        }) or the next part (index ${item.partCount}) can be updated.`,
+                    },
+                );
+            }
+
+            assert(item.lastPartUpdateLockVersion !== null);
+
+            await DynamoTableSchema.executeTransaction(context, [
+                DocumentsTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                DocumentsTable.transactionCreateOrReplaceItem({
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments#StreamPart",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    partIndex,
+                    payload,
+                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                }),
+            ]);
+        }
+
+        if (nextIndexSearchEntityJob) {
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "DocumentComment",
+                        documentId,
+                        commentThreadId,
+                        commentIndex,
+                        updatedTraits: {type: "Some", traits: []},
+                    },
+                },
+                {delaySeconds: nextIndexSearchEntityJob.delaySeconds},
+            );
+        }
+
+        return {spaceId};
+    });
+}
+
+/**
+ * Completes a comment stream. After this parts can't be added or updated.
+ *
+ * This function is idempotent. If the stream is already completed this method
+ * does nothing.
+ */
+export function completeDocumentCommentStream(
+    context: ServerBotActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    completedTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
+
+            DocumentsTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments#Stream",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        // Already completed!
+        if (item.completedTime !== null) {
+            return {spaceId, completedTime: item.completedTime};
+        }
+
+        const completedTime = new Date();
+
+        await DocumentsTable.directlyUpdateItem(context, {
+            ...item,
+            completedTime,
+        });
+
+        return {spaceId, completedTime};
+    });
+}
+
+/**
  * Get a single document comment.
  */
 export async function getDocumentComment(
@@ -4597,7 +4860,13 @@ export async function getDocumentComment(
         commentIndex,
     });
 
-    return createDocumentCommentModelFromItem(context, spaceId, commentItem);
+    return createDocumentCommentModelFromItem(
+        context,
+        spaceId,
+        documentId,
+        commentThreadId,
+        commentItem,
+    );
 }
 
 /**
@@ -4616,13 +4885,12 @@ export async function getDocumentCommentPayload(
         commentIndex: number;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<{
-    spaceId: SpaceId;
-    createdTime: Date;
-    authorId: AccountId;
-    payload: MessagePayload;
-    documentAccessPolicy: AccessPolicy;
-}> {
+): Promise<
+    MessageItem & {
+        spaceId: SpaceId;
+        documentAccessPolicy: AccessPolicy;
+    }
+> {
     const {spaceId, commentItem, documentAccessPolicy} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
@@ -4632,10 +4900,8 @@ export async function getDocumentCommentPayload(
 
     return {
         spaceId,
-        createdTime: commentItem.createdTime,
-        authorId: commentItem.authorId,
-        payload: commentItem.payload,
         documentAccessPolicy,
+        ...commentItem,
     };
 }
 
@@ -4663,6 +4929,42 @@ export async function getDocumentCommentAuthorId(
     return commentItem.authorId;
 }
 
+async function getDocumentCommentItemIfExistsWithoutAuthorization(
+    context: ServerActionContext,
+    documentId: DocumentId,
+    commentThreadId: DocumentCommentThreadId,
+    commentIndex: number,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<MessageItem | null> {
+    const items = await arrayFromAsyncIterable(
+        processCommentsQuery(
+            "Ascending",
+            DocumentsTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "DocumentCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments#StreamPart",
+                    commentIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
+    );
+
+    assert(items.length <= 1);
+
+    return items[0] ?? null;
+}
+
 async function getDocumentCommentItem(
     context: ServerActionContext,
     {
@@ -4687,15 +4989,11 @@ async function getDocumentCommentItem(
             consistency,
         }),
 
-        DocumentsTable.getItemIfExists(
+        getDocumentCommentItemIfExistsWithoutAuthorization(
             context,
-            {
-                partitionType: "DocumentCommentThread",
-                sortRangeType: "Comments",
-                documentId,
-                commentThreadId,
-                commentIndex,
-            },
+            documentId,
+            commentThreadId,
+            commentIndex,
             {consistency},
         ),
     ]);
@@ -4716,22 +5014,24 @@ async function getDocumentCommentItem(
 async function createDocumentCommentModelFromItem(
     context: ServerActionContext,
     spaceId: SpaceId,
-    item: DocumentCommentItem,
+    documentId: DocumentId,
+    commentThreadId: DocumentCommentThreadId,
+    item: MessageItem,
 ): Promise<DocumentCommentModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,
-            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: item.documentId}),
+            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId}),
             item.payload,
         ),
     ]);
 
     return new DocumentCommentModel({
-        documentId: item.documentId,
-        commentThreadId: item.commentThreadId,
-        index: item.commentIndex,
+        documentId,
+        commentThreadId,
+        index: item.index,
         author,
         createdTime: item.createdTime,
         payload,
@@ -4742,7 +5042,7 @@ async function createDocumentCommentModelFromItem(
  * Update the content on one of your document comments.
  */
 export function updateDocumentCommentContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         documentId,
         commentThreadId,
@@ -4774,7 +5074,7 @@ export function updateDocumentCommentContent(
             }),
         ]);
 
-        if (commentItem.authorId !== context.actor.getAccountId())
+        if (commentItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only update comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -4864,7 +5164,7 @@ export function updateDocumentCommentContent(
  * Delete a single document comment.
  */
 export function deleteDocumentComment(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         documentId,
         commentThreadId,
@@ -4892,7 +5192,7 @@ export function deleteDocumentComment(
             }),
         ]);
 
-        if (commentItem.authorId !== context.actor.getAccountId())
+        if (commentItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only delete comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -5195,6 +5495,18 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
     };
 }
 
+function getDocumentCommentCount(
+    commentSummary: {readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>} | undefined,
+) {
+    if (!commentSummary) return 0;
+
+    return reduceIterable(
+        commentSummary.commentCountByAuthorId.values(),
+        (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+        0,
+    );
+}
+
 /**
  * Paginate through document comments from start to finish.
  */
@@ -5244,11 +5556,7 @@ export async function getDocumentCommentsFromStart(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getDocumentCommentCount(commentThreadItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
@@ -5284,33 +5592,42 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
+    const queryStartCommentIndex =
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+
+    const queryEndCommentIndex = Math.min(
+        queryStartCommentIndex + limit - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
     const commentItems = await arrayFromAsyncIterable(
-        DocumentsTable.query(context, {
-            partitionKey: {
-                partitionType: "DocumentCommentThread",
-                documentId,
-                commentThreadId,
-            },
-            startSortKey: {
-                sortRangeType: "Comments",
-                commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-            },
-            endSortKey: {
-                sortRangeType: "Comments",
-                commentIndex:
-                    typeof beforeCommentIndex === "number"
-                        ? beforeCommentIndex - 1
-                        : Number.MAX_SAFE_INTEGER,
-            },
-            limit,
-            consistency,
-        }),
+        processCommentsQuery(
+            "Ascending",
+            DocumentsTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "DocumentCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: queryStartCommentIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments#StreamPart",
+                    commentIndex: queryEndCommentIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const startCommentIndex = commentItems[0]!.commentIndex;
-    const endCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+    const startCommentIndex = commentItems[0]!.index;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.index;
 
     const spaceId = await getSpaceId();
 
@@ -5326,15 +5643,11 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await DocumentsTable.getItemIfExists(
+                const item = await getDocumentCommentItemIfExistsWithoutAuthorization(
                     context,
-                    {
-                        partitionType: "DocumentCommentThread",
-                        sortRangeType: "Comments",
-                        documentId,
-                        commentThreadId,
-                        commentIndex,
-                    },
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
                     {consistency},
                 );
                 if (!item) throw new InternalError("Parent comment not found");
@@ -5345,7 +5658,13 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
                 }
 
                 otherReferencedComments.push(
-                    await createDocumentCommentModelFromItem(context, spaceId, item),
+                    await createDocumentCommentModelFromItem(
+                        context,
+                        spaceId,
+                        documentId,
+                        commentThreadId,
+                        item,
+                    ),
                 );
             },
         );
@@ -5362,7 +5681,13 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
 
             // Don't propagate `consistency` when loading model references. We
             // accept references can have eventual consistency.
-            return createDocumentCommentModelFromItem(context, spaceId, item);
+            return createDocumentCommentModelFromItem(
+                context,
+                spaceId,
+                documentId,
+                commentThreadId,
+                item,
+            );
         }),
     );
 
@@ -5405,13 +5730,16 @@ export async function getDocumentCommentPayloadsFromStart(
 ): Promise<{
     spaceId: SpaceId;
     commentCount: number;
-    comments: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    comments: Array<MessageItem>;
 }> {
+    const queryStartCommentIndex =
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+
+    const queryEndCommentIndex = Math.min(
+        queryStartCommentIndex + limit - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
     const [{spaceId}, commentThreadItem, comments] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
         getDocumentCommentThreadItemIfExists(context, {
@@ -5420,32 +5748,27 @@ export async function getDocumentCommentPayloadsFromStart(
             consistency,
         }),
         arrayFromAsyncIterable(
-            DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "DocumentCommentThread",
-                    documentId,
-                    commentThreadId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                consistency,
-            }),
-            item => ({
-                index: item.commentIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            processCommentsQuery(
+                "Ascending",
+                DocumentsTable.query(context, {
+                    limit: "All",
+                    consistency,
+                    partitionKey: {
+                        partitionType: "DocumentCommentThread",
+                        documentId,
+                        commentThreadId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Comments",
+                        commentIndex: queryStartCommentIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Comments#StreamPart",
+                        commentIndex: queryEndCommentIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
@@ -5457,11 +5780,7 @@ export async function getDocumentCommentPayloadsFromStart(
     return {
         spaceId,
         commentCount: Math.max(
-            reduceIterable(
-                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getDocumentCommentCount(commentThreadItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
@@ -5494,18 +5813,21 @@ export async function getDocumentCommentsFromEnd(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId, "Comment");
+    const authorizationPromise = authorizeDocumentAccess(context, documentId, "Comment");
+
+    const commentThreadItemPromise = getDocumentCommentThreadItemIfExists(context, {
+        documentId,
+        commentThreadId,
+    });
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
-        documentAuthorizationPromise,
-        getDocumentCommentThreadItemIfExists(context, {
-            documentId,
-            commentThreadId,
-        }),
+        authorizationPromise,
+        commentThreadItemPromise,
         getDocumentCommentsFromEndAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
+            authorizationPromise,
+            commentThreadItemPromise,
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -5519,11 +5841,7 @@ export async function getDocumentCommentsFromEnd(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getDocumentCommentCount(commentThreadItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
@@ -5539,14 +5857,16 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     {
         documentId,
         commentThreadId,
-        getSpaceId,
+        authorizationPromise,
+        commentThreadItemPromise,
         limit,
         afterCommentIndex,
         beforeCommentIndex,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
-        getSpaceId: () => Promise<SpaceId>;
+        authorizationPromise: Promise<{spaceId: SpaceId}>;
+        commentThreadItemPromise: Promise<DocumentCommentThreadItem | null>;
         limit: number;
         afterCommentIndex: number | null;
         beforeCommentIndex: number | null;
@@ -5557,40 +5877,54 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
+    const queryStartCommentIndex = Math.max(
+        typeof beforeCommentIndex === "number"
+            ? beforeCommentIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
+
+    const queryEndCommentIndex =
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-            ? DocumentsTable.query(context, {
-                  partitionKey: {
-                      partitionType: "DocumentCommentThread",
-                      documentId,
-                      commentThreadId,
-                  },
-                  startSortKey: {
-                      sortRangeType: "Comments",
-                      commentIndex:
-                          typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                  },
-                  endSortKey: {
-                      sortRangeType: "Comments",
-                      commentIndex:
-                          typeof beforeCommentIndex === "number"
-                              ? beforeCommentIndex - 1
-                              : Number.MAX_SAFE_INTEGER,
-                  },
-                  limit,
-                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                  // at the end instead of start.
-                  descending: true,
-              })
+            ? processCommentsQuery(
+                  "Descending",
+                  DocumentsTable.query(context, {
+                      limit: "All",
+                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                      // at the end instead of start.
+                      descending: true,
+                      partitionKey: {
+                          partitionType: "DocumentCommentThread",
+                          documentId,
+                          commentThreadId,
+                      },
+                      startSortKey: {
+                          sortRangeType: "Comments",
+                          commentIndex: queryStartCommentIndex,
+                      },
+                      endSortKey: {
+                          sortRangeType: "Comments#StreamPart",
+                          commentIndex: queryEndCommentIndex,
+                          partIndex: Number.MAX_SAFE_INTEGER,
+                      },
+                  }),
+              )
             : (async function* () {})(),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const endCommentIndex = commentItems[0]!.commentIndex;
-    const startCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+    const endCommentIndex = commentItems[0]!.index;
+    const startCommentIndex = commentItems[commentItems.length - 1]!.index;
 
-    const spaceId = await getSpaceId();
+    const {spaceId} = await authorizationPromise;
 
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<DocumentCommentModel> = [];
@@ -5604,13 +5938,12 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await DocumentsTable.getItemIfExists(context, {
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Comments",
+                const item = await getDocumentCommentItemIfExistsWithoutAuthorization(
+                    context,
                     documentId,
                     commentThreadId,
                     commentIndex,
-                });
+                );
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -5619,7 +5952,13 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
                 }
 
                 otherReferencedComments.push(
-                    await createDocumentCommentModelFromItem(context, spaceId, item),
+                    await createDocumentCommentModelFromItem(
+                        context,
+                        spaceId,
+                        documentId,
+                        commentThreadId,
+                        item,
+                    ),
                 );
             },
         );
@@ -5633,7 +5972,13 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedComment(item.payload.parentMessageIndex);
             }
-            return createDocumentCommentModelFromItem(context, spaceId, item);
+            return createDocumentCommentModelFromItem(
+                context,
+                spaceId,
+                documentId,
+                commentThreadId,
+                item,
+            );
         }),
     );
 
@@ -5679,48 +6024,54 @@ export async function getDocumentCommentPayloadsFromEnd(
 ): Promise<{
     spaceId: SpaceId;
     commentCount: number;
-    comments: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    comments: Array<MessageItem>;
 }> {
+    const commentThreadItemPromise = getDocumentCommentThreadItemIfExists(context, {
+        documentId,
+        commentThreadId,
+        consistency,
+    });
+
+    const queryStartCommentIndex = Math.max(
+        typeof beforeCommentIndex === "number"
+            ? beforeCommentIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
+
+    const queryEndCommentIndex =
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+
     const [{spaceId}, commentThreadItem, comments] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
-        getDocumentCommentThreadItemIfExists(context, {
-            documentId,
-            commentThreadId,
-            consistency,
-        }),
+        commentThreadItemPromise,
         arrayFromAsyncIterable(
-            DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "DocumentCommentThread",
-                    documentId,
-                    commentThreadId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                descending: true,
-                consistency,
-            }),
-            item => ({
-                index: item.commentIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            processCommentsQuery(
+                "Descending",
+                DocumentsTable.query(context, {
+                    limit: "All",
+                    descending: true,
+                    consistency,
+                    partitionKey: {
+                        partitionType: "DocumentCommentThread",
+                        documentId,
+                        commentThreadId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Comments",
+                        commentIndex: queryStartCommentIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Comments#StreamPart",
+                        commentIndex: queryEndCommentIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
@@ -5735,11 +6086,7 @@ export async function getDocumentCommentPayloadsFromEnd(
     return {
         spaceId,
         commentCount: Math.max(
-            reduceIterable(
-                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getDocumentCommentCount(commentThreadItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,

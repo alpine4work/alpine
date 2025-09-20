@@ -31,12 +31,14 @@ export function assertMessageContent(node: Node): MessageContent {
     return node;
 }
 
-export function createSimpleMessageContent(text: string): MessageContent {
+export function createSimpleMessageContent(text?: string): MessageContent {
     return assertMessageContent(
         MessageContentProsemirrorSchema.node("doc", {}, [
-            MessageContentProsemirrorSchema.node("paragraph", {}, [
-                MessageContentProsemirrorSchema.text(text),
-            ]),
+            MessageContentProsemirrorSchema.node(
+                "paragraph",
+                {},
+                text ? [MessageContentProsemirrorSchema.text(text)] : [],
+            ),
         ]),
     );
 }

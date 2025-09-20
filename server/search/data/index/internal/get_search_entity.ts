@@ -20,6 +20,7 @@ import {
     maxChannelContributionCount,
 } from "~/server/forum/data/forum_actions.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     SearchEntityDependencyId,
     isSearchEntityDependencyIdAlsoEntityId,
@@ -91,8 +92,12 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayload} from "~/shared/messaging/message_model.js";
+import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
+import {MessagePayload} from "~/shared/messaging/message_schema.js";
 import {
     SearchDynamicEntityId,
     SearchDynamicEntityIdObject,
@@ -352,7 +357,7 @@ class SearchEntityReadState {
         });
     }
 
-    public getDocumentCommentPayload(
+    public async getDocumentCommentPayload(
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
         commentIndex: number,
@@ -367,12 +372,17 @@ class SearchEntityReadState {
             `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
         );
 
-        return getDocumentCommentPayload(this._context, {
+        const comment = await getDocumentCommentPayload(this._context, {
             documentId,
             commentThreadId,
             commentIndex,
             consistency: "StrongWithinCache",
         });
+
+        return {
+            ...comment,
+            payload: mergeMessageItemStreamIntoPayload(comment),
+        };
     }
 
     public getChannelNameAndDescriptionContentAndContributors(channelId: ChannelId): Promise<{
@@ -480,10 +490,14 @@ class SearchEntityReadState {
         });
 
         this._recordDependencyId(`Channel:${comment.channelId}:Authorization`);
-        return comment;
+
+        return {
+            ...comment,
+            payload: mergeMessageItemStreamIntoPayload(comment),
+        };
     }
 
-    public getTaskCommentPayload(
+    public async getTaskCommentPayload(
         taskId: TaskId,
         commentIndex: number,
     ): Promise<{
@@ -493,11 +507,16 @@ class SearchEntityReadState {
     }> {
         this._recordDependencyId(`TaskComment:${taskId}-${commentIndex}`);
 
-        return getTaskCommentPayload(this._context, {
+        const comment = await getTaskCommentPayload(this._context, {
             taskId,
             commentIndex,
             consistency: "StrongWithinCache",
         });
+
+        return {
+            ...comment,
+            payload: mergeMessageItemStreamIntoPayload(comment),
+        };
     }
 
     public getChatAccountIds(
@@ -510,7 +529,7 @@ class SearchEntityReadState {
         });
     }
 
-    public getChatMessagePayload(
+    public async getChatMessagePayload(
         chatId: ChatId,
         messageIndex: number,
     ): Promise<{
@@ -520,11 +539,16 @@ class SearchEntityReadState {
     }> {
         this._recordDependencyId(`ChatMessage:${chatId}-${messageIndex}`);
 
-        return getChatMessagePayload(this._context, {
+        const message = await getChatMessagePayload(this._context, {
             chatId,
             messageIndex,
             consistency: "StrongWithinCache",
         });
+
+        return {
+            ...message,
+            payload: mergeMessageItemStreamIntoPayload(message),
+        };
     }
 
     public async getTask(taskId: TaskId): Promise<{
@@ -690,6 +714,53 @@ class SearchEntityReadState {
             accessPolicy: collection.getAccessPolicy(),
             isDeleted: collection.isDeleted(),
         };
+    }
+}
+
+function mergeMessageItemStreamIntoPayload(messageItem: MessageItem): MessagePayload {
+    switch (messageItem.payload.type) {
+        case "Deleted":
+            return messageItem.payload;
+        case "Content": {
+            if (!messageItem.stream) return messageItem.payload;
+
+            const nodes: Array<Node> = [];
+
+            if (
+                messageItem.payload.content.childCount === 1 &&
+                messageItem.payload.content.firstChild!.type.name === "paragraph" &&
+                messageItem.payload.content.firstChild!.childCount === 0
+            ) {
+                // If this is a stream message then ignore empty paragraph content. It'll be
+                // replaced with the stream parts.
+            } else {
+                for (const node of messageItem.payload.content.content.content) {
+                    nodes.push(node);
+                }
+            }
+
+            for (const part of messageItem.stream.parts) {
+                if (part.type === "Content") {
+                    for (const node of part.content.content.content) {
+                        nodes.push(node);
+                    }
+                }
+            }
+
+            // If stream parts didn't add any content then add an empty paragraph.
+            if (nodes.length === 0) {
+                nodes.push(MessageContentProsemirrorSchema.nodes.paragraph.create());
+            }
+
+            return {
+                ...messageItem.payload,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.nodes.doc.create({}, nodes),
+                ),
+            };
+        }
+        default:
+            throw exhaustive(messageItem.payload);
     }
 }
 

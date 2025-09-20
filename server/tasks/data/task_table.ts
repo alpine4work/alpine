@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {addHours, addMonths, differenceInMonths} from "date-fns";
+import {addHours, addMonths, addSeconds, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
@@ -15,6 +15,7 @@ import {
     ServerAccountActionContext,
     ServerActionContext,
     ServerActionContextModules,
+    ServerBotActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -38,6 +39,9 @@ import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
+import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
@@ -148,7 +152,11 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {
+    MessagePayloadSchema,
+    MessageStreamPartPayload,
+    MessageStreamPartPayloadSchema,
+} from "~/shared/messaging/message_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -815,6 +823,56 @@ const TaskTable = DynamoTableSchema.new({
                         createdTime: Schema.date,
                         payload: MessagePayloadSchema,
                     }),
+                    childSortRanges: [
+                        {
+                            name: "Stream",
+                            sortKeyAttributes: {},
+                            attributes: Schema.object({
+                                // We duplicate `authorId` here to easily check if the bot is allowed to update
+                                // the stream.
+                                authorId: Schema.id<AccountId>(),
+
+                                /**
+                                 * When the stream was completed. If null then the stream hasn't been
+                                 * finished so we should expect more updates!
+                                 *
+                                 * If a stream hasn't completed for some period of time since creation (a
+                                 * couple hours) then we consider the stream to be completed whether or not
+                                 * it actually has been completed.
+                                 */
+                                completedTime: Schema.date.nullable(),
+
+                                /**
+                                 * The number of parts in the stream so far. A bot can only ever create
+                                 * new parts or update the last part in the stream.
+                                 */
+                                partCount: Schema.integer.min(0),
+
+                                /**
+                                 * The current `updateLockVersion` of the last part in the stream.
+                                 */
+                                lastPartUpdateLockVersion: Schema.integer.min(0).nullable(),
+
+                                /**
+                                 * The last `IndexSearchEntity` job that was sent for this stream. We send an
+                                 * `IndexSearchEntity` job once every 10 seconds.
+                                 */
+                                lastIndexSearchEntityJob: Schema.object({
+                                    sendTime: Schema.date,
+                                    delaySeconds: Schema.integer.min(0),
+                                }),
+                            }),
+                        },
+                        {
+                            name: "StreamPart",
+                            sortKeyAttributes: {
+                                partIndex: DynamoKeyAttributeSchema.integer,
+                            },
+                            attributes: Schema.object({
+                                payload: MessageStreamPartPayloadSchema,
+                            }),
+                        },
+                    ],
                 },
 
                 /**
@@ -928,8 +986,6 @@ type TaskCollectionEssentialAttributesItemBase = Omit<
 >;
 
 type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
-
-type TaskCommentItem = DynamoTableItemType<typeof TaskTable, "Task", "Comments">;
 
 // Authorizers must be declared next to their respective Tables
 export const FileTaskAuthorizer = FileAuthorizer.new(
@@ -5100,23 +5156,52 @@ async function getTaskItemAccessPolicyWithoutAuthorization(
     };
 }
 
+async function getTaskCommentItemIfExists(
+    context: ServerActionContext,
+    taskId: TaskId,
+    commentIndex: number,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<MessageItem | null> {
+    const items = await arrayFromAsyncIterable(
+        processCommentsQuery(
+            "Ascending",
+            TaskTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Task",
+                    taskId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments#StreamPart",
+                    commentIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
+    );
+
+    assert(items.length <= 1);
+
+    return items[0] ?? null;
+}
+
 export async function getTaskComment(
     context: ServerActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "Comment"),
-        TaskTable.getItemIfExists(context, {
-            partitionType: "Task",
-            sortRangeType: "Comments",
-            taskId,
-            commentIndex,
-        }),
+        getTaskCommentItemIfExists(context, taskId, commentIndex),
     ]);
 
     if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
 
-    return createTaskCommentModelFromItem(context, spaceId, item);
+    return createTaskCommentModelFromItem(context, spaceId, taskId, item);
 }
 
 export async function getTaskCommentPayload(
@@ -5130,54 +5215,36 @@ export async function getTaskCommentPayload(
         commentIndex: number;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<{
-    spaceId: SpaceId;
-    createdTime: Date;
-    authorId: AccountId;
-    payload: MessagePayload;
-}> {
+): Promise<MessageItem & {spaceId: SpaceId}> {
     const [{spaceId}, item] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
-        TaskTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Task",
-                sortRangeType: "Comments",
-                taskId,
-                commentIndex,
-            },
-            {consistency},
-        ),
+        getTaskCommentItemIfExists(context, taskId, commentIndex, {consistency}),
     ]);
 
     if (!item) throw createTaskCommentNotFoundError(taskId, commentIndex);
 
-    return {
-        spaceId,
-        createdTime: item.createdTime,
-        authorId: item.authorId,
-        payload: item.payload,
-    };
+    return {spaceId, ...item};
 }
 
 async function createTaskCommentModelFromItem(
     context: ServerActionContext,
     spaceId: SpaceId,
-    item: TaskCommentItem,
+    taskId: TaskId,
+    item: MessageItem,
 ): Promise<TaskCommentModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,
-            FileTaskAuthorizer.bind({type: "TaskComments", taskId: item.taskId}),
+            FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
             item.payload,
         ),
     ]);
 
     return new TaskCommentModel({
-        taskId: item.taskId,
-        index: item.commentIndex,
+        taskId,
+        index: item.index,
         author,
         createdTime: item.createdTime,
         payload,
@@ -5245,7 +5312,7 @@ export async function getTaskNotificationSubscribers(
 }
 
 export function updateTaskCommentContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         taskId,
         commentIndex,
@@ -5272,7 +5339,7 @@ export function updateTaskCommentContent(
         if (!commentsSummaryItem) throw new NotFoundError("Task comments summary item not found");
         if (!taskCommentItem) throw new NotFoundError("Task comment not found");
 
-        if (taskCommentItem.authorId !== context.actor.getAccountId()) {
+        if (taskCommentItem.authorId !== context.actor.getPossiblyBotAccountId()) {
             throw new PermissionDeniedError("Can only update Task comments you authored");
         }
 
@@ -5350,7 +5417,7 @@ export function updateTaskCommentContent(
 }
 
 export function deleteTaskComment(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -5366,7 +5433,7 @@ export function deleteTaskComment(
         if (!commentsSummaryItem) throw new NotFoundError("Task comments summary item not found");
         if (!taskCommentItem) throw new NotFoundError("Task comment not found");
 
-        if (taskCommentItem.authorId !== context.actor.getAccountId())
+        if (taskCommentItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only delete task comments you authored");
 
         if (taskCommentItem.payload.type !== "Content")
@@ -5444,12 +5511,14 @@ export async function createTaskComment(
         parentCommentIndex,
         content,
         fileIds,
+        isStream,
         consistency,
     }: {
         taskId: TaskId;
         parentCommentIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
@@ -5507,6 +5576,10 @@ export async function createTaskComment(
         const createdTime = new Date();
         const authorId = context.actor.getPossiblyBotAccountId();
 
+        if (isStream && context.actor.type !== "Bot") {
+            throw new PermissionDeniedError("Only bots can send `Stream` messages");
+        }
+
         const newCommentCountByAuthorId = new Map(commentsSummaryItem?.commentCountByAuthorId);
         newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
 
@@ -5530,6 +5603,7 @@ export async function createTaskComment(
                     content,
                     contentUpdatedTime: null,
                     fileIds,
+                    clerical: isStream ? {type: "Stream"} : undefined,
                 },
             }),
             commentsSummaryItem !== null
@@ -5550,6 +5624,28 @@ export async function createTaskComment(
                       commentCountByAuthorId: newCommentCountByAuthorId,
                       mentionCountByAccountId: newMentionCountByAccountId,
                   }),
+
+            // If this is a stream comment then create the stream state item.
+            // Create-or-replace is safe since we know the comment index doesn't exist from
+            // our other condition checks.
+            ...(isStream
+                ? [
+                      TaskTable.transactionCreateOrReplaceItem({
+                          partitionType: "Task",
+                          sortRangeType: "Comments#Stream",
+                          taskId,
+                          commentIndex,
+                          authorId,
+                          completedTime: null,
+                          partCount: 0,
+                          lastPartUpdateLockVersion: null,
+                          lastIndexSearchEntityJob: {
+                              sendTime: createdTime,
+                              delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+                          },
+                      }),
+                  ]
+                : []),
         ]);
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
@@ -5571,16 +5667,19 @@ export async function createTaskComment(
             },
         });
 
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId: spaceId,
-            update: {
-                type: "TaskComment",
-                taskId,
-                commentIndex,
-                updatedTraits: {type: "None"},
+        context.jobs.send(
+            {
+                type: "IndexSearchEntity",
+                spaceId: spaceId,
+                update: {
+                    type: "TaskComment",
+                    taskId,
+                    commentIndex,
+                    updatedTraits: {type: "None"},
+                },
             },
-        });
+            {delaySeconds: isStream ? messageStreamIndexSearchEntityDelaySeconds : 0},
+        );
 
         // Only increase affinity score if we have a session actor. Don't increase
         // affinity score if this is a system actor sending a message on behalf of an
@@ -5618,6 +5717,238 @@ export async function createTaskComment(
             createdTime,
         };
     });
+}
+
+/**
+ * Update a part of the comment stream.
+ *
+ * Comment streams are made up of multiple parts. Only the bot that created a
+ * stream can update the stream. A bot can only create new parts or update the
+ * last part of the stream.
+ *
+ * Currently, you completely replace a part when you update it. We may allow
+ * more granular part updates in the future.
+ */
+export function putTaskCommentStreamPart(
+    context: ServerBotActionContext,
+    {
+        taskId,
+        commentIndex,
+        partIndex,
+        payload,
+        consistency,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        partIndex: number;
+        payload: MessageStreamPartPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
+
+            TaskTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Task",
+                    sortRangeType: "Comments#Stream",
+                    taskId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw new FailedPreconditionError("The stream has already been completed", {
+                displayMessage: errorDisplayMessage`The stream has already been completed.`,
+            });
+        }
+
+        // Use `Date.now()` so tests can mock the `Date.now()` function.
+        const currentTime = new Date(Date.now());
+
+        let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
+
+        if (
+            isDatePossiblyLessThanWithUncertaintyWindow(
+                addSeconds(
+                    item.lastIndexSearchEntityJob.sendTime,
+                    item.lastIndexSearchEntityJob.delaySeconds,
+                ),
+                currentTime,
+            )
+        ) {
+            nextIndexSearchEntityJob = {
+                sendTime: currentTime,
+                delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+            };
+        }
+
+        if (partIndex === item.partCount) {
+            await DynamoTableSchema.executeTransaction(context, [
+                TaskTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    partCount: partIndex + 1,
+                    lastPartUpdateLockVersion: 0,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                TaskTable.transactionCreateOrReplaceItem({
+                    partitionType: "Task",
+                    sortRangeType: "Comments#StreamPart",
+                    taskId,
+                    commentIndex,
+                    partIndex,
+                    payload,
+                    // `updateLockVersion: 0` is always represented as `undefined`.
+                    updateLockVersion: undefined,
+                }),
+            ]);
+        } else {
+            if (partIndex !== item.partCount - 1) {
+                throw new FailedPreconditionError(
+                    "Only the last part of the stream or the next part can be updated",
+                    {
+                        displayMessage: errorDisplayMessage`Only the last part of the stream (index ${
+                            item.partCount - 1
+                        }) or the next part (index ${item.partCount}) can be updated.`,
+                    },
+                );
+            }
+
+            assert(item.lastPartUpdateLockVersion !== null);
+
+            await DynamoTableSchema.executeTransaction(context, [
+                TaskTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                TaskTable.transactionCreateOrReplaceItem({
+                    partitionType: "Task",
+                    sortRangeType: "Comments#StreamPart",
+                    taskId,
+                    commentIndex,
+                    partIndex,
+                    payload,
+                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                }),
+            ]);
+        }
+
+        if (nextIndexSearchEntityJob) {
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "TaskComment",
+                        taskId,
+                        commentIndex,
+                        updatedTraits: {type: "Some", traits: []},
+                    },
+                },
+                {delaySeconds: nextIndexSearchEntityJob.delaySeconds},
+            );
+        }
+
+        return {spaceId};
+    });
+}
+
+/**
+ * Completes a comment stream. After this parts can't be added or updated.
+ *
+ * This function is idempotent. If the stream is already completed this method
+ * does nothing.
+ */
+export function completeTaskCommentStream(
+    context: ServerBotActionContext,
+    {
+        taskId,
+        commentIndex,
+        consistency,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    completedTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
+
+            TaskTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Task",
+                    sortRangeType: "Comments#Stream",
+                    taskId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        // Already completed!
+        if (item.completedTime !== null) {
+            return {spaceId, completedTime: item.completedTime};
+        }
+
+        const completedTime = new Date();
+
+        await TaskTable.directlyUpdateItem(context, {
+            ...item,
+            completedTime,
+        });
+
+        return {spaceId, completedTime};
+    });
+}
+
+function getTaskCommentCount(commentSummaryItem: TaskCommentsSummaryItem | null | undefined) {
+    if (!commentSummaryItem) return 0;
+
+    return reduceIterable(
+        commentSummaryItem.commentCountByAuthorId.values(),
+        (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+        0,
+    );
 }
 
 export async function getTaskCommentsFromStart(
@@ -5659,11 +5990,7 @@ export async function getTaskCommentsFromStart(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getTaskCommentCount(commentsSummaryItem),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
@@ -5697,32 +6024,41 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
+    const queryStartCommentIndex =
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+
+    const queryEndCommentIndex = Math.min(
+        queryStartCommentIndex + limit - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
     const commentItems = await arrayFromAsyncIterable(
-        TaskTable.query(context, {
-            partitionKey: {
-                partitionType: "Task",
-                taskId,
-            },
-            startSortKey: {
-                sortRangeType: "Comments",
-                commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-            },
-            endSortKey: {
-                sortRangeType: "Comments",
-                commentIndex:
-                    typeof beforeCommentIndex === "number"
-                        ? beforeCommentIndex - 1
-                        : Number.MAX_SAFE_INTEGER,
-            },
-            limit,
-            consistency,
-        }),
+        processCommentsQuery(
+            "Ascending",
+            TaskTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Task",
+                    taskId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: queryStartCommentIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments#StreamPart",
+                    commentIndex: queryEndCommentIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const startCommentIndex = commentItems[0]!.commentIndex;
-    const endCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+    const startCommentIndex = commentItems[0]!.index;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.index;
 
     const spaceId = await getSpaceId();
 
@@ -5738,16 +6074,9 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await TaskTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Task",
-                        sortRangeType: "Comments",
-                        taskId,
-                        commentIndex,
-                    },
-                    {consistency},
-                );
+                const item = await getTaskCommentItemIfExists(context, taskId, commentIndex, {
+                    consistency,
+                });
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -5756,7 +6085,7 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
                 }
 
                 otherReferencedComments.push(
-                    await createTaskCommentModelFromItem(context, spaceId, item),
+                    await createTaskCommentModelFromItem(context, spaceId, taskId, item),
                 );
             },
         );
@@ -5773,7 +6102,7 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
 
             // Don't propagate `consistency` when loading model references. We
             // accept references can have eventual consistency.
-            return createTaskCommentModelFromItem(context, spaceId, item);
+            return createTaskCommentModelFromItem(context, spaceId, taskId, item);
         }),
     );
 
@@ -5811,59 +6140,54 @@ export async function getTaskCommentPayloadsFromStart(
 ): Promise<{
     spaceId: SpaceId;
     commentCount: number;
-    comments: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    comments: Array<MessageItem>;
 }> {
-    const [{item: taskItem, commentsSummaryItem}, comments] = await runAllPromises([
+    const queryStartCommentIndex =
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+
+    const queryEndCommentIndex = Math.min(
+        queryStartCommentIndex + limit - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
+    const [{item: taskItem, commentsSummaryItem}, commentItems] = await runAllPromises([
         authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {consistency}),
         arrayFromAsyncIterable(
-            TaskTable.query(context, {
-                partitionKey: {
-                    partitionType: "Task",
-                    taskId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                consistency,
-            }),
-            item => ({
-                index: item.commentIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            processCommentsQuery(
+                "Ascending",
+                TaskTable.query(context, {
+                    limit: "All",
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Task",
+                        taskId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Comments",
+                        commentIndex: queryStartCommentIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Comments#StreamPart",
+                        commentIndex: queryEndCommentIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
-    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+    const lastCommentIndex =
+        commentItems.length > 0 ? commentItems[commentItems.length - 1]!.index : -1;
 
     return {
         spaceId: taskItem.spaceId,
         commentCount: Math.max(
-            reduceIterable(
-                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getTaskCommentCount(commentsSummaryItem),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        comments,
+        comments: commentItems,
     };
 }
 
@@ -5889,7 +6213,10 @@ export async function getTaskNotesContentAndOptionalInitialComments(
         lastCommentChangeTime: Date | null;
     } | null;
 }> {
-    const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
+    const authorizationPromiseResolver = createPromiseResolver<{
+        item: {spaceId: SpaceId};
+        commentsSummaryItem: TaskCommentsSummaryItem | null;
+    }>();
 
     const [{item, notes, commentsSummaryItem}, {comments, otherReferencedComments}] =
         await runAllPromises([
@@ -5897,8 +6224,10 @@ export async function getTaskNotesContentAndOptionalInitialComments(
                 context,
                 taskId,
                 "View",
-                async ({item, notesItem, commentsSummaryItem}) => {
-                    spaceIdPromiseResolver.resolve(item.spaceId);
+                async result => {
+                    const {item, notesItem, commentsSummaryItem} = result;
+
+                    authorizationPromiseResolver.resolve(result);
 
                     return {
                         item,
@@ -5926,13 +6255,13 @@ export async function getTaskNotesContentAndOptionalInitialComments(
             ).finally(() => {
                 // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId`
                 // in failure scenarios.
-                if (!spaceIdPromiseResolver.isSettled()) {
-                    spaceIdPromiseResolver.reject(new NotFoundError("Space not found"));
+                if (!authorizationPromiseResolver.isSettled()) {
+                    authorizationPromiseResolver.reject(new NotFoundError("Space not found"));
                 }
             }),
             getTaskCommentsFromEndAssumingAuthorizedTask(context, {
                 taskId,
-                getSpaceId: () => spaceIdPromiseResolver.promise,
+                authorizationPromise: authorizationPromiseResolver.promise,
                 limit: commentsLimit,
                 afterCommentIndex: null,
                 beforeCommentIndex: null,
@@ -5964,12 +6293,7 @@ export async function getTaskNotesContentAndOptionalInitialComments(
         initialComments: commentAuthorizationResult.ok
             ? {
                   commentCount: Math.max(
-                      reduceIterable(
-                          commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                          (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                          0,
-                      ),
-                      // Make sure `commentCount` is consistent with `comments` in case of eventual
+                      getTaskCommentCount(commentsSummaryItem), // Make sure `commentCount` is consistent with `comments` in case of eventual
                       // consistency race conditions.
                       lastCommentIndex + 1,
                   ),
@@ -6005,11 +6329,12 @@ export async function getTaskCommentsFromEnd(
         taskId,
         "Comment",
     );
+
     const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
         authorizationPromise,
         getTaskCommentsFromEndAssumingAuthorizedTask(context, {
             taskId,
-            getSpaceId: () => authorizationPromise.then(({item}) => item.spaceId),
+            authorizationPromise,
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -6020,12 +6345,7 @@ export async function getTaskCommentsFromEnd(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
-            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            getTaskCommentCount(commentsSummaryItem), // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
@@ -6039,13 +6359,16 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
     context: ServerActionContext,
     {
         taskId,
-        getSpaceId,
+        authorizationPromise,
         limit,
         afterCommentIndex,
         beforeCommentIndex,
     }: {
         taskId: TaskId;
-        getSpaceId: () => Promise<SpaceId>;
+        authorizationPromise: Promise<{
+            item: {spaceId: SpaceId};
+            commentsSummaryItem: TaskCommentsSummaryItem | null;
+        }>;
         limit: number;
         afterCommentIndex: number | null;
         beforeCommentIndex: number | null;
@@ -6056,39 +6379,53 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
+    const queryStartCommentIndex = Math.max(
+        typeof beforeCommentIndex === "number"
+            ? beforeCommentIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
+
+    const queryEndCommentIndex =
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-            ? TaskTable.query(context, {
-                  partitionKey: {
-                      partitionType: "Task",
-                      taskId,
-                  },
-                  startSortKey: {
-                      sortRangeType: "Comments",
-                      commentIndex:
-                          typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                  },
-                  endSortKey: {
-                      sortRangeType: "Comments",
-                      commentIndex:
-                          typeof beforeCommentIndex === "number"
-                              ? beforeCommentIndex - 1
-                              : Number.MAX_SAFE_INTEGER,
-                  },
-                  limit,
-                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                  // at the end instead of start.
-                  descending: true,
-              })
+            ? processCommentsQuery(
+                  "Descending",
+                  TaskTable.query(context, {
+                      limit: "All",
+                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                      // at the end instead of start.
+                      descending: true,
+                      partitionKey: {
+                          partitionType: "Task",
+                          taskId,
+                      },
+                      startSortKey: {
+                          sortRangeType: "Comments",
+                          commentIndex: queryStartCommentIndex,
+                      },
+                      endSortKey: {
+                          sortRangeType: "Comments#StreamPart",
+                          commentIndex: queryEndCommentIndex,
+                          partIndex: Number.MAX_SAFE_INTEGER,
+                      },
+                  }),
+              )
             : (async function* () {})(),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const endCommentIndex = commentItems[0]!.commentIndex;
-    const startCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+    const endCommentIndex = commentItems[0]!.index;
+    const startCommentIndex = commentItems[commentItems.length - 1]!.index;
 
-    const spaceId = await getSpaceId();
+    const {spaceId} = (await authorizationPromise).item;
 
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<TaskCommentModel> = [];
@@ -6102,12 +6439,7 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await TaskTable.getItemIfExists(context, {
-                    partitionType: "Task",
-                    sortRangeType: "Comments",
-                    taskId,
-                    commentIndex,
-                });
+                const item = await getTaskCommentItemIfExists(context, taskId, commentIndex);
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -6116,7 +6448,7 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
                 }
 
                 otherReferencedComments.push(
-                    await createTaskCommentModelFromItem(context, spaceId, item),
+                    await createTaskCommentModelFromItem(context, spaceId, taskId, item),
                 );
             },
         );
@@ -6130,7 +6462,7 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedComment(item.payload.parentMessageIndex);
             }
-            return createTaskCommentModelFromItem(context, spaceId, item);
+            return createTaskCommentModelFromItem(context, spaceId, taskId, item);
         }),
     );
 
@@ -6171,65 +6503,73 @@ export async function getTaskCommentPayloadsFromEnd(
 ): Promise<{
     spaceId: SpaceId;
     commentCount: number;
-    comments: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    comments: Array<MessageItem>;
 }> {
-    const [{item: taskItem, commentsSummaryItem}, comments] = await runAllPromises([
-        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {consistency}),
+    const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
+        context,
+        taskId,
+        "Comment",
+        {consistency},
+    );
+
+    const queryStartCommentIndex = Math.max(
+        typeof beforeCommentIndex === "number"
+            ? beforeCommentIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
+
+    const queryEndCommentIndex =
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+
+    const [{item: taskItem, commentsSummaryItem}, commentItems] = await runAllPromises([
+        authorizationPromise,
         arrayFromAsyncIterable(
-            TaskTable.query(context, {
-                partitionKey: {
-                    partitionType: "Task",
-                    taskId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                // at the end instead of start.
-                descending: true,
-                consistency,
-            }),
-            item => ({
-                index: item.commentIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            processCommentsQuery(
+                "Descending",
+                TaskTable.query(context, {
+                    limit: "All",
+                    // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                    // at the end instead of start.
+                    descending: true,
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Task",
+                        taskId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Comments",
+                        commentIndex: queryStartCommentIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Comments#StreamPart",
+                        commentIndex: queryEndCommentIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
     // We queried in descending order so put comments back in the right order.
-    comments.reverse();
+    commentItems.reverse();
 
-    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+    const lastCommentIndex =
+        commentItems.length > 0 ? commentItems[commentItems.length - 1]!.index : -1;
 
     return {
         spaceId: taskItem.spaceId,
         commentCount: Math.max(
-            reduceIterable(
-                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getTaskCommentCount(commentsSummaryItem),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        comments,
+        comments: commentItems,
     };
 }
 

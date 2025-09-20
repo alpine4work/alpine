@@ -1,3 +1,4 @@
+import {addSeconds} from "date-fns";
 import murmurhash from "murmurhash";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
@@ -10,6 +11,7 @@ import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_ac
 import {
     ServerAccountActionContext,
     ServerActionContext,
+    ServerBotActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -33,6 +35,11 @@ import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
+import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {
+    MessageItem,
+    processMessagesQuery,
+} from "~/server/messaging/helpers/process_messages_query.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
@@ -83,7 +90,10 @@ import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadClerical, MessagePayload} from "~/shared/messaging/message_model.js";
+import {
+    MessageContentPayloadClerical,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 
 // Authorizers must be declared next to their respective Tables, so we must
@@ -96,7 +106,6 @@ export const FileChatAuthorizer = InternalFileChatAuthorizer;
 
 type ChatAttributesItem = DynamoTableItemType<typeof ChatTable, "Chat", "Attributes">;
 type ChatAccountItem = DynamoTableItemType<typeof ChatTable, "Chat", "Account">;
-type ChatMessageItem = DynamoTableItemType<typeof ChatTable, "Chat", "Messages">;
 
 type ChatItem = {
     readonly attributesItem: ChatAttributesItem;
@@ -627,12 +636,14 @@ export function sendChatMessage(
         parentMessageIndex,
         content,
         fileIds,
+        isStream,
         consistency,
     }: {
         chatId: ChatId;
         parentMessageIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
@@ -647,6 +658,7 @@ export function sendChatMessage(
         parentMessageIndex,
         content,
         fileIds,
+        clerical: isStream ? {type: "Stream"} : undefined,
         consistency,
     });
 }
@@ -662,8 +674,8 @@ function sendChatMessageForAccount(
         parentMessageIndex,
         content,
         fileIds,
-        consistency,
         clerical,
+        consistency,
         clientRequestToken,
     }: {
         chatId: ChatId;
@@ -671,8 +683,8 @@ function sendChatMessageForAccount(
         parentMessageIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
-        consistency?: DynamoCacheReadConsistency;
         clerical?: MessageContentPayloadClerical;
+        consistency?: DynamoCacheReadConsistency;
         clientRequestToken?: string;
     },
 ): Promise<{
@@ -731,8 +743,26 @@ function sendChatMessageForAccount(
             })(),
         ]);
 
-        if (clerical && context.actor.type !== "System")
-            throw new PermissionDeniedError("Only system actors can send clerical messages");
+        if (clerical) {
+            switch (clerical.type) {
+                case "ShareNotification": {
+                    if (context.actor.type !== "System") {
+                        throw new PermissionDeniedError(
+                            "Only system actors can send `ShareNotification` messages",
+                        );
+                    }
+                    break;
+                }
+                case "Stream": {
+                    if (context.actor.type !== "Bot") {
+                        throw new PermissionDeniedError("Only bots can send `Stream` messages");
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(clerical);
+            }
+        }
 
         const messageIndex = chatAttributesItem.messagesSummary.nextMessageIndex;
 
@@ -769,6 +799,28 @@ function sendChatMessageForAccount(
                     },
                     {updateLockVersion: chatAttributesItem.updateLockVersion},
                 ),
+
+                // If this is a stream message then create the stream state item.
+                // Create-or-replace is safe since we know the message index doesn't exist from
+                // our other condition checks.
+                ...(clerical?.type === "Stream"
+                    ? [
+                          ChatTable.transactionCreateOrReplaceItem({
+                              partitionType: "Chat",
+                              sortRangeType: "Messages#Stream",
+                              chatId,
+                              messageIndex,
+                              authorId,
+                              completedTime: null,
+                              partCount: 0,
+                              lastPartUpdateLockVersion: null,
+                              lastIndexSearchEntityJob: {
+                                  sendTime: createdTime,
+                                  delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+                              },
+                          }),
+                      ]
+                    : []),
             ],
             {clientRequestToken},
         );
@@ -793,18 +845,24 @@ function sendChatMessageForAccount(
             },
         });
 
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId: chatAttributesItem.spaceId,
-            update: {
-                type: "ChatMessage",
-                chatId,
-                messageIndex,
-                // Nothing depends on this entity when it's created. Don't bother trying to
-                // reindex dependencies.
-                updatedTraits: {type: "None"},
+        context.jobs.send(
+            {
+                type: "IndexSearchEntity",
+                spaceId: chatAttributesItem.spaceId,
+                update: {
+                    type: "ChatMessage",
+                    chatId,
+                    messageIndex,
+                    // Nothing depends on this entity when it's created. Don't bother trying to
+                    // reindex dependencies.
+                    updatedTraits: {type: "None"},
+                },
             },
-        });
+            {
+                delaySeconds:
+                    clerical?.type === "Stream" ? messageStreamIndexSearchEntityDelaySeconds : 0,
+            },
+        );
 
         // We don't index a chat for search until the first message is sent to
         // the chat.
@@ -895,6 +953,228 @@ function sendChatMessageForAccount(
             index: messageIndex,
             createdTime,
         };
+    });
+}
+
+/**
+ * Update a part of the message stream.
+ *
+ * Message streams are made up of multiple parts. Only the bot that created a
+ * stream can update the stream. A bot can only create new parts or update the
+ * last part of the stream.
+ *
+ * Currently, you completely replace a part when you update it. We may allow
+ * more granular part updates in the future.
+ */
+export function putChatMessageStreamPart(
+    context: ServerBotActionContext,
+    {
+        chatId,
+        messageIndex,
+        partIndex,
+        payload,
+        consistency,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        partIndex: number;
+        payload: MessageStreamPartPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeChatAccess(context, chatId, {consistency}),
+
+            ChatTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Chat",
+                    sortRangeType: "Messages#Stream",
+                    chatId,
+                    messageIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw new FailedPreconditionError("The stream has already been completed", {
+                displayMessage: errorDisplayMessage`The stream has already been completed.`,
+            });
+        }
+
+        // Use `Date.now()` so tests can mock the `Date.now()` function.
+        const currentTime = new Date(Date.now());
+
+        let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
+
+        if (
+            isDatePossiblyLessThanWithUncertaintyWindow(
+                addSeconds(
+                    item.lastIndexSearchEntityJob.sendTime,
+                    item.lastIndexSearchEntityJob.delaySeconds,
+                ),
+                currentTime,
+            )
+        ) {
+            nextIndexSearchEntityJob = {
+                sendTime: currentTime,
+                delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+            };
+        }
+
+        if (partIndex === item.partCount) {
+            await DynamoTableSchema.executeTransaction(context, [
+                ChatTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    partCount: partIndex + 1,
+                    lastPartUpdateLockVersion: 0,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                ChatTable.transactionCreateOrReplaceItem({
+                    partitionType: "Chat",
+                    sortRangeType: "Messages#StreamPart",
+                    chatId,
+                    messageIndex,
+                    partIndex,
+                    payload,
+                    // `updateLockVersion: 0` is always represented as `undefined`.
+                    updateLockVersion: undefined,
+                }),
+            ]);
+        } else {
+            if (partIndex !== item.partCount - 1) {
+                throw new FailedPreconditionError(
+                    "Only the last part of the stream or the next part can be updated",
+                    {
+                        displayMessage: errorDisplayMessage`Only the last part of the stream (index ${
+                            item.partCount - 1
+                        }) or the next part (index ${item.partCount}) can be updated.`,
+                    },
+                );
+            }
+
+            assert(item.lastPartUpdateLockVersion !== null);
+
+            await DynamoTableSchema.executeTransaction(context, [
+                ChatTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                ChatTable.transactionCreateOrReplaceItem({
+                    partitionType: "Chat",
+                    sortRangeType: "Messages#StreamPart",
+                    chatId,
+                    messageIndex,
+                    partIndex,
+                    payload,
+                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                }),
+            ]);
+        }
+
+        if (nextIndexSearchEntityJob) {
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "ChatMessage",
+                        chatId,
+                        messageIndex,
+                        updatedTraits: {type: "Some", traits: []},
+                    },
+                },
+                {delaySeconds: nextIndexSearchEntityJob.delaySeconds},
+            );
+        }
+
+        return {spaceId};
+    });
+}
+
+/**
+ * Completes a message stream. After this parts can't be added or updated.
+ *
+ * This function is idempotent. If the stream is already completed this method
+ * does nothing.
+ */
+export function completeChatMessageStream(
+    context: ServerBotActionContext,
+    {
+        chatId,
+        messageIndex,
+        consistency,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    completedTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeChatAccess(context, chatId, {consistency}),
+
+            ChatTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Chat",
+                    sortRangeType: "Messages#Stream",
+                    chatId,
+                    messageIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        // Already completed!
+        if (item.completedTime !== null) {
+            return {spaceId, completedTime: item.completedTime};
+        }
+
+        const completedTime = new Date();
+
+        await ChatTable.directlyUpdateItem(context, {
+            ...item,
+            completedTime,
+        });
+
+        return {spaceId, completedTime};
     });
 }
 
@@ -1532,6 +1812,40 @@ export async function getChatAccountIdsForBotScope(
     return chatItem.accountItems.map(({accountId}) => accountId);
 }
 
+async function getChatMessageItemIfExists(
+    context: ServerActionContext,
+    chatId: ChatId,
+    messageIndex: number,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<MessageItem | null> {
+    const items = await arrayFromAsyncIterable(
+        processMessagesQuery(
+            "Ascending",
+            ChatTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Chat",
+                    chatId,
+                },
+                startSortKey: {
+                    sortRangeType: "Messages",
+                    messageIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Messages#StreamPart",
+                    messageIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
+    );
+
+    assert(items.length <= 1);
+
+    return items[0] ?? null;
+}
+
 /**
  * Get a single chat message comment.
  */
@@ -1541,17 +1855,12 @@ export async function getChatMessage(
 ): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizeChatAccess(context, chatId),
-        ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Messages",
-            chatId,
-            messageIndex,
-        }),
+        getChatMessageItemIfExists(context, chatId, messageIndex),
     ]);
 
     if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
-    return createChatMessageModelFromItem(context, spaceId, item);
+    return createChatMessageModelFromItem(context, spaceId, chatId, item);
 }
 
 /**
@@ -1568,54 +1877,36 @@ export async function getChatMessagePayload(
         messageIndex: number;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<{
-    spaceId: SpaceId;
-    createdTime: Date;
-    authorId: AccountId;
-    payload: MessagePayload;
-}> {
+): Promise<MessageItem & {spaceId: SpaceId}> {
     const [{spaceId}, item] = await runAllPromises([
         authorizeChatAccess(context, chatId, {consistency}),
-        ChatTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Chat",
-                sortRangeType: "Messages",
-                chatId,
-                messageIndex,
-            },
-            {consistency},
-        ),
+        getChatMessageItemIfExists(context, chatId, messageIndex, {consistency}),
     ]);
 
     if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
 
-    return {
-        spaceId,
-        createdTime: item.createdTime,
-        authorId: item.authorId,
-        payload: item.payload,
-    };
+    return {spaceId, ...item};
 }
 
 async function createChatMessageModelFromItem(
     context: ServerActionContext,
     spaceId: SpaceId,
-    item: ChatMessageItem,
+    chatId: ChatId,
+    item: MessageItem,
 ): Promise<ChatMessageModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,
-            FileChatAuthorizer.bind({type: "ChatMessages", chatId: item.chatId}),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
             item.payload,
         ),
     ]);
 
     return new ChatMessageModel({
-        chatId: item.chatId,
-        index: item.messageIndex,
+        chatId,
+        index: item.index,
         author,
         createdTime: item.createdTime,
         payload,
@@ -1626,7 +1917,7 @@ async function createChatMessageModelFromItem(
  * Update the contents of a chat message.
  */
 export function updateChatMessageContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         chatId,
         messageIndex,
@@ -1650,7 +1941,7 @@ export function updateChatMessageContent(
             }),
         ]);
 
-        if (chatMessageItem.authorId !== context.actor.getAccountId())
+        if (chatMessageItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only update chat messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
@@ -1727,7 +2018,7 @@ export function updateChatMessageContent(
  * Delete a single chat message.
  */
 export function deleteChatMessage(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -1743,7 +2034,7 @@ export function deleteChatMessage(
 
         if (!chatMessageItem) throw new NotFoundError("Chat message not found");
 
-        if (chatMessageItem.authorId !== context.actor.getAccountId())
+        if (chatMessageItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only delete messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
@@ -1878,7 +2169,10 @@ async function actuallyGetChatAndInitialMessages(
         }),
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId: result.chatId,
-            getSpaceId: () => chatPromise.then(({spaceId}) => spaceId),
+            chatItemPromise: chatPromise.then(({spaceId, messageCount}) => ({
+                spaceId,
+                messagesSummary: {messageCount},
+            })),
             limit: messagesLimit,
             afterMessageIndex: null,
             beforeMessageIndex: null,
@@ -1974,32 +2268,41 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 }> {
     if (limit === 0) return {messages: [], otherReferencedMessages: []};
 
+    const queryStartMessageIndex =
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0;
+
+    const queryEndMessageIndex = Math.min(
+        queryStartMessageIndex + limit - 1,
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
     const messageItems = await arrayFromAsyncIterable(
-        ChatTable.query(context, {
-            partitionKey: {
-                partitionType: "Chat",
-                chatId,
-            },
-            startSortKey: {
-                sortRangeType: "Messages",
-                messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-            },
-            endSortKey: {
-                sortRangeType: "Messages",
-                messageIndex:
-                    typeof beforeMessageIndex === "number"
-                        ? beforeMessageIndex - 1
-                        : Number.MAX_SAFE_INTEGER,
-            },
-            limit,
-            consistency,
-        }),
+        processMessagesQuery(
+            "Ascending",
+            ChatTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Chat",
+                    chatId,
+                },
+                startSortKey: {
+                    sortRangeType: "Messages",
+                    messageIndex: queryStartMessageIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Messages#StreamPart",
+                    messageIndex: queryEndMessageIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
     );
 
     if (messageItems.length === 0) return {messages: [], otherReferencedMessages: []};
 
-    const startMessageIndex = messageItems[0]!.messageIndex;
-    const endMessageIndex = messageItems[messageItems.length - 1]!.messageIndex;
+    const startMessageIndex = messageItems[0]!.index;
+    const endMessageIndex = messageItems[messageItems.length - 1]!.index;
 
     const spaceId = await getSpaceId();
 
@@ -2015,16 +2318,9 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
             otherReferencedMessagePromiseByIndex,
             messageIndex,
             async () => {
-                const item = await ChatTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Chat",
-                        sortRangeType: "Messages",
-                        chatId,
-                        messageIndex,
-                    },
-                    {consistency},
-                );
+                const item = await getChatMessageItemIfExists(context, chatId, messageIndex, {
+                    consistency,
+                });
                 if (!item) throw new InternalError("Parent message not found");
 
                 // Recursively load any referenced parent messages...
@@ -2033,7 +2329,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
                 }
 
                 otherReferencedMessages.push(
-                    await createChatMessageModelFromItem(context, spaceId, item),
+                    await createChatMessageModelFromItem(context, spaceId, chatId, item),
                 );
             },
         );
@@ -2044,17 +2340,13 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 
     const messages = await runAllPromises(
         messageItems.map(item => {
-            // TODO(calebmer, #ai): We don't use the agent response child sort range
-            // here yet.
-            assert(item.sortRangeType === "Messages");
-
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedMessage(item.payload.parentMessageIndex);
             }
 
             // Don't propagate `consistency` when loading model references. We
             // accept references can have eventual consistency.
-            return createChatMessageModelFromItem(context, spaceId, item);
+            return createChatMessageModelFromItem(context, spaceId, chatId, item);
         }),
     );
 
@@ -2096,51 +2388,44 @@ export async function getChatMessagePayloadsFromStart(
 ): Promise<{
     spaceId: SpaceId;
     messageCount: number;
-    messages: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    messages: Array<MessageItem>;
 }> {
-    const [chatItem, messages] = await runAllPromises([
+    const queryStartMessageIndex =
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0;
+
+    const queryEndMessageIndex = Math.min(
+        queryStartMessageIndex + limit - 1,
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
+    const [chatItem, messageItems] = await runAllPromises([
         authorizeChatAccessAndReturnItem(context, chatId, {consistency}),
         arrayFromAsyncIterable(
-            ChatTable.query(context, {
-                partitionKey: {
-                    partitionType: "Chat",
-                    chatId,
-                },
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex:
-                        typeof beforeMessageIndex === "number"
-                            ? beforeMessageIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                consistency,
-            }),
-            item => {
-                // TODO(calebmer, #ai): We don't use the agent response child sort range
-                // here yet.
-                assert(item.sortRangeType === "Messages");
-
-                return {
-                    index: item.messageIndex,
-                    createdTime: item.createdTime,
-                    authorId: item.authorId,
-                    payload: item.payload,
-                };
-            },
+            processMessagesQuery(
+                "Ascending",
+                ChatTable.query(context, {
+                    limit: "All",
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Chat",
+                        chatId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Messages",
+                        messageIndex: queryStartMessageIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Messages#StreamPart",
+                        messageIndex: queryEndMessageIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
-    const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
+    const lastMessageIndex =
+        messageItems.length > 0 ? messageItems[messageItems.length - 1]!.index : -1;
 
     return {
         spaceId: chatItem.spaceId,
@@ -2150,7 +2435,7 @@ export async function getChatMessagePayloadsFromStart(
             // consistency race conditions.
             lastMessageIndex + 1,
         ),
-        messages,
+        messages: messageItems,
     };
 }
 
@@ -2182,7 +2467,7 @@ export async function getChatMessagesFromEnd(
         chatItemPromise,
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId,
-            getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
+            chatItemPromise,
             limit,
             afterMessageIndex,
             beforeMessageIndex,
@@ -2208,13 +2493,13 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
     context: ServerActionContext,
     {
         chatId,
-        getSpaceId,
+        chatItemPromise,
         limit,
         afterMessageIndex,
         beforeMessageIndex,
     }: {
         chatId: ChatId;
-        getSpaceId: () => Promise<SpaceId>;
+        chatItemPromise: Promise<{spaceId: SpaceId; messagesSummary: {messageCount: number}}>;
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
@@ -2225,39 +2510,53 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
 }> {
     if (limit === 0) return {messages: [], otherReferencedMessages: []};
 
+    const queryStartMessageIndex = Math.max(
+        typeof beforeMessageIndex === "number"
+            ? beforeMessageIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              (await chatItemPromise).messagesSummary.messageCount - limit,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
+
+    const queryEndMessageIndex =
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER;
+
     const messageItems = await arrayFromAsyncIterable(
         typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
-            ? ChatTable.query(context, {
-                  partitionKey: {
-                      partitionType: "Chat",
-                      chatId,
-                  },
-                  startSortKey: {
-                      sortRangeType: "Messages",
-                      messageIndex:
-                          typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-                  },
-                  endSortKey: {
-                      sortRangeType: "Messages",
-                      messageIndex:
-                          typeof beforeMessageIndex === "number"
-                              ? beforeMessageIndex - 1
-                              : Number.MAX_SAFE_INTEGER,
-                  },
-                  limit,
-                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                  // at the end instead of start.
-                  descending: true,
-              })
+            ? processMessagesQuery(
+                  "Descending",
+                  ChatTable.query(context, {
+                      limit: "All",
+                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                      // at the end instead of start.
+                      descending: true,
+                      partitionKey: {
+                          partitionType: "Chat",
+                          chatId,
+                      },
+                      startSortKey: {
+                          sortRangeType: "Messages",
+                          messageIndex: queryStartMessageIndex,
+                      },
+                      endSortKey: {
+                          sortRangeType: "Messages#StreamPart",
+                          messageIndex: queryEndMessageIndex,
+                          partIndex: Number.MAX_SAFE_INTEGER,
+                      },
+                  }),
+              )
             : (async function* () {})(),
     );
 
     if (messageItems.length === 0) return {messages: [], otherReferencedMessages: []};
 
-    const endMessageIndex = messageItems[0]!.messageIndex;
-    const startMessageIndex = messageItems[messageItems.length - 1]!.messageIndex;
+    const endMessageIndex = messageItems[0]!.index;
+    const startMessageIndex = messageItems[messageItems.length - 1]!.index;
 
-    const spaceId = await getSpaceId();
+    const {spaceId} = await chatItemPromise;
 
     let otherReferencedMessagePromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedMessages: Array<ChatMessageModel> = [];
@@ -2271,12 +2570,7 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
             otherReferencedMessagePromiseByIndex,
             messageIndex,
             async () => {
-                const item = await ChatTable.getItemIfExists(context, {
-                    partitionType: "Chat",
-                    sortRangeType: "Messages",
-                    chatId,
-                    messageIndex,
-                });
+                const item = await getChatMessageItemIfExists(context, chatId, messageIndex);
                 if (!item) throw new InternalError("Parent message not found");
 
                 // Recursively load any referenced parent messages...
@@ -2285,7 +2579,7 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
                 }
 
                 otherReferencedMessages.push(
-                    await createChatMessageModelFromItem(context, spaceId, item),
+                    await createChatMessageModelFromItem(context, spaceId, chatId, item),
                 );
             },
         );
@@ -2296,14 +2590,10 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
 
     const messages = await runAllPromises(
         messageItems.map(item => {
-            // TODO(calebmer, #ai): We don't use the agent response child sort range
-            // here yet.
-            assert(item.sortRangeType === "Messages");
-
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedMessage(item.payload.parentMessageIndex);
             }
-            return createChatMessageModelFromItem(context, spaceId, item);
+            return createChatMessageModelFromItem(context, spaceId, chatId, item);
         }),
     );
 
@@ -2348,57 +2638,58 @@ export async function getChatMessagePayloadsFromEnd(
 ): Promise<{
     spaceId: SpaceId;
     messageCount: number;
-    messages: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    messages: Array<MessageItem>;
 }> {
-    const [chatItem, messages] = await runAllPromises([
-        authorizeChatAccessAndReturnItem(context, chatId, {consistency}),
-        arrayFromAsyncIterable(
-            ChatTable.query(context, {
-                partitionKey: {
-                    partitionType: "Chat",
-                    chatId,
-                },
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex:
-                        typeof beforeMessageIndex === "number"
-                            ? beforeMessageIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                // at the end instead of start.
-                descending: true,
-                consistency,
-            }),
-            item => {
-                // TODO(calebmer, #ai): We don't use the agent response child sort range
-                // here yet.
-                assert(item.sortRangeType === "Messages");
+    const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId, {consistency});
 
-                return {
-                    index: item.messageIndex,
-                    createdTime: item.createdTime,
-                    authorId: item.authorId,
-                    payload: item.payload,
-                };
-            },
+    const queryStartMessageIndex = Math.max(
+        typeof beforeMessageIndex === "number"
+            ? beforeMessageIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              (await chatItemPromise).messagesSummary.messageCount - limit,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
+
+    const queryEndMessageIndex =
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER;
+
+    const [chatItem, messageItems] = await runAllPromises([
+        chatItemPromise,
+        arrayFromAsyncIterable(
+            processMessagesQuery(
+                "Descending",
+                ChatTable.query(context, {
+                    limit: "All",
+                    // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                    // at the end instead of start.
+                    descending: true,
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Chat",
+                        chatId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Messages",
+                        messageIndex: queryStartMessageIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Messages#StreamPart",
+                        messageIndex: queryEndMessageIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
     // Reverse the order of messages since we queried them in descending order.
-    messages.reverse();
+    messageItems.reverse();
 
-    const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
+    const lastMessageIndex =
+        messageItems.length > 0 ? messageItems[messageItems.length - 1]!.index : -1;
 
     return {
         spaceId: chatItem.spaceId,
@@ -2408,7 +2699,7 @@ export async function getChatMessagePayloadsFromEnd(
             // consistency race conditions.
             lastMessageIndex + 1,
         ),
-        messages,
+        messages: messageItems,
     };
 }
 

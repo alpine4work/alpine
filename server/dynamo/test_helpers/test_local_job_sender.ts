@@ -101,6 +101,10 @@ export class TestLocalJobSender implements JobSenderBase {
         job: JobDescription,
         {delaySeconds = 0}: {delaySeconds?: number} = {},
     ) {
+        if (TestLocalJobSender._capturedSentJobs !== null) {
+            TestLocalJobSender._capturedSentJobs?.push({job, delaySeconds});
+        }
+
         const tracer = context.tracer.getTracer();
 
         // Create a new context because if we need to wait for a timeout (because of
@@ -187,5 +191,31 @@ export class TestLocalJobSender implements JobSenderBase {
                 }
             });
         }
+    }
+
+    private static _capturedSentJobs: Array<{job: JobDescription; delaySeconds: number}> | null =
+        null;
+
+    /**
+     * Gives tests an easy way to capture jobs sent by some code without modifying
+     * `TestContext`.
+     */
+    public static async captureSentJobs(
+        action: () => Promise<void>,
+    ): Promise<Array<{job: JobDescription; delaySeconds: number}>> {
+        assert(import.meta.jest);
+
+        assert(TestLocalJobSender._capturedSentJobs === null);
+        TestLocalJobSender._capturedSentJobs = [];
+
+        let jobs;
+        try {
+            await action();
+        } finally {
+            jobs = TestLocalJobSender._capturedSentJobs;
+            TestLocalJobSender._capturedSentJobs = null;
+        }
+
+        return jobs;
     }
 }

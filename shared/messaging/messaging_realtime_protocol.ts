@@ -3,7 +3,8 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadSchema, MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadSchema} from "~/shared/messaging/message_schema.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

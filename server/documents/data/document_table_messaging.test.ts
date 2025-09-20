@@ -3,6 +3,7 @@ import {
     FileDocumentAuthorizer,
     authorizeDocumentAccess,
     backfillDocumentComments,
+    completeDocumentCommentStream,
     createDocument,
     createDocumentComment,
     deleteDocumentComment,
@@ -15,9 +16,11 @@ import {
     getDocumentCommentsFromStart,
     getDocumentWithOptionalComments,
     getDocumentsTableForTest,
+    putDocumentCommentStreamPart,
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_actions.js";
+import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
@@ -38,7 +41,9 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    documentsInjection,
+});
 
 testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async createRoom(context, spaceId) {
@@ -106,8 +111,8 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
                             accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                                 ...insideSessions.map(
                                     (insideSession): [AccountId, AccessPolicyAccountGrant] => [
-                                        insideSession.account.id,
-                                        insideSession.account.id === context.actor.getAccountId()
+                                        insideSession.accountId,
+                                        insideSession.accountId === context.actor.getAccountId()
                                             ? {level: "Manage", generation: 0}
                                             : {
                                                   level: (["Comment", "Edit"] as const)[
@@ -116,7 +121,9 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
                                               },
                                     ],
                                 ),
-                                [insideViewerSession.account.id, {level: "View"}],
+                                ...(insideViewerSession
+                                    ? [[insideViewerSession.accountId, {level: "View"}] as const]
+                                    : []),
                             ]),
                             defaultGrant: null,
                             urlGrant: null,
@@ -219,9 +226,13 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
 
         return FileDocumentAuthorizer.bind({type: "DocumentComments", documentId});
     },
+    getRoomBotScope(roomKey) {
+        const [documentId] = decodeDocumentCommentRoomKey(roomKey);
+        return {type: "Document", documentId};
+    },
     async createMessage(
         context,
-        {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
+        {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds, isStream},
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
@@ -231,12 +242,33 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             parentCommentIndex,
             content,
             fileIds,
+            isStream,
         });
 
         return {
             index: comment.index,
             createdTime: comment.createdTime,
         };
+    },
+    async putMessageStreamPart(context, {roomKey, messageIndex: commentIndex, partIndex, payload}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        await putDocumentCommentStreamPart(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            partIndex,
+            payload,
+        });
+    },
+    async completeMessageStream(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return completeDocumentCommentStream(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+        });
     },
     async getMessage(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
@@ -246,13 +278,11 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async getMessagePayload(context, {roomKey, messageIndex: commentIndex}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return (
-            await getDocumentCommentPayload(context, {
-                documentId,
-                commentThreadId,
-                commentIndex,
-            })
-        ).payload;
+        return getDocumentCommentPayload(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+        });
     },
     async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);

@@ -1,7 +1,7 @@
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayload} from "~/shared/messaging/message_model.js";
 import {MessageReferencedIds} from "~/shared/messaging/message_references.js";
+import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 /**

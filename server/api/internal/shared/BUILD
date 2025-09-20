@@ -24,6 +24,7 @@ ts_project(
         "//server/api/specification",
         "//server/context",
         "//server/helpers",
+        "//server/messaging/helpers",
         "//server/node",
         "//server/spaces",
         "//server/tokens",

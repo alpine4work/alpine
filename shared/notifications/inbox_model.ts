@@ -12,7 +12,7 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";

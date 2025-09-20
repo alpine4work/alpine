@@ -11,7 +11,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type NotificationCreateChatMessageEvent = SchemaType<

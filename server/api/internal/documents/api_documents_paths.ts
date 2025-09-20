@@ -1,21 +1,25 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
+    completeDocumentCommentStream,
     createDocumentComment,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
     getDocumentCommentPayloadsFromStart,
     getDocumentContent,
+    putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayload} from "~/shared/messaging/message_model.js";
+import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
@@ -44,26 +48,17 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
 
     "/documents/{id}/threads/{threadId}/messages/{index}": {
         get: async (context, {pathParameters}) => {
-            const {spaceId, authorId, createdTime, payload} = await getDocumentCommentPayload(
-                context,
-                {
-                    documentId: pathParameters.id,
-                    commentThreadId: pathParameters.threadId,
-                    commentIndex: pathParameters.index,
-                    consistency: "StrongWithinCache",
-                },
-            );
+            const message = await getDocumentCommentPayload(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
 
             return {
                 content: {
-                    spaceId,
-                    message: await intoApiMessage(context, {
-                        spaceId,
-                        index: pathParameters.index,
-                        authorId,
-                        createdTime,
-                        payload,
-                    }),
+                    spaceId: message.spaceId,
+                    message: await intoApiMessage(context, message.spaceId, message),
                 },
             };
         },
@@ -118,15 +113,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(message =>
-                            intoApiMessage(context, {
-                                spaceId,
-                                index: message.index,
-                                authorId: message.authorId,
-                                createdTime: message.createdTime,
-                                payload: message.payload,
-                            }),
-                        ),
+                        comments.map(message => intoApiMessage(context, spaceId, message)),
                     ),
                 },
             };
@@ -142,6 +129,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 parentCommentIndex: null,
                 content,
                 fileIds: [],
+                isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
 
@@ -187,15 +175,48 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(context, {
-                        spaceId,
+                    message: await intoApiMessage(context, spaceId, {
                         index,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
                         payload: payload,
+                        stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),
                 },
             };
+        },
+    },
+
+    "/documents/{id}/threads/{threadId}/messages/{index}/stream/completion": {
+        put: async (context, {pathParameters}) => {
+            const {spaceId, completedTime} = await completeDocumentCommentStream(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    completion: {completedTime: serializeDateString(completedTime)},
+                },
+            };
+        },
+    },
+
+    "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}": {
+        put: async (context, {pathParameters, requestBody}) => {
+            const {spaceId} = await putDocumentCommentStreamPart(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                partIndex: pathParameters.partIndex,
+                payload: fromApiMessageStreamPartPayload(requestBody.payload),
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 };

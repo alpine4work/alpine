@@ -4,7 +4,10 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {
+    MessagePayloadSchema,
+    MessageStreamPartPayloadSchema,
+} from "~/shared/messaging/message_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const ChatTable = DynamoTableSchema.new({
@@ -117,19 +120,51 @@ export const ChatTable = DynamoTableSchema.new({
                     }),
                     childSortRanges: [
                         {
-                            name: "AgentResponse",
+                            name: "Stream",
                             sortKeyAttributes: {},
                             attributes: Schema.object({
-                                test1: Schema.integer,
+                                // We duplicate `authorId` here to easily check if the bot is allowed to update
+                                // the stream.
+                                authorId: Schema.id<AccountId>(),
+
+                                /**
+                                 * When the stream was completed. If null then the stream hasn’t been
+                                 * finished so we should expect more updates!
+                                 *
+                                 * If a stream hasn't completed for some period of time since creation (a
+                                 * couple hours) then we consider the stream to be completed whether or not
+                                 * it actually has been completed.
+                                 */
+                                completedTime: Schema.date.nullable(),
+
+                                /**
+                                 * The number of parts in the stream so far. A bot can only ever create
+                                 * new parts or update the last part in the stream.
+                                 */
+                                partCount: Schema.integer.min(0),
+
+                                /**
+                                 * The current `updateLockVersion` of the last part in the stream.
+                                 */
+                                lastPartUpdateLockVersion: Schema.integer.min(0).nullable(),
+
+                                /**
+                                 * The last `IndexSearchEntity` job that was sent for this stream. We send an
+                                 * `IndexSearchEntity` job once every 10 seconds.
+                                 */
+                                lastIndexSearchEntityJob: Schema.object({
+                                    sendTime: Schema.date,
+                                    delaySeconds: Schema.integer.min(0),
+                                }),
                             }),
                         },
                         {
-                            name: "AgentResponsePart",
+                            name: "StreamPart",
                             sortKeyAttributes: {
                                 partIndex: DynamoKeyAttributeSchema.integer,
                             },
                             attributes: Schema.object({
-                                test2: Schema.integer,
+                                payload: MessageStreamPartPayloadSchema,
                             }),
                         },
                     ],

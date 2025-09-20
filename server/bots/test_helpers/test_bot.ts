@@ -91,7 +91,17 @@ export class TestBotAccount extends TestAccount {
         return new TestBotAccount(bot, space, id, initialName);
     }
 
-    public action(scope?: BotTokenPayloadScope, options?: {serviceName?: ActorServiceName}) {
+    public action(
+        scope: BotTokenPayloadScope | TestAccount | TestSession = {type: "Space"},
+        options?: {serviceName?: ActorServiceName},
+    ) {
+        scope =
+            scope instanceof TestAccount
+                ? {type: "Account", accountId: scope.id}
+                : scope instanceof TestSession
+                ? {type: "Account", accountId: scope.account.id}
+                : scope;
+
         return this.bot.context.botAction(this.space.id, this.id, scope, options);
     }
 
@@ -102,15 +112,17 @@ export class TestBotAccount extends TestAccount {
     public createApiKey(
         scope: BotTokenPayloadScope | TestAccount | TestSession = {type: "Space"},
     ): Promise<ApiKey> {
+        scope =
+            scope instanceof TestAccount
+                ? {type: "Account", accountId: scope.id}
+                : scope instanceof TestSession
+                ? {type: "Account", accountId: scope.account.id}
+                : scope;
+
         return createScopedApiKeyForTest(this.bot.context, this.bot.id, {
             spaceId: this.space.id,
             accountId: this.id,
-            scope:
-                scope instanceof TestAccount
-                    ? {type: "Account", accountId: scope.id}
-                    : scope instanceof TestSession
-                    ? {type: "Account", accountId: scope.account.id}
-                    : scope,
+            scope,
         });
     }
 }

@@ -2,6 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {
     FilePostAuthorizer,
     backfillPostComments,
+    completePostCommentStream,
     createChannel,
     createPost,
     createPostComment,
@@ -14,9 +15,11 @@ import {
     getPostCommentPayloadsFromStart,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    putPostCommentStreamPart,
     updateChannelAccessPolicy,
     updatePostCommentContent,
 } from "~/server/forum/data/forum_actions.js";
+import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
@@ -24,7 +27,9 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, PostId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    forumInjection,
+});
 
 testMessagingImplementation<PostId>(context, {
     async createRoom(context, spaceId) {
@@ -60,13 +65,15 @@ testMessagingImplementation<PostId>(context, {
                 accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                     ...insideSessions.map(
                         (insideSession): [AccountId, AccessPolicyAccountGrant] => [
-                            insideSession.account.id,
-                            insideSession.account.id === context.actor.getAccountId()
+                            insideSession.accountId,
+                            insideSession.accountId === context.actor.getAccountId()
                                 ? {level: "Manage", generation: 0}
                                 : {level: (["Comment", "Edit"] as const)[count++ % 2]!},
                         ],
                     ),
-                    [insideViewerSession.account.id, {level: "View"}],
+                    ...(insideViewerSession
+                        ? [[insideViewerSession.accountId, {level: "View"}] as const]
+                        : []),
                 ]),
                 defaultGrant: null,
                 urlGrant: null,
@@ -122,15 +129,19 @@ testMessagingImplementation<PostId>(context, {
     getRoomFileAuthorizer(postId) {
         return FilePostAuthorizer.bind({type: "PostComments", postId});
     },
+    getRoomBotScope(postId) {
+        return {type: "Post", postId};
+    },
     async createMessage(
         context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
+        {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds, isStream},
     ) {
         const comment = await createPostComment(context, {
             postId,
             parentCommentIndex,
             content,
             fileIds,
+            isStream,
         });
 
         return {
@@ -138,11 +149,28 @@ testMessagingImplementation<PostId>(context, {
             createdTime: comment.createdTime,
         };
     },
+    async putMessageStreamPart(
+        context,
+        {roomKey: postId, messageIndex: commentIndex, partIndex, payload},
+    ) {
+        await putPostCommentStreamPart(context, {
+            postId,
+            commentIndex,
+            partIndex,
+            payload,
+        });
+    },
+    async completeMessageStream(context, {roomKey: postId, messageIndex: commentIndex}) {
+        return completePostCommentStream(context, {
+            postId,
+            commentIndex,
+        });
+    },
     async getMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
         return getPostComment(context, {postId, commentIndex});
     },
     async getMessagePayload(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return (await getPostCommentPayload(context, {postId, commentIndex})).payload;
+        return await getPostCommentPayload(context, {postId, commentIndex});
     },
     async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {

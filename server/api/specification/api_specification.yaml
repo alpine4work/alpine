@@ -156,20 +156,52 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
         post:
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            required: [content]
-                            additionalProperties: false
-                            properties:
-                                content:
-                                    $ref: "#/components/schemas/Content"
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /chats/{id}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /chats/{id}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
     /documents/{id}:
         parameters:
@@ -247,20 +279,60 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
         post:
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            required: [content]
-                            additionalProperties: false
-                            properties:
-                                content:
-                                    $ref: "#/components/schemas/Content"
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
     /channels/{id}:
         parameters:
@@ -352,20 +424,52 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
         post:
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            required: [content]
-                            additionalProperties: false
-                            properties:
-                                content:
-                                    $ref: "#/components/schemas/Content"
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /posts/{id}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /posts/{id}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
     /tasks/{id}:
         parameters:
@@ -435,20 +539,52 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessages"}
         post:
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            type: object
-                            required: [content]
-                            additionalProperties: false
-                            properties:
-                                content:
-                                    $ref: "#/components/schemas/Content"
+            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessage"}
+
+    /tasks/{id}/messages/{index}/stream/completion:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /tasks/{id}/messages/{index}/stream/parts/{partIndex}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+            - name: partIndex
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            requestBody:
+                $ref: "#/components/requestBodies/PutMessageStreamPart"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
     /task-collections/{id}:
         parameters:
@@ -558,6 +694,71 @@ components:
                                 type: array
                                 items:
                                     $ref: "#/components/schemas/Message"
+
+        # TODO(calebmer, #public-api): We don't currently have
+        # `GET /chats/{id}/messages/{index}/stream/completion` endpoints but the
+        # intention is to add that endpoint and for it to return the same type as the
+        # `PUT` endpoint.
+        GetMessageStreamCompletion:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, completion]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            completion:
+                                type: object
+                                required: [completedTime]
+                                additionalProperties: false
+                                properties:
+                                    completedTime:
+                                        type: string
+                                        format: date-time
+
+        # TODO(calebmer, #public-api): We don't currently have
+        # `GET /chats/{id}/messages/{index}/stream/parts/{partIndex}` endpoints but
+        # the intention is to add that endpoint and for it to return the same type as
+        # the `PUT` endpoint.
+        GetMessageStreamPart:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+
+    requestBodies:
+        CreateMessage:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [content]
+                        additionalProperties: false
+                        properties:
+                            isStream:
+                                type: boolean
+                            content:
+                                $ref: "#/components/schemas/Content"
+
+        PutMessageStreamPart:
+            required: true
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [payload]
+                        additionalProperties: false
+                        properties:
+                            payload:
+                                $ref: "#/components/schemas/MessageStreamPartPayload"
 
     schemas:
         LabelString:
@@ -686,7 +887,6 @@ components:
             properties:
                 elements:
                     type: array
-                    minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentBlockElement"
 
@@ -1370,6 +1570,48 @@ components:
             properties:
                 type:
                     const: Deleted
+
+        MessageStreamPart:
+            type: object
+            required: [index, version, payload]
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                version:
+                    type: integer
+                    minimum: 0
+                payload:
+                    $ref: "#/components/schemas/MessageStreamPartPayload"
+
+        MessageStreamPartPayload:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamContentPartPayload"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageStreamContentPartPayload"
+                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload"
+
+        MessageStreamContentPartPayload:
+            type: object
+            required: [type, content]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        MessageStreamToolCallPartPayload:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: ToolCall
 
         # =========================================================================== #
         #                                  Webhooks                                   #

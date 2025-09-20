@@ -1,8 +1,12 @@
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {
+    TestAccountActionContext,
+    TestBotActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -11,11 +15,14 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -24,10 +31,13 @@ import {
     PermissionDeniedError,
     UnauthenticatedError,
 } from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
@@ -37,27 +47,49 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {
-    MessageModel,
-    MessagePayload,
-    MessageRoomKeyType,
-} from "~/shared/messaging/message_model.js";
+import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
+import {MessagePayload, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 
 /**
  * Create a new message in a room.
  */
 type CreateMessageFunctionForTest<RoomKey extends string> = (
-    context: TestSessionActionContext,
+    context: TestAccountActionContext,
     options: {
         roomKey: RoomKey;
         parentMessageIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId>;
+        isStream?: boolean;
     },
 ) => Promise<{
     index: number;
     createdTime: Date;
 }>;
+
+/**
+ * Put a stream part for a streaming message.
+ */
+type PutMessageStreamPartFunctionForTest<RoomKey extends string> = (
+    context: TestBotActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        partIndex: number;
+        payload: MessageStreamPartPayload;
+    },
+) => Promise<void>;
+
+/**
+ * Complete a message stream. After this parts can't be added or updated.
+ */
+type CompleteMessageStreamFunctionForTest<RoomKey extends string> = (
+    context: TestBotActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+    },
+) => Promise<{completedTime: Date}>;
 
 /**
  * Get a message.
@@ -74,12 +106,18 @@ type GetMessageFunctionForTest<Message extends MessageModel> = (
  * Get only a message payload.
  */
 type GetMessagePayloadFunctionForTest<Message extends MessageModel> = (
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         messageIndex: number;
     },
-) => Promise<MessagePayload>;
+) => Promise<{
+    payload: MessagePayload;
+    stream: {
+        completedTime: Date | null;
+        parts: ReadonlyArray<MessageStreamPartPayload>;
+    } | null;
+}>;
 
 /**
  * Update the content of a message.
@@ -88,7 +126,7 @@ type GetMessagePayloadFunctionForTest<Message extends MessageModel> = (
  * message was edited.
  */
 type UpdateMessageContentFunctionForTest<RoomKey extends string> = (
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -102,7 +140,7 @@ type UpdateMessageContentFunctionForTest<RoomKey extends string> = (
  * Delete a message.
  */
 type DeleteMessageFunctionForTest<RoomKey extends string> = (
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -168,6 +206,10 @@ type GetMessagePayloadsFromStartForTest<Message extends MessageModel> = (
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        stream: {
+            completedTime: Date | null;
+            parts: ReadonlyArray<MessageStreamPartPayload>;
+        } | null;
     }>;
 }>;
 
@@ -190,6 +232,10 @@ type GetMessagePayloadsFromEndForTest<Message extends MessageModel> = (
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        stream: {
+            completedTime: Date | null;
+            parts: ReadonlyArray<MessageStreamPartPayload>;
+        } | null;
     }>;
 }>;
 
@@ -263,7 +309,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     createRoom: (
         context: TestSessionActionContext,
         spaceId: SpaceId,
-        sessions: Array<TestSessionItem>,
+        sessions: Array<{accountId: AccountId}>,
     ) => Promise<RoomInterface<RoomKey>>;
 
     /**
@@ -275,9 +321,10 @@ export type TestMessagingImplementation<RoomKey extends string> = {
         context: TestSessionActionContext,
         spaceId: SpaceId,
         options: {
-            insideSessions: Array<TestSessionItem>;
-            insideViewerSession: TestSessionItem;
-            outsideSession: TestSessionItem;
+            insideSessions: Array<{accountId: AccountId}>;
+            insideViewerSession: {accountId: AccountId} | null;
+            insideBotAccount: {accountId: AccountId} | null;
+            outsideSession: {accountId: AccountId};
         },
     ) => Promise<
         RoomInterface<RoomKey> & {
@@ -304,9 +351,24 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     getRoomFileAuthorizer: (key: RoomKey) => FileAuthorizer;
 
     /**
+     * Get a bot scope for the provided room key.
+     */
+    getRoomBotScope: (key: RoomKey) => BotTokenPayloadScope;
+
+    /**
      * Create a new message in a room.
      */
     createMessage: CreateMessageFunctionForTest<RoomKey>;
+
+    /**
+     * Put a stream part for a streaming message.
+     */
+    putMessageStreamPart: PutMessageStreamPartFunctionForTest<RoomKey>;
+
+    /**
+     * Complete a message stream. After this parts can't be added or updated.
+     */
+    completeMessageStream: CompleteMessageStreamFunctionForTest<RoomKey>;
 
     /**
      * Get a message.
@@ -400,12 +462,15 @@ export type RoomInterface<RoomKey> = {
 export function testMessagingImplementation<RoomKey extends string>(
     context: TestContext,
     {
-        createRoom: _createRoom,
-        createPrivateRoom: _createPrivateRoom,
+        createRoom: actuallyCreateRoom,
+        createPrivateRoom: actuallyCreatePrivateRoom,
         getRoom,
         getMissingRoomKey,
         getRoomFileAuthorizer,
+        getRoomBotScope,
         createMessage,
+        putMessageStreamPart,
+        completeMessageStream,
         getMessage,
         getMessagePayload,
         getMessagesFromStart,
@@ -433,13 +498,14 @@ export function testMessagingImplementation<RoomKey extends string>(
     const content4 = createSimpleMessageContent("test4");
 
     const createRoom = (context: TestSessionActionContext, spaceId: SpaceId) => {
-        return _createRoom(context, spaceId, [session1, session2, session3]);
+        return actuallyCreateRoom(context, spaceId, [session1, session2, session3]);
     };
 
     const createPrivateRoom = (context: TestSessionActionContext, spaceId: SpaceId) => {
-        return _createPrivateRoom(context, spaceId, {
+        return actuallyCreatePrivateRoom(context, spaceId, {
             insideSessions: [session1, session2, session3],
             insideViewerSession: session5,
+            insideBotAccount: null,
             outsideSession: session4,
         });
     };
@@ -580,10 +646,12 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         expect(
             massageMessagePayload(
-                await getMessagePayload(context, {
-                    roomKey,
-                    messageIndex,
-                }),
+                (
+                    await getMessagePayload(context, {
+                        roomKey,
+                        messageIndex,
+                    })
+                ).payload,
             ),
         ).toEqual(omitObject(expected, ["author"]));
     }
@@ -603,10 +671,12 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         expect(
             massageMessagePayload(
-                await getMessagePayload(context, {
-                    roomKey,
-                    messageIndex,
-                }),
+                (
+                    await getMessagePayload(context, {
+                        roomKey,
+                        messageIndex,
+                    })
+                ).payload,
             ),
         ).not.toBeNull();
     }
@@ -9406,6 +9476,2297 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(result.messageCount).toBe(3);
             expect(result.messages).toHaveLength(1);
             expect(result.messages[0]!.payload.content).toEqual(content1);
+        });
+
+        describe("message streams", () => {
+            test("can create stream message as a bot actor", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent("Hello, world!"),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [],
+                    }),
+                );
+            });
+
+            test("can’t update stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent("Hello, world!"),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await expect(
+                    updateMessageContent(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        content: createSimpleMessageContent("Hello, world 2!"),
+                    }),
+                ).rejects.toThrow(/^Can’t update clerical (message|comment) content$/);
+            });
+
+            test("can’t delete stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent("Hello, world!"),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await expect(
+                    deleteMessage(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ).rejects.toThrow(/^Can’t delete clerical (messages|comments)$/);
+            });
+
+            test("message payload stream is null for non-stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent("Hello, world!"),
+                    fileIds: [],
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toBeNull();
+            });
+
+            test("can’t create stream message as a session actor", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                await expect(
+                    createMessage(session.action(), {
+                        roomKey: room.key,
+                        parentMessageIndex: null,
+                        content: createSimpleMessageContent("Hello, world!"),
+                        fileIds: [],
+                        isStream: true,
+                    }),
+                ).rejects.toThrow("Only bots can send `Stream` messages");
+            });
+
+            test("can create stream message with empty content", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [],
+                    }),
+                );
+            });
+
+            test("can put stream message part", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t put stream message part if message isn’t a stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                });
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    }),
+                ).rejects.toThrow("Message isn’t a stream");
+            });
+
+            test("can’t put stream message part if bot is removed from the space", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await space.removeAccount(botAccount);
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    }),
+                ).rejects.toThrow(
+                    /^(Bot actor doesn’t have access to chat|Account doesn’t have access to space)$/,
+                );
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [],
+                    }),
+                );
+            });
+
+            test("can’t put stream stream message part as a bot actor with the wrong scope", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession();
+
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room1 = await actuallyCreatePrivateRoom(context.action(session1), space.id, {
+                    insideSessions: [{accountId: session1.account.id}],
+                    insideViewerSession: null,
+                    insideBotAccount: {accountId: botAccount.id},
+                    outsideSession: {accountId: session2.account.id},
+                });
+
+                const room2 = await actuallyCreatePrivateRoom(context.action(session2), space.id, {
+                    insideSessions: [{accountId: session2.account.id}],
+                    insideViewerSession: null,
+                    insideBotAccount: {accountId: botAccount.id},
+                    outsideSession: {accountId: session1.account.id},
+                });
+
+                const message1 = await createMessage(
+                    botAccount.action(getRoomBotScope(room1.key)),
+                    {
+                        roomKey: room1.key,
+                        parentMessageIndex: null,
+                        content: createSimpleMessageContent(),
+                        fileIds: [],
+                        isStream: true,
+                    },
+                );
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room2.key)), {
+                        roomKey: room1.key,
+                        messageIndex: message1.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    }),
+                ).rejects.toThrow(
+                    /^(Bot actor doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
+                );
+
+                expect(
+                    await getMessagePayload(session1.action(), {
+                        roomKey: room1.key,
+                        messageIndex: message1.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [],
+                    }),
+                );
+            });
+
+            test("can’t put stream message part as the wrong bot", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const bot1Account = await TestBot.createAndInstantiate(session);
+                const bot2Account = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: bot1Account.id},
+                    {accountId: bot2Account.id},
+                ]);
+
+                const message = await createMessage(bot1Account.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await expect(
+                    putMessageStreamPart(bot2Account.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    }),
+                ).rejects.toThrow("Only the bot who created the stream can update it");
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [],
+                    }),
+                );
+            });
+
+            test("can put multiple stream message parts", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 3"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 3"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can put the same stream message part multiple times", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 3"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 3"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can put the same stream message part after adding other parts multiple times", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 3"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 4"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 5"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 5"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t put a same stream message part that’s not the last part", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 3"),
+                        },
+                    }),
+                ).rejects.toThrow(
+                    "Only the last part of the stream or the next part can be updated",
+                );
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can complete stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                const {completedTime} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can complete stream message with multiple parts", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 3"),
+                    },
+                });
+
+                const {completedTime} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 3"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t add more parts after completing stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                const {completedTime} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 1,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    }),
+                ).rejects.toThrow("The stream has already been completed");
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t update part after completing stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                const {completedTime} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    }),
+                ).rejects.toThrow("The stream has already been completed");
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("completing stream message is idempotent", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                const {completedTime: completedTime1} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                const {completedTime: completedTime2} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                const {completedTime: completedTime3} = await completeMessageStream(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                );
+
+                expect(completedTime1).toEqual(completedTime2);
+                expect(completedTime1).toEqual(completedTime3);
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: completedTime1,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t complete stream message part if message isn’t a stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                });
+
+                await expect(
+                    completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ).rejects.toThrow("Message isn’t a stream");
+            });
+
+            test("can’t complete stream message part if bot is removed from the space", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await space.removeAccount(botAccount);
+
+                await expect(
+                    completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ).rejects.toThrow(
+                    /^(Bot actor doesn’t have access to chat|Account doesn’t have access to space)$/,
+                );
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t complete stream stream message part as a bot actor with the wrong scope", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession();
+
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room1 = await actuallyCreatePrivateRoom(context.action(session1), space.id, {
+                    insideSessions: [{accountId: session1.account.id}],
+                    insideViewerSession: null,
+                    insideBotAccount: {accountId: botAccount.id},
+                    outsideSession: {accountId: session2.account.id},
+                });
+
+                const room2 = await actuallyCreatePrivateRoom(context.action(session2), space.id, {
+                    insideSessions: [{accountId: session2.account.id}],
+                    insideViewerSession: null,
+                    insideBotAccount: {accountId: botAccount.id},
+                    outsideSession: {accountId: session1.account.id},
+                });
+
+                const message1 = await createMessage(
+                    botAccount.action(getRoomBotScope(room1.key)),
+                    {
+                        roomKey: room1.key,
+                        parentMessageIndex: null,
+                        content: createSimpleMessageContent(),
+                        fileIds: [],
+                        isStream: true,
+                    },
+                );
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room1.key)), {
+                    roomKey: room1.key,
+                    messageIndex: message1.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await expect(
+                    completeMessageStream(botAccount.action(getRoomBotScope(room2.key)), {
+                        roomKey: room1.key,
+                        messageIndex: message1.index,
+                    }),
+                ).rejects.toThrow(
+                    /^(Bot actor doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
+                );
+
+                expect(
+                    await getMessagePayload(session1.action(), {
+                        roomKey: room1.key,
+                        messageIndex: message1.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t complete stream message as the wrong bot", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const bot1Account = await TestBot.createAndInstantiate(session);
+                const bot2Account = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: bot1Account.id},
+                    {accountId: bot2Account.id},
+                ]);
+
+                const message = await createMessage(bot1Account.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parentMessageIndex: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(bot1Account.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await expect(
+                    completeMessageStream(bot2Account.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }),
+                ).rejects.toThrow("Only the bot who created the stream can update it");
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            describe("pagination", () => {
+                type ExpectedResult = Array<
+                    `Message:${number}` | `StreamMessage:${number}` | `OtherStreamMessage:${number}`
+                >;
+
+                const testCases: Record<
+                    "FirstMessageIsStream" | "LastMessageIsStream" | "MiddleMessagesAreStreams",
+                    Record<
+                        "FromStart" | "FromEnd",
+                        [
+                            {
+                                limit: 100;
+                                afterMessageIndex: null;
+                                beforeMessageIndex: null;
+                                expectedResult: ExpectedResult;
+                            },
+                            {
+                                limit: 3;
+                                afterMessageIndex: null;
+                                beforeMessageIndex: null;
+                                expectedResult: ExpectedResult;
+                            },
+                            {
+                                limit: 100;
+                                afterMessageIndex: 2;
+                                beforeMessageIndex: null;
+                                expectedResult: ExpectedResult;
+                            },
+                            {
+                                limit: 100;
+                                afterMessageIndex: null;
+                                beforeMessageIndex: 3;
+                                expectedResult: ExpectedResult;
+                            },
+                            {
+                                limit: 2;
+                                afterMessageIndex: 1;
+                                beforeMessageIndex: null;
+                                expectedResult: ExpectedResult;
+                            },
+                            {
+                                limit: 2;
+                                afterMessageIndex: null;
+                                beforeMessageIndex: 3;
+                                expectedResult: ExpectedResult;
+                            },
+                        ]
+                    >
+                > = {
+                    FirstMessageIsStream: {
+                        FromStart: [
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: [
+                                    "StreamMessage:0",
+                                    "Message:1",
+                                    "Message:2",
+                                    "Message:3",
+                                    "Message:4",
+                                ],
+                            },
+                            {
+                                limit: 3,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: ["StreamMessage:0", "Message:1", "Message:2"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: 2,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:3", "Message:4"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["StreamMessage:0", "Message:1", "Message:2"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: 1,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:2", "Message:3"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["StreamMessage:0", "Message:1"],
+                            },
+                        ],
+                        FromEnd: [
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: [
+                                    "StreamMessage:0",
+                                    "Message:1",
+                                    "Message:2",
+                                    "Message:3",
+                                    "Message:4",
+                                ],
+                            },
+                            {
+                                limit: 3,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:2", "Message:3", "Message:4"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: 2,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:3", "Message:4"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["StreamMessage:0", "Message:1", "Message:2"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: 1,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:3", "Message:4"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:1", "Message:2"],
+                            },
+                        ],
+                    },
+                    LastMessageIsStream: {
+                        FromStart: [
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: [
+                                    "Message:0",
+                                    "Message:1",
+                                    "Message:2",
+                                    "Message:3",
+                                    "StreamMessage:4",
+                                ],
+                            },
+                            {
+                                limit: 3,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:0", "Message:1", "Message:2"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: 2,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:3", "StreamMessage:4"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:0", "Message:1", "Message:2"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: 1,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:2", "Message:3"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:0", "Message:1"],
+                            },
+                        ],
+                        FromEnd: [
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: [
+                                    "Message:0",
+                                    "Message:1",
+                                    "Message:2",
+                                    "Message:3",
+                                    "StreamMessage:4",
+                                ],
+                            },
+                            {
+                                limit: 3,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:2", "Message:3", "StreamMessage:4"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: 2,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:3", "StreamMessage:4"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:0", "Message:1", "Message:2"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: 1,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:3", "StreamMessage:4"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:1", "Message:2"],
+                            },
+                        ],
+                    },
+                    MiddleMessagesAreStreams: {
+                        FromStart: [
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: [
+                                    "Message:0",
+                                    "StreamMessage:1",
+                                    "Message:2",
+                                    "OtherStreamMessage:3",
+                                    "Message:4",
+                                    "Message:5",
+                                ],
+                            },
+                            {
+                                limit: 3,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:0", "StreamMessage:1", "Message:2"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: 2,
+                                beforeMessageIndex: null,
+                                expectedResult: ["OtherStreamMessage:3", "Message:4", "Message:5"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:0", "StreamMessage:1", "Message:2"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: 1,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:2", "OtherStreamMessage:3"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:0", "StreamMessage:1"],
+                            },
+                        ],
+                        FromEnd: [
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: [
+                                    "Message:0",
+                                    "StreamMessage:1",
+                                    "Message:2",
+                                    "OtherStreamMessage:3",
+                                    "Message:4",
+                                    "Message:5",
+                                ],
+                            },
+                            {
+                                limit: 3,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                                expectedResult: ["OtherStreamMessage:3", "Message:4", "Message:5"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: 2,
+                                beforeMessageIndex: null,
+                                expectedResult: ["OtherStreamMessage:3", "Message:4", "Message:5"],
+                            },
+                            {
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["Message:0", "StreamMessage:1", "Message:2"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: 1,
+                                beforeMessageIndex: null,
+                                expectedResult: ["Message:4", "Message:5"],
+                            },
+                            {
+                                limit: 2,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: 3,
+                                expectedResult: ["StreamMessage:1", "Message:2"],
+                            },
+                        ],
+                    },
+                };
+
+                for (const [scenario, testCases2] of getObjectEntriesWithKeyofType(testCases)) {
+                    for (const [direction, testCases3] of getObjectEntriesWithKeyofType(
+                        testCases2,
+                    )) {
+                        for (const {
+                            limit,
+                            afterMessageIndex,
+                            beforeMessageIndex,
+                            expectedResult,
+                        } of testCases3) {
+                            test(
+                                // eslint-disable-next-line jest/valid-title
+                                quote`${scenario}, ${direction}, \`limit\` = ${limit}, \`afterMessageIndex\` = ${afterMessageIndex}, \`beforeMessageIndex\` = ${beforeMessageIndex}`,
+                                async () => {
+                                    const space = await TestSpace.create(context);
+                                    const session = await space.createSession({role: "Admin"});
+
+                                    const botAccount = await TestBot.createAndInstantiate(session);
+
+                                    const room = await actuallyCreateRoom(
+                                        context.action(session),
+                                        space.id,
+                                        [
+                                            {accountId: session.account.id},
+                                            {accountId: botAccount.id},
+                                        ],
+                                    );
+
+                                    let streamMessageCompletedTime: Date | null = null;
+                                    let otherStreamMessageCompletedTime: Date | null = null;
+
+                                    switch (scenario) {
+                                        case "FirstMessageIsStream": {
+                                            const streamMessage = await createMessage(
+                                                botAccount.action(getRoomBotScope(room.key)),
+                                                {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(),
+                                                    fileIds: [],
+                                                    isStream: true,
+                                                },
+                                            );
+
+                                            for (let i = 0; i < 3; i++) {
+                                                await putMessageStreamPart(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: streamMessage.index,
+                                                        partIndex: i,
+                                                        payload: {
+                                                            type: "Content",
+                                                            content: createSimpleMessageContent(
+                                                                `Test part ${i + 1}`,
+                                                            ),
+                                                        },
+                                                    },
+                                                );
+                                            }
+
+                                            ({completedTime: streamMessageCompletedTime} =
+                                                await completeMessageStream(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: streamMessage.index,
+                                                    },
+                                                ));
+
+                                            for (let i = 0; i < 4; i++) {
+                                                await createMessage(session.action(), {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(
+                                                        `Test message ${i + 1}`,
+                                                    ),
+                                                    fileIds: [],
+                                                });
+                                            }
+                                            break;
+                                        }
+                                        case "LastMessageIsStream": {
+                                            for (let i = 0; i < 4; i++) {
+                                                await createMessage(session.action(), {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(
+                                                        `Test message ${i + 1}`,
+                                                    ),
+                                                    fileIds: [],
+                                                });
+                                            }
+
+                                            const streamMessage = await createMessage(
+                                                botAccount.action(getRoomBotScope(room.key)),
+                                                {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(),
+                                                    fileIds: [],
+                                                    isStream: true,
+                                                },
+                                            );
+
+                                            for (let i = 0; i < 3; i++) {
+                                                await putMessageStreamPart(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: streamMessage.index,
+                                                        partIndex: i,
+                                                        payload: {
+                                                            type: "Content",
+                                                            content: createSimpleMessageContent(
+                                                                `Test part ${i + 1}`,
+                                                            ),
+                                                        },
+                                                    },
+                                                );
+                                            }
+
+                                            ({completedTime: streamMessageCompletedTime} =
+                                                await completeMessageStream(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: streamMessage.index,
+                                                    },
+                                                ));
+                                            break;
+                                        }
+                                        case "MiddleMessagesAreStreams": {
+                                            for (let i = 0; i < 1; i++) {
+                                                await createMessage(session.action(), {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(
+                                                        `Test message ${i + 1}`,
+                                                    ),
+                                                    fileIds: [],
+                                                });
+                                            }
+
+                                            const streamMessage = await createMessage(
+                                                botAccount.action(getRoomBotScope(room.key)),
+                                                {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(),
+                                                    fileIds: [],
+                                                    isStream: true,
+                                                },
+                                            );
+
+                                            for (let i = 0; i < 3; i++) {
+                                                await putMessageStreamPart(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: streamMessage.index,
+                                                        partIndex: i,
+                                                        payload: {
+                                                            type: "Content",
+                                                            content: createSimpleMessageContent(
+                                                                `Test part ${i + 1}`,
+                                                            ),
+                                                        },
+                                                    },
+                                                );
+                                            }
+
+                                            ({completedTime: streamMessageCompletedTime} =
+                                                await completeMessageStream(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: streamMessage.index,
+                                                    },
+                                                ));
+
+                                            for (let i = 0; i < 1; i++) {
+                                                await createMessage(session.action(), {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(
+                                                        `Test message ${i + 2}`,
+                                                    ),
+                                                    fileIds: [],
+                                                });
+                                            }
+
+                                            const otherStreamMessage = await createMessage(
+                                                botAccount.action(getRoomBotScope(room.key)),
+                                                {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(),
+                                                    fileIds: [],
+                                                    isStream: true,
+                                                },
+                                            );
+
+                                            for (let i = 0; i < 5; i++) {
+                                                await putMessageStreamPart(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: otherStreamMessage.index,
+                                                        partIndex: i,
+                                                        payload: {
+                                                            type: "Content",
+                                                            content: createSimpleMessageContent(
+                                                                `Test part ${i + 1}`,
+                                                            ),
+                                                        },
+                                                    },
+                                                );
+                                            }
+
+                                            ({completedTime: otherStreamMessageCompletedTime} =
+                                                await completeMessageStream(
+                                                    botAccount.action(getRoomBotScope(room.key)),
+                                                    {
+                                                        roomKey: room.key,
+                                                        messageIndex: otherStreamMessage.index,
+                                                    },
+                                                ));
+
+                                            for (let i = 0; i < 2; i++) {
+                                                await createMessage(session.action(), {
+                                                    roomKey: room.key,
+                                                    parentMessageIndex: null,
+                                                    content: createSimpleMessageContent(
+                                                        `Test message ${i + 3}`,
+                                                    ),
+                                                    fileIds: [],
+                                                });
+                                            }
+                                            break;
+                                        }
+                                        default:
+                                            throw exhaustive(scenario);
+                                    }
+
+                                    expect(
+                                        (direction === "FromEnd"
+                                            ? await getMessagePayloadsFromEnd(session.action(), {
+                                                  roomKey: room.key,
+                                                  limit,
+                                                  afterMessageIndex,
+                                                  beforeMessageIndex,
+                                              })
+                                            : await getMessagePayloadsFromStart(session.action(), {
+                                                  roomKey: room.key,
+                                                  limit,
+                                                  afterMessageIndex,
+                                                  beforeMessageIndex,
+                                              })
+                                        ).messages.map(message => {
+                                            if (message.stream === null) {
+                                                return `Message:${message.index}`;
+                                            }
+
+                                            if (
+                                                message.stream.completedTime !== null &&
+                                                message.stream.completedTime.toJSON() ===
+                                                    streamMessageCompletedTime?.toJSON()
+                                            ) {
+                                                expect(message.stream.parts).toEqual(
+                                                    createArrayWithLength(3, i => ({
+                                                        type: "Content",
+                                                        content: createSimpleMessageContent(
+                                                            `Test part ${i + 1}`,
+                                                        ),
+                                                    })),
+                                                );
+
+                                                return `StreamMessage:${message.index}`;
+                                            }
+
+                                            if (
+                                                message.stream.completedTime !== null &&
+                                                message.stream.completedTime.toJSON() ===
+                                                    otherStreamMessageCompletedTime?.toJSON()
+                                            ) {
+                                                expect(message.stream.parts).toEqual(
+                                                    createArrayWithLength(5, i => ({
+                                                        type: "Content",
+                                                        content: createSimpleMessageContent(
+                                                            `Test part ${i + 1}`,
+                                                        ),
+                                                    })),
+                                                );
+
+                                                return `OtherStreamMessage:${message.index}`;
+                                            }
+
+                                            throw new InternalError("Unrecognized stream message");
+                                        }),
+                                    ).toEqual(expectedResult);
+                                },
+                            );
+                        }
+                    }
+                }
+            });
+
+            test("new stream message is indexed after a delay", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        parentMessageIndex: null,
+                        content: createSimpleMessageContent("Hello, world!"),
+                        fileIds: [],
+                        isStream: true,
+                    });
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
+
+            test("immediately putting a new stream part doesn’t send new index job", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
+
+            test("immediately putting multiple stream parts doesn’t send new index job", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 1,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 2,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
+
+            test("immediately putting a stream part update doesn’t send new index job", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parentMessageIndex: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 3"),
+                        },
+                    });
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
+
+            test("putting new stream part after a delay does send new index job", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const originalTime = Date.now();
+                    const originalDateNow = Date.now;
+
+                    let currentTime = originalTime;
+                    Date.now = () => currentTime;
+
+                    try {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parentMessageIndex: null,
+                                content: createSimpleMessageContent("Hello, world!"),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        });
+
+                        currentTime += 11 * 1000;
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        });
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 2,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        });
+                    } finally {
+                        Date.now = originalDateNow;
+                    }
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
+
+            test("putting stream part update after a delay does send new index job", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const originalTime = Date.now();
+                    const originalDateNow = Date.now;
+
+                    let currentTime = originalTime;
+                    Date.now = () => currentTime;
+
+                    try {
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parentMessageIndex: null,
+                                content: createSimpleMessageContent("Hello, world!"),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        });
+
+                        currentTime += 11 * 1000;
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        });
+
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        });
+                    } finally {
+                        Date.now = originalDateNow;
+                    }
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
         });
     });
 }

@@ -15,9 +15,9 @@ import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentPayloadModelFile,
-    MessagePayload,
     MessagePayloadModel,
 } from "~/shared/messaging/message_model.js";
+import {MessagePayload} from "~/shared/messaging/message_schema.js";
 
 /**
  * Create a `MessagePayloadModel` (what we send to the client) from a

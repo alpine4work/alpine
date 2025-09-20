@@ -1565,6 +1565,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "optional": false
                                                                             }
                                                                         }
+                                                                    },
+                                                                    "Stream": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "Stream"
+                                                                                },
+                                                                                "optional": false
+                                                                            }
+                                                                        }
                                                                     }
                                                                 },
                                                                 "referenceId": "ec27ed70"
@@ -1605,23 +1617,73 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             },
                             "childSortRangeByType": {
-                                "AgentResponse": {
+                                "Stream": {
                                     "id": 0,
                                     "orderKey": "a0",
                                     "sortKeyAttributeByKey": {},
                                     "attributesSchema": {
                                         "type": "Object",
                                         "propertySchemaByKey": {
-                                            "test1": {
+                                            "authorId": {
+                                                "valueSchema": {
+                                                    "type": "Id"
+                                                },
+                                                "optional": false
+                                            },
+                                            "completedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "partCount": {
                                                 "valueSchema": {
                                                     "type": "Integer"
                                                 },
                                                 "optional": false
+                                            },
+                                            "lastPartUpdateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Integer"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastIndexSearchEntityJob": {
+                                                "valueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "sendTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "delaySeconds": {
+                                                            "valueSchema": {
+                                                                "type": "Integer"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
                                             }
                                         }
                                     }
                                 },
-                                "AgentResponsePart": {
+                                "StreamPart": {
                                     "id": 1,
                                     "orderKey": "a1",
                                     "sortKeyAttributeByKey": {
@@ -1632,11 +1694,52 @@ export const dynamoGeneratedSchemaDescription: {
                                     "attributesSchema": {
                                         "type": "Object",
                                         "propertySchemaByKey": {
-                                            "test2": {
+                                            "payload": {
+                                                "valueSchema": {
+                                                    "type": "Union",
+                                                    "typeKey": "type",
+                                                    "variantSchemaByTypeValue": {
+                                                        "Content": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "type": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": "Content"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "content": {
+                                                                    "valueSchema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "05d7837f"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        },
+                                                        "ToolCall": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "type": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": "ToolCall"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "referenceId": "a45890f0"
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
                                                 "valueSchema": {
                                                     "type": "Integer"
                                                 },
-                                                "optional": false
+                                                "optional": true
                                             }
                                         }
                                     }
@@ -5025,7 +5128,101 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             },
-                            "childSortRangeByType": {}
+                            "childSortRangeByType": {
+                                "Stream": {
+                                    "id": 0,
+                                    "orderKey": "a0",
+                                    "sortKeyAttributeByKey": {},
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "authorId": {
+                                                "valueSchema": {
+                                                    "type": "Id"
+                                                },
+                                                "optional": false
+                                            },
+                                            "completedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "partCount": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastPartUpdateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Integer"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastIndexSearchEntityJob": {
+                                                "valueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "sendTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "delaySeconds": {
+                                                            "valueSchema": {
+                                                                "type": "Integer"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
+                                            }
+                                        }
+                                    }
+                                },
+                                "StreamPart": {
+                                    "id": 1,
+                                    "orderKey": "a1",
+                                    "sortKeyAttributeByKey": {
+                                        "partIndex": {
+                                            "type": "Integer"
+                                        }
+                                    },
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "payload": {
+                                                "valueSchema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "a45890f0"
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "CommentChangeLog": {
                             "id": 1,
@@ -7459,7 +7656,101 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             },
-                            "childSortRangeByType": {}
+                            "childSortRangeByType": {
+                                "Stream": {
+                                    "id": 0,
+                                    "orderKey": "a0",
+                                    "sortKeyAttributeByKey": {},
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "authorId": {
+                                                "valueSchema": {
+                                                    "type": "Id"
+                                                },
+                                                "optional": false
+                                            },
+                                            "completedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "partCount": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastPartUpdateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Integer"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastIndexSearchEntityJob": {
+                                                "valueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "sendTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "delaySeconds": {
+                                                            "valueSchema": {
+                                                                "type": "Integer"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
+                                            }
+                                        }
+                                    }
+                                },
+                                "StreamPart": {
+                                    "id": 1,
+                                    "orderKey": "a1",
+                                    "sortKeyAttributeByKey": {
+                                        "partIndex": {
+                                            "type": "Integer"
+                                        }
+                                    },
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "payload": {
+                                                "valueSchema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "a45890f0"
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "CommentChangeLog": {
                             "id": 2,
@@ -11986,7 +12277,101 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             },
-                            "childSortRangeByType": {}
+                            "childSortRangeByType": {
+                                "Stream": {
+                                    "id": 0,
+                                    "orderKey": "a0",
+                                    "sortKeyAttributeByKey": {},
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "authorId": {
+                                                "valueSchema": {
+                                                    "type": "Id"
+                                                },
+                                                "optional": false
+                                            },
+                                            "completedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "partCount": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastPartUpdateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Integer"
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "lastIndexSearchEntityJob": {
+                                                "valueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "sendTime": {
+                                                            "valueSchema": {
+                                                                "type": "Date"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "delaySeconds": {
+                                                            "valueSchema": {
+                                                                "type": "Integer"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
+                                            }
+                                        }
+                                    }
+                                },
+                                "StreamPart": {
+                                    "id": 1,
+                                    "orderKey": "a1",
+                                    "sortKeyAttributeByKey": {
+                                        "partIndex": {
+                                            "type": "Integer"
+                                        }
+                                    },
+                                    "attributesSchema": {
+                                        "type": "Object",
+                                        "propertySchemaByKey": {
+                                            "payload": {
+                                                "valueSchema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "a45890f0"
+                                                },
+                                                "optional": false
+                                            },
+                                            "updateLockVersion": {
+                                                "valueSchema": {
+                                                    "type": "Integer"
+                                                },
+                                                "optional": true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         },
                         "CommentChangeLog": {
                             "id": 4,

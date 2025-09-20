@@ -7,6 +7,7 @@ import {
     FileTaskAuthorizer,
     authorizeTaskAccess,
     backfillTaskComments,
+    completeTaskCommentStream,
     createTaskComment,
     deleteTaskComment,
     getTaskComment,
@@ -17,8 +18,10 @@ import {
     getTaskCommentsFromStart,
     getTaskCommentsSummaryItemIfExistsForTest,
     getTaskItemForTest,
+    putTaskCommentStreamPart,
     updateTaskCommentContent,
 } from "~/server/tasks/data/task_table.js";
+import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
@@ -27,7 +30,9 @@ import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 
-const processContext = createTestContext();
+const processContext = createTestContext({
+    tasksInjection,
+});
 
 testMessagingImplementation<TaskId>(processContext, {
     async createRoom(context, spaceId) {
@@ -70,12 +75,14 @@ testMessagingImplementation<TaskId>(processContext, {
         await taskCollection.access.set(session, {
             accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
                 ...insideSessions.map((insideSession): [AccountId, AccessPolicyAccountGrant] => [
-                    insideSession.account.id,
-                    insideSession.account.id === context.actor.getAccountId()
+                    insideSession.accountId,
+                    insideSession.accountId === context.actor.getAccountId()
                         ? {level: "Manage", generation: 0}
                         : {level: (["Comment", "Edit"] as const)[count++ % 2]!},
                 ]),
-                [insideViewerSession.account.id, {level: "View"}],
+                ...(insideViewerSession
+                    ? [[insideViewerSession.accountId, {level: "View"}] as const]
+                    : []),
             ]),
             defaultGrant: null,
             urlGrant: null,
@@ -124,15 +131,19 @@ testMessagingImplementation<TaskId>(processContext, {
     getRoomFileAuthorizer(taskId) {
         return FileTaskAuthorizer.bind({type: "TaskComments", taskId});
     },
+    getRoomBotScope(taskId) {
+        return {type: "Task", taskId};
+    },
     async createMessage(
         context,
-        {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds},
+        {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds, isStream},
     ) {
         const comment = await createTaskComment(context, {
             taskId,
             parentCommentIndex,
             content,
             fileIds,
+            isStream,
         });
 
         return {
@@ -140,11 +151,28 @@ testMessagingImplementation<TaskId>(processContext, {
             createdTime: comment.createdTime,
         };
     },
+    async putMessageStreamPart(
+        context,
+        {roomKey: taskId, messageIndex: commentIndex, partIndex, payload},
+    ) {
+        await putTaskCommentStreamPart(context, {
+            taskId,
+            commentIndex,
+            partIndex,
+            payload,
+        });
+    },
+    async completeMessageStream(context, {roomKey: taskId, messageIndex: commentIndex}) {
+        return completeTaskCommentStream(context, {
+            taskId,
+            commentIndex,
+        });
+    },
     async getMessage(context, {roomKey: taskId, messageIndex: commentIndex}) {
         return getTaskComment(context, {taskId, commentIndex});
     },
     async getMessagePayload(context, {roomKey: taskId, messageIndex: commentIndex}) {
-        return (await getTaskCommentPayload(context, {taskId, commentIndex})).payload;
+        return getTaskCommentPayload(context, {taskId, commentIndex});
     },
     async updateMessageContent(context, {roomKey: taskId, messageIndex: commentIndex, content}) {
         return updateTaskCommentContent(context, {

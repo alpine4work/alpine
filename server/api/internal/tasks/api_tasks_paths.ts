@@ -1,23 +1,27 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {ApiTask} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {
+    completeTaskCommentStream,
     createTaskComment,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
     getTaskCommentPayloadsFromStart,
     getTaskNotesContentWithCustomReferences,
+    putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayload} from "~/shared/messaging/message_model.js";
+import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiTasksPaths: Pick<
@@ -101,7 +105,7 @@ export const apiTasksPaths: Pick<
 
     "/tasks/{id}/messages/{index}": {
         get: async (context, {pathParameters}) => {
-            const {spaceId, authorId, createdTime, payload} = await getTaskCommentPayload(context, {
+            const message = await getTaskCommentPayload(context, {
                 taskId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 consistency: "StrongWithinCache",
@@ -109,14 +113,8 @@ export const apiTasksPaths: Pick<
 
             return {
                 content: {
-                    spaceId,
-                    message: await intoApiMessage(context, {
-                        spaceId,
-                        index: pathParameters.index,
-                        authorId,
-                        createdTime,
-                        payload,
-                    }),
+                    spaceId: message.spaceId,
+                    message: await intoApiMessage(context, message.spaceId, message),
                 },
             };
         },
@@ -169,15 +167,7 @@ export const apiTasksPaths: Pick<
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(message =>
-                            intoApiMessage(context, {
-                                spaceId,
-                                index: message.index,
-                                authorId: message.authorId,
-                                createdTime: message.createdTime,
-                                payload: message.payload,
-                            }),
-                        ),
+                        comments.map(message => intoApiMessage(context, spaceId, message)),
                     ),
                 },
             };
@@ -192,6 +182,7 @@ export const apiTasksPaths: Pick<
                 parentCommentIndex: null,
                 content,
                 fileIds: [],
+                isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
             });
 
@@ -237,15 +228,46 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(context, {
-                        spaceId,
+                    message: await intoApiMessage(context, spaceId, {
                         index,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
-                        payload: payload,
+                        payload,
+                        stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),
                 },
             };
+        },
+    },
+
+    "/tasks/{id}/messages/{index}/stream/completion": {
+        put: async (context, {pathParameters}) => {
+            const {spaceId, completedTime} = await completeTaskCommentStream(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    completion: {completedTime: serializeDateString(completedTime)},
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/messages/{index}/stream/parts/{partIndex}": {
+        put: async (context, {pathParameters, requestBody}) => {
+            const {spaceId} = await putTaskCommentStreamPart(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                partIndex: pathParameters.partIndex,
+                payload: fromApiMessageStreamPartPayload(requestBody.payload),
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 

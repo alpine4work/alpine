@@ -3,21 +3,25 @@ import {
     ApiPaths,
 } from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
+    completeChatMessageStream,
     getChatAccountIds,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
     getChatMessagePayloadsFromStart,
+    putChatMessageStreamPart,
     sendChatMessage,
 } from "~/server/chat/data/chat_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayload} from "~/shared/messaging/message_model.js";
+import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
@@ -50,7 +54,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
     "/chats/{id}/messages/{index}": {
         get: async (context, {pathParameters, url}) => {
-            const {spaceId, authorId, createdTime, payload} = await getChatMessagePayload(context, {
+            const message = await getChatMessagePayload(context, {
                 chatId: pathParameters.id,
                 messageIndex: pathParameters.index,
                 consistency: "StrongWithinCache",
@@ -58,14 +62,8 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             const content: ApiOperation200JsonResponseType<"/chats/{id}/messages/{index}", "get"> =
                 {
-                    spaceId,
-                    message: await intoApiMessage(context, {
-                        spaceId,
-                        index: pathParameters.index,
-                        authorId,
-                        createdTime,
-                        payload,
-                    }),
+                    spaceId: message.spaceId,
+                    message: await intoApiMessage(context, message.spaceId, message),
                 };
 
             // We want to test that response schemas are validated in a Jest unit test. So
@@ -129,15 +127,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                     totalMessageCount: messageCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        messages.map(message =>
-                            intoApiMessage(context, {
-                                spaceId,
-                                index: message.index,
-                                authorId: message.authorId,
-                                createdTime: message.createdTime,
-                                payload: message.payload,
-                            }),
-                        ),
+                        messages.map(message => intoApiMessage(context, spaceId, message)),
                     ),
                 },
             };
@@ -153,6 +143,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 content,
                 fileIds: [],
                 consistency: "StrongWithinCache",
+                isStream: requestBody.isStream,
             });
 
             const payload: MessageContentPayload = {
@@ -197,15 +188,46 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(context, {
-                        spaceId,
+                    message: await intoApiMessage(context, spaceId, {
                         index,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
-                        payload: payload,
+                        payload,
+                        stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),
                 },
             };
+        },
+    },
+
+    "/chats/{id}/messages/{index}/stream/completion": {
+        put: async (context, {pathParameters}) => {
+            const {spaceId, completedTime} = await completeChatMessageStream(context, {
+                chatId: pathParameters.id,
+                messageIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    completion: {completedTime: serializeDateString(completedTime)},
+                },
+            };
+        },
+    },
+
+    "/chats/{id}/messages/{index}/stream/parts/{partIndex}": {
+        put: async (context, {pathParameters, requestBody}) => {
+            const {spaceId} = await putChatMessageStreamPart(context, {
+                chatId: pathParameters.id,
+                messageIndex: pathParameters.index,
+                partIndex: pathParameters.partIndex,
+                payload: fromApiMessageStreamPartPayload(requestBody.payload),
+                consistency: "StrongWithinCache",
+            });
+
+            return {content: {spaceId}};
         },
     },
 };

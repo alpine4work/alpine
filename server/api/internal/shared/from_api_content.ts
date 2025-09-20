@@ -23,7 +23,10 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
  */
 export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): Node {
     const blockNodes = Array.from(fromApiContentBlockElements(schema, content.elements));
-    return schema.nodes.doc!.create(null, blockNodes);
+    return schema.nodes.doc!.create(
+        null,
+        blockNodes.length > 0 ? blockNodes : [schema.nodes.paragraph!.create()],
+    );
 }
 
 function* fromApiContentBlockElements(

@@ -382,6 +382,64 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         partitionAttributeNames.add(attributeName);
                     }
 
+                    function processAttributesSchema(
+                        sortRangeConfig: DynamoTableSchemaTypes.SortRange.ChildConfigBase,
+                    ): ObjectSchema<any> {
+                        const sortRangeAttributeNames = new Set(partitionAttributeNames);
+
+                        for (const attributeName of Object.keys(
+                            sortRangeConfig.sortKeyAttributes,
+                        )) {
+                            assertValidAttributeName(attributeName);
+
+                            assert(
+                                !sortRangeAttributeNames.has(attributeName),
+                                "Attribute names must be unique within an item",
+                            );
+                            sortRangeAttributeNames.add(attributeName);
+                        }
+
+                        for (const attributeName of sortRangeConfig.attributes.propertySchemaByKey.keys()) {
+                            assertValidAttributeName(attributeName);
+
+                            assert(
+                                !sortRangeAttributeNames.has(attributeName),
+                                "Attribute names must be unique within an item",
+                            );
+                            sortRangeAttributeNames.add(attributeName);
+                        }
+
+                        let attributesSchema: ObjectSchema<any> = sortRangeConfig.attributes.merge(
+                            DynamoTableItemSharedAttributesSchema,
+                        );
+
+                        attributesSchema =
+                            sortRangeConfig.withExpirationTime === "Optional"
+                                ? attributesSchema.merge(
+                                      Schema.object({
+                                          expirationTime:
+                                              DynamoTableItemSharedExpirationTimeAttributeSchema.optional(),
+                                      }),
+                                  )
+                                : sortRangeConfig.withExpirationTime === "Required"
+                                ? attributesSchema.merge(
+                                      Schema.object({
+                                          expirationTime:
+                                              DynamoTableItemSharedExpirationTimeAttributeSchema,
+                                      }),
+                                  )
+                                : sortRangeConfig.withExpirationTime === "RequiredNullable"
+                                ? attributesSchema.merge(
+                                      Schema.object({
+                                          expirationTime:
+                                              DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
+                                      }),
+                                  )
+                                : attributesSchema;
+
+                        return attributesSchema;
+                    }
+
                     const sortRangeNames = new Set<string>();
 
                     return {
@@ -403,62 +461,35 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                 );
                                 sortRangeNames.add(sortRangeConfig.name);
 
-                                const sortRangeAttributeNames = new Set(partitionAttributeNames);
-
-                                for (const attributeName of Object.keys(
-                                    sortRangeConfig.sortKeyAttributes,
-                                )) {
-                                    assertValidAttributeName(attributeName);
-
-                                    assert(
-                                        !sortRangeAttributeNames.has(attributeName),
-                                        "Attribute names must be unique within an item",
-                                    );
-                                    sortRangeAttributeNames.add(attributeName);
-                                }
-
-                                for (const attributeName of sortRangeConfig.attributes.propertySchemaByKey.keys()) {
-                                    assertValidAttributeName(attributeName);
-
-                                    assert(
-                                        !sortRangeAttributeNames.has(attributeName),
-                                        "Attribute names must be unique within an item",
-                                    );
-                                    sortRangeAttributeNames.add(attributeName);
-                                }
-
-                                let attributesSchema: ObjectSchema<any> =
-                                    sortRangeConfig.attributes.merge(
-                                        DynamoTableItemSharedAttributesSchema,
-                                    );
-
-                                attributesSchema =
-                                    sortRangeConfig.withExpirationTime === "Optional"
-                                        ? attributesSchema.merge(
-                                              Schema.object({
-                                                  expirationTime:
-                                                      DynamoTableItemSharedExpirationTimeAttributeSchema.optional(),
-                                              }),
-                                          )
-                                        : sortRangeConfig.withExpirationTime === "Required"
-                                        ? attributesSchema.merge(
-                                              Schema.object({
-                                                  expirationTime:
-                                                      DynamoTableItemSharedExpirationTimeAttributeSchema,
-                                              }),
-                                          )
-                                        : sortRangeConfig.withExpirationTime === "RequiredNullable"
-                                        ? attributesSchema.merge(
-                                              Schema.object({
-                                                  expirationTime:
-                                                      DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
-                                              }),
-                                          )
-                                        : attributesSchema;
+                                const childSortRangeNames = new Set<string>();
 
                                 return {
                                     ...sortRangeConfig,
-                                    attributes: attributesSchema,
+                                    attributes: processAttributesSchema(sortRangeConfig),
+                                    childSortRanges: sortRangeConfig.childSortRanges?.map(
+                                        childSortRangeConfig => {
+                                            assert(
+                                                isIdentifier(childSortRangeConfig.name),
+                                                "Child sort range name must be an identifier",
+                                            );
+                                            assert(
+                                                childSortRangeConfig.name[0] ===
+                                                    childSortRangeConfig.name[0]?.toUpperCase(),
+                                                "Child sort range name must start with an uppercase letter",
+                                            );
+                                            assert(
+                                                !childSortRangeNames.has(childSortRangeConfig.name),
+                                                "Child sort range names must be unique within a sort range",
+                                            );
+                                            childSortRangeNames.add(childSortRangeConfig.name);
+
+                                            return {
+                                                ...childSortRangeConfig,
+                                                attributes:
+                                                    processAttributesSchema(childSortRangeConfig),
+                                            };
+                                        },
+                                    ),
                                 };
                             },
                         ),
@@ -1690,6 +1721,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Key,
         options?: {
             consistency?: DynamoCacheReadConsistency;
+            allowsEventualReadConsistency?: boolean;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
         const item = await this.getItemIfExists(context, key, options);

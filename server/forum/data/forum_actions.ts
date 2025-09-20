@@ -1,3 +1,4 @@
+import {addSeconds} from "date-fns";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
@@ -13,6 +14,7 @@ import {
 import {
     ServerAccountActionContext,
     ServerActionContext,
+    ServerBotActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -29,7 +31,7 @@ import {
     DynamoReadConsistency,
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     DynamoGeneralRealtimeTableItemType,
     DynamoGeneralRealtimeTableSchema,
@@ -54,6 +56,9 @@ import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_sess
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
+import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     getNotificationMessageContentSnippet,
     getNotificationPostContentSnippet,
@@ -158,7 +163,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayload} from "~/shared/messaging/message_model.js";
+import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -186,8 +191,6 @@ type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
     "Channel",
     "PostFiles"
 >;
-
-type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
 /**
  * Scan every channel and post in our database. Use when migrating data.
@@ -2867,7 +2870,7 @@ async function getPostItemForAuthorization(
 export async function authorizePostAccess(
     context: ServerActionContext,
     id: PostId,
-    expectedAccessLevel: "View" | "Edit",
+    expectedAccessLevel: "View" | "Comment" | "Edit",
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId; channelId: ChannelId; channelAccessPolicy: AccessPolicy}> {
     return unwrapResult(
@@ -2885,7 +2888,7 @@ export async function authorizePostAccess(
 export async function authorizePostAccessIfPossible(
     context: ServerActionContext,
     id: PostId,
-    expectedAccessLevel: "View" | "Edit",
+    expectedAccessLevel: "View" | "Comment" | "Edit",
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<
     Result<{spaceId: SpaceId; channelId: ChannelId; channelAccessPolicy: AccessPolicy}, ErrorBase>
@@ -2901,8 +2904,9 @@ export async function authorizePostAccessIfPossible(
     if (!result.ok) return result;
 
     switch (expectedAccessLevel) {
-        case "View": {
-            // If you can view the channel, you can view the post.
+        case "View":
+        case "Comment": {
+            // If you can view/comment the channel, you can view/comment the post.
             break;
         }
         case "Edit": {
@@ -2956,12 +2960,14 @@ export async function createPostComment(
         parentCommentIndex,
         content,
         fileIds,
+        isStream,
         consistency = "Eventual",
     }: {
         postId: PostId;
         parentCommentIndex: number | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
@@ -3043,6 +3049,10 @@ export async function createPostComment(
         const createdTime = new Date();
         const authorId = context.actor.getPossiblyBotAccountId();
 
+        if (isStream && context.actor.type !== "Bot") {
+            throw new PermissionDeniedError("Only bots can send `Stream` messages");
+        }
+
         const newCommentCountByAuthorId = new Map(postItem.commentsSummary.commentCountByAuthorId);
         const oldCommentCount = postItem.commentsSummary.commentCountByAuthorId.get(authorId) ?? 0;
         newCommentCountByAuthorId.set(authorId, oldCommentCount + 1);
@@ -3067,8 +3077,10 @@ export async function createPostComment(
                     content,
                     contentUpdatedTime: null,
                     fileIds,
+                    clerical: isStream ? {type: "Stream"} : undefined,
                 },
             }),
+
             // Ok for us to not tell the client about a comment summary update through our
             // general realtime system. Instead, comment counts will be updated through the
             // messaging realtime system.
@@ -3083,6 +3095,28 @@ export async function createPostComment(
                 },
                 {updateLockVersion: postItem.updateLockVersion},
             ),
+
+            // If this is a stream comment then create the stream state item.
+            // Create-or-replace is safe since we know the comment index doesn't exist from
+            // our other condition checks.
+            ...(isStream
+                ? [
+                      ForumTable.transactionCreateOrReplaceItem({
+                          partitionType: "Post",
+                          sortRangeType: "Comments#Stream",
+                          postId,
+                          commentIndex,
+                          authorId,
+                          completedTime: null,
+                          partCount: 0,
+                          lastPartUpdateLockVersion: null,
+                          lastIndexSearchEntityJob: {
+                              sendTime: createdTime,
+                              delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+                          },
+                      }),
+                  ]
+                : []),
         ]);
 
         // When the account comments on a post they didn't author for the first time,
@@ -3180,18 +3214,21 @@ export async function createPostComment(
             },
         });
 
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId: postItem.spaceId,
-            update: {
-                type: "PostComment",
-                postId,
-                commentIndex,
-                // Nothing depends on this entity when it's created. Don't bother trying to
-                // reindex dependencies.
-                updatedTraits: {type: "None"},
+        context.jobs.send(
+            {
+                type: "IndexSearchEntity",
+                spaceId: postItem.spaceId,
+                update: {
+                    type: "PostComment",
+                    postId,
+                    commentIndex,
+                    // Nothing depends on this entity when it's created. Don't bother trying to
+                    // reindex dependencies.
+                    updatedTraits: {type: "None"},
+                },
             },
-        });
+            {delaySeconds: isStream ? messageStreamIndexSearchEntityDelaySeconds : 0},
+        );
 
         // Only increase affinity score if we have a session actor. Don't increase
         // affinity score if this is a system actor sending a message on behalf of an
@@ -3248,6 +3285,262 @@ export async function createPostComment(
 }
 
 /**
+ * Update a part of the comment stream.
+ *
+ * Comment streams are made up of multiple parts. Only the bot that created a
+ * stream can update the stream. A bot can only create new parts or update the
+ * last part of the stream.
+ *
+ * Currently, you completely replace a part when you update it. We may allow
+ * more granular part updates in the future.
+ */
+export function putPostCommentStreamPart(
+    context: ServerBotActionContext,
+    {
+        postId,
+        commentIndex,
+        partIndex,
+        payload,
+        consistency,
+    }: {
+        postId: PostId;
+        commentIndex: number;
+        partIndex: number;
+        payload: MessageStreamPartPayload;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizePostAccess(context, postId, "Comment", {consistency}),
+
+            ForumTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Post",
+                    sortRangeType: "Comments#Stream",
+                    postId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw new FailedPreconditionError("The stream has already been completed", {
+                displayMessage: errorDisplayMessage`The stream has already been completed.`,
+            });
+        }
+
+        // Use `Date.now()` so tests can mock the `Date.now()` function.
+        const currentTime = new Date(Date.now());
+
+        let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
+
+        if (
+            isDatePossiblyLessThanWithUncertaintyWindow(
+                addSeconds(
+                    item.lastIndexSearchEntityJob.sendTime,
+                    item.lastIndexSearchEntityJob.delaySeconds,
+                ),
+                currentTime,
+            )
+        ) {
+            nextIndexSearchEntityJob = {
+                sendTime: currentTime,
+                delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+            };
+        }
+
+        if (partIndex === item.partCount) {
+            await DynamoTableSchema.executeTransaction(context, [
+                ForumTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    partCount: partIndex + 1,
+                    lastPartUpdateLockVersion: 0,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                ForumTable.transactionCreateOrReplaceItem({
+                    partitionType: "Post",
+                    sortRangeType: "Comments#StreamPart",
+                    postId,
+                    commentIndex,
+                    partIndex,
+                    payload,
+                    // `updateLockVersion: 0` is always represented as `undefined`.
+                    updateLockVersion: undefined,
+                }),
+            ]);
+        } else {
+            if (partIndex !== item.partCount - 1) {
+                throw new FailedPreconditionError(
+                    "Only the last part of the stream or the next part can be updated",
+                    {
+                        displayMessage: errorDisplayMessage`Only the last part of the stream (index ${
+                            item.partCount - 1
+                        }) or the next part (index ${item.partCount}) can be updated.`,
+                    },
+                );
+            }
+
+            assert(item.lastPartUpdateLockVersion !== null);
+
+            await DynamoTableSchema.executeTransaction(context, [
+                ForumTable.transactionDirectlyUpdateItem({
+                    ...item,
+                    lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastIndexSearchEntityJob:
+                        nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
+                }),
+                ForumTable.transactionCreateOrReplaceItem({
+                    partitionType: "Post",
+                    sortRangeType: "Comments#StreamPart",
+                    postId,
+                    commentIndex,
+                    partIndex,
+                    payload,
+                    updateLockVersion: item.lastPartUpdateLockVersion + 1,
+                }),
+            ]);
+        }
+
+        if (nextIndexSearchEntityJob) {
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "PostComment",
+                        postId,
+                        commentIndex,
+                        updatedTraits: {type: "Some", traits: []},
+                    },
+                },
+                {delaySeconds: nextIndexSearchEntityJob.delaySeconds},
+            );
+        }
+
+        return {spaceId};
+    });
+}
+
+/**
+ * Completes a comment stream. After this parts can't be added or updated.
+ *
+ * This function is idempotent. If the stream is already completed this method
+ * does nothing.
+ */
+export function completePostCommentStream(
+    context: ServerBotActionContext,
+    {
+        postId,
+        commentIndex,
+        consistency,
+    }: {
+        postId: PostId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    completedTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizePostAccess(context, postId, "Comment", {consistency}),
+
+            ForumTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Post",
+                    sortRangeType: "Comments#Stream",
+                    postId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        // Already completed!
+        if (item.completedTime !== null) {
+            return {spaceId, completedTime: item.completedTime};
+        }
+
+        const completedTime = new Date();
+
+        await ForumTable.directlyUpdateItem(context, {
+            ...item,
+            completedTime,
+        });
+
+        return {spaceId, completedTime};
+    });
+}
+
+async function getPostCommentItemIfExists(
+    context: ServerActionContext,
+    postId: PostId,
+    commentIndex: number,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<MessageItem | null> {
+    const items = await arrayFromAsyncIterable(
+        processCommentsQuery(
+            "Ascending",
+            ForumTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Post",
+                    postId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments#StreamPart",
+                    commentIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
+    );
+
+    assert(items.length <= 1);
+
+    return items[0] ?? null;
+}
+
+/**
  * Get a single post comment.
  */
 export async function getPostComment(
@@ -3256,17 +3549,12 @@ export async function getPostComment(
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizePostAccess(context, postId, "View"),
-        ForumTable.getItemIfExists(context, {
-            partitionType: "Post",
-            sortRangeType: "Comments",
-            postId,
-            commentIndex,
-        }),
+        getPostCommentItemIfExists(context, postId, commentIndex),
     ]);
 
     if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
-    return createPostCommentModelFromItem(context, spaceId, item);
+    return createPostCommentModelFromItem(context, spaceId, postId, item);
 }
 
 /**
@@ -3283,58 +3571,47 @@ export async function getPostCommentPayload(
         commentIndex: number;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<{
-    spaceId: SpaceId;
-    createdTime: Date;
-    authorId: AccountId;
-    payload: MessagePayload;
-    channelId: ChannelId;
-    channelAccessPolicy: AccessPolicy;
-}> {
+): Promise<
+    MessageItem & {
+        spaceId: SpaceId;
+        channelId: ChannelId;
+        channelAccessPolicy: AccessPolicy;
+    }
+> {
     const [{spaceId, channelId, channelAccessPolicy}, item] = await runAllPromises([
         authorizePostAccess(context, postId, "View", {consistency}),
-        ForumTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Comments",
-                postId,
-                commentIndex,
-            },
-            {consistency},
-        ),
+        getPostCommentItemIfExists(context, postId, commentIndex, {consistency}),
     ]);
 
     if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
 
     return {
         spaceId,
-        createdTime: item.createdTime,
-        authorId: item.authorId,
-        payload: item.payload,
         channelId,
         channelAccessPolicy,
+        ...item,
     };
 }
 
 async function createPostCommentModelFromItem(
     context: ServerActionContext,
     spaceId: SpaceId,
-    item: PostCommentItem,
+    postId: PostId,
+    item: MessageItem,
 ): Promise<PostCommentModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,
-            FilePostAuthorizer.bind({type: "PostComments", postId: item.postId}),
+            FilePostAuthorizer.bind({type: "PostComments", postId}),
             item.payload,
         ),
     ]);
 
     return new PostCommentModel({
-        postId: item.postId,
-        index: item.commentIndex,
+        postId,
+        index: item.index,
         author,
         createdTime: item.createdTime,
         payload,
@@ -3345,7 +3622,7 @@ async function createPostCommentModelFromItem(
  * Update the content on one of your post comments.
  */
 export function updatePostCommentContent(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         postId,
         commentIndex,
@@ -3400,7 +3677,7 @@ export function updatePostCommentContent(
 
         const {spaceId} = await authorizeChannelAccess(context, postItem.channelId, "Comment");
 
-        if (commentItem.authorId !== context.actor.getAccountId())
+        if (commentItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only update post comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -3490,7 +3767,7 @@ export function updatePostCommentContent(
  * Delete a single post comment.
  */
 export function deletePostComment(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -3534,7 +3811,7 @@ export function deletePostComment(
 
         const {spaceId} = await authorizeChannelAccess(context, postItem.channelId, "Comment");
 
-        if (commentItem.authorId !== context.actor.getAccountId())
+        if (commentItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -3630,22 +3907,25 @@ export async function getPostAndInitialComments(
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
-    const queryIterable = ForumTable.query(context, {
-        partitionKey: {
-            partitionType: "Post",
-            postId,
-        },
-        startSortKey: {
-            sortRangeType: "Comments",
-            commentIndex: 0,
-        },
-        endSortKey: {
-            sortRangeType: "Comments",
-            commentIndex: Number.MAX_SAFE_INTEGER,
-        },
-        // Add one to the limit for the post attributes item.
-        limit: commentLimit + 1,
-    });
+    const queryIterable = processCommentsQuery(
+        "Ascending",
+        ForumTable.query(context, {
+            limit: "All",
+            partitionKey: {
+                partitionType: "Post",
+                postId,
+            },
+            startSortKey: {
+                sortRangeType: "Comments",
+                commentIndex: 0,
+            },
+            endSortKey: {
+                sortRangeType: "Comments#StreamPart",
+                commentIndex: commentLimit - 1,
+                partIndex: Number.MAX_SAFE_INTEGER,
+            },
+        }),
+    );
 
     const postItemConsistency: DynamoReadConsistency = "Eventual";
 
@@ -3674,12 +3954,14 @@ export async function getPostAndInitialComments(
     const parentCommentIndexes = new Set<number>();
 
     for await (const item of queryIterable) {
-        commentIndexes.add(item.commentIndex);
+        commentIndexes.add(item.index);
 
         if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
             parentCommentIndexes.add(item.payload.parentMessageIndex);
 
-        commentPromises.push(createPostCommentModelFromItem(context, postItem.spaceId, item));
+        commentPromises.push(
+            createPostCommentModelFromItem(context, postItem.spaceId, postId, item),
+        );
     }
 
     const [, post, comments, otherReferencedComments] = await runAllPromises([
@@ -3691,15 +3973,20 @@ export async function getPostAndInitialComments(
                 if (commentIndexes.has(parentCommentIndex)) return;
 
                 return (async () => {
-                    const commentItem = await ForumTable.getItemIfExists(context, {
-                        partitionType: "Post",
-                        sortRangeType: "Comments",
+                    const commentItem = await getPostCommentItemIfExists(
+                        context,
                         postId,
-                        commentIndex: parentCommentIndex,
-                    });
+                        parentCommentIndex,
+                        {consistency: postItemConsistency},
+                    );
                     if (!commentItem) throw new InternalError("Parent comment not found");
 
-                    return createPostCommentModelFromItem(context, postItem.spaceId, commentItem);
+                    return createPostCommentModelFromItem(
+                        context,
+                        postItem.spaceId,
+                        postId,
+                        commentItem,
+                    );
                 })();
             }),
         ),
@@ -3717,6 +4004,16 @@ export async function getPostAndInitialComments(
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
     };
+}
+
+function getPostCommentCount(commentsSummary: {
+    readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
+}) {
+    return reduceIterable(
+        commentsSummary.commentCountByAuthorId.values(),
+        (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+        0,
+    );
 }
 
 /**
@@ -3783,11 +4080,7 @@ export async function getPostCommentsFromStart(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                postItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getPostCommentCount(postItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
@@ -3821,32 +4114,41 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
+    const queryStartCommentIndex =
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+
+    const queryEndCommentIndex = Math.min(
+        queryStartCommentIndex + limit - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
     const commentItems = await arrayFromAsyncIterable(
-        ForumTable.query(context, {
-            partitionKey: {
-                partitionType: "Post",
-                postId,
-            },
-            startSortKey: {
-                sortRangeType: "Comments",
-                commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-            },
-            endSortKey: {
-                sortRangeType: "Comments",
-                commentIndex:
-                    typeof beforeCommentIndex === "number"
-                        ? beforeCommentIndex - 1
-                        : Number.MAX_SAFE_INTEGER,
-            },
-            limit,
-            consistency,
-        }),
+        processCommentsQuery(
+            "Ascending",
+            ForumTable.query(context, {
+                limit: "All",
+                consistency,
+                partitionKey: {
+                    partitionType: "Post",
+                    postId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: queryStartCommentIndex,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments#StreamPart",
+                    commentIndex: queryEndCommentIndex,
+                    partIndex: Number.MAX_SAFE_INTEGER,
+                },
+            }),
+        ),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const startCommentIndex = commentItems[0]!.commentIndex;
-    const endCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+    const startCommentIndex = commentItems[0]!.index;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.index;
 
     const spaceId = await getSpaceId();
 
@@ -3862,16 +4164,9 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await ForumTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Post",
-                        sortRangeType: "Comments",
-                        postId,
-                        commentIndex,
-                    },
-                    {consistency},
-                );
+                const item = await getPostCommentItemIfExists(context, postId, commentIndex, {
+                    consistency,
+                });
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -3880,7 +4175,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
                 }
 
                 otherReferencedComments.push(
-                    await createPostCommentModelFromItem(context, spaceId, item),
+                    await createPostCommentModelFromItem(context, spaceId, postId, item),
                 );
             },
         );
@@ -3897,7 +4192,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
 
             // Don't propagate `consistency` when loading model references. We
             // accept references can have eventual consistency.
-            return createPostCommentModelFromItem(context, spaceId, item);
+            return createPostCommentModelFromItem(context, spaceId, postId, item);
         }),
     );
 
@@ -3938,12 +4233,7 @@ export async function getPostCommentPayloadsFromStart(
 ): Promise<{
     spaceId: SpaceId;
     commentCount: number;
-    comments: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    comments: Array<MessageItem>;
 }> {
     const postItemPromise = ForumRealtimeTable.getPartialItemIfExists(
         context,
@@ -3962,56 +4252,56 @@ export async function getPostCommentPayloadsFromStart(
     // to authorize later in the action it's available.
     PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
 
-    const [postItem, comments] = await runAllPromises([
+    const queryStartCommentIndex =
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+
+    const queryEndCommentIndex = Math.min(
+        queryStartCommentIndex + limit - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
+    );
+
+    const [postItem, commentItems] = await runAllPromises([
         postItemPromise.then(async postItem => {
             if (!postItem) throw createPostNotFoundError(postId);
             await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
             return postItem;
         }),
         arrayFromAsyncIterable(
-            ForumTable.query(context, {
-                partitionKey: {
-                    partitionType: "Post",
-                    postId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                consistency,
-            }),
-            item => ({
-                index: item.commentIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            processCommentsQuery(
+                "Ascending",
+                ForumTable.query(context, {
+                    limit: "All",
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Post",
+                        postId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Comments",
+                        commentIndex: queryStartCommentIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Comments#StreamPart",
+                        commentIndex: queryEndCommentIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
-    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+    const lastCommentIndex =
+        commentItems.length > 0 ? commentItems[commentItems.length - 1]!.index : -1;
 
     return {
         spaceId: postItem.spaceId,
         commentCount: Math.max(
-            reduceIterable(
-                postItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getPostCommentCount(postItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        comments,
+        comments: commentItems,
     };
 }
 
@@ -4064,11 +4354,10 @@ export async function getPostCommentsFromEnd(
         }),
         getPostCommentsFromEndAssumingAuthorizedPost(context, {
             postId,
-            getSpaceId: () =>
-                postItemPromise.then(postItem => {
-                    if (!postItem) throw createPostNotFoundError(postId);
-                    return postItem.spaceId;
-                }),
+            postItemPromise: postItemPromise.then(postItem => {
+                if (!postItem) throw createPostNotFoundError(postId);
+                return postItem;
+            }),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -4079,11 +4368,7 @@ export async function getPostCommentsFromEnd(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                postItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getPostCommentCount(postItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
@@ -4098,13 +4383,16 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
     context: ServerActionContext,
     {
         postId,
-        getSpaceId,
+        postItemPromise,
         limit,
         afterCommentIndex,
         beforeCommentIndex,
     }: {
         postId: PostId;
-        getSpaceId: () => Promise<SpaceId>;
+        postItemPromise: Promise<{
+            spaceId: SpaceId;
+            commentsSummary: {commentCountByAuthorId: ReadonlyMap<AccountId, number>};
+        }>;
         limit: number;
         afterCommentIndex: number | null;
         beforeCommentIndex: number | null;
@@ -4115,39 +4403,53 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
+    const queryStartCommentIndex = Math.max(
+        typeof beforeCommentIndex === "number"
+            ? beforeCommentIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              getPostCommentCount((await postItemPromise).commentsSummary) - limit,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
+
+    const queryEndCommentIndex =
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-            ? ForumTable.query(context, {
-                  partitionKey: {
-                      partitionType: "Post",
-                      postId,
-                  },
-                  startSortKey: {
-                      sortRangeType: "Comments",
-                      commentIndex:
-                          typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                  },
-                  endSortKey: {
-                      sortRangeType: "Comments",
-                      commentIndex:
-                          typeof beforeCommentIndex === "number"
-                              ? beforeCommentIndex - 1
-                              : Number.MAX_SAFE_INTEGER,
-                  },
-                  limit,
-                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                  // at the end instead of start.
-                  descending: true,
-              })
+            ? processCommentsQuery(
+                  "Descending",
+                  ForumTable.query(context, {
+                      limit: "All",
+                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                      // at the end instead of start.
+                      descending: true,
+                      partitionKey: {
+                          partitionType: "Post",
+                          postId,
+                      },
+                      startSortKey: {
+                          sortRangeType: "Comments",
+                          commentIndex: queryStartCommentIndex,
+                      },
+                      endSortKey: {
+                          sortRangeType: "Comments#StreamPart",
+                          commentIndex: queryEndCommentIndex,
+                          partIndex: Number.MAX_SAFE_INTEGER,
+                      },
+                  }),
+              )
             : (async function* () {})(),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const endCommentIndex = commentItems[0]!.commentIndex;
-    const startCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
+    const endCommentIndex = commentItems[0]!.index;
+    const startCommentIndex = commentItems[commentItems.length - 1]!.index;
 
-    const spaceId = await getSpaceId();
+    const {spaceId} = await postItemPromise;
 
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<PostCommentModel> = [];
@@ -4161,12 +4463,7 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await ForumTable.getItemIfExists(context, {
-                    partitionType: "Post",
-                    sortRangeType: "Comments",
-                    postId,
-                    commentIndex,
-                });
+                const item = await getPostCommentItemIfExists(context, postId, commentIndex);
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -4175,7 +4472,7 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
                 }
 
                 otherReferencedComments.push(
-                    await createPostCommentModelFromItem(context, spaceId, item),
+                    await createPostCommentModelFromItem(context, spaceId, postId, item),
                 );
             },
         );
@@ -4189,7 +4486,7 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedComment(item.payload.parentMessageIndex);
             }
-            return createPostCommentModelFromItem(context, spaceId, item);
+            return createPostCommentModelFromItem(context, spaceId, postId, item);
         }),
     );
 
@@ -4233,12 +4530,7 @@ export async function getPostCommentPayloadsFromEnd(
 ): Promise<{
     spaceId: SpaceId;
     commentCount: number;
-    comments: Array<{
-        index: number;
-        createdTime: Date;
-        authorId: AccountId;
-        payload: MessagePayload;
-    }>;
+    comments: Array<MessageItem>;
 }> {
     const postItemPromise = ForumRealtimeTable.getPartialItemIfExists(
         context,
@@ -4257,39 +4549,52 @@ export async function getPostCommentPayloadsFromEnd(
     // to authorize later in the action it's available.
     PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
 
+    const actualPostItemPromise = postItemPromise.then(postItem => {
+        if (!postItem) throw createPostNotFoundError(postId);
+        return postItem;
+    });
+
+    const queryStartCommentIndex = Math.max(
+        typeof beforeCommentIndex === "number"
+            ? beforeCommentIndex - limit
+            : // TODO(calebmer): An optimized version of this might query `limit` items and if there
+              // was a message stream then query again with `limit: "All"` and a proper query start
+              // index. Instead right now we wait for chat access to authorize before starting our
+              // query which is slower than authorizing + querying in parallel.
+              getPostCommentCount((await actualPostItemPromise).commentsSummary) - limit,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
+
+    const queryEndCommentIndex =
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+
     const [postItem, comments] = await runAllPromises([
-        postItemPromise.then(async postItem => {
-            if (!postItem) throw createPostNotFoundError(postId);
+        actualPostItemPromise.then(async postItem => {
             await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
             return postItem;
         }),
         arrayFromAsyncIterable(
-            ForumTable.query(context, {
-                partitionKey: {
-                    partitionType: "Post",
-                    postId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-                descending: true,
-                consistency,
-            }),
-            item => ({
-                index: item.commentIndex,
-                createdTime: item.createdTime,
-                authorId: item.authorId,
-                payload: item.payload,
-            }),
+            processCommentsQuery(
+                "Descending",
+                ForumTable.query(context, {
+                    limit: "All",
+                    descending: true,
+                    consistency,
+                    partitionKey: {
+                        partitionType: "Post",
+                        postId,
+                    },
+                    startSortKey: {
+                        sortRangeType: "Comments",
+                        commentIndex: queryStartCommentIndex,
+                    },
+                    endSortKey: {
+                        sortRangeType: "Comments#StreamPart",
+                        commentIndex: queryEndCommentIndex,
+                        partIndex: Number.MAX_SAFE_INTEGER,
+                    },
+                }),
+            ),
         ),
     ]);
 
@@ -4301,11 +4606,7 @@ export async function getPostCommentPayloadsFromEnd(
     return {
         spaceId: postItem.spaceId,
         commentCount: Math.max(
-            reduceIterable(
-                postItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getPostCommentCount(postItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,

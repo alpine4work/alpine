@@ -144,7 +144,7 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadClerical} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadClerical} from "~/shared/messaging/message_schema.js";
 import {
     InboxEntryKey,
     InboxEntryModel,

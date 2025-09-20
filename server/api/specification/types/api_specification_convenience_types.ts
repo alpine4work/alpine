@@ -99,6 +99,9 @@ export type ApiMessage = ApiSpecification.components["schemas"]["Message"];
 
 export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
 
+export type ApiMessageStreamPartPayload =
+    ApiSpecification.components["schemas"]["MessageStreamPartPayload"];
+
 export type ApiMessageContentPayload =
     ApiSpecification.components["schemas"]["MessageContentPayload"];
 

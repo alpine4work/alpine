@@ -4,6 +4,7 @@ import {
     authorizeChatAccess,
     authorizeChatAccessIfPossible,
     backfillChatMessages,
+    completeChatMessageStream,
     createChatForTest,
     deleteChatMessage,
     getChat,
@@ -19,11 +20,12 @@ import {
     getOrCreateChatForAccounts,
     getSharedChatsForTest,
     processSendShareNotificationJob,
+    putChatMessageStreamPart,
     sendChatMessage,
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
-import {ChatTable} from "~/server/chat/data/internal/chat_table.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -35,8 +37,6 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
@@ -46,7 +46,9 @@ import {
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    chatInjection,
+});
 
 const content1 = createSimpleMessageContent("test1");
 const content2 = createSimpleMessageContent("test2");
@@ -3689,35 +3691,39 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entity1Id],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entity1Id],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entity1Id],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entity1Id],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
@@ -3766,35 +3772,39 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entity1Id],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entity1Id],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entity1Id],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entity1Id],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
@@ -3806,35 +3816,39 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("quxbaz"),
-            contentUpdatedTime: null,
-            fileIds: [entity2Id],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("quxbaz"),
+                contentUpdatedTime: null,
+                fileIds: [entity2Id],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("quxbaz"),
-            contentUpdatedTime: null,
-            fileIds: [entity2Id],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("quxbaz"),
+                contentUpdatedTime: null,
+                fileIds: [entity2Id],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
@@ -3961,35 +3975,39 @@ test("processing send share notification message job is idempotent", async () =>
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entityId],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entityId],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entityId],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entityId],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
@@ -4036,35 +4054,39 @@ test("processing send share notification message job is idempotent", async () =>
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entityId],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entityId],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
-    ).resolves.toEqual({
-        spaceId: space.id,
-        authorId: session1.account.id,
-        createdTime: expect.any(Date),
-        payload: {
-            type: "Content",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("foobar"),
-            contentUpdatedTime: null,
-            fileIds: [entityId],
-            clerical: {type: "ShareNotification", entityType: "Document"},
-        },
-    });
+    ).resolves.toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            authorId: session1.account.id,
+            createdTime: expect.any(Date),
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("foobar"),
+                contentUpdatedTime: null,
+                fileIds: [entityId],
+                clerical: {type: "ShareNotification", entityType: "Document"},
+            },
+        }),
+    );
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
@@ -4326,148 +4348,6 @@ describe("`getChatAccountIdsForBotScope()`", () => {
     });
 });
 
-// TODO(calebmer, #ai): I'm going to delete this in the next PR. Only using it
-// now for testing my `dynamo_table_schema.ts` changes.
-describe("agent response", () => {
-    test("can create/get/query agent response", async () => {
-        const space = await TestSpace.create(context);
-        const [session1, session2] = await space.createSessions(2);
-
-        const chat = await TestChat.get(session1, session2);
-
-        const message = await chat.sendMessage(session1);
-
-        await ChatTable.createItem(context, {
-            partitionType: "Chat",
-            sortRangeType: "Messages#AgentResponse",
-            chatId: chat.id,
-            messageIndex: message.index,
-            test1: 42,
-        });
-
-        const item = await ChatTable.getItem(context, {
-            partitionType: "Chat",
-            sortRangeType: "Messages#AgentResponse",
-            chatId: chat.id,
-            messageIndex: message.index,
-        });
-
-        // Make sure TypeScript is happy.
-        expect(item.test1).toEqual(42);
-
-        expect(item).toEqual({
-            partitionType: "Chat",
-            sortRangeType: "Messages#AgentResponse",
-            chatId: chat.id,
-            messageIndex: message.index,
-            test1: 42,
-        });
-
-        const items = await arrayFromAsyncIterable(
-            ChatTable.query(context, {
-                limit: "All",
-                partitionKey: {partitionType: "Chat", chatId: chat.id},
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: 20,
-                },
-            }),
-        );
-
-        // Make sure TypeScript is happy.
-        expect(
-            findMapIterable(items, item =>
-                item.sortRangeType === "Messages#AgentResponse" ? item.test1 : undefined,
-            ),
-        ).toEqual(42);
-
-        expect(items.slice(1)).toEqual([
-            {
-                partitionType: "Chat",
-                sortRangeType: "Messages#AgentResponse",
-                chatId: chat.id,
-                messageIndex: message.index,
-                test1: 42,
-            },
-        ]);
-    });
-
-    test("can create/get/query agent response part", async () => {
-        const space = await TestSpace.create(context);
-        const [session1, session2] = await space.createSessions(2);
-
-        const chat = await TestChat.get(session1, session2);
-
-        const message = await chat.sendMessage(session1);
-
-        await ChatTable.createItem(context, {
-            partitionType: "Chat",
-            sortRangeType: "Messages#AgentResponsePart",
-            chatId: chat.id,
-            messageIndex: message.index,
-            partIndex: 12,
-            test2: 42,
-        });
-
-        const item = await ChatTable.getItem(context, {
-            partitionType: "Chat",
-            sortRangeType: "Messages#AgentResponsePart",
-            chatId: chat.id,
-            messageIndex: message.index,
-            partIndex: 12,
-        });
-
-        // Make sure TypeScript is happy.
-        expect(item.test2).toEqual(42);
-
-        expect(item).toEqual({
-            partitionType: "Chat",
-            sortRangeType: "Messages#AgentResponsePart",
-            chatId: chat.id,
-            messageIndex: message.index,
-            partIndex: 12,
-            test2: 42,
-        });
-
-        const items = await arrayFromAsyncIterable(
-            ChatTable.query(context, {
-                limit: "All",
-                partitionKey: {partitionType: "Chat", chatId: chat.id},
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: 20,
-                },
-            }),
-        );
-
-        // Make sure TypeScript is happy.
-        expect(
-            findMapIterable(items, item =>
-                item.sortRangeType === "Messages#AgentResponsePart" ? item.test2 : undefined,
-            ),
-        ).toEqual(42);
-
-        expect(items.slice(1)).toEqual([
-            {
-                partitionType: "Chat",
-                sortRangeType: "Messages#AgentResponsePart",
-                chatId: chat.id,
-                messageIndex: message.index,
-                partIndex: 12,
-                test2: 42,
-            },
-        ]);
-    });
-});
-
 testMessagingImplementation<ChatId>(context, {
     async createRoom(context, spaceId, sessions) {
         const chat = await createChatForTest(context, {
@@ -4482,10 +4362,13 @@ testMessagingImplementation<ChatId>(context, {
             messageCount: 0,
         };
     },
-    async createPrivateRoom(context, spaceId, {insideSessions}) {
+    async createPrivateRoom(context, spaceId, {insideSessions, insideBotAccount}) {
         const chat = await createChatForTest(context, {
             spaceId,
-            otherAccountIds: insideSessions.map(session => session.accountId),
+            otherAccountIds: [
+                ...insideSessions.map(session => session.accountId),
+                ...(insideBotAccount ? [insideBotAccount.accountId] : []),
+            ],
         });
 
         return {
@@ -4513,12 +4396,19 @@ testMessagingImplementation<ChatId>(context, {
     getRoomFileAuthorizer(chatId) {
         return FileChatAuthorizer.bind({type: "ChatMessages", chatId});
     },
-    async createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
+    getRoomBotScope(chatId) {
+        return {type: "Chat", chatId};
+    },
+    async createMessage(
+        context,
+        {roomKey: chatId, parentMessageIndex, content, fileIds, isStream},
+    ) {
         const message = await sendChatMessage(context, {
             chatId,
             parentMessageIndex,
             content,
             fileIds,
+            isStream,
         });
 
         return {
@@ -4526,11 +4416,25 @@ testMessagingImplementation<ChatId>(context, {
             createdTime: message.createdTime,
         };
     },
+    async putMessageStreamPart(context, {roomKey: chatId, messageIndex, partIndex, payload}) {
+        await putChatMessageStreamPart(context, {
+            chatId,
+            messageIndex,
+            partIndex,
+            payload,
+        });
+    },
+    async completeMessageStream(context, {roomKey: chatId, messageIndex}) {
+        return completeChatMessageStream(context, {
+            chatId,
+            messageIndex,
+        });
+    },
     async getMessage(context, {roomKey: chatId, messageIndex}) {
         return getChatMessage(context, {chatId, messageIndex});
     },
     async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
-        return (await getChatMessagePayload(context, {chatId, messageIndex})).payload;
+        return getChatMessagePayload(context, {chatId, messageIndex});
     },
     async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
         return updateChatMessageContent(context, {
