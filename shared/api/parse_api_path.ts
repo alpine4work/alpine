@@ -1,7 +1,7 @@
 import {
     ApiContentMentionInlineElementTargetPath,
     ApiMessageRoomPath,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

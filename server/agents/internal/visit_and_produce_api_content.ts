@@ -5,7 +5,7 @@ import {
     ApiContentBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 
 export type ApiContentDraftVisitor = {
     readonly visitBlockElement?: (

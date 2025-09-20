@@ -10,7 +10,7 @@ import {
     ApiContentMentionInlineElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementRow,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentBlockNodeTypeName,

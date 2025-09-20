@@ -31,7 +31,7 @@ ts_project(
         "//:node_modules/micromark-extension-gfm-table",
         "//:node_modules/micromark-extension-gfm-task-list-item",
         "//:node_modules/micromark-extension-math",
-        "//server/api/specification",
+        "//shared/api",
         "//shared/helpers",
         "//shared/id",
     ],

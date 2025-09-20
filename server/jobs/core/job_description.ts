@@ -1,4 +1,3 @@
-import {ApiBotWebhookEvent} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {NotificationEventJobDescriptionSchema} from "~/server/notifications/core/notification_event.js";
 import {
     IndexSearchEntityDependentsJobDescriptionSchema,
@@ -6,6 +5,7 @@ import {
     IndexSearchEntityJobDescriptionSchema,
 } from "~/server/search/core/index_search_entity_job_description.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import {ApiBotWebhookEvent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";

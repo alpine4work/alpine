@@ -3,7 +3,7 @@ import {
     ApiContentBlockElement,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export type ApiContentVisitor = {

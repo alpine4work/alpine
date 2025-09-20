@@ -14,7 +14,7 @@ import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 
 const apiSpecificationPath = joinPath(
     runfilesPath,
-    "cyberworlds/server/api/specification/api_specification_final.yaml",
+    "cyberworlds/shared/api/api_specification_final.yaml",
 );
 
 const apiSpecificationString = fs.readFileSync(apiSpecificationPath, "utf8");

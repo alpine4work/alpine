@@ -11,7 +11,7 @@ import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content
 import {
     ApiContent,
     ApiContentBlockElement,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {

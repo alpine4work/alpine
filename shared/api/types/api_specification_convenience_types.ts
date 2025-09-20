@@ -1,4 +1,4 @@
-import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
+import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 
 export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["MessageRoomPath"];
 

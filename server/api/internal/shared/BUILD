@@ -1,5 +1,9 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+GENERATE_SRCS = [
+    "generate_api_specification_main.ts",
+]
+
 ts_project(
     name = "shared",
     visibility = ["//server/api:__subpackages__"],
@@ -21,7 +25,6 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//:node_modules/yaml",
         "//server/api/markdown",
-        "//server/api/specification",
         "//server/context",
         "//server/helpers",
         "//server/messaging/helpers",
@@ -29,6 +32,7 @@ ts_project(
         "//server/spaces",
         "//server/tokens",
         "//server/tracer",
+        "//shared/api",
         "//shared/content/code",
         "//shared/error",
         "//shared/helpers",

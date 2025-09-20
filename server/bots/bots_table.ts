@@ -1,9 +1,4 @@
 import {addDays} from "date-fns";
-import {parseApiMessageRoomPath} from "~/server/api/specification/parse_api_path.js";
-import {
-    ApiBotWebhookEvent,
-    ApiBotWebhookRequestBody,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
@@ -13,6 +8,11 @@ import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {
+    ApiBotWebhookEvent,
+    ApiBotWebhookRequestBody,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, UnknownError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

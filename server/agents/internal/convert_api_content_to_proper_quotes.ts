@@ -1,5 +1,5 @@
 import {visitAndProduceApiContent} from "~/server/agents/internal/visit_and_produce_api_content.js";
-import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**

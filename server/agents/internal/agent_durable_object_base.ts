@@ -1,17 +1,14 @@
 import {addHours, subHours} from "date-fns";
 import {ApiClient, createApiClient} from "~/server/agents/internal/api_client.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
-import {
-    ApiMessageRoomPathObject,
-    parseApiMessageRoomPath,
-} from "~/server/api/specification/parse_api_path.js";
-import {
-    ApiBotWebhookEvent,
-    ApiBotWebhookRequestBody,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
+import {ApiMessageRoomPathObject, parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {
+    ApiBotWebhookEvent,
+    ApiBotWebhookRequestBody,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";

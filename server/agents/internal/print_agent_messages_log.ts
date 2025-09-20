@@ -6,7 +6,7 @@ import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_
 import {
     ApiMessage,
     ApiMessageContentPayload,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {DateString} from "~/shared/helpers/date/date_string.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";

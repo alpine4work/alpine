@@ -1,7 +1,7 @@
 /* eslint-disable string-quotes */
 
 import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
-import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 

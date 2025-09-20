@@ -5,7 +5,7 @@ import Mustache from "mustache";
 import OpenAi from "openai";
 import {parseMarkdownTree} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_path.js";
+import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 

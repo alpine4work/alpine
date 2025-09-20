@@ -7,7 +7,7 @@ import {
     AgentMessage,
     printAgentMessagesLog,
 } from "~/server/agents/internal/print_agent_messages_log.js";
-import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";

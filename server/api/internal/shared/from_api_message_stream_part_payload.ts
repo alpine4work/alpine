@@ -1,5 +1,5 @@
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
-import {ApiMessageStreamPartPayload} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     MessageContentProsemirrorSchema,

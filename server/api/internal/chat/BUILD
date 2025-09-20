@@ -15,8 +15,8 @@ ts_project(
     deps = [
         "//server/api/internal/shared",
         "//server/api/markdown",
-        "//server/api/specification",
         "//server/chat/data",
+        "//shared/api",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

@@ -12,7 +12,7 @@ import {gfmTable} from "micromark-extension-gfm-table";
 import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
-import {apiContentCodeBlockLanguageDefinition} from "~/server/api/specification/api_content_code_block_language_definition.js";
+import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -30,7 +30,7 @@ import {
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

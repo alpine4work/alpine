@@ -4,7 +4,6 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
-import {ApiTask} from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {
     completeTaskCommentStream,
     createTaskComment,
@@ -14,6 +13,7 @@ import {
     getTaskNotesContentWithCustomReferences,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
+import {ApiTask} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";

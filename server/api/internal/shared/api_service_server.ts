@@ -10,7 +10,6 @@ import {join as joinPath} from "path";
 import Yaml from "yaml";
 import {renderApiBrowser} from "~/server/api/internal/shared/api_browser.js";
 import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
-import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {getApiKeyAttributesIfExists} from "~/server/bots/bots_table.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {BotActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -31,6 +30,7 @@ import {
     TokenPayload,
 } from "~/server/tokens/token_payload.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
+import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -68,7 +68,7 @@ const addAjvFormats =
 
 const apiSpecificationPath = joinPath(
     runfilesPath,
-    "cyberworlds/server/api/specification/api_specification_final.yaml",
+    "cyberworlds/shared/api/api_specification_final.yaml",
 );
 
 export async function createApiServiceServer(

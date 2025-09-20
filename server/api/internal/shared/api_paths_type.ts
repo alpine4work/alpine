@@ -1,5 +1,5 @@
-import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 

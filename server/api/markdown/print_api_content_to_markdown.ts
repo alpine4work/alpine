@@ -11,7 +11,7 @@ import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/norma
 import {
     ApiContentMentionInlineElementTargetPathObject,
     parseApiContentMentionInlineElementTargetPath,
-} from "~/server/api/specification/parse_api_path.js";
+} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -24,7 +24,7 @@ import {
     ApiContentInlineElementMark,
     ApiContentParagraphBlockElement,
     ApiContentTableBlockElement,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

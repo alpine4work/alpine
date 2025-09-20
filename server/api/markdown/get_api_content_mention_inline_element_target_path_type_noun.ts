@@ -1,4 +1,4 @@
-import {ApiContentMentionInlineElementTargetPathObject} from "~/server/api/specification/parse_api_path.js";
+import {ApiContentMentionInlineElementTargetPathObject} from "~/shared/api/parse_api_path.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function getApiContentMentionInlineElementTargetPathNoun(

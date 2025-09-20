@@ -1,6 +1,6 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {intoApiContentParagraphBlockElement} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {parseApiContentMentionInlineElementTargetPath} from "~/server/api/specification/parse_api_path.js";
+import {parseApiContentMentionInlineElementTargetPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -9,7 +9,7 @@ import {
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentMentionInlineElement,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";

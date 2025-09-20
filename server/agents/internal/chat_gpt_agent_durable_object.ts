@@ -34,13 +34,13 @@ import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_mark
 import {
     ApiMessageRoomPathObject,
     parseApiContentMentionInlineElementTargetPath,
-} from "~/server/api/specification/parse_api_path.js";
+} from "~/shared/api/parse_api_path.js";
 import {
     ApiChat,
     ApiContent,
     ApiContentMentionInlineElementTargetPath,
     ApiMessage,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
 import {ErrorBase, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

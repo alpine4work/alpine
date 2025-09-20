@@ -9,11 +9,11 @@ import {
     printApiContentMentionInlineElementTargetPathToMentionLinkUrl,
     printApiContentToMarkdown,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {apiContentCodeBlockLanguageDefinition} from "~/server/api/specification/api_content_code_block_language_definition.js";
+import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
 import {
     ApiContentMentionInlineElementTargetPathObject,
     printApiContentMentionInlineElementTargetPath,
-} from "~/server/api/specification/parse_api_path.js";
+} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -39,7 +39,7 @@ import {
     ApiContentTableBlockElementCellBlockElement,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElement,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";

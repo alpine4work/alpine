@@ -7,7 +7,7 @@ import {
     listAgentContentLinkReferences,
     printAgentContentToMarkdown,
 } from "~/server/agents/internal/print_agent_content_to_markdown.js";
-import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, PostId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";

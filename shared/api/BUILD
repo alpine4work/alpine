@@ -7,7 +7,7 @@ GENERATE_SRCS = [
 ]
 
 ts_project(
-    name = "specification",
+    name = "api",
     srcs = glob(
         ["**/*.ts"],
         exclude = GENERATE_SRCS + ["**/*.test.ts"],
@@ -19,7 +19,11 @@ ts_project(
         "//:node_modules/yaml",
         "//server/helpers/node",
     ],
-    visibility = ["//server:__subpackages__"],
+    visibility = ["//visibility:public"],
+    # IMPORTANT: We try to keep the first-party dependency list for this
+    # package pretty small. We'd like to open source this code someday!
+    # This package is a dependency of `//server/api/markdown` which we know
+    # we want to open source.
     deps = ["//shared/id"],
 )
 

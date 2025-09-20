@@ -1,12 +1,12 @@
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
+import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     ApiMessage,
     ApiMessagePayload,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
-import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

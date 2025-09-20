@@ -7,13 +7,13 @@ import {
     ResponseObjectMap,
     SuccessResponse,
 } from "openapi-typescript-helpers";
-import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_path.js";
+import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiErrorResponseBody,
     ApiMessageStreamPartPayload,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {
     ErrorBase,
     InternalError,

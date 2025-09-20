@@ -4,11 +4,11 @@ import {
     parseMarkdownTree,
 } from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentMentionInlineElementTargetPathToMentionLinkUrl} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {parseApiContentMentionInlineElementTargetPath} from "~/server/api/specification/parse_api_path.js";
+import {parseApiContentMentionInlineElementTargetPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContentMentionInlineElementTargetPath,
     ApiMessageStreamPartPayload,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

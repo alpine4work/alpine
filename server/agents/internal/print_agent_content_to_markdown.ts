@@ -13,7 +13,7 @@ import {
 import {
     ApiContent,
     ApiContentMentionInlineElementTargetPath,
-} from "~/server/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";

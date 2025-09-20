@@ -23,7 +23,6 @@ ts_project(
     ],
     deps = [
         "//:node_modules/date-fns",
-        "//server/api/specification",
         "//server/accounts",
         "//server/accounts/with_spaces",
         "//server/apns",
@@ -38,6 +37,7 @@ ts_project(
         "//server/spaces",
         "//server/tasks/data",
         "//shared/accounts",
+        "//shared/api",
         "//shared/chat",
         "//shared/content",
         "//shared/documents",
