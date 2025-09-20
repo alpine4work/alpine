@@ -11,11 +11,12 @@ import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {gfmTable} from "micromark-extension-gfm-table";
 import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
-import {isApiContentCodeBlockElementLanguage} from "~/server/api/markdown/api_content_code_block_element_languages.js";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
+import {apiContentCodeBlockLanguageDefinition} from "~/server/api/specification/api_content_code_block_language_definition.js";
 import {
     ApiContent,
     ApiContentBlockElement,
+    ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentInlineElement,
@@ -40,6 +41,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -202,6 +204,18 @@ function* parseApiContentBlockElementsFromMarkdown(
             yield element;
         }
     }
+}
+
+const apiContentCodeBlockLanguageByName = new Map<string, ApiContentCodeBlockElement["language"]>();
+
+for (const [language, extensions] of getObjectEntriesWithKeyofType(
+    apiContentCodeBlockLanguageDefinition,
+)) {
+    for (const extension of extensions) {
+        apiContentCodeBlockLanguageByName.set(extension, language);
+    }
+
+    apiContentCodeBlockLanguageByName.set(language, language);
 }
 
 function* parseApiContentBlockElementFromMarkdown(
@@ -682,13 +696,14 @@ function* parseApiContentBlockElementFromMarkdown(
                                     }
                                 }
 
+                                const languageName = languageMatch?.[1]?.toLowerCase();
+                                const language = languageName
+                                    ? apiContentCodeBlockLanguageByName.get(languageName)
+                                    : undefined;
+
                                 handleElement({
                                     type: "Code",
-                                    language:
-                                        languageMatch?.[1] &&
-                                        isApiContentCodeBlockElementLanguage(languageMatch[1])
-                                            ? languageMatch[1]
-                                            : "text",
+                                    language: language ?? "text",
                                     lines,
                                 });
 
@@ -834,12 +849,14 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "code": {
+            const languageName = content.lang?.toLowerCase();
+            const language = languageName
+                ? apiContentCodeBlockLanguageByName.get(languageName)
+                : undefined;
+
             yield {
                 type: "Code",
-                language:
-                    content.lang && isApiContentCodeBlockElementLanguage(content.lang)
-                        ? content.lang
-                        : "text",
+                language: language ?? "text",
                 lines: content.value.split("\n").map(line => ({
                     elements: line.length > 0 ? [{type: "Text", text: line, marks: undefined}] : [],
                 })),

@@ -1,5 +1,4 @@
 import fc, {Arbitrary, MaybeWeightedArbitrary} from "fast-check";
-import {apiContentCodeBlockElementLanguages} from "~/server/api/markdown/api_content_code_block_element_languages.js";
 import {
     apiContentInlineElementMarkTypeNormalizedOrder,
     normalizeApiContent,
@@ -10,6 +9,7 @@ import {
     printApiContentMentionInlineElementTargetPathToMentionLinkUrl,
     printApiContentToMarkdown,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {apiContentCodeBlockLanguageDefinition} from "~/server/api/specification/api_content_code_block_language_definition.js";
 import {
     ApiContentMentionInlineElementTargetPathObject,
     printApiContentMentionInlineElementTargetPath,
@@ -42,6 +42,7 @@ import {
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {Id, encodeId, generateId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -332,7 +333,10 @@ const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContent
 const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElement> = fc.record({
     type: fc.constant("Code"),
     language: fc.oneof(
-        ...mapIterable(apiContentCodeBlockElementLanguages, language => fc.constant(language)),
+        ...mapIterable(
+            getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
+            language => fc.constant(language),
+        ),
     ),
     lines: fc.array(
         fc.record({elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary)}),
