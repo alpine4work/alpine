@@ -1,7 +1,7 @@
 import {differenceInHours} from "date-fns";
 import escapeHtml from "escape-html";
 import {encode as encodeO200kBase} from "gpt-tokenizer/esm/encoding/o200k_base";
-import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage.js";
+import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
 import {
     ApiMessage,

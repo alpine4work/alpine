@@ -3,7 +3,7 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {
-    ChatGptAgentConversationReference,
+    AgentConversationLinkReference,
     listAgentContentLinkReferences,
     printAgentContentToMarkdown,
 } from "~/server/agents/internal/print_agent_content_to_markdown.js";
@@ -27,14 +27,9 @@ afterEach(async () => {
 async function testPrintAgentContentToMarkdown(
     content: ApiContent,
     expectedMarkdown: string,
-    expectedContentLinkReferences: ReadonlyMap<
-        string,
-        ChatGptAgentConversationReference
-    > = emptyMap,
+    expectedContentLinkReferences: ReadonlyMap<string, AgentConversationLinkReference> = emptyMap,
 ) {
-    const actualMarkdown = await storage.transaction(transaction =>
-        printAgentContentToMarkdown(transaction, content, {spaceId}),
-    );
+    const actualMarkdown = await printAgentContentToMarkdown(storage, content, {spaceId});
 
     expect(actualMarkdown).toEqual(expectedMarkdown);
 

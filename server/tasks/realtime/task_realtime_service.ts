@@ -399,8 +399,13 @@ export async function run({
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                if (actorContextModule.serviceName !== "AppService") {
-                    throw new PermissionDeniedError("Only `AppService` can load queries");
+                if (
+                    actorContextModule.serviceName !== "AppService" &&
+                    actorContextModule.serviceName !== "ApiService"
+                ) {
+                    throw new PermissionDeniedError(
+                        "Only `AppService` or `ApiService` can get a task without dependencies",
+                    );
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
@@ -448,8 +453,13 @@ export async function run({
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
                 }
 
-                if (actorContextModule.serviceName !== "AppService") {
-                    throw new PermissionDeniedError("Only `AppService` can load queries");
+                if (
+                    actorContextModule.serviceName !== "AppService" &&
+                    actorContextModule.serviceName !== "ApiService"
+                ) {
+                    throw new PermissionDeniedError(
+                        "Only `AppService` or `ApiService` can get a task collection",
+                    );
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");

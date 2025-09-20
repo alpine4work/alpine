@@ -50,8 +50,9 @@ export class DurableObjectStorageCollection<Key extends string, Value> {
         this.prefix = prefix;
     }
 
-    public get(storage: DurableObjectStorageInterface, key: Key): Promise<Value | undefined> {
-        return storage.get<Value>(`${this.prefix}:${key}`, {allowConcurrency: true});
+    public async get(storage: DurableObjectStorageInterface, key: Key): Promise<Value | undefined> {
+        const value = await storage.get<Value>(`${this.prefix}:${key}`, {allowConcurrency: true});
+        return value;
     }
 
     public put(storage: DurableObjectStorageInterface, key: Key, value: Value): Promise<void> {

@@ -13,7 +13,17 @@ import {
     ApiErrorResponseBody,
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
-import {InternalError} from "~/shared/error/error.js";
+import {
+    ErrorBase,
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    PermissionDeniedError,
+    UnauthenticatedError,
+    UnknownError,
+} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -117,10 +127,37 @@ export function createApiClient({
                     if (!response.ok) {
                         const responseBody: ApiErrorResponseBody = await response.json();
 
-                        throw new InternalError(
-                            `API request failed: ${responseBody.error.message}`,
-                            {cause: {status: response.status, ...responseBody}},
-                        );
+                        let ErrorConstructor: {
+                            new (
+                                message: string,
+                                options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage},
+                            ): ErrorBase;
+                        };
+                        switch (response.status) {
+                            case 400:
+                                ErrorConstructor = InvalidArgumentError;
+                                break;
+                            case 401:
+                                ErrorConstructor = UnauthenticatedError;
+                                break;
+                            case 403:
+                                ErrorConstructor = PermissionDeniedError;
+                                break;
+                            case 404:
+                                ErrorConstructor = NotFoundError;
+                                break;
+                            default:
+                                ErrorConstructor =
+                                    response.status >= 500 ? InternalError : UnknownError;
+                                break;
+                        }
+
+                        throw new ErrorConstructor("API request failed", {
+                            // The error message might contain sensitive user data. So treat the whole
+                            // error message as sensitive text.
+                            displayMessage: errorDisplayMessage`${responseBody.error.message}`,
+                            cause: {status: response.status, ...responseBody},
+                        });
                     }
 
                     if (options.parseAs === "stream") {

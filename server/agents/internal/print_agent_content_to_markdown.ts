@@ -3,7 +3,7 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
     DurableObjectTransactionInterface,
-} from "~/server/agents/internal/durable_object_storage.js";
+} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {parseApiContentMentionInlineElementTargetPathIfPossible} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     printApiContentToMarkdownTree,
@@ -15,22 +15,87 @@ import {
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-export type ChatGptAgentConversationReference = {
+export type AgentConversationLinkReference = {
     readonly mentionTargetPath: ApiContentMentionInlineElementTargetPath;
 };
 
 const AgentContentLinkReferenceCollection = new DurableObjectStorageCollection<
     string,
-    ChatGptAgentConversationReference
+    AgentConversationLinkReference
 >("a3");
 
 export function listAgentContentLinkReferences(
     storage: DurableObjectStorageInterface,
-): Promise<Map<string, ChatGptAgentConversationReference>> {
+): Promise<Map<string, AgentConversationLinkReference>> {
     return AgentContentLinkReferenceCollection.list(storage);
+}
+
+export function getAgentContentLinkReference(
+    storage: DurableObjectStorageInterface,
+    label: string,
+): Promise<AgentConversationLinkReference | undefined> {
+    return AgentContentLinkReferenceCollection.get(storage, label);
+}
+
+export type AgentConversationLink = {
+    readonly originalLabel: string;
+    readonly reference: AgentConversationLinkReference;
+    readonly label: string;
+    readonly getEscapedLabel: () => string;
+};
+
+let putAgentContentLinkReferenceMutex: Mutex | null = null;
+
+export async function putAgentContentLinkReference(
+    storage: DurableObjectStorageInterface,
+    originalLabel: string,
+    reference: AgentConversationLinkReference,
+): Promise<AgentConversationLink> {
+    // Use a process-wide mutex to avoid concurrent calls writing different
+    // mentions to the same label. This will be the only process ever writing to
+    // storage so a process-wide mutex is safe.
+    const run = (transaction: DurableObjectTransactionInterface) => {
+        putAgentContentLinkReferenceMutex ??= new Mutex();
+
+        return putAgentContentLinkReferenceMutex.withLock(async () => {
+            let dedupeNumber = 1;
+            let label = originalLabel;
+
+            while (true) {
+                // Check if this link label is unused or if
+                const existingReference = await AgentContentLinkReferenceCollection.get(
+                    transaction,
+                    label,
+                );
+                if (existingReference === undefined) break;
+                if (existingReference.mentionTargetPath === reference.mentionTargetPath) break;
+
+                dedupeNumber += 1;
+                label = `${originalLabel} ${dedupeNumber}`;
+            }
+
+            await AgentContentLinkReferenceCollection.put(transaction, label, reference);
+
+            return {
+                label,
+                getEscapedLabel: () => escapeMarkdownLinkLabel(label),
+                originalLabel,
+                reference,
+            };
+        });
+    };
+
+    // Make sure we're running in a transaction in addition to the process-wide
+    // mutex to really make sure we're not writing to the same label concurrently.
+    if ("rollback" in storage) {
+        return run(storage);
+    } else {
+        return storage.transaction(run);
+    }
 }
 
 /**
@@ -39,11 +104,24 @@ export function listAgentContentLinkReferences(
  * links. We give LLMs a tool to read content from links.
  */
 export async function printAgentContentToMarkdown(
-    transaction: DurableObjectTransactionInterface,
+    storage: DurableObjectStorageInterface,
     content: ApiContent,
     {spaceId}: {spaceId: SpaceId},
 ) {
-    const mutex = new Mutex();
+    const markdownTree = await printAgentContentToMarkdownTree(storage, content, {spaceId});
+    return printMarkdownTree(markdownTree);
+}
+
+/**
+ * Print API content to Markdown for an agent. Strips some Markdown formatting
+ * that we think is too technical for an LLM. For example, removes URLs from
+ * links. We give LLMs a tool to read content from links.
+ */
+export async function printAgentContentToMarkdownTree(
+    storage: DurableObjectStorageInterface,
+    content: ApiContent,
+    {spaceId}: {spaceId: SpaceId},
+) {
     const promiseWaiter = new PromiseWaiter();
 
     const markdownTree = printApiContentToMarkdownTree(content, {
@@ -88,41 +166,16 @@ export async function printAgentContentToMarkdown(
 
                 const originalLinkLabel = printMarkdownPhrasingContentText(childNode.children);
 
-                let dedupeNumber = 1;
-                let linkLabel = originalLinkLabel;
-
                 promiseWaiter.waitUntil(async () => {
-                    // Use a mutex so there aren't any issues with links running concurrently trying
-                    // to claim a unique label. This function as a whole is running inside a
-                    // `DurableObjectTransaction` which should protect us from other function calls
-                    // running concurrently and messing with this
-                    // `printAgentContentToMarkdown()` call.
-                    await mutex.withLock(async () => {
-                        while (true) {
-                            // Check if this link label is unused or if
-                            const existingLinkReference =
-                                await AgentContentLinkReferenceCollection.get(
-                                    transaction,
-                                    linkLabel,
-                                );
-                            if (existingLinkReference === undefined) break;
-                            if (existingLinkReference.mentionTargetPath === mentionTargetPath)
-                                break;
-
-                            dedupeNumber += 1;
-                            linkLabel = `${originalLinkLabel} ${dedupeNumber}`;
-                        }
-
-                        await AgentContentLinkReferenceCollection.put(transaction, linkLabel, {
-                            mentionTargetPath,
-                        });
+                    const {label} = await putAgentContentLinkReference(storage, originalLinkLabel, {
+                        mentionTargetPath,
                     });
 
                     node.children[index] = {
                         type: "linkReference",
                         referenceType: "collapsed",
                         identifier: "",
-                        children: [{type: "text", value: linkLabel}],
+                        children: [{type: "text", value: label}],
                     };
                 });
                 continue;
@@ -148,7 +201,7 @@ export async function printAgentContentToMarkdown(
     // Wait for all promises to resolve...
     await promiseWaiter.wait();
 
-    return printMarkdownTree(markdownTree);
+    return markdownTree;
 }
 
 function printMarkdownPhrasingContentText(contents: ReadonlyArray<PhrasingContent>): string {
@@ -187,4 +240,26 @@ function printMarkdownPhrasingContentText(contents: ReadonlyArray<PhrasingConten
     print(contents);
 
     return text;
+}
+
+/**
+ * Escapes a string so it can be used as a Markdown link label.
+ */
+function escapeMarkdownLinkLabel(contents: string): string {
+    const markdown = printMarkdownTree({
+        type: "root",
+        children: [
+            {
+                type: "linkReference",
+                referenceType: "collapsed",
+                identifier: "",
+                children: [{type: "text", value: contents}],
+            },
+        ],
+    }).trim();
+
+    assert(markdown.startsWith("["));
+    assert(markdown.endsWith("][]"));
+
+    return markdown.slice(1, -3);
 }

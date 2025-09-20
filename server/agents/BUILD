@@ -26,6 +26,7 @@ ts_project(
         "//:node_modules/openai",
         "//:node_modules/openapi-fetch",
         "//:node_modules/openapi-typescript-helpers",
+        "//:node_modules/yaml",
         "//server/api/markdown",
         "//server/api/specification",
         "//server/cloudflare/types",

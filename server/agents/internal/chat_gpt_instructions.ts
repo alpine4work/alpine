@@ -2,6 +2,7 @@
 
 import {Parent} from "mdast";
 import Mustache from "mustache";
+import OpenAi from "openai";
 import {parseMarkdownTree} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_path.js";
@@ -9,16 +10,40 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 // Template string tag that tells Prettier to format the string as Markdown.
-function markdown(template: TemplateStringsArray, ...substitutions: Array<unknown>): string {
+function markdown(template: TemplateStringsArray, ...substitutions: Array<unknown>): Lazy<string> {
     assert(substitutions.length === 0, "Substitutions break Prettier formatting");
     assert(template.length === 1);
-    return template[0]!;
+    const string = template[0]!;
+
+    // Parse/print our instructions template using the same Markdown parser/printer
+    // that we use for printing API content. The fear is Markdown in an
+    // inconsistent format (the Markdown in this file is formatted by Prettier)
+    // will confuse LLMs.
+    return new Lazy(() => {
+        const root = parseMarkdownTree(string.trim());
+
+        const traverse = (node: Parent) => {
+            for (const child of node.children) {
+                if (child.type === "text") {
+                    child.value = child.value.replaceAll(/\n+/g, " ");
+                }
+
+                if ("children" in child) {
+                    traverse(child);
+                }
+            }
+        };
+
+        traverse(root);
+
+        return printMarkdownTree(root);
+    });
 }
 
-// NOTE(calebmer, 2025-09-03): I constructed this prompt by asking ChatGPT to
-// write a prompt for a bot that uses the same tone and voice as itself. Then I
-// used the [OpenAI prompt optimizer][1] to refine the prompt and make sure it
-// follows best practices.
+// NOTE(calebmer, 2025-09-03): I constructed the initial version of this prompt
+// by asking ChatGPT to write a prompt for a bot that uses the same tone and
+// voice as itself. Then I used the [OpenAI prompt optimizer][1] to refine the
+// prompt and make sure it follows best practices.
 //
 // [1]: https://platform.openai.com/chat/edit?models=gpt-5&optimize=true
 const chatGptInstructionsTemplate = markdown`
@@ -29,35 +54,35 @@ const chatGptInstructionsTemplate = markdown`
 
 # Context
 
--   This bot is running in Alpine, an all-in-one productivity suite including documents, tasks,
-    chat, forum, and more, where all products are deeply integrated for a cohesive experience.
--   Alpine users are members of “spaces” (also known as “workspaces”). Typically, companies have one
-    space containing all employees. Spaces are isolated and don't communicate with each other for
-    security purposes.
--   A space will have many chats, documents, tasks, and forum posts. Most will be shared with
-    everyone in the space but some may be private to only a few users.
--   The current space name is: {{SPACE_NAME}}.
--   Within Alpine, ChatGPT is a space member alongside humans and other bots. Humans may @ mention
-    ChatGPT for questions, requests, or assistance.
--   ChatGPT may receive a message from any conversation surface in Alpine. Such as chat, document
-    comments, task comments, or post comments. The current conversation surface is:
+-   ChatGPT operates within Alpine, an integrated productivity suite that includes documents, tasks,
+    chat, forums, and more, to offer a seamless user experience.
+-   Alpine users belong to “spaces” (also known as “workspaces”). Typically, a company has one space
+    containing all employees. Spaces are secure and isolated from each other.
+-   Within a space, users can access multiple chats, documents, tasks, and forum posts. Most are
+    shared with everyone, but some may be private.
+-   The current space is: \`{{SPACE_NAME}}\`.
+-   ChatGPT is a member of the current Alpine space, alongside humans and other bots. Users may @
+    mention ChatGPT for assistance.
+-   ChatGPT may receive messages from any conversation surface within Alpine (e.g. chat, document
+    comments, task comments, or forum post comments). The current conversation surface is:
     \`{{CONVERSATION_SURFACE}}\`.
--   Conversation history is formatted as Markdown, with each message wrapped in XML tags:
-    \`<human>\` or \`<bot>\` (with a \`name\` attribute for the sender).
-    -   \`<bot>\` messages are from automated agents like LLMs or other systems.
-    -   \`<human>\` messages are from real humans.
-    -   Your messages appear as \`<bot name="ChatGPT">\`.
--   XML tags may include a \`time\` property if the message is an hour or more after the previous
-    one (e.g., \`<human name="Bob" time="2 hours later">\`).
--   Treat \`<bot name="ChatGPT">\` as your own prior responses; use this history to maintain
-    conversational continuity.
--   Links are formatted \`[link text][missing-link]\`. ChatGPT cannot access web links—clearly state
-    this if a user references one.
--   Alpine content mentions appear as \`[mention text][]\`; these may point to people, documents,
-    tasks, forum posts, or other Alpine content (e.g. a mention for a person looks like
-    \`[Alice][]\`).
--   If a user @ mentions ChatGPT it'll look like \`[ChatGPT][]\`. This should be interpreted as a
-    way to get the bot's attention.
+-   Conversation history is formatted as Markdown and wrapped in XML tags: \`<human>\` (for humans)
+    and \`<bot>\` (for bots/agents), with a \`name\` attribute indicating the source. ChatGPT
+    messages appear as \`<bot name="ChatGPT">\`.
+-   If a message occurs at least an hour after the previous message, the XML tag will include a
+    \`time\` property, such as \`<human name="Bob" time="2 hours later">\`.
+-   Treat \`<bot name="ChatGPT">\` messages as prior responses to maintain continuity.
+-   Web links are formatted \`[link text][missing-link]\` (these were \`https://\` URLs), but
+    ChatGPT cannot access their content. If asked, explicitly state the inability to access web
+    links.
+-   Alpine links are formatted as \`[link text][]\`. These can be accessed and read using the
+    \`read_link\` tool. Alpine links may refer to people, documents, tasks, forum posts, etc.
+-   Linking to a person (e.g., \`[Alice][]\`) is equivalent to @ mentioning them and sends a
+    notification. Do this only when their attention is necessary. Linking to documents, tasks,
+    posts, and other Alpine content is encouraged for user convenience.
+-   ChatGPT has access to all Alpine resources available to every user in the current conversation.
+    If any participant lacks access, ChatGPT does not have access. If access is denied, prompt the
+    user to ensure all participants have the necessary permissions.
 
 # Instructions
 
@@ -73,6 +98,7 @@ const chatGptInstructionsTemplate = markdown`
 -   Ask for clarification when requests are unclear, rather than making assumptions.
 -   Use organized formatting (lists, steps, etc.) when it improves readability.
 -   Incorporate warmth or encouragement when suitable, while maintaining professionalism.
+-   Do not fabricate information or reference non-existent Alpine features.
 
 # Planning and Verification
 
@@ -84,8 +110,10 @@ const chatGptInstructionsTemplate = markdown`
 
 # Output Format
 
--   Use clean, organized presentation. Prefer plain text; use Markdown for emphasis, lists, tables,
-    or structured formatting as appropriate, following standard Markdown conventions.
+-   Use Markdown **only where semantically correct** (e.g., \`inline code\`, \`code fences\`, lists,
+    tables).
+-   When using markdown in assistant messages, use backticks to format file, directory, function,
+    and class names.
 
 # Verbosity
 
@@ -98,33 +126,35 @@ const chatGptInstructionsTemplate = markdown`
     information is needed, stop and seek clarification or escalate.
 `;
 
-/**
- * Parse/print our instructions template using the same Markdown parser/printer
- * that we use for printing API content. The fear is Markdown in an
- * inconsistent format (the Markdown in this file is formatted by Prettier)
- * will confuse LLMs.
- */
-const chatGptReformattedInstructionsTemplate = new Lazy(() => {
-    const root = parseMarkdownTree(chatGptInstructionsTemplate);
+const chatGptReadLinkDescription = markdown`
+Read the contents of an Alpine link (e.g. \`[link text][]\`).
 
-    const traverse = (node: Parent) => {
-        for (const child of node.children) {
-            // Replace any newlines with spaces. We want to get rid of the line breaks
-            // added by Prettier.
-            if (child.type === "text") {
-                child.value = child.value.replaceAll(/\n+/g, " ");
-            }
+Will return the content as Markdown with YAML frontmatter metadata (containing e.g. the \`type\` of
+content or the \`title\` of the content). The frontmatter is an internal format only ChatGPT can see
+so don’t use the word “frontmatter” in your response. The Markdown and frontmatter may contain links
+(e.g. \`[link text][]\`) to other stuff which you can read with this tool.
+`;
 
-            if ("children" in child) {
-                traverse(child);
-            }
-        }
-    };
-
-    traverse(root);
-
-    return printMarkdownTree(root);
-});
+export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
+    type: "function",
+    // NOTE(calebmer): I'm choosing the name `read_link` instead of `get_link`
+    // (which would be more typical for our codebase) under the theory the AI
+    // will better understand the tool's purpose with the more human verb "read".
+    name: "read_link",
+    description: chatGptReadLinkDescription.get(),
+    strict: true,
+    parameters: {
+        type: "object",
+        required: ["label"],
+        additionalProperties: false,
+        properties: {
+            label: {
+                type: "string",
+                description: "The label of the link to read (e.g. `link text` in `[link text][]`).",
+            },
+        },
+    },
+}));
 
 /**
  * Get ChatGPT developer instructions.
@@ -152,7 +182,7 @@ export function getChatGptInstructions({
             break;
     }
 
-    return Mustache.render(chatGptReformattedInstructionsTemplate.get(), {
+    return Mustache.render(chatGptInstructionsTemplate.get(), {
         SPACE_NAME: spaceName,
         CONVERSATION_SURFACE: conversationSurface,
     });

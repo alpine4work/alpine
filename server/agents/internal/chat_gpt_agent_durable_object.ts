@@ -1,4 +1,5 @@
 import OpenAi from "openai";
+import {stringify as stringifyYaml} from "yaml";
 import {
     AgentDurableObjectBase,
     AgentDurableObjectEnv,
@@ -10,9 +11,18 @@ import {
     getApiMessagesFromEnd,
     getApiMessagesFromStart,
 } from "~/server/agents/internal/api_client.js";
-import {getChatGptInstructions} from "~/server/agents/internal/chat_gpt_instructions.js";
+import {
+    chatGptReadLinkTool,
+    getChatGptInstructions,
+} from "~/server/agents/internal/chat_gpt_instructions.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
-import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage.js";
+import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
+import {
+    AgentConversationLink,
+    getAgentContentLinkReference,
+    printAgentContentToMarkdownTree,
+    putAgentContentLinkReference,
+} from "~/server/agents/internal/print_agent_content_to_markdown.js";
 import {
     AgentMessage,
     printAgentMessagesLog,
@@ -21,9 +31,33 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_path.js";
-import {ApiChat} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {
+    ApiMessageRoomPathObject,
+    parseApiContentMentionInlineElementTargetPath,
+} from "~/server/api/specification/parse_api_path.js";
+import {
+    ApiChat,
+    ApiContent,
+    ApiContentMentionInlineElementTargetPath,
+} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
+import {
+    ErrorBase,
+    InvalidArgumentError,
+    NotFoundError,
+    UnknownError,
+} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     OrderKey,
     generateOrderKeyBetween,
@@ -90,7 +124,10 @@ const ChatGptAgentConversationStateCollection = new DurableObjectStorageCollecti
 >("a1");
 
 type ChatGptAgentConversationItem = {
-    readonly item: OpenAi.Responses.ResponseInputItem;
+    readonly item:
+        | OpenAi.Responses.ResponseInputItem.Message
+        | OpenAi.Responses.ResponseInputItem.FunctionCallOutput
+        | OpenAi.Responses.ResponseOutputItem;
 };
 
 const ChatGptAgentConversationItemCollection = new DurableObjectStorageCollection<
@@ -244,8 +281,9 @@ async function initializeInstructionsInChatGptAgentConversation(
 
     await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
         item: {
+            type: "message",
             role: "developer",
-            content: instructions,
+            content: [{type: "input_text", text: instructions}],
         },
     });
 
@@ -278,8 +316,9 @@ async function initializeMessagesInChatGptAgentConversation(
 
     await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
         item: {
+            type: "message",
             role: "user",
-            content: printAgentMessagesLog(messages).trimEnd(),
+            content: [{type: "input_text", text: printAgentMessagesLog(messages).trimEnd()}],
         },
     });
 
@@ -414,8 +453,9 @@ async function loadNewMessagesInChatGptAgentConversation(
 
     await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
         item: {
+            type: "message",
             role: "user",
-            content: printAgentMessagesLog(messages).trimEnd(),
+            content: [{type: "input_text", text: printAgentMessagesLog(messages).trimEnd()}],
         },
     });
 
@@ -429,10 +469,11 @@ async function createChatGptAgentResponse(
     tracer: TracerBase,
     request: AgentWebhookRequest,
 ): Promise<void> {
-    const input = Array.from(
-        (await ChatGptAgentConversationItemCollection.list(request.storage)).values(),
-        ({item}) => item,
-    );
+    // Calls any pending functions in the conversation history. Important for our
+    // ChatGPT agent loop. If an agent response has function calls then we call
+    // `createChatGptAgentResponse()` again. Which starts with this function that
+    // actually executes the function calls.
+    const input = await getChatGptAgentConversationItemsAndCallPendingFunctions(tracer, request);
 
     // TODO(calebmer, #ai): Tool calls to implement:
     //
@@ -456,9 +497,10 @@ async function createChatGptAgentResponse(
     //
     // [1]: https://platform.openai.com/docs/guides/tools-web-search
     const {output} = await request.openAiClient.get().createResponse(tracer, {
-        model: "gpt-4o-mini",
+        model: "gpt-5-nano",
         prompt_cache_key: `${request.spaceId}:${request.event.roomPath}`,
         safety_identifier: request.event.authorId,
+        tools: [chatGptReadLinkTool.get()],
 
         // Load the entire conversation history and use that as our input to OpenAI.
         input,
@@ -466,19 +508,237 @@ async function createChatGptAgentResponse(
 
     assert(output.length > 0);
 
-    let markdown = output
-        .flatMap(outputItem => {
-            if (outputItem.type !== "message") return [];
+    let hasFunctionCallOutputItem = false;
 
-            return outputItem.content.map(content => {
-                if (content.type === "refusal") {
-                    return content.refusal;
-                } else {
-                    return content.text ?? "";
-                }
+    for (const outputItem of output) {
+        if (outputItem.type === "message") {
+            await createChatGptAgentMessage(tracer, request, outputItem);
+            continue;
+        }
+
+        // NOTE(calebmer, #ai): I'm appending one output item at a time to the
+        // conversation since it'll make this code easier to convert into streaming.
+        await request.storage.transaction(async transaction => {
+            const state = await ChatGptAgentConversationStateStore.new(transaction);
+
+            const orderKey = generateOrderKeyBetween(state.get().lastOrderKey, null);
+
+            await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+                item: outputItem,
             });
-        })
-        .join("\n");
+
+            await state.set(transaction, {lastOrderKey: orderKey});
+        });
+
+        switch (outputItem.type) {
+            case "function_call": {
+                hasFunctionCallOutputItem = true;
+                break;
+            }
+            case "reasoning":
+            case "file_search_call":
+            case "web_search_call":
+            case "computer_call":
+            case "image_generation_call":
+            case "code_interpreter_call":
+            case "local_shell_call":
+            case "mcp_call":
+            case "mcp_list_tools":
+            case "mcp_approval_request":
+            case "custom_tool_call": {
+                // Not used.
+                break;
+            }
+            default: {
+                // Use TypeScript to make sure we've handled all possible output item types.
+                // However, we don't want to throw in case OpenAI adds more output item types
+                // in the future.
+                cast<never>(outputItem);
+                break;
+            }
+        }
+    }
+
+    // If there was a tool call, then try generating the response again! When we
+    // load the conversation history, it'll include the incomplete function call.
+    //
+    // Keep calling recursively until there are no more function calls.
+    if (hasFunctionCallOutputItem) {
+        await createChatGptAgentResponse(tracer, request);
+    }
+}
+
+function getChatGptAgentConversationItemsAndCallPendingFunctions(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+) {
+    // Perform all function calls in a transaction so we only call each function
+    // once. There won't be any concurrent function calling.
+    return request.storage.transaction(async transaction => {
+        const input = Array.from(
+            (await ChatGptAgentConversationItemCollection.list(transaction)).values(),
+            ({item}) => item,
+        );
+
+        const pendingFunctionCallById = new Map<string, OpenAi.Responses.ResponseFunctionToolCall>(
+            [],
+        );
+
+        for (const inputItem of input) {
+            if (inputItem.type === "function_call") {
+                pendingFunctionCallById.set(inputItem.call_id, inputItem);
+            }
+
+            if (inputItem.type === "function_call_output") {
+                pendingFunctionCallById.delete(inputItem.call_id);
+            }
+        }
+
+        // No pending function calls! Return the input as is.
+        if (pendingFunctionCallById.size === 0) return input;
+
+        const state = await ChatGptAgentConversationStateStore.new(transaction);
+
+        const functionCallOutputs = await runAllPromises(
+            mapIterable(pendingFunctionCallById.values(), functionCall => {
+                return tracer.withSpan(
+                    "Call ChatGPT agent function",
+                    async (
+                        tracer,
+                    ): Promise<OpenAi.Responses.ResponseInputItem.FunctionCallOutput> => {
+                        const result = await captureResultPromise(
+                            callChatGptAgentFunction(tracer, transaction, request, functionCall),
+                        );
+
+                        if (!result.ok) {
+                            tracer.addException(result.error);
+                        }
+
+                        // If the call fails then we tell our LLM the error message using
+                        // `displayMessage`. This is the same information a human would get.
+                        let output: string;
+
+                        if (result.ok) {
+                            output = result.value;
+                        } else {
+                            // Log errors in development since function call error stack traces aren't shown to the user in
+                            // the UI. So we show function call errors in our logs.
+                            if (process.env.NODE_ENV !== "production") {
+                                // eslint-disable-next-line no-console
+                                console.error("Agent function call failed:", result.error);
+                            }
+
+                            const displayMessage =
+                                result.error instanceof ErrorBase
+                                    ? result.error.displayMessage
+                                    : undefined;
+
+                            output = `Error: \`${
+                                functionCall.name
+                            }\` function call failed. ${renderErrorDisplayMessageForChatGptAgent(
+                                displayMessage ?? defaultErrorDisplayMessage,
+                            )}`;
+                        }
+
+                        return {
+                            type: "function_call_output",
+                            call_id: functionCall.call_id,
+                            output,
+                        };
+                    },
+                );
+            }),
+        );
+
+        const orderKeys = generateOrderKeysBetween(
+            state.get().lastOrderKey,
+            null,
+            functionCallOutputs.length,
+        );
+
+        // Write the result of our function calls both to storage and to the `input`
+        // we'll use to generate the next response.
+        for (let i = 0; i < functionCallOutputs.length; i++) {
+            const orderKey = orderKeys[i]!;
+            const functionCallOutput = functionCallOutputs[i]!;
+
+            input.push(functionCallOutput);
+
+            await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+                item: functionCallOutput,
+            });
+        }
+
+        await state.set(transaction, {lastOrderKey: orderKeys[orderKeys.length - 1]!});
+
+        return input;
+    });
+}
+
+function renderErrorDisplayMessageForChatGptAgent(displayMessage: ErrorDisplayMessage): string {
+    let string = "";
+
+    for (const segment of displayMessage) {
+        switch (segment.type) {
+            case "Text":
+                string += segment.text;
+                break;
+
+            case "SensitiveText":
+                string += segment.text;
+                break;
+
+            // We don't include URLs in API error messages. Since an error message won't be
+            // rendered in an interactive context.
+            case "Link":
+                string += segment.text;
+                break;
+
+            default:
+                throw exhaustive(segment);
+        }
+    }
+
+    return string;
+}
+
+async function createChatGptAgentMessage(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+    outputItem: OpenAi.Responses.ResponseOutputMessage,
+) {
+    let markdown = "";
+
+    // The OpenAI SDK builds `output_text` by concatenating all `output_text`
+    // values so we do the same here:
+    // https://github.com/openai/openai-node/blob/4dc2e234f015f45ccd82212694995e6fe0e915f1/src/lib/ResponsesParser.ts#L264
+    for (const content of outputItem.content) {
+        switch (content.type) {
+            case "output_text": {
+                markdown += content.text;
+                break;
+            }
+            case "refusal": {
+                // NOTE(calebmer): The OpenAI SDK ignores `refusal` output items so we do as
+                // well. Not sure when OpenAI uses `refusal` output items instead of having the
+                // model refuse in `output_text`.
+                //
+                // Let's log when we see a refusal (but don't log the refusal content since it
+                // might contain user data).
+                tracer.logException(
+                    "Ignoring OpenAI refusal output message content",
+                    new UnknownError("Ignoring OpenAI refusal output message content"),
+                );
+                break;
+            }
+            default: {
+                // Use TypeScript to make sure we've handled all possible output content types
+                // but don't throw in case OpenAI adds more in the future.
+                cast<never>(content);
+                break;
+            }
+        }
+    }
 
     // Often OpenAI will start and end its response with `<bot name="ChatGPT">` and
     // `</bot>` respectively. Mirroring the format seen in our instructions and in
@@ -486,6 +746,9 @@ async function createChatGptAgentResponse(
     // the output.
     markdown = markdown.replace(/^\s*<bot(?: [^>]*)?>\s*/, "").replace(/\s*<\/bot>\s*$/, "");
 
+    // TODO(calebmer, #ai): Enable AI to mention content it has previously seen. We
+    // need to instruct the AI to use `[label][]` syntax to reproduce a link then
+    // we need to check that any labels match what's in our storage.
     const markdownTree = parseMarkdownTree(markdown, {
         // For our mention syntax we use `[Alice][]` even when there's no matching
         // definition. This is technically incompatible with CommonMark. If ChatGPT
@@ -530,20 +793,254 @@ async function createChatGptAgentResponse(
             message.index - 1,
         );
 
-        const orderKeys = generateOrderKeysBetween(state.get().lastOrderKey, null, output.length);
+        const orderKey = generateOrderKeyBetween(state.get().lastOrderKey, null);
 
-        for (let index = 0; index < output.length; index++) {
-            const orderKey = orderKeys[index]!;
-            const outputItem = output[index]!;
-
-            await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
-                item: outputItem,
-            });
-        }
+        await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+            item: outputItem,
+        });
 
         await state.set(transaction, {
-            lastOrderKey: orderKeys[orderKeys.length - 1]!,
+            lastOrderKey: orderKey,
             lastMessageIndex: message.index,
         });
     });
+}
+
+async function callChatGptAgentFunction(
+    tracer: TracerBase,
+    transaction: DurableObjectTransaction,
+    request: AgentWebhookRequest,
+    functionCall: OpenAi.Responses.ResponseFunctionToolCall,
+): Promise<string> {
+    let functionCallArguments: unknown;
+    try {
+        functionCallArguments = JSON.parse(functionCall.arguments);
+    } catch {
+        throw new InvalidArgumentError("Invalid function call arguments", {
+            displayMessage: errorDisplayMessage`The function call’s arguments aren’t valid JSON.`,
+        });
+    }
+
+    switch (functionCall.name) {
+        case "read_link": {
+            if (
+                !isObject(functionCallArguments) ||
+                typeof functionCallArguments.label !== "string"
+            ) {
+                throw new InvalidArgumentError(
+                    "Missing `label` string in function call arguments",
+                    {
+                        displayMessage: errorDisplayMessage`The function call’s arguments must be an object with the \`label\` string.`,
+                    },
+                );
+            }
+
+            const {label} = functionCallArguments;
+
+            const linkReference = await getAgentContentLinkReference(transaction, label);
+
+            // If we can't find the link reference for the provided label, then throw a
+            // nice error for ChatGPT so it can retry.
+            if (!linkReference) {
+                throw new NotFoundError("Link reference not found", {
+                    displayMessage: errorDisplayMessage`Couldn’t find a link with label “${label}”. Make sure the label exactly matches the link’s text within square brackets. So if you have a link whose Markdown looks like this: “[My Document][]”, then the correct label would be “My Document”.`,
+                });
+            }
+
+            return readMentionContentForChatGptAgent(
+                tracer,
+                transaction,
+                request,
+                linkReference.mentionTargetPath,
+            );
+        }
+        default: {
+            throw new InvalidArgumentError("Unrecognized function name", {
+                displayMessage: errorDisplayMessage`\`${functionCall.name}\` isn’t a function name we recognize.`,
+            });
+        }
+    }
+}
+
+async function readMentionContentForChatGptAgent(
+    tracer: TracerBase,
+    transaction: DurableObjectTransaction,
+    request: AgentWebhookRequest,
+    entityPath: ApiContentMentionInlineElementTargetPath,
+): Promise<string> {
+    const {frontmatter, content} = await actuallyReadMentionContentForChatGptAgent(
+        tracer,
+        transaction,
+        request,
+        entityPath,
+    );
+
+    const markdownTree = await printAgentContentToMarkdownTree(
+        transaction,
+        content ?? {elements: []},
+        {spaceId: request.spaceId},
+    );
+
+    markdownTree.children.unshift({
+        type: "yaml",
+        value: stringifyYaml(
+            mapObjectValues(frontmatter, value => {
+                // Use our Markdown mention syntax for links so the LLM can figure out it can
+                // read this content with a `read_link` tool call.
+                if (isObject(value)) return `[${value.getEscapedLabel()}][]`;
+
+                return value;
+            }),
+        ).trim(),
+    });
+
+    return printMarkdownTree(markdownTree);
+}
+
+/**
+ * We format the content for the LLM as Markdown with YAML frontmatter. The
+ * YAML frontmatter always includes the entity `type`. Then some metadata we
+ * think is relevant for the LLM. Any links are formatted with our
+ * `[link text][]` format so hopefully the LLM can figure out it needs to use
+ * `read_link` to load the content.
+ */
+async function actuallyReadMentionContentForChatGptAgent(
+    tracer: TracerBase,
+    transaction: DurableObjectTransaction,
+    request: AgentWebhookRequest,
+    entityPath: ApiContentMentionInlineElementTargetPath,
+): Promise<{
+    frontmatter: {type: string} & Record<
+        string,
+        string | boolean | AgentConversationLink | undefined
+    >;
+    // TODO(calebmer, #ai): For long content we shouldn't put the entire thing in
+    // context. We should only put the first few tokens in context then give
+    // ChatGPT a tool to read more. Right now the longest document should consume
+    // <25% of GPT-5's context window (based on some estimations using DynamoDB's
+    // max item size).
+    content?: ApiContent;
+}> {
+    const entity = parseApiContentMentionInlineElementTargetPath(entityPath);
+
+    switch (entity.type) {
+        case "Account": {
+            const {
+                data: {account},
+            } = await request.apiClient.GET(tracer, "/spaces/{id}/accounts/{accountId}", {
+                params: {path: {id: request.spaceId, accountId: entity.accountId}},
+            });
+
+            return {
+                frontmatter: {
+                    type: "Account",
+                    name: account.name,
+                    isBot: account.botId ? true : undefined,
+                    wasRemoved: account.space.inactive?.type === "Removed" ? true : undefined,
+                },
+            };
+        }
+        case "Document": {
+            const {
+                data: {document},
+            } = await request.apiClient.GET(tracer, "/documents/{id}", {
+                params: {path: {id: entity.documentId}},
+            });
+
+            return {
+                frontmatter: {
+                    type: "Document",
+                    title: document.title,
+                },
+                content: document.content,
+            };
+        }
+        case "Post": {
+            const {
+                data: {post},
+            } = await request.apiClient.GET(tracer, "/posts/{id}", {
+                params: {path: {id: entity.postId}},
+            });
+
+            const authorLink = await putAgentContentLinkReference(transaction, post.author.name, {
+                mentionTargetPath: `/accounts/${post.author.id}`,
+            });
+
+            const channelLink = post.channel
+                ? await putAgentContentLinkReference(transaction, post.channel.name, {
+                      mentionTargetPath: `/channels/${post.channel.id}`,
+                  })
+                : undefined;
+
+            return {
+                frontmatter: {
+                    type: "Post",
+                    author: authorLink,
+                    channel: channelLink,
+                },
+                content: post.content,
+            };
+        }
+        case "Channel": {
+            const {
+                data: {channel},
+            } = await request.apiClient.GET(tracer, "/channels/{id}", {
+                params: {path: {id: entity.channelId}},
+            });
+
+            return {
+                frontmatter: {
+                    type: "Channel",
+                    name: channel.name,
+                },
+                content: channel.description,
+            };
+        }
+        case "Task": {
+            const {
+                data: {task},
+            } = await request.apiClient.GET(tracer, "/tasks/{id}", {
+                params: {path: {id: entity.taskId}},
+            });
+
+            const assigneeLink = task.assignee
+                ? await putAgentContentLinkReference(transaction, task.assignee.name, {
+                      mentionTargetPath: `/accounts/${task.assignee.id}`,
+                  })
+                : undefined;
+
+            // TODO(calebmer, #ai): We should include the first few child tasks in
+            // and give ChatGPT a tool to read more.
+            return {
+                frontmatter: {
+                    type: "Task",
+                    status: task.status.type,
+                    isActive: task.status.type === "Open" ? task.status.isActive : undefined,
+                    title: task.title,
+                    assignee: assigneeLink,
+                    dueDate: task.due?.date,
+                    priority: task.priority,
+                },
+                content: task.content,
+            };
+        }
+        case "TaskCollection": {
+            const {
+                data: {taskCollection},
+            } = await request.apiClient.GET(tracer, "/task-collections/{id}", {
+                params: {path: {id: entity.collectionId}},
+            });
+
+            // TODO(calebmer, #ai): We should include the first few tasks in
+            // the task collection and give ChatGPT a tool to read more.
+            return {
+                frontmatter: {
+                    type: "TaskCollection",
+                    name: taskCollection.name,
+                },
+            };
+        }
+        default:
+            throw exhaustive(entity);
+    }
 }
