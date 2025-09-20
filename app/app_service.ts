@@ -33,8 +33,8 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
+import {TraceOnlyEmailContextModule} from "~/server/emails/trace_only_email_context_module.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {
     ActorContextModule,
@@ -264,7 +264,7 @@ async function createAppService({
         email:
             process.env.NODE_ENV === "production"
                 ? new SesEmailContextModule()
-                : new NoopEmailContextModule(),
+                : new TraceOnlyEmailContextModule(),
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),

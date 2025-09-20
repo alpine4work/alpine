@@ -1,4 +1,4 @@
-import {MjmlText} from "mjml-react";
+import {Text} from "@react-email/components";
 import {ReactNode} from "react";
 import {Color, colors} from "~/shared/design/core/colors.js";
 import {FontSize, createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
@@ -24,21 +24,22 @@ export function EmailText({
     letterSpacingOverride?: string;
 }) {
     return (
-        <MjmlText
-            fontFamily="Inter, Arial"
-            color={colors[color]}
-            fontSize={fontSizesBySpacingScale[fontSize].small.fontSize}
-            letterSpacing={
-                letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].small.letterSpacing
-            }
-            lineHeight={`${convertRemLengthToPx(
-                fontSizesBySpacingScale[fontSize].small.lineHeight,
-                "small",
-            )}px`}
-            fontStyle={emailFontStyles[style].fontStyle}
-            fontWeight={emailFontStyles[style].fontWeight}
+        <Text
+            style={{
+                fontFamily: "Inter, Arial",
+                fontSize: fontSizesBySpacingScale[fontSize].small.fontSize,
+                letterSpacing:
+                    letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].small.letterSpacing,
+                lineHeight: `${convertRemLengthToPx(
+                    fontSizesBySpacingScale[fontSize].small.lineHeight,
+                    "small",
+                )}px`,
+                fontStyle: emailFontStyles[style].fontStyle,
+                fontWeight: emailFontStyles[style].fontWeight,
+                color: colors[color],
+            }}
         >
             {children}
-        </MjmlText>
+        </Text>
     );
 }

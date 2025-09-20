@@ -48,6 +48,7 @@ import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_se
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {TraceOnlyEmailContextModule} from "~/server/emails/trace_only_email_context_module.js";
 import {
     ActorContextModule,
     ActorServiceName,
@@ -266,6 +267,10 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
  * The context has all the modules in `AppProcessContext` and you can easily
  * create `AppActionContext`s.
  *
+ * - By default, we don't render emails for this test context since rendering happens
+ *   asynchronously and may cause tests that use waitForTestTasks to hang.
+ *   Set `shouldRenderEmails: true` if you need to render emails in your tests..
+ *
  * - By default, we don't start OpenSearch for this test context since it's
  *   slow to start. Set `shouldStartOpensearch: true` if you need to write
  *   tests against OpenSearch.
@@ -277,6 +282,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
  */
 export function createTestContext(
     options: {
+        shouldRenderEmails?: boolean;
         shouldStartOpensearch?: boolean;
         chatInjection?: Partial<ChatInjection>;
         documentsInjection?: Partial<DocumentsInjection>;
@@ -603,7 +609,9 @@ export function createTestContext(
         process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(testTracer),
         dynamo: dynamoContextModule,
-        email: new NoopEmailContextModule(),
+        email: options.shouldRenderEmails
+            ? new TraceOnlyEmailContextModule()
+            : new NoopEmailContextModule(),
         opensearch: opensearchContextModule,
         jobs: jobsContextModule,
         constants: constantsContextModule,

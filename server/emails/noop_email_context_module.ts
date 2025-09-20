@@ -1,30 +1,51 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
+import {FromEmailAddressAlias} from "~/server/emails/from_email_address.js";
+import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates.js";
 import {DataLossError} from "~/shared/error/error.js";
 
 /**
- * Do nothing when sending an email. This is used in tests. Throws an error if
- * you try to use this context module in production to send an email.
+ * No-ops all email rendering and sending.
+ * Only to be used outside of production when we don't actually care at all about emails.
  */
 export class NoopEmailContextModule extends EmailContextModuleBase {
+    public override async send<Template extends keyof EmailTemplates>({
+        fromEmailAddressAlias,
+        toEmailAddress,
+        templateName,
+        templateProps,
+    }: {
+        fromEmailAddressAlias: FromEmailAddressAlias;
+        toEmailAddress: EmailAddress;
+        templateName: Template;
+        templateProps: Parameters<EmailTemplates[Template]>[0];
+    }): Promise<void> {
+        if (process.env.NODE_ENV === "production")
+            throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
+    }
+
+    public override async sendImmediately<Template extends keyof EmailTemplates>({
+        fromEmailAddressAlias,
+        toEmailAddress,
+        templateName,
+        templateProps,
+    }: {
+        fromEmailAddressAlias: FromEmailAddressAlias;
+        toEmailAddress: EmailAddress;
+        templateName: Template;
+        templateProps: Parameters<EmailTemplates[Template]>[0];
+    }): Promise<void> {
+        if (process.env.NODE_ENV === "production")
+            throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
+    }
     protected async _send(
-        fromEmailAddress: string,
+        _fromEmailAddress: string,
         _toEmailAddress: EmailAddress,
-        email: RenderedEmail,
+        _email: RenderedEmail,
     ): Promise<void> {
         if (process.env.NODE_ENV === "production")
-            throw new DataLossError(
-                "Can’t use `NoopEmailContextModule` in production since users won’t get their emails",
-            );
-        return this._context.tracer.withSpan("No-op SendEmail", async (context, span) => {
-            span.addData({
-                email: {
-                    template: email.templateName,
-                    source: fromEmailAddress,
-                },
-            });
-        });
+            throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
     }
 
     public fork() {

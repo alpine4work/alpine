@@ -1,5 +1,5 @@
+import {render} from "@react-email/render";
 import {decode as decodeHtmlEntities} from "html-entities";
-import {render} from "mjml-react";
 import {ComponentProps} from "react";
 import {AlphaAccessRequestApprovedEmailTemplate} from "~/server/emails/internal/alpha_access_request_approved_email_template.js";
 import {SignInEmailTemplate} from "~/server/emails/internal/sign_in_email_template.js";
@@ -60,12 +60,8 @@ export function getTitleFromHtml(html: string): string {
 }
 
 function createEmailTemplate<T>(Component: React.ComponentType<T>, templateName: string) {
-    return (props: ComponentProps<typeof Component>): RenderedEmail => {
-        const {html} = render(<Component {...(props as any)} />, {
-            // We can ignore `errors` since with a strict validation level we will throw if
-            // there is a validation error.
-            validationLevel: "strict",
-        });
+    return async (props: ComponentProps<typeof Component>): Promise<RenderedEmail> => {
+        const html = await render(<Component {...(props as any)} />);
         const title = getTitleFromHtml(html);
         return {
             templateName,
