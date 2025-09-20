@@ -717,6 +717,7 @@ function Overlay(
                     (isBlocking !== false && (withoutRootBlockingScope || withoutBlockingTarget))
                 ) {
                     addSuppressResizeLoopErrorNotificationForElement(targetElement);
+                    addSuppressResizeLoopErrorNotificationForElement(overlayElement);
                 }
 
                 maybeStartAnimationLoop();

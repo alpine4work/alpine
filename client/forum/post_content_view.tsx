@@ -655,6 +655,10 @@ function PostContentViewEditor({
         if (isPostView) onScrollToIfNotVisible();
     }, [isPostView, onScrollToIfNotVisible]);
 
+    const hasContentChanged =
+        postEditingForThisPost.state.contentEditorState.getDoc() !==
+        postEditingForThisPost.state.initialContent;
+
     return (
         <Box
             style={{
@@ -697,9 +701,7 @@ function PostContentViewEditor({
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
-                        shouldConfirmSave:
-                            postEditingForThisPost.state.contentEditorState.getDoc() !==
-                            postEditingForThisPost.state.initialContent,
+                        shouldConfirmSave: hasContentChanged,
                         isConfirmingSave:
                             postEditingForThisPost.state.isEditing &&
                             postEditingForThisPost.state.confirmationDialog === "Save",
@@ -727,7 +729,9 @@ function PostContentViewEditor({
                         withoutMobileDualModality={true}
                         // Allocate space for the "(edited)" note so messages don't shift when we
                         // enter/exit edit mode.
-                        withContentUpdatedTimePlaceholder={!!lastContentUpdatedTime}
+                        withContentUpdatedTimePlaceholder={
+                            !!lastContentUpdatedTime || hasContentChanged
+                        }
                         placeholder="Share your ideas…"
                         fileAttachmentTarget={fileAttachmentTarget}
                         className={sprinkles({padding: "2"})}

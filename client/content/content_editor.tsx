@@ -3114,6 +3114,36 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return true;
             }
 
+            // Reimplement `scrollToSelection()` when `withContentUpdatedTimePlaceholder`
+            // is true. Specifically, we want the scroll to include the space for our
+            // updated time placeholder when it's visible.
+            //
+            // We need to run in a microtask since the content updated time placeholder
+            // space appears to be added synchronously AFTER this function. So we need to
+            // scroll in a microtask so the remaining synchronous code can run.
+            //
+            // For example: Say you have a message that would render a content updated time
+            // placeholder on the next line but it hasn't been edited yet. If you edit the
+            // message then add/delete a character the content updated time placeholder
+            // should be added (so there should be an empty line at the end of the message
+            // input) and we should scroll to include that space on the screen. [Demo][1].
+            //
+            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/pfx8514ek43x85peeh842xj2s4
+            if (
+                propsRef.current.withContentUpdatedTimePlaceholder &&
+                !(view.state.selection instanceof NodeSelection)
+            ) {
+                scheduleMicrotask(() => {
+                    const coords = view.coordsAtPos(view.state.selection.head);
+
+                    coords.bottom +=
+                        contentStyles.paragraphLineHeightPx[getSpacingScaleWithoutListening()];
+
+                    scrollRectIntoView(view, coords, document.getSelection()!.focusNode!);
+                });
+                return true;
+            }
+
             return false;
         };
 

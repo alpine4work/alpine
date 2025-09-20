@@ -1,6 +1,5 @@
 import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
@@ -50,11 +49,41 @@ function MessageViewEditor<RoomKey extends string>(
 
     const spacingScale = useSpacingScale();
 
+    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
+
+    const hasInitiallyMountedRef = useRef(false);
+
+    const hasContentChanged = state.contentEditorState.getDoc() !== state.initialContent;
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        // Avoid `flushSync()` in effect warning by running after a microtask.
+        scheduleMicrotask(() => {
+            if (!editorRef.current) return;
+            const editor = editorRef.current;
+            editor.focus();
+            editor.selectAll();
+        });
+    }, []);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => {
+                const editor = assertExists(editorRef.current);
+                editor.focus();
+            },
+        }),
+        [],
+    );
+
     return (
         <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
             <Box
                 ref={useConfirmSaveAfterLosingFocus({
-                    shouldConfirmSave: state.contentEditorState.getDoc() !== state.initialContent,
+                    shouldConfirmSave: hasContentChanged,
                     isConfirmingSave:
                         messageEditing.state.isEditing &&
                         messageEditing.state.confirmationDialog === "Save",
@@ -79,21 +108,50 @@ function MessageViewEditor<RoomKey extends string>(
                     boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                 }}
             >
-                <MessageContentEditor
-                    parentRef={ref}
-                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                <ContentEditor
+                    ref={editorRef}
                     state={state.contentEditorState}
-                    isSaving={state.isSaving}
-                    lastContentUpdatedTime={lastContentUpdatedTime}
-                    onChange={state => {
+                    onChange={(contentEditorState, transaction) => {
+                        if (state.isSaving && transaction.docChanged) return;
+
                         messageEditing.dispatch({
                             type: "ContentEditorStateChange",
-                            contentEditorState: state,
+                            contentEditorState,
                         });
                     }}
-                    onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
-                    onSave={() => {
+                    aria-label={messageStartOfSentenceNoun}
+                    // With no content the message bubble will be at its min-width so only render
+                    // an en-dash as a placeholder.
+                    placeholder={"\u2013"}
+                    // On mobile, don't allow interactions when unfocused. We're already in an
+                    // editing modality.
+                    withoutMobileDualModality={true}
+                    // Allocate space for the "(edited)" note so posts don't shift when we
+                    // enter/exit edit mode.
+                    withContentUpdatedTimePlaceholder={
+                        !!lastContentUpdatedTime || hasContentChanged
+                    }
+                    className={sprinkles({
+                        paddingRight: messageViewOutlineMargin,
+                        paddingY: messageViewOutlineMargin,
+                    })}
+                    style={{
+                        paddingLeft: messageViewEditorOutlineMarginLeft,
+                        paddingTop: !shouldMergeWithPreviousMessage
+                            ? messageViewNotMergedEditorOutlineMarginTop
+                            : undefined,
+                        paddingBottom: !shouldMergeWithPreviousMessage
+                            ? messageViewNotMergedEditorOutlineMarginBottomPx[spacingScale]
+                            : undefined,
+                    }}
+                    onEscapeKeyDown={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        messageEditing.dispatch({type: "CancelEditing"});
+                    }}
+                    onEnterKeyDownFromPhysicalKeyboard={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
                         messageEditing.dispatch({type: "SaveEditedContent"});
                     }}
                 />
@@ -105,101 +163,5 @@ function MessageViewEditor<RoomKey extends string>(
                 />
             </Box>
         </FocusRing>
-    );
-}
-
-function MessageContentEditor({
-    parentRef,
-    messageStartOfSentenceNoun,
-    shouldMergeWithPreviousMessage,
-    state,
-    isSaving,
-    lastContentUpdatedTime,
-    onChange,
-    onCancel,
-    onSave,
-}: {
-    parentRef: Ref<MessageViewEditorRef>;
-    messageStartOfSentenceNoun: string;
-    shouldMergeWithPreviousMessage: boolean;
-    state: ContentEditorState<MessageContentWithReferences>;
-    isSaving: boolean;
-    lastContentUpdatedTime: Date | null;
-    onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
-    onCancel: () => void;
-    onSave: () => void;
-}) {
-    const spacingScale = useSpacingScale();
-
-    const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
-
-    const hasInitiallyMountedRef = useRef(false);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (hasInitiallyMountedRef.current) return;
-        hasInitiallyMountedRef.current = true;
-
-        // Avoid `flushSync()` in effect warning by running after a microtask.
-        scheduleMicrotask(() => {
-            if (!editorRef.current) return;
-            const editor = editorRef.current;
-            editor.focus();
-            editor.selectAll();
-        });
-    }, []);
-
-    useImperativeHandle(
-        parentRef,
-        () => ({
-            focus: () => {
-                const editor = assertExists(editorRef.current);
-                editor.focus();
-            },
-        }),
-        [],
-    );
-
-    return (
-        <ContentEditor
-            ref={editorRef}
-            state={state}
-            onChange={(state, transaction) => {
-                if (isSaving && transaction.docChanged) return;
-                onChange(state);
-            }}
-            aria-label={messageStartOfSentenceNoun}
-            // With no content the message bubble will be at its min-width so only render
-            // an en-dash as a placeholder.
-            placeholder={"\u2013"}
-            // On mobile, don't allow interactions when unfocused. We're already in an
-            // editing modality.
-            withoutMobileDualModality={true}
-            // Allocate space for the "(edited)" note so posts don't shift when we
-            // enter/exit edit mode.
-            withContentUpdatedTimePlaceholder={!!lastContentUpdatedTime}
-            className={sprinkles({
-                paddingRight: messageViewOutlineMargin,
-                paddingY: messageViewOutlineMargin,
-            })}
-            style={{
-                paddingLeft: messageViewEditorOutlineMarginLeft,
-                paddingTop: !shouldMergeWithPreviousMessage
-                    ? messageViewNotMergedEditorOutlineMarginTop
-                    : undefined,
-                paddingBottom: !shouldMergeWithPreviousMessage
-                    ? messageViewNotMergedEditorOutlineMarginBottomPx[spacingScale]
-                    : undefined,
-            }}
-            onEscapeKeyDown={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                onCancel();
-            }}
-            onEnterKeyDownFromPhysicalKeyboard={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                onSave();
-            }}
-        />
     );
 }
