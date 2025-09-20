@@ -11,6 +11,7 @@ import {
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
 } from "~/shared/error/types/error_display_message_type.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -139,7 +140,12 @@ function serializeErrorBaseWithCause(error: unknown): ErrorBaseWithCause {
 function serializeErrorBase(error: unknown) {
     return {
         code: getErrorCode(error),
-        message: error instanceof Error ? error.message : "",
+        message:
+            // NOTE(calebmer): I've found some strange error objects that look like errors
+            // but aren't `instanceof Error`.
+            isObject(error) && "message" in error && typeof error.message === "string"
+                ? error.message
+                : String(error),
         displayMessage: error instanceof ErrorBase ? error.displayMessage : undefined,
         aggregateDedupeKey: error instanceof ErrorBase ? error.aggregateDedupeKey : undefined,
         // In development include the stack trace of the error so we can show it to

@@ -41,6 +41,9 @@ patchedDependencies:
   '@miniflare/shared@2.14.4':
     hash: m6jebwjv43srf2hg7s5gfg7nfy
     path: admin/patches/@miniflare__shared@2.14.4.patch
+  '@miniflare/storage-file@2.14.4':
+    hash: c2kwr4ez6wqducnlqop6smrv3e
+    path: admin/patches/@miniflare__storage-file@2.14.4.patch
   '@popperjs/core@2.11.6':
     hash: tltraktq5mjexvnyazyo6z5vd4
     path: admin/patches/@popperjs__core@2.11.6.patch
@@ -357,7 +360,7 @@ importers:
         version: 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-file':
         specifier: 2.14.4
-        version: 2.14.4
+        version: 2.14.4(patch_hash=c2kwr4ez6wqducnlqop6smrv3e)
       '@miniflare/storage-memory':
         specifier: 2.14.4
         version: 2.14.4
@@ -11644,9 +11647,9 @@ snapshots:
     dependencies:
       '@miniflare/kv': 2.14.4
       '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
-      '@miniflare/storage-file': 2.14.4
+      '@miniflare/storage-file': 2.14.4(patch_hash=c2kwr4ez6wqducnlqop6smrv3e)
 
-  '@miniflare/storage-file@2.14.4':
+  '@miniflare/storage-file@2.14.4(patch_hash=c2kwr4ez6wqducnlqop6smrv3e)':
     dependencies:
       '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-memory': 2.14.4
@@ -17847,7 +17850,7 @@ snapshots:
       '@miniflare/scheduler': 2.14.4
       '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/sites': 2.14.4
-      '@miniflare/storage-file': 2.14.4
+      '@miniflare/storage-file': 2.14.4(patch_hash=c2kwr4ez6wqducnlqop6smrv3e)
       '@miniflare/storage-memory': 2.14.4
       '@miniflare/web-sockets': 2.14.4(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       kleur: 4.1.5

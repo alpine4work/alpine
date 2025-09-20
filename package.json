@@ -407,11 +407,11 @@
             "mdast-util-gfm-strikethrough@2.0.0": "admin/patches/mdast-util-gfm-strikethrough@2.0.0.patch",
             "micromark-util-character@2.0.1": "admin/patches/micromark-util-character@2.0.1.patch",
             "mdast-util-gfm-table@2.0.0": "admin/patches/mdast-util-gfm-table@2.0.0.patch",
-            "openapi-fetch@0.14.0": "admin/patches/openapi-fetch@0.14.0.patch",
             "gpt-tokenizer@3.0.1": "admin/patches/gpt-tokenizer@3.0.1.patch",
             "mdast-util-from-markdown@2.0.0": "admin/patches/mdast-util-from-markdown@2.0.0.patch",
             "micromark@4.0.0": "admin/patches/micromark@4.0.0.patch",
-            "micromark-core-commonmark@2.0.0": "admin/patches/micromark-core-commonmark@2.0.0.patch"
+            "micromark-core-commonmark@2.0.0": "admin/patches/micromark-core-commonmark@2.0.0.patch",
+            "@miniflare/storage-file@2.14.4": "admin/patches/@miniflare__storage-file@2.14.4.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",
@@ -436,7 +436,26 @@
             "glob": "7.2.3 || 8.0.3",
             "inflight": "1.0.6",
             "rimraf": "3.0.2",
-            "@babel/plugin-proposal-private-methods": "7.18.6"
+            "@babel/plugin-proposal-private-methods": "7.18.6",
+            "miniflare": "2.14.4",
+            "@miniflare/core": "2.14.4",
+            "@miniflare/durable-objects": "2.14.4",
+            "@miniflare/r2": "2.14.4",
+            "@miniflare/shared": "2.14.4",
+            "@miniflare/storage-file": "2.14.4",
+            "@miniflare/storage-memory": "2.14.4",
+            "@miniflare/cache": "2.14.4",
+            "@miniflare/cli-parser": "2.14.4",
+            "@miniflare/d1": "2.14.4",
+            "@miniflare/html-rewriter": "2.14.4",
+            "@miniflare/http-server": "2.14.4",
+            "@miniflare/kv": "2.14.4",
+            "@miniflare/queues": "2.14.4",
+            "@miniflare/runner-vm": "2.14.4",
+            "@miniflare/scheduler": "2.14.4",
+            "@miniflare/sites": "2.14.4",
+            "@miniflare/watcher": "2.14.4",
+            "@miniflare/web-sockets": "2.14.4"
         },
         "peerDependencyRules": {
             "allowedVersions": {

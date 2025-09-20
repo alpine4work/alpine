@@ -51,12 +51,12 @@ export class DurableObjectStorageCollection<Key extends string, Value> {
     }
 
     public async get(storage: DurableObjectStorageInterface, key: Key): Promise<Value | undefined> {
-        const value = await storage.get<Value>(`${this.prefix}:${key}`, {allowConcurrency: true});
+        const value = await storage.get<Value>(`${this.prefix}_${key}`, {allowConcurrency: true});
         return value;
     }
 
     public put(storage: DurableObjectStorageInterface, key: Key, value: Value): Promise<void> {
-        return storage.put(`${this.prefix}:${key}`, value, {allowConcurrency: true});
+        return storage.put(`${this.prefix}_${key}`, value, {allowConcurrency: true});
     }
 
     public getOrPutDefault(
@@ -65,13 +65,13 @@ export class DurableObjectStorageCollection<Key extends string, Value> {
         getDefault: () => Promise<Value>,
     ): Promise<Value> {
         const action = async (transaction: DurableObjectTransactionInterface) => {
-            let value = await transaction.get<Value>(`${this.prefix}:${key}`, {
+            let value = await transaction.get<Value>(`${this.prefix}_${key}`, {
                 allowConcurrency: true,
             });
 
             if (value === undefined) {
                 value = await getDefault();
-                await transaction.put(`${this.prefix}:${key}`, value, {allowConcurrency: true});
+                await transaction.put(`${this.prefix}_${key}`, value, {allowConcurrency: true});
             }
 
             return value;
@@ -85,12 +85,12 @@ export class DurableObjectStorageCollection<Key extends string, Value> {
     }
 
     public delete(storage: DurableObjectStorageInterface, key: Key): Promise<boolean> {
-        return storage.delete(`${this.prefix}:${key}`, {allowConcurrency: true});
+        return storage.delete(`${this.prefix}_${key}`, {allowConcurrency: true});
     }
 
     public async list(storage: DurableObjectStorageInterface): Promise<Map<Key, Value>> {
         const actualMap = await storage.list<Value>({
-            prefix: `${this.prefix}:`,
+            prefix: `${this.prefix}_`,
             allowConcurrency: true,
         });
 
