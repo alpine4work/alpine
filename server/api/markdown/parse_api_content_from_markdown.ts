@@ -96,15 +96,22 @@ function actuallyParseApiContentFromMarkdown(
 
 export function parseMarkdownTree(
     markdown: string,
-    options?: {allowUndefinedLinkReferenceIdentifiers?: boolean},
+    options?: {
+        allowUndefinedLinkReferenceIdentifiers?: boolean;
+        allowAttentionWithoutClose?: boolean;
+        allowCodeTextWithoutClose?: boolean;
+        allowLabelWithoutClose?: boolean;
+    },
 ): Root {
     return fromMarkdown(markdown, "utf-8", {
-        // NOTE(calebmer): We add this option via patch to `micromark-core-commonmark`,
-        // `micromark`, and `mdast-util-from-markdown`. For when we want to parse
-        // `linkReference`s even when they don't have a matching definition. This is
-        // technically incompatible with the CommonMark spec which is why this isn't
-        // true by default.
+        // NOTE(calebmer): We add these options via patch to `micromark-core-commonmark`,
+        // `micromark`, and `mdast-util-from-markdown`. These options are technically
+        // incompatible with the CommonMark spec which is why they aren't enabled
+        // by default.
         allowUndefinedLinkReferenceIdentifiers: options?.allowUndefinedLinkReferenceIdentifiers,
+        allowAttentionWithoutClose: options?.allowAttentionWithoutClose,
+        allowCodeTextWithoutClose: options?.allowCodeTextWithoutClose,
+        allowLabelWithoutClose: options?.allowLabelWithoutClose,
 
         extensions: [
             gfmStrikethrough(),

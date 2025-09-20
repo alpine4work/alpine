@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "markdown",
-    test_deps = ["//:node_modules/fast-check"],
+    test_deps = [
+        "//:node_modules/fast-check",
+        "//:node_modules/gpt-tokenizer",
+    ],
     visibility = ["//server:__subpackages__"],
     # IMPORTANT: We try to keep the first-party dependency list for this markdown
     # parser/printer pretty small. We'd like to open source this code someday! So

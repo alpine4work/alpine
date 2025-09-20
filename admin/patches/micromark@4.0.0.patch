@@ -1,28 +1,30 @@
 diff --git a/dev/lib/parse.js b/dev/lib/parse.js
-index aa2c637696e38b398efdc22ddd856493d740c62c..2f0599b66adc18e7c46a7a02b34fc80c331c1ce5 100644
 --- a/dev/lib/parse.js
 +++ b/dev/lib/parse.js
-@@ -27,6 +27,9 @@ export function parse(options) {
+@@ -27,6 +27,11 @@ export function parse(options) {
    /** @type {ParseContext} */
    const parser = {
      defined: [],
-+    // NOTE(calebmer): We've patched `micromark-core-common` to use this
-+    // option to parse links with undefined definitions.
++    // NOTE(calebmer): We've patched `micromark-core-common` with these options.
 +    allowUndefinedLinkReferenceIdentifiers: options.allowUndefinedLinkReferenceIdentifiers || false,
++    allowAttentionWithoutClose: options.allowAttentionWithoutClose || false,
++    allowCodeTextWithoutClose: options.allowCodeTextWithoutClose || false,
++    allowLabelWithoutClose: options.allowLabelWithoutClose || false,
      lazy: {},
      constructs,
      content: create(content),
 diff --git a/lib/parse.js b/lib/parse.js
-index 4af5729cc24bb0ca1eb77a5c1cce51a23f3c43a0..d7eb781b9888b7a6725ff19a56dab514ed5f4f1c 100644
 --- a/lib/parse.js
 +++ b/lib/parse.js
-@@ -27,6 +27,9 @@ export function parse(options) {
+@@ -27,6 +27,11 @@ export function parse(options) {
    /** @type {ParseContext} */
    const parser = {
      defined: [],
-+    // NOTE(calebmer): We've patched `micromark-core-common` to use this
-+    // option to parse links with undefined definitions.
++    // NOTE(calebmer): We've patched `micromark-core-common` with these options.
 +    allowUndefinedLinkReferenceIdentifiers: options.allowUndefinedLinkReferenceIdentifiers || false,
++    allowAttentionWithoutClose: options.allowAttentionWithoutClose || false,
++    allowCodeTextWithoutClose: options.allowCodeTextWithoutClose || false,
++    allowLabelWithoutClose: options.allowLabelWithoutClose || false,
      lazy: {},
      constructs,
      content: create(content),

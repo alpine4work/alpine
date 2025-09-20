@@ -1,6 +1,6 @@
 import {differenceInHours} from "date-fns";
 import escapeHtml from "escape-html";
-import {encode as encodeO200kBase} from "gpt-tokenizer/esm/encoding/o200k_base";
+import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
 import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
 import {
@@ -55,7 +55,7 @@ export class AgentMessage {
     }
 
     public getTokenCount() {
-        this._tokenCount ??= encodeO200kBase(this.text).length;
+        this._tokenCount ??= countO200kBaseTokens(this.text);
         return this._tokenCount;
     }
 }

@@ -11,6 +11,7 @@ import {ApiMessageRoomPathObject} from "~/server/api/specification/parse_api_pat
 import {
     ApiContent,
     ApiErrorResponseBody,
+    ApiMessageStreamPartPayload,
 } from "~/server/api/specification/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/server/api/specification/types/api_specification_types.js";
 import {
@@ -345,7 +346,7 @@ export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
-    body: {content: ApiContent},
+    body: {isStream?: boolean; content: ApiContent},
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
@@ -375,6 +376,97 @@ export function createApiMessage(
             return apiClient.POST(tracer, "/tasks/{id}/messages", {
                 params: {path: {id: roomPathObject.taskId}},
                 body,
+            });
+        }
+        default:
+            throw exhaustive(roomPathObject);
+    }
+}
+
+export function putApiMessageStreamPart(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    roomPathObject: ApiMessageRoomPathObject,
+    messageIndex: number,
+    partIndex: number,
+    body: {payload: ApiMessageStreamPartPayload},
+) {
+    switch (roomPathObject.type) {
+        case "Chat": {
+            return apiClient.PUT(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
+                params: {path: {id: roomPathObject.chatId, index: messageIndex, partIndex}},
+                body,
+            });
+        }
+        case "DocumentCommentThread": {
+            return apiClient.PUT(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
+                {
+                    params: {
+                        path: {
+                            id: roomPathObject.documentId,
+                            threadId: roomPathObject.commentThreadId,
+                            index: messageIndex,
+                            partIndex,
+                        },
+                    },
+                    body,
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.PUT(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
+                params: {path: {id: roomPathObject.postId, index: messageIndex, partIndex}},
+                body,
+            });
+        }
+        case "Task": {
+            return apiClient.PUT(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
+                params: {path: {id: roomPathObject.taskId, index: messageIndex, partIndex}},
+                body,
+            });
+        }
+        default:
+            throw exhaustive(roomPathObject);
+    }
+}
+
+export function completeApiMessageStream(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    roomPathObject: ApiMessageRoomPathObject,
+    messageIndex: number,
+) {
+    switch (roomPathObject.type) {
+        case "Chat": {
+            return apiClient.PUT(tracer, "/chats/{id}/messages/{index}/stream/completion", {
+                params: {path: {id: roomPathObject.chatId, index: messageIndex}},
+            });
+        }
+        case "DocumentCommentThread": {
+            return apiClient.PUT(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/completion",
+                {
+                    params: {
+                        path: {
+                            id: roomPathObject.documentId,
+                            threadId: roomPathObject.commentThreadId,
+                            index: messageIndex,
+                        },
+                    },
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.PUT(tracer, "/posts/{id}/messages/{index}/stream/completion", {
+                params: {path: {id: roomPathObject.postId, index: messageIndex}},
+            });
+        }
+        case "Task": {
+            return apiClient.PUT(tracer, "/tasks/{id}/messages/{index}/stream/completion", {
+                params: {path: {id: roomPathObject.taskId, index: messageIndex}},
             });
         }
         default:

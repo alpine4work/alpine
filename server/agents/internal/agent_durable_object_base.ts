@@ -1,4 +1,4 @@
-import {addDays, subDays} from "date-fns";
+import {addHours, subHours} from "date-fns";
 import {ApiClient, createApiClient} from "~/server/agents/internal/api_client.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {
@@ -47,9 +47,10 @@ export type AgentWebhookRequest = {
 };
 
 /**
- * Delete the agent's storage after thirty days of inactivity (about a month).
+ * Delete the agent's storage after 6 hours of inactivity. So the agent resets
+ * overnight.
  */
-export const agentDeleteAllStorageAlarmDays = 30;
+export const agentDeleteAllStorageAlarmHours = 6;
 
 /**
  * Reset the agent's alarm every day there's some activity.
@@ -61,7 +62,7 @@ export function shouldResetAgentDeleteAllStorageAlarm({
     currentTime: Date;
     alarmTime: Date;
 }) {
-    return currentTime > subDays(alarmTime, agentDeleteAllStorageAlarmDays - 1);
+    return currentTime > subHours(alarmTime, agentDeleteAllStorageAlarmHours - 1);
 }
 
 /**
@@ -250,7 +251,7 @@ export abstract class AgentDurableObjectBase<Route> {
                 if (alarmTimeFromStorage !== null) {
                     alarmTimeRef.current = new Date(alarmTimeFromStorage);
                 } else {
-                    alarmTimeRef.current = addDays(currentTime, agentDeleteAllStorageAlarmDays);
+                    alarmTimeRef.current = addHours(currentTime, agentDeleteAllStorageAlarmHours);
                     await this._state.storage.setAlarm(alarmTimeRef.current);
                 }
             }
@@ -261,7 +262,7 @@ export abstract class AgentDurableObjectBase<Route> {
                     alarmTime: alarmTimeRef.current,
                 })
             ) {
-                alarmTimeRef.current = addDays(currentTime, agentDeleteAllStorageAlarmDays);
+                alarmTimeRef.current = addHours(currentTime, agentDeleteAllStorageAlarmHours);
                 await this._state.storage.setAlarm(alarmTimeRef.current);
             }
         });

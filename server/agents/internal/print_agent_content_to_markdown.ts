@@ -1,9 +1,10 @@
-import {Literal, Parent, PhrasingContent} from "mdast";
+import {Parent} from "mdast";
 import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
     DurableObjectTransactionInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
+import {printMarkdownPhrasingContentText} from "~/server/api/markdown/agent_message_stream.js";
 import {parseApiContentMentionInlineElementTargetPathIfPossible} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     printApiContentToMarkdownTree,
@@ -16,7 +17,6 @@ import {
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export type AgentConversationLinkReference = {
@@ -202,44 +202,6 @@ export async function printAgentContentToMarkdownTree(
     await promiseWaiter.wait();
 
     return markdownTree;
-}
-
-function printMarkdownPhrasingContentText(contents: ReadonlyArray<PhrasingContent>): string {
-    let text = "";
-
-    const print = (contents: ReadonlyArray<PhrasingContent | (Literal & {type: "inlineMath"})>) => {
-        for (const content of contents) {
-            switch (content.type) {
-                case "text":
-                case "inlineCode":
-                case "inlineMath": {
-                    text += content.value;
-                    break;
-                }
-                case "link":
-                case "delete":
-                case "emphasis":
-                case "linkReference":
-                case "strong": {
-                    print(content.children);
-                    break;
-                }
-                case "break":
-                case "footnoteReference":
-                case "html":
-                case "image":
-                case "imageReference": {
-                    break;
-                }
-                default:
-                    throw exhaustive(content);
-            }
-        }
-    };
-
-    print(contents);
-
-    return text;
 }
 
 /**

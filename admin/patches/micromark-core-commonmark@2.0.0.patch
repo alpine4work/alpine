@@ -1,11 +1,211 @@
+diff --git a/dev/lib/attention.js b/dev/lib/attention.js
+index 5243567bf2cb0e20dae84771714045d87cdbc900..3e086241471aa0cc9f6b8771d12a024c3d702d95 100644
+--- a/dev/lib/attention.js
++++ b/dev/lib/attention.js
+@@ -188,6 +188,114 @@ function resolveAllAttention(events, context) {
+     }
+   }
+ 
++  // NOTE(calebmer): Parse `The quick **brown fox` as bold around "brown fox".
++  // This is to support streaming Markdown from LLMs. Often they'll output bold
++  // open markers but we have to wait for the close marker.
++  if (context.parser.allowAttentionWithoutClose) {
++    let attempt = true
++
++    while (attempt) {
++      attempt = false
++
++      let index = -1
++      let openWithoutCloseEventIndex = null
++
++      while (++index < events.length) {
++        if (
++          openWithoutCloseEventIndex !== null &&
++          events[index][0] === 'enter' &&
++          events[index][1].type === 'attentionSequence' &&
++          events[index][1]._close
++        ) {
++          openWithoutCloseEventIndex = null
++        } else if (
++          events[index][0] === 'exit' &&
++          events[index][1].type === 'attentionSequence' &&
++          events[index][1]._open
++        ) {
++          openWithoutCloseEventIndex = index
++        }
++      }
++
++      if (openWithoutCloseEventIndex !== null) {
++        const index = openWithoutCloseEventIndex
++
++        const use =
++          events[index][1].end.offset - events[index][1].start.offset > 1
++            ? 2
++            : 1
++
++        const start = Object.assign({}, events[index][1].end)
++        movePoint(start, -use)
++        openingSequence = {
++          type: use > 1 ? 'strongSequence' : 'emphasisSequence',
++          start,
++          end: Object.assign({}, events[index][1].end)
++        }
++        closingSequence = {
++          type: use > 1 ? 'strongSequence' : 'emphasisSequence',
++          start: Object.assign({}, events[events.length - 1][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        text = {
++          type: use > 1 ? 'strongText' : 'emphasisText',
++          start: Object.assign({}, events[index][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        group = {
++          type: use > 1 ? 'strong' : 'emphasis',
++          start: Object.assign({}, openingSequence.start),
++          end: Object.assign({}, closingSequence.end)
++        }
++
++        events[index][1].end = Object.assign({}, openingSequence.start)
++
++        let nextEvents = []
++
++        // If there are more markers in the opening, add them before.
++        if (events[index][1].end.offset - events[index][1].start.offset) {
++          nextEvents = push(nextEvents, [
++            ['enter', events[index][1], context],
++            ['exit', events[index][1], context]
++          ])
++
++          // If there were more markers, then try again.
++          attempt = true
++        }
++
++        // Opening.
++        nextEvents = push(nextEvents, [
++          ['enter', group, context],
++          ['enter', openingSequence, context],
++          ['exit', openingSequence, context],
++          ['enter', text, context]
++        ])
++
++        // Always populated by defaults.
++
++        // Between.
++        nextEvents = push(
++          nextEvents,
++          resolveAll(
++            context.parser.constructs.insideSpan.null,
++            events.slice(index + 1),
++            context
++          )
++        )
++
++        // Closing.
++        nextEvents = push(nextEvents, [
++          ['exit', text, context],
++          ['enter', closingSequence, context],
++          ['exit', closingSequence, context],
++          ['exit', group, context]
++        ])
++
++        splice(events, openWithoutCloseEventIndex - 1, events.length, nextEvents)
++      }
++    }
++  }
++
+   // Remove remaining sequences.
+   index = -1
+ 
+diff --git a/dev/lib/code-text.js b/dev/lib/code-text.js
+index 0fa226352bdf53eeedfe2eb32057915570cdd511..4042770f63ed9b4c786519af24a617a4f9f71c73 100644
+--- a/dev/lib/code-text.js
++++ b/dev/lib/code-text.js
+@@ -108,6 +108,8 @@ function tokenizeCodeText(effects, ok, nok) {
+   /** @type {Token} */
+   let token
+ 
++  let hasData = false
++
+   return start
+ 
+   /**
+@@ -164,6 +166,16 @@ function tokenizeCodeText(effects, ok, nok) {
+   function between(code) {
+     // EOF.
+     if (code === codes.eof) {
++      // NOTE(calebmer): Parse ``The quick `brown fox`` as code around "brown fox".
++      // This is to support streaming Markdown from LLMs. Often they'll output bold
++      // open markers but we have to wait for the close marker.
++      if (self.parser.allowCodeTextWithoutClose) {
++        if (hasData) effects.exit('codeTextData')
++        effects.enter('codeTextSequence')
++        effects.exit('codeTextSequence')
++        effects.exit('codeText')
++        return ok(code)
++      }
+       return nok(code)
+     }
+ 
+@@ -193,6 +205,7 @@ function tokenizeCodeText(effects, ok, nok) {
+ 
+     // Data.
+     effects.enter(types.codeTextData)
++    hasData = true
+     return data(code)
+   }
+ 
+@@ -214,6 +227,7 @@ function tokenizeCodeText(effects, ok, nok) {
+       markdownLineEnding(code)
+     ) {
+       effects.exit(types.codeTextData)
++      hasData = false
+       return between(code)
+     }
+ 
 diff --git a/dev/lib/label-end.js b/dev/lib/label-end.js
-index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..5564012665fc8e431640d68ada193953e7233d25 100644
+index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..56031dc112bd610e119082210893b509ad2afb18 100644
 --- a/dev/lib/label-end.js
 +++ b/dev/lib/label-end.js
-@@ -233,7 +233,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -35,7 +35,7 @@ const referenceFullConstruct = {tokenize: tokenizeReferenceFull}
+ const referenceCollapsedConstruct = {tokenize: tokenizeReferenceCollapsed}
+ 
+ /** @type {Resolver} */
+-function resolveAllLabelEnd(events) {
++function resolveAllLabelEnd(events, context) {
+   let index = -1
+ 
+   while (++index < events.length) {
+@@ -47,9 +47,22 @@ function resolveAllLabelEnd(events) {
+       token.type === types.labelEnd
+     ) {
+       // Remove the marker.
+-      events.splice(index + 1, token.type === types.labelImage ? 4 : 2)
+-      token.type = types.data
+-      index++
++      //
++      // NOTE(calebmer): If we're allowing label parsing without close then we want
++      // `foo [bar` to turn into `foo bar`. We'll only add the link once the whole
++      // label has been parsed.
++      if (
++        (token._removeForAllowLabelWithoutClose || (context.parser.allowLabelWithoutClose && !token._balanced)) &&
++        // Protection: Don't remove if the label tokens if that's all there is in
++        // `events`. Without this, sometimes when parsing GFM tables we loop forever.
++        !(index === 0 && events.length === (token.type === 'labelImage' ? 6 : 4))
++      ) {
++        events.splice(index, token.type === 'labelImage' ? 6 : 4)
++      } else {
++        events.splice(index + 1, token.type === 'labelImage' ? 4 : 2)
++        token.type = 'data'
++        index++
++      }
+     }
+   }
+ 
+@@ -233,7 +246,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
        return labelEndNok(code)
      }
-
+ 
 -    defined = self.parser.defined.includes(
 +    // NOTE(calebmer): Allow parsing `linkReferences` even if the identifier
 +    // doesn't have a matching definition. Important for parsing AI generated
@@ -14,7 +214,19 @@ index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..5564012665fc8e431640d68ada193953
        normalizeIdentifier(
          self.sliceSerialize({start: labelStart.end, end: self.now()})
        )
-@@ -564,7 +567,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
+@@ -348,6 +364,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
+    * @type {State}
+    */
+   function labelEndNok(code) {
++    if (self.parser.allowLabelWithoutClose) {
++      labelStart._removeForAllowLabelWithoutClose = true
++      if (labelEnd) labelEnd._removeForAllowLabelWithoutClose = true
++      return ok(code)
++    }
+     labelStart._balanced = true
+     return nok(code)
+   }
+@@ -564,7 +585,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
     * @type {State}
     */
    function referenceFullAfter(code) {
@@ -26,11 +238,224 @@ index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..5564012665fc8e431640d68ada193953
        normalizeIdentifier(
          self.sliceSerialize(self.events[self.events.length - 1][1]).slice(1, -1)
        )
+diff --git a/lib/attention.js b/lib/attention.js
+index e9a722cdf31e875527bfb58f4a28dfad1cc5a12c..f36cc79e0a635e11f9c2b07d24c6055aecd5989c 100644
+--- a/lib/attention.js
++++ b/lib/attention.js
+@@ -175,6 +175,114 @@ function resolveAllAttention(events, context) {
+     }
+   }
+ 
++  // NOTE(calebmer): Parse `The quick **brown fox` as bold around "brown fox".
++  // This is to support streaming Markdown from LLMs. Often they'll output bold
++  // open markers but we have to wait for the close marker.
++  if (context.parser.allowAttentionWithoutClose) {
++    let attempt = true
++
++    while (attempt) {
++      attempt = false
++
++      let index = -1
++      let openWithoutCloseEventIndex = null
++
++      while (++index < events.length) {
++        if (
++          openWithoutCloseEventIndex !== null &&
++          events[index][0] === 'enter' &&
++          events[index][1].type === 'attentionSequence' &&
++          events[index][1]._close
++        ) {
++          openWithoutCloseEventIndex = null
++        } else if (
++          events[index][0] === 'exit' &&
++          events[index][1].type === 'attentionSequence' &&
++          events[index][1]._open
++        ) {
++          openWithoutCloseEventIndex = index
++        }
++      }
++
++      if (openWithoutCloseEventIndex !== null) {
++        const index = openWithoutCloseEventIndex
++
++        const use =
++          events[index][1].end.offset - events[index][1].start.offset > 1
++            ? 2
++            : 1
++
++        const start = Object.assign({}, events[index][1].end)
++        movePoint(start, -use)
++        openingSequence = {
++          type: use > 1 ? 'strongSequence' : 'emphasisSequence',
++          start,
++          end: Object.assign({}, events[index][1].end)
++        }
++        closingSequence = {
++          type: use > 1 ? 'strongSequence' : 'emphasisSequence',
++          start: Object.assign({}, events[events.length - 1][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        text = {
++          type: use > 1 ? 'strongText' : 'emphasisText',
++          start: Object.assign({}, events[index][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        group = {
++          type: use > 1 ? 'strong' : 'emphasis',
++          start: Object.assign({}, openingSequence.start),
++          end: Object.assign({}, closingSequence.end)
++        }
++
++        events[index][1].end = Object.assign({}, openingSequence.start)
++
++        let nextEvents = []
++
++        // If there are more markers in the opening, add them before.
++        if (events[index][1].end.offset - events[index][1].start.offset) {
++          nextEvents = push(nextEvents, [
++            ['enter', events[index][1], context],
++            ['exit', events[index][1], context]
++          ])
++
++          // If there were more markers, then try again.
++          attempt = true
++        }
++
++        // Opening.
++        nextEvents = push(nextEvents, [
++          ['enter', group, context],
++          ['enter', openingSequence, context],
++          ['exit', openingSequence, context],
++          ['enter', text, context]
++        ])
++
++        // Always populated by defaults.
++
++        // Between.
++        nextEvents = push(
++          nextEvents,
++          resolveAll(
++            context.parser.constructs.insideSpan.null,
++            events.slice(index + 1),
++            context
++          )
++        )
++
++        // Closing.
++        nextEvents = push(nextEvents, [
++          ['exit', text, context],
++          ['enter', closingSequence, context],
++          ['exit', closingSequence, context],
++          ['exit', group, context]
++        ])
++
++        splice(events, openWithoutCloseEventIndex - 1, events.length, nextEvents)
++      }
++    }
++  }
++
+   // Remove remaining sequences.
+   index = -1
+   while (++index < events.length) {
+diff --git a/lib/code-text.js b/lib/code-text.js
+index dfcf0fa957cdc75b6bc7ebb11abb80ea79e93ec3..e5b3c38d47b6e7903550acb236f8ebcfd36e7752 100644
+--- a/lib/code-text.js
++++ b/lib/code-text.js
+@@ -97,6 +97,9 @@ function tokenizeCodeText(effects, ok, nok) {
+   let size
+   /** @type {Token} */
+   let token
++
++  let hasData = false
++
+   return start
+ 
+   /**
+@@ -150,6 +153,16 @@ function tokenizeCodeText(effects, ok, nok) {
+   function between(code) {
+     // EOF.
+     if (code === null) {
++      // NOTE(calebmer): Parse ``The quick `brown fox`` as code around "brown fox".
++      // This is to support streaming Markdown from LLMs. Often they'll output bold
++      // open markers but we have to wait for the close marker.
++      if (self.parser.allowCodeTextWithoutClose) {
++        if (hasData) effects.exit('codeTextData')
++        effects.enter('codeTextSequence')
++        effects.exit('codeTextSequence')
++        effects.exit('codeText')
++        return ok(code)
++      }
+       return nok(code)
+     }
+ 
+@@ -178,6 +191,7 @@ function tokenizeCodeText(effects, ok, nok) {
+ 
+     // Data.
+     effects.enter('codeTextData')
++    hasData = true
+     return data(code)
+   }
+ 
+@@ -199,6 +213,7 @@ function tokenizeCodeText(effects, ok, nok) {
+       markdownLineEnding(code)
+     ) {
+       effects.exit('codeTextData')
++      hasData = false
+       return between(code)
+     }
+     effects.consume(code)
 diff --git a/lib/label-end.js b/lib/label-end.js
-index b4a06def593cd6f6b4960b4e40426856b57985b3..0d2924735bdaa56034e65427d160b2bbcf4efb56 100644
+index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1767b0783 100644
 --- a/lib/label-end.js
 +++ b/lib/label-end.js
-@@ -215,7 +215,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -38,7 +38,7 @@ const referenceCollapsedConstruct = {
+ }
+ 
+ /** @type {Resolver} */
+-function resolveAllLabelEnd(events) {
++function resolveAllLabelEnd(events, context) {
+   let index = -1
+   while (++index < events.length) {
+     const token = events[index][1]
+@@ -48,9 +48,22 @@ function resolveAllLabelEnd(events) {
+       token.type === 'labelEnd'
+     ) {
+       // Remove the marker.
+-      events.splice(index + 1, token.type === 'labelImage' ? 4 : 2)
+-      token.type = 'data'
+-      index++
++      //
++      // NOTE(calebmer): If we're allowing label parsing without close then we want
++      // `foo [bar` to turn into `foo bar`. We'll only add the link once the whole
++      // label has been parsed.
++      if (
++        (token._removeForAllowLabelWithoutClose || (context.parser.allowLabelWithoutClose && !token._balanced)) &&
++        // Protection: Don't remove if the label tokens if that's all there is in
++        // `events`. Without this, sometimes when parsing GFM tables we loop forever.
++        !(index === 0 && events.length === (token.type === 'labelImage' ? 6 : 4))
++      ) {
++        events.splice(index, token.type === 'labelImage' ? 6 : 4)
++      } else {
++        events.splice(index + 1, token.type === 'labelImage' ? 4 : 2)
++        token.type = 'data'
++        index++
++      }
+     }
+   }
+   return events
+@@ -166,8 +179,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
+   let index = self.events.length
+   /** @type {Token} */
+   let labelStart
++  /** @type {Token} */
++  let labelEnd
+   /** @type {boolean} */
+   let defined
++  
+ 
+   // Find an opening.
+   while (index--) {
+@@ -215,7 +231,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
      if (labelStart._inactive) {
        return labelEndNok(code)
      }
@@ -42,7 +467,28 @@ index b4a06def593cd6f6b4960b4e40426856b57985b3..0d2924735bdaa56034e65427d160b2bb
        normalizeIdentifier(
          self.sliceSerialize({
            start: labelStart.end,
-@@ -539,7 +542,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
+@@ -223,7 +242,7 @@ function tokenizeLabelEnd(effects, ok, nok) {
+         })
+       )
+     )
+-    effects.enter('labelEnd')
++    labelEnd = effects.enter('labelEnd')
+     effects.enter('labelMarker')
+     effects.consume(code)
+     effects.exit('labelMarker')
+@@ -333,6 +352,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
+    * @type {State}
+    */
+   function labelEndNok(code) {
++    if (self.parser.allowLabelWithoutClose) {
++      labelStart._removeForAllowLabelWithoutClose = true
++      if (labelEnd) labelEnd._removeForAllowLabelWithoutClose = true
++      return ok(code)
++    }
+     labelStart._balanced = true
+     return nok(code)
+   }
+@@ -539,7 +563,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
     * @type {State}
     */
    function referenceFullAfter(code) {

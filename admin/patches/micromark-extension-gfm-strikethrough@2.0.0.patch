@@ -1,0 +1,205 @@
+diff --git a/dev/lib/syntax.js b/dev/lib/syntax.js
+index 1e61d41935716d0d07249dfb426177dc926c6662..789280f201061e50ebb9220792835ce7168eaef1 100644
+--- a/dev/lib/syntax.js
++++ b/dev/lib/syntax.js
+@@ -17,7 +17,7 @@
+  */
+ 
+ import {ok as assert} from 'devlop'
+-import {splice} from 'micromark-util-chunked'
++import {splice, push} from 'micromark-util-chunked'
+ import {classifyCharacter} from 'micromark-util-classify-character'
+ import {resolveAll} from 'micromark-util-resolve-all'
+ import {codes, constants, types} from 'micromark-util-symbol'
+@@ -133,6 +133,88 @@ export function gfmStrikethrough(options) {
+       }
+     }
+ 
++    // NOTE(calebmer): Parse `The quick ~~brown fox` as bold around "brown fox".
++    // This is to support streaming Markdown from LLMs. Often they'll output strike
++    // open markers but we have to wait for the close marker.
++    if (context.parser.allowAttentionWithoutClose) {
++      let index = -1
++      let openWithoutCloseEventIndex = null
++
++      while (++index < events.length) {
++        if (
++          openWithoutCloseEventIndex !== null &&
++          events[index][0] === 'enter' &&
++          events[index][1].type === 'strikethroughSequenceTemporary' &&
++          events[index][1]._close
++        ) {
++          openWithoutCloseEventIndex = null
++        } else if (
++          events[index][0] === 'exit' &&
++          events[index][1].type === 'strikethroughSequenceTemporary' &&
++          events[index][1]._open
++        ) {
++          openWithoutCloseEventIndex = index
++        }
++      }
++
++      if (openWithoutCloseEventIndex !== null) {
++        const index = openWithoutCloseEventIndex
++  
++        const openingSequence = {
++          type: 'strikethroughSequence',
++          start: Object.assign({}, events[index][1].start),
++          end: Object.assign({}, events[index][1].end)
++        }
++        const closingSequence = {
++          type: 'strikethroughSequence',
++          start: Object.assign({}, events[events.length - 1][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        const text = {
++          type: 'strikethroughText',
++          start: Object.assign({}, events[index][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        const group = {
++          type: 'strikethrough',
++          start: Object.assign({}, openingSequence.start),
++          end: Object.assign({}, closingSequence.end)
++        }
++
++        let nextEvents = []
++  
++        // Opening.
++        nextEvents = push(nextEvents, [
++          ['enter', group, context],
++          ['enter', openingSequence, context],
++          ['exit', openingSequence, context],
++          ['enter', text, context]
++        ])
++
++        // Always populated by defaults.
++
++        // Between.
++        nextEvents = push(
++          nextEvents,
++          resolveAll(
++            context.parser.constructs.insideSpan.null,
++            events.slice(index + 1),
++            context
++          )
++        )
++
++        // Closing.
++        nextEvents = push(nextEvents, [
++          ['exit', text, context],
++          ['enter', closingSequence, context],
++          ['exit', closingSequence, context],
++          ['exit', group, context]
++        ])
++
++        splice(events, openWithoutCloseEventIndex - 1, events.length, nextEvents)
++      }
++    }
++
+     index = -1
+ 
+     while (++index < events.length) {
+diff --git a/lib/syntax.js b/lib/syntax.js
+index 6c39a7451d2d013d2754ead7dd6da2714f3f8650..77d3ef589f797b0af74eb7e4e400efb7a920a18e 100644
+--- a/lib/syntax.js
++++ b/lib/syntax.js
+@@ -16,7 +16,7 @@
+  *   GFM spec.
+  */
+ 
+-import {splice} from 'micromark-util-chunked'
++import {splice, push} from 'micromark-util-chunked'
+ import {classifyCharacter} from 'micromark-util-classify-character'
+ import {resolveAll} from 'micromark-util-resolve-all'
+ /**
+@@ -129,6 +129,89 @@ export function gfmStrikethrough(options) {
+         }
+       }
+     }
++
++    // NOTE(calebmer): Parse `The quick ~~brown fox` as bold around "brown fox".
++    // This is to support streaming Markdown from LLMs. Often they'll output strike
++    // open markers but we have to wait for the close marker.
++    if (context.parser.allowAttentionWithoutClose) {
++      let index = -1
++      let openWithoutCloseEventIndex = null
++
++      while (++index < events.length) {
++        if (
++          openWithoutCloseEventIndex !== null &&
++          events[index][0] === 'enter' &&
++          events[index][1].type === 'strikethroughSequenceTemporary' &&
++          events[index][1]._close
++        ) {
++          openWithoutCloseEventIndex = null
++        } else if (
++          events[index][0] === 'exit' &&
++          events[index][1].type === 'strikethroughSequenceTemporary' &&
++          events[index][1]._open
++        ) {
++          openWithoutCloseEventIndex = index
++        }
++      }
++
++      if (openWithoutCloseEventIndex !== null) {
++        const index = openWithoutCloseEventIndex
++  
++        const openingSequence = {
++          type: 'strikethroughSequence',
++          start: Object.assign({}, events[index][1].start),
++          end: Object.assign({}, events[index][1].end)
++        }
++        const closingSequence = {
++          type: 'strikethroughSequence',
++          start: Object.assign({}, events[events.length - 1][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        const text = {
++          type: 'strikethroughText',
++          start: Object.assign({}, events[index][1].end),
++          end: Object.assign({}, events[events.length - 1][1].end)
++        }
++        const group = {
++          type: 'strikethrough',
++          start: Object.assign({}, openingSequence.start),
++          end: Object.assign({}, closingSequence.end)
++        }
++
++        let nextEvents = []
++  
++        // Opening.
++        nextEvents = push(nextEvents, [
++          ['enter', group, context],
++          ['enter', openingSequence, context],
++          ['exit', openingSequence, context],
++          ['enter', text, context]
++        ])
++
++        // Always populated by defaults.
++
++        // Between.
++        nextEvents = push(
++          nextEvents,
++          resolveAll(
++            context.parser.constructs.insideSpan.null,
++            events.slice(index + 1),
++            context
++          )
++        )
++
++        // Closing.
++        nextEvents = push(nextEvents, [
++          ['exit', text, context],
++          ['enter', closingSequence, context],
++          ['exit', closingSequence, context],
++          ['exit', group, context]
++        ])
++
++        splice(events, openWithoutCloseEventIndex - 1, events.length, nextEvents)
++      }
++    }
++
+     index = -1
+     while (++index < events.length) {
+       if (events[index][1].type === 'strikethroughSequenceTemporary') {

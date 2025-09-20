@@ -1,28 +1,30 @@
 diff --git a/dev/lib/index.d.ts b/dev/lib/index.d.ts
-index 835ce0a0f769a42ff0ee2f709b206dba5fdfa2bc..7c13dc0e2d87e647bd79dc4b565c10205c2c6600 100644
 --- a/dev/lib/index.d.ts
 +++ b/dev/lib/index.d.ts
-@@ -156,6 +156,9 @@ export type FromMarkdownOptions = {
+@@ -156,6 +156,11 @@ export type FromMarkdownOptions = {
     * Extensions for this utility to change how tokens are turned into a tree.
     */
    mdastExtensions?: Array<Extension | Array<Extension>> | null | undefined
-+  // NOTE(calebmer): We've patched `micromark-core-common` to use this
-+  // option to parse links with undefined definitions.
++  // NOTE(calebmer): We've patched `micromark-core-common` with these options.
 +  allowUndefinedLinkReferenceIdentifiers?: boolean
++  allowAttentionWithoutClose?: boolean
++  allowCodeTextWithoutClose?: boolean
++  allowLabelWithoutClose?: boolean
  }
  /**
   * Configuration.
 diff --git a/lib/index.d.ts b/lib/index.d.ts
-index 835ce0a0f769a42ff0ee2f709b206dba5fdfa2bc..7c13dc0e2d87e647bd79dc4b565c10205c2c6600 100644
 --- a/lib/index.d.ts
 +++ b/lib/index.d.ts
-@@ -156,6 +156,9 @@ export type FromMarkdownOptions = {
+@@ -156,6 +156,11 @@ export type FromMarkdownOptions = {
     * Extensions for this utility to change how tokens are turned into a tree.
     */
    mdastExtensions?: Array<Extension | Array<Extension>> | null | undefined
-+  // NOTE(calebmer): We've patched `micromark-core-common` to use this
-+  // option to parse links with undefined definitions.
++  // NOTE(calebmer): We've patched `micromark-core-common` with these options.
 +  allowUndefinedLinkReferenceIdentifiers?: boolean
++  allowAttentionWithoutClose?: boolean
++  allowCodeTextWithoutClose?: boolean
++  allowLabelWithoutClose?: boolean
  }
  /**
   * Configuration.

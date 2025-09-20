@@ -411,7 +411,8 @@
             "mdast-util-from-markdown@2.0.0": "admin/patches/mdast-util-from-markdown@2.0.0.patch",
             "micromark@4.0.0": "admin/patches/micromark@4.0.0.patch",
             "micromark-core-commonmark@2.0.0": "admin/patches/micromark-core-commonmark@2.0.0.patch",
-            "@miniflare/storage-file@2.14.4": "admin/patches/@miniflare__storage-file@2.14.4.patch"
+            "@miniflare/storage-file@2.14.4": "admin/patches/@miniflare__storage-file@2.14.4.patch",
+            "micromark-extension-gfm-strikethrough@2.0.0": "admin/patches/micromark-extension-gfm-strikethrough@2.0.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

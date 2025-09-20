@@ -1,9 +1,18 @@
 /* eslint-disable string-quotes */
 
+import {
+    decode as decodeO200kBase,
+    encode as encodeO200kBase,
+} from "gpt-tokenizer/esm/encoding/o200k_base";
+import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {normalizeApiContent} from "~/server/api/markdown/normalize_api_content.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {ApiContent} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {
+    ApiContent,
+    ApiContentBlockElement,
+} from "~/server/api/specification/types/api_specification_convenience_types.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -17,7 +26,7 @@ import {
 
 const spaceId = generateId<SpaceId>();
 
-function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdown: string) {
+async function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdown: string) {
     const actualMarkdown = printApiContentToMarkdown(content, {spaceId});
 
     expect(actualMarkdown).toEqual(expectedMarkdown);
@@ -26,10 +35,49 @@ function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdown: st
     expect(parseApiContentFromMarkdown(actualMarkdown, {spaceId})).toEqual(
         normalizeApiContent(content),
     );
+
+    // Test that `AgentMessageStream` can parse all the content we test in this
+    // file exactly the same as the test expects.
+    {
+        const message = new AgentMessageStream({
+            spaceId,
+            getMentionTargetPathIfExists: async () => null,
+        });
+        const markdownTokens = encodeO200kBase(actualMarkdown);
+
+        let nextUpdate = randomInteger(1, 5);
+
+        for (const markdownToken of markdownTokens) {
+            message.pushText(decodeO200kBase([markdownToken]));
+
+            // Update randomly within the message to exercise parse throttling choosing to
+            // update at arbitrary times.
+            nextUpdate--;
+            if (nextUpdate === 0) {
+                await message.update();
+                nextUpdate = randomInteger(1, 5);
+            }
+        }
+
+        // Always perform one last update.
+        await message.update();
+
+        const elements: Array<ApiContentBlockElement> = [];
+
+        for (const part of message.getParts()) {
+            if (part.payload.type === "Content") {
+                for (const element of part.payload.content.elements) {
+                    elements.push(element);
+                }
+            }
+        }
+
+        expect(normalizeApiContent({elements})).toEqual(normalizeApiContent(content));
+    }
 }
 
-test("simple paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("simple paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -44,8 +92,8 @@ Hello, world!
     );
 });
 
-test("simple paragraph with marks", () => {
-    testPrintApiContentToMarkdown(
+test("simple paragraph with marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -65,8 +113,8 @@ Hello, *world*!
 });
 
 // Basic text elements
-test("empty paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("empty paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -81,8 +129,8 @@ test("empty paragraph", () => {
     );
 });
 
-test("empty paragraph then paragraph with content", () => {
-    testPrintApiContentToMarkdown(
+test("empty paragraph then paragraph with content", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -103,8 +151,8 @@ foo
     );
 });
 
-test("empty paragraphs then paragraph with content", () => {
-    testPrintApiContentToMarkdown(
+test("empty paragraphs then paragraph with content", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -137,8 +185,8 @@ foo
     );
 });
 
-test("paragraph with content then empty paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with content then empty paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -159,8 +207,8 @@ foo
     );
 });
 
-test("paragraph with content then empty paragraphs", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with content then empty paragraphs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -193,8 +241,8 @@ foo
     );
 });
 
-test("paragraphs with content with empty paragraph between", () => {
-    testPrintApiContentToMarkdown(
+test("paragraphs with content with empty paragraph between", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -221,8 +269,8 @@ bar
     );
 });
 
-test("paragraphs with content with empty paragraphs between", () => {
-    testPrintApiContentToMarkdown(
+test("paragraphs with content with empty paragraphs between", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -261,8 +309,8 @@ bar
     );
 });
 
-test("paragraph with only spaces", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with only spaces", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -277,8 +325,8 @@ test("paragraph with only spaces", () => {
     );
 });
 
-test("multiple text elements in paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("multiple text elements in paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -300,8 +348,8 @@ First Second Third
 });
 
 // Individual marks
-test("bold text", () => {
-    testPrintApiContentToMarkdown(
+test("bold text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -320,8 +368,8 @@ This is **bold** text
     );
 });
 
-test("italic text", () => {
-    testPrintApiContentToMarkdown(
+test("italic text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -340,8 +388,8 @@ This is *italic* text
     );
 });
 
-test("strikethrough text", () => {
-    testPrintApiContentToMarkdown(
+test("strikethrough text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -360,8 +408,8 @@ This is ~~struck~~ text
     );
 });
 
-test("code text", () => {
-    testPrintApiContentToMarkdown(
+test("code text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -380,8 +428,8 @@ This is \`code\` text
     );
 });
 
-test("link text", () => {
-    testPrintApiContentToMarkdown(
+test("link text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -405,8 +453,8 @@ Click [here](https://example.com) to visit
 });
 
 // Combined marks
-test("bold and italic text", () => {
-    testPrintApiContentToMarkdown(
+test("bold and italic text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -429,8 +477,8 @@ This is ***bold italic*** text
     );
 });
 
-test("bold and strikethrough text", () => {
-    testPrintApiContentToMarkdown(
+test("bold and strikethrough text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -453,8 +501,8 @@ This is **~~bold struck~~** text
     );
 });
 
-test("italic and strikethrough text", () => {
-    testPrintApiContentToMarkdown(
+test("italic and strikethrough text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -477,8 +525,8 @@ This is *~~italic struck~~* text
     );
 });
 
-test("bold, italic and strikethrough text", () => {
-    testPrintApiContentToMarkdown(
+test("bold, italic and strikethrough text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -501,8 +549,8 @@ This is ***~~all three~~*** text
     );
 });
 
-test("link with bold text", () => {
-    testPrintApiContentToMarkdown(
+test("link with bold text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -525,8 +573,8 @@ Click [**this bold link**](https://example.com) to visit
     );
 });
 
-test("link with italic text", () => {
-    testPrintApiContentToMarkdown(
+test("link with italic text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -549,8 +597,8 @@ Click [*this italic link*](https://example.com) to visit
     );
 });
 
-test("link with all marks", () => {
-    testPrintApiContentToMarkdown(
+test("link with all marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -579,8 +627,8 @@ Click [***~~fancy link~~***](https://example.com) to visit
 });
 
 // Line breaks
-test("single line break", () => {
-    testPrintApiContentToMarkdown(
+test("single line break", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -600,8 +648,8 @@ Second line
     );
 });
 
-test("multiple line breaks", () => {
-    testPrintApiContentToMarkdown(
+test("multiple line breaks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -623,8 +671,8 @@ Third line
     );
 });
 
-test("line break with bold mark", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -643,8 +691,8 @@ Regular lin&#x65;**<br/>**&#x53;till regular
     );
 });
 
-test("line break with bold mark and spaces", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold mark and spaces", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -663,8 +711,8 @@ Regular line **<br/>** Still regular
     );
 });
 
-test("line break with italic mark", () => {
-    testPrintApiContentToMarkdown(
+test("line break with italic mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -683,8 +731,8 @@ Regular lin&#x65;*<br/>*&#x53;till regular
     );
 });
 
-test("line break with italic mark and spaces", () => {
-    testPrintApiContentToMarkdown(
+test("line break with italic mark and spaces", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -703,8 +751,8 @@ Regular line *<br/>* Still regular
     );
 });
 
-test("line break with bold mark (surrounded by bold marks)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold mark (surrounded by bold marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -723,8 +771,8 @@ test("line break with bold mark (surrounded by bold marks)", () => {
     );
 });
 
-test("line break with bold mark (surrounded by italic marks)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold mark (surrounded by italic marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -743,8 +791,8 @@ _Bold line_**<br/>**_Still bold_
     );
 });
 
-test("line break with bold mark (followed by italic mark)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold mark (followed by italic mark)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -763,8 +811,8 @@ Bold lin&#x65;**<br/>**_Still bold_
     );
 });
 
-test("line break with bold mark (preceded by italic mark)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold mark (preceded by italic mark)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -783,8 +831,8 @@ _Bold line_**<br/>**&#x53;till bold
     );
 });
 
-test("line break with fake bold mark", () => {
-    testPrintApiContentToMarkdown(
+test("line break with fake bold mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -804,8 +852,8 @@ Bold line\\*\\*\\
     );
 });
 
-test("line break with italic mark and fake bold mark", () => {
-    testPrintApiContentToMarkdown(
+test("line break with italic mark and fake bold mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -824,8 +872,8 @@ Bold line\\*\\**<br/>*\\*\\*Still bold
     );
 });
 
-test("line break with italic mark (surrounded by bold marks)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with italic mark (surrounded by bold marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -844,8 +892,8 @@ test("line break with italic mark (surrounded by bold marks)", () => {
     );
 });
 
-test("line break with strike mark (surrounded by bold marks)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with strike mark (surrounded by bold marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -864,8 +912,8 @@ test("line break with strike mark (surrounded by bold marks)", () => {
     );
 });
 
-test("line break with code mark (surrounded by bold marks)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with code mark (surrounded by bold marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -884,8 +932,8 @@ test("line break with code mark (surrounded by bold marks)", () => {
     );
 });
 
-test("line break with bold and italic marks (surrounded by bold marks)", () => {
-    testPrintApiContentToMarkdown(
+test("line break with bold and italic marks (surrounded by bold marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -904,8 +952,8 @@ test("line break with bold and italic marks (surrounded by bold marks)", () => {
     );
 });
 
-test("line break with link mark", () => {
-    testPrintApiContentToMarkdown(
+test("line break with link mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -925,8 +973,8 @@ test("line break with link mark", () => {
 });
 
 // Blockquotes
-test("simple blockquote", () => {
-    testPrintApiContentToMarkdown(
+test("simple blockquote", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -946,8 +994,8 @@ test("simple blockquote", () => {
     );
 });
 
-test("blockquote with multiple paragraphs", () => {
-    testPrintApiContentToMarkdown(
+test("blockquote with multiple paragraphs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -973,8 +1021,8 @@ test("blockquote with multiple paragraphs", () => {
     );
 });
 
-test("blockquote with formatted text", () => {
-    testPrintApiContentToMarkdown(
+test("blockquote with formatted text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1001,8 +1049,8 @@ test("blockquote with formatted text", () => {
 });
 
 // Multiple paragraphs
-test("two paragraphs", () => {
-    testPrintApiContentToMarkdown(
+test("two paragraphs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1023,8 +1071,8 @@ Second paragraph
     );
 });
 
-test("three paragraphs", () => {
-    testPrintApiContentToMarkdown(
+test("three paragraphs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1052,8 +1100,8 @@ Third
 });
 
 // Special characters and escaping
-test("markdown special characters", () => {
-    testPrintApiContentToMarkdown(
+test("markdown special characters", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1068,8 +1116,8 @@ test("markdown special characters", () => {
     );
 });
 
-test("backticks in text", () => {
-    testPrintApiContentToMarkdown(
+test("backticks in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1084,8 +1132,8 @@ Use \\\`backticks\\\` for code
     );
 });
 
-test("underscores in text", () => {
-    testPrintApiContentToMarkdown(
+test("underscores in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1100,8 +1148,8 @@ snake\\_case\\_variable
     );
 });
 
-test("brackets in text", () => {
-    testPrintApiContentToMarkdown(
+test("brackets in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1116,8 +1164,8 @@ test("brackets in text", () => {
     );
 });
 
-test("html-like text", () => {
-    testPrintApiContentToMarkdown(
+test("html-like text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1133,8 +1181,8 @@ test("html-like text", () => {
 });
 
 // Complex mixed content
-test("paragraph with mixed formatting", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with mixed formatting", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1163,8 +1211,8 @@ Normal text with **bold**, *italic*, \`code\`, and [link](https://example.com).
     );
 });
 
-test("document with mixed elements", () => {
-    testPrintApiContentToMarkdown(
+test("document with mixed elements", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1204,8 +1252,8 @@ Conclusion with **emphasis**
 });
 
 // Edge cases
-test("empty content", () => {
-    testPrintApiContentToMarkdown(
+test("empty content", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [],
         },
@@ -1213,8 +1261,8 @@ test("empty content", () => {
     );
 });
 
-test("code with backticks inside", () => {
-    testPrintApiContentToMarkdown(
+test("code with backticks inside", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1234,8 +1282,8 @@ Use \`\` \`backticks\` \`\` for inline code
 });
 
 // List tests
-test("simple unordered list", () => {
-    testPrintApiContentToMarkdown(
+test("simple unordered list", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1279,8 +1327,8 @@ test("simple unordered list", () => {
     );
 });
 
-test("simple ordered list", () => {
-    testPrintApiContentToMarkdown(
+test("simple ordered list", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1324,8 +1372,8 @@ test("simple ordered list", () => {
     );
 });
 
-test("unordered list with formatted text", () => {
-    testPrintApiContentToMarkdown(
+test("unordered list with formatted text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1380,8 +1428,8 @@ test("unordered list with formatted text", () => {
     );
 });
 
-test("ordered list with links", () => {
-    testPrintApiContentToMarkdown(
+test("ordered list with links", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1429,8 +1477,8 @@ test("ordered list with links", () => {
     );
 });
 
-test("nested unordered lists", () => {
-    testPrintApiContentToMarkdown(
+test("nested unordered lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1495,8 +1543,8 @@ test("nested unordered lists", () => {
     );
 });
 
-test("nested ordered lists", () => {
-    testPrintApiContentToMarkdown(
+test("nested ordered lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1561,8 +1609,8 @@ test("nested ordered lists", () => {
     );
 });
 
-test("mixed nested lists", () => {
-    testPrintApiContentToMarkdown(
+test("mixed nested lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1617,8 +1665,8 @@ test("mixed nested lists", () => {
     );
 });
 
-test("list with multiple paragraphs in item", () => {
-    testPrintApiContentToMarkdown(
+test("list with multiple paragraphs in item", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1660,8 +1708,8 @@ test("list with multiple paragraphs in item", () => {
     );
 });
 
-test("list with line breaks in items", () => {
-    testPrintApiContentToMarkdown(
+test("list with line breaks in items", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1700,8 +1748,8 @@ test("list with line breaks in items", () => {
     );
 });
 
-test("empty list item", () => {
-    testPrintApiContentToMarkdown(
+test("empty list item", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1735,8 +1783,8 @@ test("empty list item", () => {
     );
 });
 
-test("deeply nested lists", () => {
-    testPrintApiContentToMarkdown(
+test("deeply nested lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1799,8 +1847,8 @@ test("deeply nested lists", () => {
     );
 });
 
-test("list between paragraphs", () => {
-    testPrintApiContentToMarkdown(
+test("list between paragraphs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1836,8 +1884,8 @@ After the list
     );
 });
 
-test("multiple lists", () => {
-    testPrintApiContentToMarkdown(
+test("multiple lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1877,8 +1925,8 @@ test("multiple lists", () => {
 });
 
 // Phantom list item tests
-test("list starting at indent level 2 (phantom items for levels 0 and 1)", () => {
-    testPrintApiContentToMarkdown(
+test("list starting at indent level 2 (phantom items for levels 0 and 1)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -1927,8 +1975,8 @@ test("list starting at indent level 2 (phantom items for levels 0 and 1)", () =>
     );
 });
 
-test("list with phantom jump from level 1 to 3", () => {
-    testPrintApiContentToMarkdown(
+test("list with phantom jump from level 1 to 3", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2001,8 +2049,8 @@ test("list with phantom jump from level 1 to 3", () => {
     );
 });
 
-test("ordered list with big phantom jump from level 0 to 4", () => {
-    testPrintApiContentToMarkdown(
+test("ordered list with big phantom jump from level 0 to 4", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2080,8 +2128,8 @@ test("ordered list with big phantom jump from level 0 to 4", () => {
     );
 });
 
-test("list starting at level 3 with all phantom parents", () => {
-    testPrintApiContentToMarkdown(
+test("list starting at level 3 with all phantom parents", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2155,8 +2203,8 @@ test("list starting at level 3 with all phantom parents", () => {
     );
 });
 
-test("mixed list types with phantom items", () => {
-    testPrintApiContentToMarkdown(
+test("mixed list types with phantom items", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2205,8 +2253,8 @@ test("mixed list types with phantom items", () => {
     );
 });
 
-test("phantom items with multiple real items at deep level", () => {
-    testPrintApiContentToMarkdown(
+test("phantom items with multiple real items at deep level", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2285,8 +2333,8 @@ test("phantom items with multiple real items at deep level", () => {
     );
 });
 
-test("complex phantom structure with real content scattered", () => {
-    testPrintApiContentToMarkdown(
+test("complex phantom structure with real content scattered", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2374,8 +2422,8 @@ test("complex phantom structure with real content scattered", () => {
     );
 });
 
-test("phantom items with formatted text in real items", () => {
-    testPrintApiContentToMarkdown(
+test("phantom items with formatted text in real items", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2440,8 +2488,8 @@ test("phantom items with formatted text in real items", () => {
     );
 });
 
-test("phantom item without nested list elements", () => {
-    testPrintApiContentToMarkdown(
+test("phantom item without nested list elements", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2457,8 +2505,8 @@ test("phantom item without nested list elements", () => {
 });
 
 // Table tests
-test("simple GFM table with header row", () => {
-    testPrintApiContentToMarkdown(
+test("simple GFM table with header row", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2565,8 +2613,8 @@ test("simple GFM table with header row", () => {
     );
 });
 
-test("simple GFM table with formatted text", () => {
-    testPrintApiContentToMarkdown(
+test("simple GFM table with formatted text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2656,8 +2704,8 @@ test("simple GFM table with formatted text", () => {
     );
 });
 
-test("simple GFM table with custom column widths", () => {
-    testPrintApiContentToMarkdown(
+test("simple GFM table with custom column widths", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2735,8 +2783,8 @@ test("simple GFM table with custom column widths", () => {
     );
 });
 
-test("simple GFM table with custom table width", () => {
-    testPrintApiContentToMarkdown(
+test("simple GFM table with custom table width", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2798,8 +2846,8 @@ test("simple GFM table with custom table width", () => {
     );
 });
 
-test("HTML table with header column only", () => {
-    testPrintApiContentToMarkdown(
+test("HTML table with header column only", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -2912,8 +2960,8 @@ Age
     );
 });
 
-test("HTML table with both header row and header column", () => {
-    testPrintApiContentToMarkdown(
+test("HTML table with both header row and header column", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3071,8 +3119,8 @@ Costs
     );
 });
 
-test("HTML table with complex cell content", () => {
-    testPrintApiContentToMarkdown(
+test("HTML table with complex cell content", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3190,8 +3238,8 @@ Additional info
     );
 });
 
-test("HTML table without any headers", () => {
-    testPrintApiContentToMarkdown(
+test("HTML table without any headers", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3278,8 +3326,8 @@ B2
     );
 });
 
-test("HTML table with custom widths", () => {
-    testPrintApiContentToMarkdown(
+test("HTML table with custom widths", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3334,8 +3382,8 @@ Value
     );
 });
 
-test("simple GFM table with empty cells", () => {
-    testPrintApiContentToMarkdown(
+test("simple GFM table with empty cells", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3418,8 +3466,8 @@ test("simple GFM table with empty cells", () => {
     );
 });
 
-test("simple GFM table with line breaks in cells", () => {
-    testPrintApiContentToMarkdown(
+test("simple GFM table with line breaks in cells", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3485,8 +3533,8 @@ test("simple GFM table with line breaks in cells", () => {
     );
 });
 
-test("single cell GFM table", () => {
-    testPrintApiContentToMarkdown(
+test("single cell GFM table", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3520,8 +3568,8 @@ test("single cell GFM table", () => {
 });
 
 // Code block tests
-test("simple code block", () => {
-    testPrintApiContentToMarkdown(
+test("simple code block", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3547,8 +3595,8 @@ console.log(x);
     );
 });
 
-test("simple code with newline character in lines", () => {
-    expect(() =>
+test("simple code with newline character in lines", async () => {
+    await expect(() =>
         testPrintApiContentToMarkdown(
             {
                 elements: [
@@ -3570,11 +3618,11 @@ console.log(x);
 \`\`\`
 `,
         ),
-    ).toThrow("Assertion failure");
+    ).rejects.toThrow("Assertion failure");
 });
 
-test("code block with language", () => {
-    testPrintApiContentToMarkdown(
+test("code block with language", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3604,8 +3652,8 @@ function hello() {
     );
 });
 
-test("code block with empty lines", () => {
-    testPrintApiContentToMarkdown(
+test("code block with empty lines", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3647,8 +3695,8 @@ foo()
     );
 });
 
-test("code block with trailing spaces", () => {
-    testPrintApiContentToMarkdown(
+test("code block with trailing spaces", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3684,8 +3732,8 @@ no trailing
     );
 });
 
-test("code block with various indentation levels", () => {
-    testPrintApiContentToMarkdown(
+test("code block with various indentation levels", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3731,8 +3779,8 @@ class Foo:
     );
 });
 
-test("code block with bold marks", () => {
-    testPrintApiContentToMarkdown(
+test("code block with bold marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3760,8 +3808,8 @@ const <strong>highlighted</strong> = true;
     );
 });
 
-test("code block with italic marks", () => {
-    testPrintApiContentToMarkdown(
+test("code block with italic marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3789,8 +3837,8 @@ This is <em>emphasized</em> text
     );
 });
 
-test("code block with strikethrough marks", () => {
-    testPrintApiContentToMarkdown(
+test("code block with strikethrough marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3821,8 +3869,8 @@ test("code block with strikethrough marks", () => {
     );
 });
 
-test("code block with link marks", () => {
-    testPrintApiContentToMarkdown(
+test("code block with link marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3854,8 +3902,8 @@ Visit <a href="https://example.com">https://example.com</a> for more
     );
 });
 
-test("code block with multiple marks on same text", () => {
-    testPrintApiContentToMarkdown(
+test("code block with multiple marks on same text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3892,8 +3940,8 @@ normal <strong><em>bold+italic</em></strong> <strong><em><del>all</del></em></st
     );
 });
 
-test("code block with mark merging - adjacent same marks", () => {
-    testPrintApiContentToMarkdown(
+test("code block with mark merging - adjacent same marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3921,8 +3969,8 @@ test("code block with mark merging - adjacent same marks", () => {
     );
 });
 
-test("code block with mark merging - links with same URL", () => {
-    testPrintApiContentToMarkdown(
+test("code block with mark merging - links with same URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3962,8 +4010,8 @@ test("code block with mark merging - links with same URL", () => {
     );
 });
 
-test("code block with no mark merging - links with different URLs", () => {
-    testPrintApiContentToMarkdown(
+test("code block with no mark merging - links with different URLs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -3999,8 +4047,8 @@ test("code block with no mark merging - links with different URLs", () => {
     );
 });
 
-test("code block with marks across multiple lines", () => {
-    testPrintApiContentToMarkdown(
+test("code block with marks across multiple lines", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4043,8 +4091,8 @@ test("code block with marks across multiple lines", () => {
     );
 });
 
-test("code block with empty lines and marks", () => {
-    testPrintApiContentToMarkdown(
+test("code block with empty lines and marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4076,8 +4124,8 @@ test("code block with empty lines and marks", () => {
     );
 });
 
-test("code block with empty lines at start/end and mark", () => {
-    testPrintApiContentToMarkdown(
+test("code block with empty lines at start/end and mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4113,8 +4161,8 @@ foobar
     );
 });
 
-test("code block with complex mark nesting 1", () => {
-    testPrintApiContentToMarkdown(
+test("code block with complex mark nesting 1", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4148,8 +4196,8 @@ start <strong>bold <em>bold+italic </em></strong><em>italic</em> end
     );
 });
 
-test("code block with complex mark nesting 2", () => {
-    testPrintApiContentToMarkdown(
+test("code block with complex mark nesting 2", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4183,8 +4231,8 @@ start <em>bold </em><strong><em>bold+italic </em>italic</strong> end
     );
 });
 
-test("code block with special HTML characters", () => {
-    testPrintApiContentToMarkdown(
+test("code block with special HTML characters", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4221,8 +4269,8 @@ test("code block with special HTML characters", () => {
     );
 });
 
-test("code block with only spaces on some lines", () => {
-    testPrintApiContentToMarkdown(
+test("code block with only spaces on some lines", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4254,8 +4302,8 @@ third
     );
 });
 
-test("code block with marks and empty text elements", () => {
-    testPrintApiContentToMarkdown(
+test("code block with marks and empty text elements", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4283,8 +4331,8 @@ test("code block with marks and empty text elements", () => {
     );
 });
 
-test("code block with language containing special characters", () => {
-    testPrintApiContentToMarkdown(
+test("code block with language containing special characters", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4307,8 +4355,8 @@ test("code block with language containing special characters", () => {
 });
 
 // Tests for code marks with break elements
-test("text and break both with code mark", () => {
-    testPrintApiContentToMarkdown(
+test("text and break both with code mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4327,8 +4375,8 @@ test("text and break both with code mark", () => {
     );
 });
 
-test("break with code mark between non-code text", () => {
-    testPrintApiContentToMarkdown(
+test("break with code mark between non-code text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4347,8 +4395,8 @@ Normal<code><br/></code>Also normal
     );
 });
 
-test("multiple breaks with code marks", () => {
-    testPrintApiContentToMarkdown(
+test("multiple breaks with code marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4369,8 +4417,8 @@ test("multiple breaks with code marks", () => {
     );
 });
 
-test("break without code mark between code text", () => {
-    testPrintApiContentToMarkdown(
+test("break without code mark between code text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4391,10 +4439,10 @@ test("break without code mark between code text", () => {
 });
 
 // Tests for code marks with mention elements
-test("mention with code mark", () => {
+test("mention with code mark", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4416,10 +4464,10 @@ test("mention with code mark", () => {
     );
 });
 
-test("mention with code mark in sentence", () => {
+test("mention with code mark in sentence", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4443,10 +4491,10 @@ Ask <code>[@bob](https://alpine.inc/s/${spaceId}/accounts/${accountId}?mention)<
     );
 });
 
-test("mention and text both with code mark", () => {
+test("mention and text both with code mark", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4470,11 +4518,11 @@ test("mention and text both with code mark", () => {
     );
 });
 
-test("multiple mentions with code marks", () => {
+test("multiple mentions with code marks", async () => {
     const accountId1 = generateId<AccountId>();
     const accountId2 = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4505,10 +4553,10 @@ test("multiple mentions with code marks", () => {
 });
 
 // Complex combinations
-test("break and mention both with code marks", () => {
+test("break and mention both with code marks", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4533,10 +4581,10 @@ test("break and mention both with code marks", () => {
     );
 });
 
-test("mention without code mark between code text", () => {
+test("mention without code mark between code text", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4559,10 +4607,10 @@ test("mention without code mark between code text", () => {
     );
 });
 
-test("mention with isAccountShortName and code mark", () => {
+test("mention with isAccountShortName and code mark", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4585,10 +4633,10 @@ test("mention with isAccountShortName and code mark", () => {
     );
 });
 
-test("mention without title and with code mark", () => {
+test("mention without title and with code mark", async () => {
     const taskId = generateId<TaskId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4609,11 +4657,11 @@ test("mention without title and with code mark", () => {
     );
 });
 
-test("complex paragraph with mixed code marks", () => {
+test("complex paragraph with mixed code marks", async () => {
     const accountId1 = generateId<AccountId>();
     const accountId2 = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4649,8 +4697,8 @@ Author: [@kate](https://alpine.inc/s/${spaceId}/accounts/${accountId2}?mention)
 });
 
 // Additional comprehensive tests
-test("bold text next to bold link text", () => {
-    testPrintApiContentToMarkdown(
+test("bold text next to bold link text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4676,8 +4724,8 @@ test("bold text next to bold link text", () => {
     );
 });
 
-test("bold link text next to bold text", () => {
-    testPrintApiContentToMarkdown(
+test("bold link text next to bold text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4703,8 +4751,8 @@ test("bold link text next to bold text", () => {
     );
 });
 
-test("bold text next to bold link text next to bold text", () => {
-    testPrintApiContentToMarkdown(
+test("bold text next to bold link text next to bold text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4735,8 +4783,8 @@ test("bold text next to bold link text next to bold text", () => {
     );
 });
 
-test("bold + strike text next to bold + strike link text", () => {
-    testPrintApiContentToMarkdown(
+test("bold + strike text next to bold + strike link text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4766,8 +4814,8 @@ test("bold + strike text next to bold + strike link text", () => {
     );
 });
 
-test("bold + strike link text next to bold + strike text", () => {
-    testPrintApiContentToMarkdown(
+test("bold + strike link text next to bold + strike text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4797,8 +4845,8 @@ test("bold + strike link text next to bold + strike text", () => {
     );
 });
 
-test("bold + strike text next to bold + strike link text next to bold + strike text", () => {
-    testPrintApiContentToMarkdown(
+test("bold + strike text next to bold + strike link text next to bold + strike text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4833,8 +4881,8 @@ test("bold + strike text next to bold + strike link text next to bold + strike t
     );
 });
 
-test("code mark takes precedence over other marks", () => {
-    testPrintApiContentToMarkdown(
+test("code mark takes precedence over other marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4855,8 +4903,8 @@ test("code mark takes precedence over other marks", () => {
     );
 });
 
-test("multiple marks are sorted correctly", () => {
-    testPrintApiContentToMarkdown(
+test("multiple marks are sorted correctly", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4884,8 +4932,8 @@ test("multiple marks are sorted correctly", () => {
     );
 });
 
-test("link mark comes first in order", () => {
-    testPrintApiContentToMarkdown(
+test("link mark comes first in order", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4911,8 +4959,8 @@ test("link mark comes first in order", () => {
     );
 });
 
-test("paragraph with only break", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with only break", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4927,8 +4975,8 @@ test("paragraph with only break", () => {
     );
 });
 
-test("paragraph with only bold break", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with only bold break", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4943,8 +4991,8 @@ test("paragraph with only bold break", () => {
     );
 });
 
-test("paragraph with only breaks", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with only breaks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4959,8 +5007,8 @@ test("paragraph with only breaks", () => {
     );
 });
 
-test("break at start of paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("break at start of paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -4976,8 +5024,8 @@ Text after break
     );
 });
 
-test("breaks at start of paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("breaks at start of paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5000,8 +5048,8 @@ Text after break
     );
 });
 
-test("break at end of paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("break at end of paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5016,8 +5064,8 @@ Text before break<br/>
     );
 });
 
-test("breaks at end of paragraph", () => {
-    testPrintApiContentToMarkdown(
+test("breaks at end of paragraph", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5037,8 +5085,8 @@ Text before break<br/><br/><br/>
     );
 });
 
-test("adjacent text elements with same marks should stay separate", () => {
-    testPrintApiContentToMarkdown(
+test("adjacent text elements with same marks should stay separate", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5056,8 +5104,8 @@ test("adjacent text elements with same marks should stay separate", () => {
     );
 });
 
-test("empty text elements are handled", () => {
-    testPrintApiContentToMarkdown(
+test("empty text elements are handled", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5076,8 +5124,8 @@ BeforeAfter
     );
 });
 
-test("text with only marks but no content", () => {
-    testPrintApiContentToMarkdown(
+test("text with only marks but no content", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5092,8 +5140,8 @@ test("text with only marks but no content", () => {
     );
 });
 
-test("multiple consecutive breaks with different marks", () => {
-    testPrintApiContentToMarkdown(
+test("multiple consecutive breaks with different marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5114,8 +5162,8 @@ Start<br/>**<br/>**_<br/>_&#x45;nd
     );
 });
 
-test("dollar signs are escaped for math", () => {
-    testPrintApiContentToMarkdown(
+test("dollar signs are escaped for math", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5130,8 +5178,8 @@ Price is \\$100 or \\$\\$200
     );
 });
 
-test("hash symbols at start of line", () => {
-    testPrintApiContentToMarkdown(
+test("hash symbols at start of line", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5146,8 +5194,8 @@ test("hash symbols at start of line", () => {
     );
 });
 
-test("numbers with dots at start of line", () => {
-    testPrintApiContentToMarkdown(
+test("numbers with dots at start of line", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5162,8 +5210,8 @@ test("numbers with dots at start of line", () => {
     );
 });
 
-test("dashes at start of line", () => {
-    testPrintApiContentToMarkdown(
+test("dashes at start of line", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5178,8 +5226,8 @@ test("dashes at start of line", () => {
     );
 });
 
-test("plus signs at start of line", () => {
-    testPrintApiContentToMarkdown(
+test("plus signs at start of line", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5194,8 +5242,8 @@ test("plus signs at start of line", () => {
     );
 });
 
-test("greater than at start of line", () => {
-    testPrintApiContentToMarkdown(
+test("greater than at start of line", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5210,8 +5258,8 @@ test("greater than at start of line", () => {
     );
 });
 
-test("pipes in text", () => {
-    testPrintApiContentToMarkdown(
+test("pipes in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5226,8 +5274,8 @@ A | B | C
     );
 });
 
-test("exclamation marks before brackets", () => {
-    testPrintApiContentToMarkdown(
+test("exclamation marks before brackets", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5242,8 +5290,8 @@ test("exclamation marks before brackets", () => {
     );
 });
 
-test("parentheses after brackets", () => {
-    testPrintApiContentToMarkdown(
+test("parentheses after brackets", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5258,8 +5306,8 @@ test("parentheses after brackets", () => {
     );
 });
 
-test("triple backticks in plain text", () => {
-    testPrintApiContentToMarkdown(
+test("triple backticks in plain text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5274,8 +5322,8 @@ Use \\\`\\\`\\\` for code blocks
     );
 });
 
-test("tilde characters", () => {
-    testPrintApiContentToMarkdown(
+test("tilde characters", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5290,8 +5338,8 @@ test("tilde characters", () => {
     );
 });
 
-test("link with parentheses in URL", () => {
-    testPrintApiContentToMarkdown(
+test("link with parentheses in URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5312,8 +5360,8 @@ test("link with parentheses in URL", () => {
     );
 });
 
-test("link with spaces in URL", () => {
-    testPrintApiContentToMarkdown(
+test("link with spaces in URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5334,8 +5382,8 @@ test("link with spaces in URL", () => {
     );
 });
 
-test("angle brackets in URL", () => {
-    testPrintApiContentToMarkdown(
+test("angle brackets in URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5356,8 +5404,8 @@ test("angle brackets in URL", () => {
     );
 });
 
-test("reference-style link syntax in text", () => {
-    testPrintApiContentToMarkdown(
+test("reference-style link syntax in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5372,8 +5420,8 @@ test("reference-style link syntax in text", () => {
     );
 });
 
-test("footnote syntax in text", () => {
-    testPrintApiContentToMarkdown(
+test("footnote syntax in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5388,8 +5436,8 @@ Text\\[^1] with footnote
     );
 });
 
-test("horizontal rule characters", () => {
-    testPrintApiContentToMarkdown(
+test("horizontal rule characters", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5404,8 +5452,8 @@ test("horizontal rule characters", () => {
     );
 });
 
-test("asterisk horizontal rule", () => {
-    testPrintApiContentToMarkdown(
+test("asterisk horizontal rule", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5420,8 +5468,8 @@ test("asterisk horizontal rule", () => {
     );
 });
 
-test("code fence in text", () => {
-    testPrintApiContentToMarkdown(
+test("code fence in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5436,10 +5484,10 @@ test("code fence in text", () => {
     );
 });
 
-test("account mention", () => {
+test("account mention", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5461,10 +5509,10 @@ test("account mention", () => {
     );
 });
 
-test("task mention with empty title", () => {
+test("task mention with empty title", async () => {
     const taskId = generateId<TaskId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5487,8 +5535,8 @@ test("task mention with empty title", () => {
     );
 });
 
-test("unicode multi-code point grapheme after bold", () => {
-    testPrintApiContentToMarkdown(
+test("unicode multi-code point grapheme after bold", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5509,8 +5557,8 @@ test("unicode multi-code point grapheme after bold", () => {
     );
 });
 
-test("unicode multi-code point grapheme before bold", () => {
-    testPrintApiContentToMarkdown(
+test("unicode multi-code point grapheme before bold", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5531,10 +5579,10 @@ test("unicode multi-code point grapheme before bold", () => {
     );
 });
 
-test("mention with link mark", () => {
+test("mention with link mark", async () => {
     const taskId = generateId<TaskId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5560,10 +5608,10 @@ test("mention with link mark", () => {
     );
 });
 
-test("mention with strike mark", () => {
+test("mention with strike mark", async () => {
     const documentId = generateId<DocumentId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5590,8 +5638,8 @@ test("mention with strike mark", () => {
     );
 });
 
-test("space with bold mark in quote block", () => {
-    testPrintApiContentToMarkdown(
+test("space with bold mark in quote block", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5611,8 +5659,8 @@ test("space with bold mark in quote block", () => {
     );
 });
 
-test("character with strike mark in quote block", () => {
-    testPrintApiContentToMarkdown(
+test("character with strike mark in quote block", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5632,8 +5680,8 @@ test("character with strike mark in quote block", () => {
     );
 });
 
-test("space with strike mark in quote block", () => {
-    testPrintApiContentToMarkdown(
+test("space with strike mark in quote block", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5653,8 +5701,8 @@ test("space with strike mark in quote block", () => {
     );
 });
 
-test("ignores content that looks like inline math", () => {
-    testPrintApiContentToMarkdown(
+test("ignores content that looks like inline math", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5672,8 +5720,8 @@ test("ignores content that looks like inline math", () => {
     );
 });
 
-test("bold with single space next to italics", () => {
-    testPrintApiContentToMarkdown(
+test("bold with single space next to italics", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5691,8 +5739,8 @@ test("bold with single space next to italics", () => {
     );
 });
 
-test("italicized escaped space", () => {
-    testPrintApiContentToMarkdown(
+test("italicized escaped space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5707,8 +5755,8 @@ test("italicized escaped space", () => {
     );
 });
 
-test("bolded escaped space", () => {
-    testPrintApiContentToMarkdown(
+test("bolded escaped space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5723,8 +5771,8 @@ test("bolded escaped space", () => {
     );
 });
 
-test("struck escaped space", () => {
-    testPrintApiContentToMarkdown(
+test("struck escaped space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5739,8 +5787,8 @@ test("struck escaped space", () => {
     );
 });
 
-test("italicized double space", () => {
-    testPrintApiContentToMarkdown(
+test("italicized double space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5755,8 +5803,8 @@ test("italicized double space", () => {
     );
 });
 
-test("italic space after bold italic space in quote block", () => {
-    testPrintApiContentToMarkdown(
+test("italic space after bold italic space in quote block", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5783,8 +5831,8 @@ test("italic space after bold italic space in quote block", () => {
     );
 });
 
-test("empty text after break", () => {
-    testPrintApiContentToMarkdown(
+test("empty text after break", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5802,8 +5850,8 @@ test("empty text after break", () => {
     );
 });
 
-test("escaped character followed by bold space", () => {
-    testPrintApiContentToMarkdown(
+test("escaped character followed by bold space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5821,8 +5869,8 @@ test("escaped character followed by bold space", () => {
     );
 });
 
-test("math like text followed by space", () => {
-    testPrintApiContentToMarkdown(
+test("math like text followed by space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5837,10 +5885,10 @@ test("math like text followed by space", () => {
     );
 });
 
-test("mention with link that contains HTML unsafe character", () => {
+test("mention with link that contains HTML unsafe character", async () => {
     const collectionId = generateId<TaskCollectionId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5863,10 +5911,10 @@ test("mention with link that contains HTML unsafe character", () => {
     );
 });
 
-test("break followed by mention with link", () => {
+test("break followed by mention with link", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5890,10 +5938,10 @@ test("break followed by mention with link", () => {
     );
 });
 
-test("marked break followed by mention with link", () => {
+test("marked break followed by mention with link", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5917,10 +5965,10 @@ test("marked break followed by mention with link", () => {
     );
 });
 
-test("mention inside math like text", () => {
+test("mention inside math like text", async () => {
     const documentId = generateId<DocumentId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5945,8 +5993,8 @@ test("mention inside math like text", () => {
     );
 });
 
-test("escapes dollar sign in text", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign in text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5961,8 +6009,8 @@ a \\$ b
     );
 });
 
-test("escapes dollar sign at start of text", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign at start of text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5977,8 +6025,8 @@ test("escapes dollar sign at start of text", () => {
     );
 });
 
-test("escapes dollar sign at end of text", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign at end of text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -5993,8 +6041,8 @@ a \\$
     );
 });
 
-test("escapes dollar sign at start and end of text", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign at start and end of text", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6009,8 +6057,8 @@ test("escapes dollar sign at start and end of text", () => {
     );
 });
 
-test("escapes dollar sign at start and end of text when followed by underscores", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign at start and end of text when followed by underscores", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6025,8 +6073,8 @@ test("escapes dollar sign at start and end of text when followed by underscores"
     );
 });
 
-test("escapes dollar sign at start and end of text when followed by asterisks", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign at start and end of text when followed by asterisks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6041,8 +6089,8 @@ test("escapes dollar sign at start and end of text when followed by asterisks", 
     );
 });
 
-test("escapes dollar sign at start and end of text when followed by parenthesis", () => {
-    testPrintApiContentToMarkdown(
+test("escapes dollar sign at start and end of text when followed by parenthesis", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6057,8 +6105,8 @@ test("escapes dollar sign at start and end of text when followed by parenthesis"
     );
 });
 
-test("italicized unicode code point from multiple utf-16 code units", () => {
-    testPrintApiContentToMarkdown(
+test("italicized unicode code point from multiple utf-16 code units", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6077,8 +6125,8 @@ test("italicized unicode code point from multiple utf-16 code units", () => {
     );
 });
 
-test("unicode code point that looks like punctuation if you just look at the first utf-16 code unit", () => {
-    testPrintApiContentToMarkdown(
+test("unicode code point that looks like punctuation if you just look at the first utf-16 code unit", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6101,8 +6149,8 @@ test("unicode code point that looks like punctuation if you just look at the fir
     );
 });
 
-test("separate text elements escaping character that gets encoded", () => {
-    testPrintApiContentToMarkdown(
+test("separate text elements escaping character that gets encoded", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6121,10 +6169,10 @@ test("separate text elements escaping character that gets encoded", () => {
     );
 });
 
-test("two breaks followed by a mention with a link mark", () => {
+test("two breaks followed by a mention with a link mark", async () => {
     const postId = generateId<PostId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6149,13 +6197,13 @@ test("two breaks followed by a mention with a link mark", () => {
     );
 });
 
-test("punctuation unicode code point represented by two utf-16 code units is escaped", () => {
+test("punctuation unicode code point represented by two utf-16 code units is escaped", async () => {
     const unicode = "\u{1E95E}";
 
     expect(unicode.length).toEqual(2);
     expect(unicode).toMatch(/\p{P}/u);
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6173,8 +6221,8 @@ test("punctuation unicode code point represented by two utf-16 code units is esc
     );
 });
 
-test("unicode code point with two utf-16 code units at the end of strike mark", () => {
-    testPrintApiContentToMarkdown(
+test("unicode code point with two utf-16 code units at the end of strike mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6192,8 +6240,8 @@ test("unicode code point with two utf-16 code units at the end of strike mark", 
     );
 });
 
-test("doesn’t parse angle brackets with @ content as autolink", () => {
-    testPrintApiContentToMarkdown(
+test("doesn’t parse angle brackets with @ content as autolink", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6211,8 +6259,8 @@ test("doesn’t parse angle brackets with @ content as autolink", () => {
     );
 });
 
-test("doesn’t parse angle brackets with number content as autolink", () => {
-    testPrintApiContentToMarkdown(
+test("doesn’t parse angle brackets with number content as autolink", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6227,8 +6275,8 @@ test("doesn’t parse angle brackets with number content as autolink", () => {
     );
 });
 
-test("doesn’t parse angle brackets with bracket content as autolink", () => {
-    testPrintApiContentToMarkdown(
+test("doesn’t parse angle brackets with bracket content as autolink", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6243,8 +6291,8 @@ test("doesn’t parse angle brackets with bracket content as autolink", () => {
     );
 });
 
-test("doesn’t parse angle brackets with space content as autolink", () => {
-    testPrintApiContentToMarkdown(
+test("doesn’t parse angle brackets with space content as autolink", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6259,8 +6307,8 @@ test("doesn’t parse angle brackets with space content as autolink", () => {
     );
 });
 
-test("uses HTML form of break if followed by italic space", () => {
-    testPrintApiContentToMarkdown(
+test("uses HTML form of break if followed by italic space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6278,8 +6326,8 @@ test("uses HTML form of break if followed by italic space", () => {
     );
 });
 
-test("uses HTML form of break if followed by bold space", () => {
-    testPrintApiContentToMarkdown(
+test("uses HTML form of break if followed by bold space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6297,8 +6345,8 @@ test("uses HTML form of break if followed by bold space", () => {
     );
 });
 
-test("uses HTML form of break if followed by strike space", () => {
-    testPrintApiContentToMarkdown(
+test("uses HTML form of break if followed by strike space", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6316,8 +6364,8 @@ test("uses HTML form of break if followed by strike space", () => {
     );
 });
 
-test("empty code block", () => {
-    testPrintApiContentToMarkdown(
+test("empty code block", async () => {
+    await testPrintApiContentToMarkdown(
         {elements: [{type: "Code", language: "erlang", lines: []}]},
         `\
 \`\`\`erlang
@@ -6326,8 +6374,8 @@ test("empty code block", () => {
     );
 });
 
-test("empty code block (with empty line)", () => {
-    testPrintApiContentToMarkdown(
+test("empty code block (with empty line)", async () => {
+    await testPrintApiContentToMarkdown(
         {elements: [{type: "Code", language: "erlang", lines: [{elements: []}]}]},
         `\
 \`\`\`erlang
@@ -6336,8 +6384,8 @@ test("empty code block (with empty line)", () => {
     );
 });
 
-test("empty code block (with empty line with no text but marks)", () => {
-    testPrintApiContentToMarkdown(
+test("empty code block (with empty line with no text but marks)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6364,8 +6412,8 @@ test("empty code block (with empty line with no text but marks)", () => {
     );
 });
 
-test("code block with empty mark and separate unmarked text elements", () => {
-    testPrintApiContentToMarkdown(
+test("code block with empty mark and separate unmarked text elements", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6395,8 +6443,8 @@ test("code block with empty mark and separate unmarked text elements", () => {
     );
 });
 
-test("code block with empty mark and separate marked text elements", () => {
-    testPrintApiContentToMarkdown(
+test("code block with empty mark and separate marked text elements", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6428,8 +6476,8 @@ test("code block with empty mark and separate marked text elements", () => {
     );
 });
 
-test("backticks at start/end of text in inline code", () => {
-    testPrintApiContentToMarkdown(
+test("backticks at start/end of text in inline code", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6450,8 +6498,8 @@ test("backticks at start/end of text in inline code", () => {
     );
 });
 
-test("backticks after/before spaces at start/end of text in inline code", () => {
-    testPrintApiContentToMarkdown(
+test("backticks after/before spaces at start/end of text in inline code", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6472,8 +6520,8 @@ test("backticks after/before spaces at start/end of text in inline code", () => 
     );
 });
 
-test("text that looks like a definition inside code + link", () => {
-    testPrintApiContentToMarkdown(
+test("text that looks like a definition inside code + link", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6494,8 +6542,8 @@ test("text that looks like a definition inside code + link", () => {
     );
 });
 
-test("italic content next to bold content when italic content is merged with previous link", () => {
-    testPrintApiContentToMarkdown(
+test("italic content next to bold content when italic content is merged with previous link", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6526,8 +6574,8 @@ test("italic content next to bold content when italic content is merged with pre
     );
 });
 
-test("empty table", () => {
-    testPrintApiContentToMarkdown(
+test("empty table", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6557,8 +6605,8 @@ test("empty table", () => {
     );
 });
 
-test("empty table with header row", () => {
-    testPrintApiContentToMarkdown(
+test("empty table with header row", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6578,8 +6626,8 @@ test("empty table with header row", () => {
     );
 });
 
-test("empty table with header column", () => {
-    testPrintApiContentToMarkdown(
+test("empty table with header column", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6609,8 +6657,8 @@ test("empty table with header column", () => {
     );
 });
 
-test("empty table with header row and column", () => {
-    testPrintApiContentToMarkdown(
+test("empty table with header row and column", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6640,8 +6688,8 @@ test("empty table with header row and column", () => {
     );
 });
 
-test("adjacent unordered lists", () => {
-    testPrintApiContentToMarkdown(
+test("adjacent unordered lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6700,8 +6748,8 @@ test("adjacent unordered lists", () => {
     );
 });
 
-test("adjacent ordered lists", () => {
-    testPrintApiContentToMarkdown(
+test("adjacent ordered lists", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6760,8 +6808,8 @@ test("adjacent ordered lists", () => {
     );
 });
 
-test("adjacent unordered lists with empty list in between", () => {
-    testPrintApiContentToMarkdown(
+test("adjacent unordered lists with empty list in between", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6821,8 +6869,8 @@ test("adjacent unordered lists with empty list in between", () => {
     );
 });
 
-test("adjacent ordered lists with empty list in between", () => {
-    testPrintApiContentToMarkdown(
+test("adjacent ordered lists with empty list in between", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6882,8 +6930,8 @@ test("adjacent ordered lists with empty list in between", () => {
     );
 });
 
-test("adjacent ordered lists with empty unordered list in between", () => {
-    testPrintApiContentToMarkdown(
+test("adjacent ordered lists with empty unordered list in between", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6943,8 +6991,8 @@ test("adjacent ordered lists with empty unordered list in between", () => {
     );
 });
 
-test("table with one row and three empty cells", () => {
-    testPrintApiContentToMarkdown(
+test("table with one row and three empty cells", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -6972,8 +7020,8 @@ test("table with one row and three empty cells", () => {
     );
 });
 
-test("table with one row and three empty cells without header row", () => {
-    testPrintApiContentToMarkdown(
+test("table with one row and three empty cells without header row", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7006,8 +7054,8 @@ test("table with one row and three empty cells without header row", () => {
     );
 });
 
-test("table with two rows and three empty cells without header row (first row has no cells)", () => {
-    testPrintApiContentToMarkdown(
+test("table with two rows and three empty cells without header row (first row has no cells)", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7048,8 +7096,8 @@ test("table with two rows and three empty cells without header row (first row ha
     );
 });
 
-test("table with more column widths than columns", () => {
-    testPrintApiContentToMarkdown(
+test("table with more column widths than columns", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7073,8 +7121,8 @@ test("table with more column widths than columns", () => {
     );
 });
 
-test("paragraph that’s a single space in table cell", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph that’s a single space in table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7107,8 +7155,8 @@ test("paragraph that’s a single space in table cell", () => {
     );
 });
 
-test("paragraph with trailing spaces in table cell", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with trailing spaces in table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7141,8 +7189,8 @@ test("paragraph with trailing spaces in table cell", () => {
     );
 });
 
-test("paragraph with leading spaces in table cell", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with leading spaces in table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7175,8 +7223,8 @@ test("paragraph with leading spaces in table cell", () => {
     );
 });
 
-test("paragraph with trailing spaces that’s a single space in table cell", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph with trailing spaces that’s a single space in table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7212,8 +7260,8 @@ test("paragraph with trailing spaces that’s a single space in table cell", () 
     );
 });
 
-test("italic before to bolded link which has lifted its mark", () => {
-    testPrintApiContentToMarkdown(
+test("italic before to bolded link which has lifted its mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7240,8 +7288,8 @@ _-X_**[~~-y/@\\\`/\\$bz1~~](https://63o.kry)G**
     );
 });
 
-test("simple table with a really long cell", () => {
-    testPrintApiContentToMarkdown(
+test("simple table with a really long cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7311,10 +7359,10 @@ test("simple table with a really long cell", () => {
     );
 });
 
-test("link that looks like mention", () => {
+test("link that looks like mention", async () => {
     const documentId = generateId<DocumentId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7342,10 +7390,10 @@ Click <a href="https://alpine.inc/s/${spaceId}/documents/${documentId}?mention">
     );
 });
 
-test("link that looks like a short account mention", () => {
+test("link that looks like a short account mention", async () => {
     const accountId = generateId<AccountId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7373,8 +7421,8 @@ Click <a href="https://alpine.inc/s/${spaceId}/accounts/${accountId}?mention=sho
     );
 });
 
-test("pipe in table cell", () => {
-    testPrintApiContentToMarkdown(
+test("pipe in table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7407,8 +7455,8 @@ test("pipe in table cell", () => {
     );
 });
 
-test("escaped pipe in table cell", () => {
-    testPrintApiContentToMarkdown(
+test("escaped pipe in table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7441,8 +7489,8 @@ test("escaped pipe in table cell", () => {
     );
 });
 
-test("pipe in table cell with code mark", () => {
-    testPrintApiContentToMarkdown(
+test("pipe in table cell with code mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7481,8 +7529,8 @@ test("pipe in table cell with code mark", () => {
     );
 });
 
-test("escaped pipe in table cell with code mark", () => {
-    testPrintApiContentToMarkdown(
+test("escaped pipe in table cell with code mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7533,8 +7581,8 @@ test("escaped pipe in table cell with code mark", () => {
     );
 });
 
-test("escaped pipe between text in table cell with code mark", () => {
-    testPrintApiContentToMarkdown(
+test("escaped pipe between text in table cell with code mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7586,8 +7634,8 @@ test("escaped pipe between text in table cell with code mark", () => {
 });
 
 // Tests for Heading and Divider elements
-test("heading level 1", () => {
-    testPrintApiContentToMarkdown(
+test("heading level 1", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7603,8 +7651,8 @@ test("heading level 1", () => {
     );
 });
 
-test("heading level 2", () => {
-    testPrintApiContentToMarkdown(
+test("heading level 2", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7620,8 +7668,8 @@ test("heading level 2", () => {
     );
 });
 
-test("heading level 3", () => {
-    testPrintApiContentToMarkdown(
+test("heading level 3", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7637,8 +7685,8 @@ test("heading level 3", () => {
     );
 });
 
-test("heading with marks", () => {
-    testPrintApiContentToMarkdown(
+test("heading with marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7660,8 +7708,8 @@ test("heading with marks", () => {
     );
 });
 
-test("heading with empty content", () => {
-    testPrintApiContentToMarkdown(
+test("heading with empty content", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7677,8 +7725,8 @@ test("heading with empty content", () => {
     );
 });
 
-test("heading with break nodes", () => {
-    testPrintApiContentToMarkdown(
+test("heading with break nodes", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7698,8 +7746,8 @@ test("heading with break nodes", () => {
     );
 });
 
-test("multiple headings", () => {
-    testPrintApiContentToMarkdown(
+test("multiple headings", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7734,8 +7782,8 @@ More content.
     );
 });
 
-test("divider", () => {
-    testPrintApiContentToMarkdown(
+test("divider", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7749,8 +7797,8 @@ test("divider", () => {
     );
 });
 
-test("divider between paragraphs", () => {
-    testPrintApiContentToMarkdown(
+test("divider between paragraphs", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7776,8 +7824,8 @@ After divider
     );
 });
 
-test("multiple dividers", () => {
-    testPrintApiContentToMarkdown(
+test("multiple dividers", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7814,8 +7862,8 @@ Section 3
     );
 });
 
-test("dividers that look like frontmatter", () => {
-    testPrintApiContentToMarkdown(
+test("dividers that look like frontmatter", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {type: "Divider"},
@@ -7844,8 +7892,8 @@ The quick brown fox jumps over the lazy dog.
     );
 });
 
-test("paragraph that looks like frontmatter", () => {
-    testPrintApiContentToMarkdown(
+test("paragraph that looks like frontmatter", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7876,8 +7924,8 @@ The quick brown fox jumps over the lazy dog.
     );
 });
 
-test("paragraphs that look like frontmatter", () => {
-    testPrintApiContentToMarkdown(
+test("paragraphs that look like frontmatter", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7912,8 +7960,8 @@ The quick brown fox jumps over the lazy dog.
     );
 });
 
-test("divider before empty unordered list", () => {
-    testPrintApiContentToMarkdown(
+test("divider before empty unordered list", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {type: "Divider"},
@@ -7933,8 +7981,8 @@ test("divider before empty unordered list", () => {
     );
 });
 
-test("divider after paragraph but before empty unordered list", () => {
-    testPrintApiContentToMarkdown(
+test("divider after paragraph but before empty unordered list", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {type: "Paragraph", elements: [{type: "Text", text: "a"}]},
@@ -7958,8 +8006,8 @@ a
 });
 
 // Highlight mark tests
-test("text with highlight mark", () => {
-    testPrintApiContentToMarkdown(
+test("text with highlight mark", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -7982,8 +8030,8 @@ This is <mark class="highlight-red">highlighted</mark> text
     );
 });
 
-test("text with different highlight colors", () => {
-    testPrintApiContentToMarkdown(
+test("text with different highlight colors", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8016,8 +8064,8 @@ test("text with different highlight colors", () => {
     );
 });
 
-test("text with highlight and other marks", () => {
-    testPrintApiContentToMarkdown(
+test("text with highlight and other marks", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8039,10 +8087,10 @@ test("text with highlight and other marks", () => {
 });
 
 // Comment mark tests
-test("text with comment mark", () => {
+test("text with comment mark", async () => {
     const threadId = generateId<DocumentCommentThreadId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8061,10 +8109,10 @@ This is <mark data-comment="${threadId}">commented</mark> text
     );
 });
 
-test("text with comment and highlight marks", () => {
+test("text with comment and highlight marks", async () => {
     const threadId = generateId<DocumentCommentThreadId>();
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8088,12 +8136,12 @@ test("text with comment and highlight marks", () => {
     );
 });
 
-test("text with multiple comment marks preserves all comments", () => {
+test("text with multiple comment marks preserves all comments", async () => {
     const threadId1 = assertId<DocumentCommentThreadId>("89z0rd2c0wh8fkdb1jc71mj5a4");
     const threadId2 = assertId<DocumentCommentThreadId>("ynd1e11m2grtkxtr58qek5mktr");
     const threadId3 = assertId<DocumentCommentThreadId>("3xqx9qc10mk0wq0nqke1vjqea8");
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8120,8 +8168,8 @@ This text has <mark data-comment="${threadId3}"><mark data-comment="${threadId1}
     );
 });
 
-test("text with multiple highlight marks only prints one highlight", () => {
-    testPrintApiContentToMarkdown(
+test("text with multiple highlight marks only prints one highlight", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8148,10 +8196,10 @@ This text has <mark class="highlight-green">multiple highlights</mark> but only 
     );
 });
 
-test("comment mark inside code block", () => {
+test("comment mark inside code block", async () => {
     const threadId = assertId<DocumentCommentThreadId>("00000000000000000000000000");
 
-    testPrintApiContentToMarkdown(
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8181,8 +8229,8 @@ test("comment mark inside code block", () => {
     );
 });
 
-test("code block with highlight mark inside", () => {
-    testPrintApiContentToMarkdown(
+test("code block with highlight mark inside", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8247,8 +8295,8 @@ test("code block with highlight mark inside", () => {
     );
 });
 
-test("identical adjacent marks in simple table cell", () => {
-    testPrintApiContentToMarkdown(
+test("identical adjacent marks in simple table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8292,8 +8340,8 @@ test("identical adjacent marks in simple table cell", () => {
     );
 });
 
-test("backslash before escaped space in simple table cell", () => {
-    testPrintApiContentToMarkdown(
+test("backslash before escaped space in simple table cell", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8326,8 +8374,8 @@ test("backslash before escaped space in simple table cell", () => {
     );
 });
 
-test("less than in link URL", () => {
-    testPrintApiContentToMarkdown(
+test("less than in link URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8348,8 +8396,8 @@ test("less than in link URL", () => {
     );
 });
 
-test("less than with text followed by greater than in link URL", () => {
-    testPrintApiContentToMarkdown(
+test("less than with text followed by greater than in link URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8370,8 +8418,8 @@ test("less than with text followed by greater than in link URL", () => {
     );
 });
 
-test("less than after text in link URL", () => {
-    testPrintApiContentToMarkdown(
+test("less than after text in link URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8392,8 +8440,8 @@ test("less than after text in link URL", () => {
     );
 });
 
-test("less than followed by text (with space) followed by greater than in link URL", () => {
-    testPrintApiContentToMarkdown(
+test("less than followed by text (with space) followed by greater than in link URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8414,8 +8462,8 @@ test("less than followed by text (with space) followed by greater than in link U
     );
 });
 
-test("greater than in link URL", () => {
-    testPrintApiContentToMarkdown(
+test("greater than in link URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
@@ -8436,8 +8484,8 @@ test("greater than in link URL", () => {
     );
 });
 
-test("less than or not equals in link URL", () => {
-    testPrintApiContentToMarkdown(
+test("less than or not equals in link URL", async () => {
+    await testPrintApiContentToMarkdown(
         {
             elements: [
                 {
