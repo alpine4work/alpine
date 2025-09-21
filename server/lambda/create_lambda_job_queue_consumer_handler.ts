@@ -107,7 +107,6 @@ export function createLambdaJobQueueConsumerHandler<TJobDescription extends JobD
             try {
                 await _processJob(actionContext, processJob, {
                     record,
-                    parentSpan,
                     lambdaContext,
                     serviceName,
                 });
@@ -151,12 +150,10 @@ async function _processJob<TJobDescription extends JobDescription>(
     ) => Promise<void>,
     {
         record,
-        parentSpan,
         serviceName,
         lambdaContext,
     }: {
         record: SQSRecord;
-        parentSpan: TracerSpan;
         serviceName: TokenServiceName;
         lambdaContext: LambdaContext;
     },
@@ -183,8 +180,6 @@ async function _processJob<TJobDescription extends JobDescription>(
                       .getRoot()
                       .startSpanFromPropagationContextAsLinked(spanName, messageBody.tracerContext)
                 : actionContext.tracer.getRoot().startSpan(spanName));
-
-        parentSpan.link(`Execution: ${handleSpanName}`, span);
 
         // The time at which the job starts to be available for processing. The send
         // time plus delay seconds. This will be a little earlier than when the job is
