@@ -740,6 +740,7 @@ function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSq
                 memorySize: 4096, // 4GB RAM (~2 vCPUs)
                 queue: sqs.getFileProcessorLightJobQueue(),
                 timeout: Duration.millis(fileProcessorTimeoutMs),
+                provisionedConcurrentExecutions: 2,
             } as const;
         }
         case "Heavy": {
@@ -748,6 +749,7 @@ function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSq
                 memorySize: 10240, // 10GB RAM (~6 vCPUs)
                 queue: sqs.getFileProcessorHeavyJobQueue(),
                 timeout: Duration.millis(fileProcessorTimeoutMs),
+                provisionedConcurrentExecutions: 1,
             } as const;
         }
     }
