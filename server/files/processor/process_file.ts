@@ -307,6 +307,8 @@ export async function processFile(
                   span.addData({
                       file: {preview: {imageVideoDurationMs: videoDuration}},
                   });
+
+                  return videoDuration;
               })()
             : null;
 
@@ -342,45 +344,71 @@ export async function processFile(
               })()
             : null;
 
+        const finallyAlternativePromise = async () => {
+            const endTime = span.clock.now();
+
+            span.addData({
+                file: {processing: {alternativeDurationMs: endTime - startTime}},
+            });
+
+            let imagePreviewVideoDuration;
+
+            try {
+                imagePreviewVideoDuration = await imagePreviewVideoDurationPromise;
+            } catch {
+                // Ignore errors from the video duration promise here. They're handled
+                // elsewhere.
+                return;
+            }
+
+            if (typeof imagePreviewVideoDuration === "number") {
+                span.addData({
+                    file: {
+                        processing: {
+                            imagePreviewVideoDurationToAlternativeProcessingDurationRatio:
+                                imagePreviewVideoDuration / (endTime - startTime),
+                        },
+                    },
+                });
+            }
+        };
+
         // Specific file processors often have dependencies on one another, e.g.
         // "Process file preview size" depends on "Process file alternative" for Microsoft Word
         // documents. However, we intentionally measure spans from the start of file processing
         // so that when we look at the duration we get the user duration perceived by the user
         // (since as each of these resolves we `sendEvent()` to the user).
         await runAllPromises([
-            alternativePromise
-                ?.finally(() => {
-                    const endTime = span.clock.now();
+            alternativePromise?.then(finallyAlternativePromise, async error => {
+                await runAllPromises([
+                    finallyAlternativePromise(),
+                    (async () => {
+                        error = dedupeAggregateError(error);
 
-                    span.addData({
-                        file: {processing: {alternativeDurationMs: endTime - startTime}},
-                    });
-                })
-                .catch(async error => {
-                    error = dedupeAggregateError(error);
+                        // If processing failed due to a timeout then don't catch the error. Instead we
+                        // want to retry the job.
+                        if (isDeadlineExceededOrAbortedError(error)) throw error;
 
-                    // If processing failed due to a timeout then don't catch the error. Instead we
-                    // want to retry the job.
-                    if (isDeadlineExceededOrAbortedError(error)) throw error;
+                        // When there's an error processing a file in development, log an error so the
+                        // developer can see it in the console since they might not see it in the UI.
+                        if (process.env.NODE_ENV !== "production") {
+                            // eslint-disable-next-line no-console
+                            console.error("File processing failed:", error);
+                        }
 
-                    // When there's an error processing a file in development, log an error so the
-                    // developer can see it in the console since they might not see it in the UI.
-                    if (process.env.NODE_ENV !== "production") {
-                        // eslint-disable-next-line no-console
-                        console.error("File processing failed:", error);
-                    }
+                        caughtErrors.push(error);
 
-                    caughtErrors.push(error);
+                        const processorErrors = getFileProcessorErrors(error);
 
-                    const processorErrors = getFileProcessorErrors(error);
-
-                    await fileUploader.finishProcessingAlternativeWithError(
-                        context,
-                        // We only get to show one processing error to the user even if we have
-                        // multiple. Pick the first one.
-                        processorErrors?.[0] ?? {type: "Unknown"},
-                    );
-                }),
+                        await fileUploader.finishProcessingAlternativeWithError(
+                            context,
+                            // We only get to show one processing error to the user even if we have
+                            // multiple. Pick the first one.
+                            processorErrors?.[0] ?? {type: "Unknown"},
+                        );
+                    })(),
+                ]);
+            }),
             runAllPromises([
                 imagePreviewSizePromise?.finally(() => {
                     const endTime = span.clock.now();

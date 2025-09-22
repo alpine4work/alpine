@@ -189,7 +189,17 @@ export async function processFileWebUnsafeVideo(
                 // `calebmer_alpine_forum_screen_recording.mov` from completing in ~30s to
                 // completing in ~2s.
                 // https://trac.ffmpeg.org/wiki/Encode/VP9#DeadlineQuality
-                ...(import.meta.jest ? ["-deadline", "realtime", "-cpu-used", "8"] : []),
+                ...(import.meta.jest
+                    ? ["-deadline", "realtime", "-cpu-used", "8"]
+                    : // NOTE(ifitzsimmons, 2025-07-31): See benchmarks: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/mmcg93qv2zvzmnmqt3ec6vtexm
+                      // This alleviates some of the timeout issues we've seen in production without
+                      // compromising too much on quality. We landed on this setting during Tea Time.
+                      // We did discuss changing video resolution to 1080p as well since this only
+                      // impacts the quality of embedded videos (downloading from the app downloads
+                      // the original video). We decided to continue to allow high resolution videos
+                      // and compromise on compression efficiency instead. This means the web safe
+                      // files that we store will be slightly larger.
+                      ["-deadline", "realtime", "-cpu-used", "6"]),
                 // Output the new video to the provided path.
                 alternativeOutputPath,
             ],

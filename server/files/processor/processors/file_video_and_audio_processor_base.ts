@@ -80,6 +80,13 @@ const ffmpegImagePreviewContentOutputOptionsBase = [
     // https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality
     "-crf",
     "10",
+    // NOTE(ifitzsimmons, 2025-07-25) For 1920x1080 max resolution for previews, see document on
+    // File Processing Benchmarks.
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/mmcg93qv2zvzmnmqt3ec6vtexm
+    // https://trac.ffmpeg.org/wiki/Scaling#fit
+    "-vf",
+    // eslint-disable-next-line string-quotes
+    "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
 ];
 
 /**

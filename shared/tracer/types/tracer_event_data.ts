@@ -1406,6 +1406,7 @@ export type TracerEventData = {
             /**
              * The ratio of the file alternative's content length to the file's own
              * content length.
+             * (lower is better)
              */
             readonly contentLengthRatio?: number;
         };
@@ -1450,6 +1451,10 @@ export type TracerEventData = {
          * state.
          */
         readonly processing?: {
+            /**
+             * The duration of the alternative file processing. Notably not the duration of
+             * the alternative content.
+             */
             readonly alternativeDurationMs?: number;
             readonly imagePreviewSizeDurationMs?: number;
             readonly imagePreviewPlaceholderDurationMs?: number;
@@ -1458,6 +1463,16 @@ export type TracerEventData = {
             readonly audioPreviewDurationDurationMs?: number;
             readonly audioPreviewMetadataDurationMs?: number;
             readonly codePreviewContentDurationMs?: number;
+
+            /**
+             * The ratio of the original file's duration to the file's processing duration.
+             * Answers the question: "For every second of the video, how many seconds does
+             * it take to process?".
+             * So if a 10 second video takes 40 seconds to process, this will be 0.25.
+             * If a 10 second video takes 5 seconds to process, this willbe 2.
+             * (higher is better)
+             */
+            readonly imagePreviewVideoDurationToAlternativeProcessingDurationRatio?: number;
         };
 
         readonly avatar?: {
