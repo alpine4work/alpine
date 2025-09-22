@@ -69,8 +69,8 @@ export function shouldResetAgentDeleteAllStorageAlarm({
 export abstract class AgentDurableObjectBase<Route> {
     private readonly _state: DurableObjectState;
     private readonly _env: AgentDurableObjectEnv;
-    private readonly _tracer: TracerRoot;
-    private readonly _processContext: AgentContext;
+    private readonly _tracer: Lazy<TracerRoot>;
+    private readonly _processContext: Lazy<AgentContext>;
     private readonly _openAiClient: Lazy<OpenAiClient>;
 
     private readonly _alarmTimeMutex: MutexValue<Date | null> = new MutexValue(null);
@@ -83,27 +83,30 @@ export abstract class AgentDurableObjectBase<Route> {
         this._state = state;
         this._env = env;
 
-        this._tracer = createServerTracer({
-            serviceName,
-            jsHost: "CloudflareWorker",
-            honeycombApiKey: env.HONEYCOMB_API_KEY,
-            waitUntil: promise => state.waitUntil(promise),
-        });
-
-        this._processContext = Context.new({
-            process: new ProcessContextModule({
-                waitUntil: promise =>
-                    this._state.waitUntil(
-                        promise.catch(error => {
-                            this._tracer.logException(
-                                "Uncaught exception from `waitUntil()`",
-                                error,
-                            );
-                        }),
-                    ),
+        this._tracer = new Lazy(() =>
+            createServerTracer({
+                serviceName,
+                jsHost: "CloudflareWorker",
+                honeycombApiKey: env.HONEYCOMB_API_KEY,
+                waitUntil: promise => state.waitUntil(promise),
             }),
-            tracer: new TracerContextModule(this._tracer),
-        });
+        );
+
+        this._processContext = new Lazy(() =>
+            Context.new({
+                process: new ProcessContextModule({
+                    waitUntil: promise =>
+                        this._state.waitUntil(
+                            promise.catch(error => {
+                                this._tracer
+                                    .get()
+                                    .logException("Uncaught exception from `waitUntil()`", error);
+                            }),
+                        ),
+                }),
+                tracer: new TracerContextModule(this._tracer.get()),
+            }),
+        );
 
         this._openAiClient = new Lazy(() => {
             return new OpenAiClient({
@@ -145,28 +148,34 @@ export abstract class AgentDurableObjectBase<Route> {
 
         const [route, routeObject] = this._parseRoute(url);
 
-        return traceServerResponse(this._tracer, request, url, route, async (span, request) => {
-            try {
-                const response = await this._processContext.with<{}, Response>(
-                    {
-                        // Replace the tracer context module with one that uses our span for
-                        // this request.
-                        tracer: new TracerContextModule(span),
-                    },
-                    actionContext => {
-                        if (routeObject === "Webhook") {
-                            return this._fetchWebhook(actionContext, request);
-                        } else {
-                            return this._fetch(actionContext, request, routeObject);
-                        }
-                    },
-                );
-                return response;
-            } catch (error) {
-                span.addException(error);
-                return createSimpleErrorResponse(error);
-            }
-        });
+        return traceServerResponse(
+            this._tracer.get(),
+            request,
+            url,
+            route,
+            async (span, request) => {
+                try {
+                    const response = await this._processContext.get().with<{}, Response>(
+                        {
+                            // Replace the tracer context module with one that uses our span for
+                            // this request.
+                            tracer: new TracerContextModule(span),
+                        },
+                        actionContext => {
+                            if (routeObject === "Webhook") {
+                                return this._fetchWebhook(actionContext, request);
+                            } else {
+                                return this._fetch(actionContext, request, routeObject);
+                            }
+                        },
+                    );
+                    return response;
+                } catch (error) {
+                    span.addException(error);
+                    return createSimpleErrorResponse(error);
+                }
+            },
+        );
     }
 
     private async _fetchWebhook(context: AgentContext, request: Request): Promise<Response> {
