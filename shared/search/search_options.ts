@@ -227,7 +227,11 @@ export const standardSearchOptions: SearchOptions = {
 
     // The relevance "floor" for a semantic result. Same as a great body keyword
     // score match.
-    minKeywordScoreForSemanticResult: 11,
+    //
+    // NOTE(calebmer, 2025-09-22): Turning this down from 11 to 8 because we're
+    // seeing many semantic matches without keyword matches that are bad results
+    // from a search.
+    minKeywordScoreForSemanticResult: 8,
 
     // In production, Cohere gives us scores like 5.5198393e-7. Multiply by 1e6 so
     // we end up with scores that instead look like 0.55198393 which you can read
