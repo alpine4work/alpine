@@ -6,7 +6,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {BrandLogoIcon} from "~/client/icons/brand/brand_logo_icon.js";
+import {ClientBrandLogoIcon} from "~/client/icons/brand/client_brand_logo_icon.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -95,7 +95,7 @@ export default function InviteRejectAndMarkAsSpamRoute() {
                     textAlign="center"
                     alignItems="center"
                 >
-                    <BrandLogoIcon size="32" />
+                    <ClientBrandLogoIcon size="32" />
                     <Box>
                         This invite has been marked as spam and you will not be invited to this
                         space again.

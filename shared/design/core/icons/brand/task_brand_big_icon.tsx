@@ -1,29 +1,15 @@
-import {IconContext} from "phosphor-react";
-import {memo, useContext} from "react";
-import {
-    brandIconSplashColorOpacity,
-    brandIconSplashColorShade,
-} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
-import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {SVGAttributes} from "react";
+import {spacing} from "~/shared/design/core/spacing.js";
 
-const TaskBrandBigIconMemo = memo(TaskBrandBigIcon);
-export {TaskBrandBigIconMemo as TaskBrandBigIcon};
-
-function TaskBrandBigIcon({size = "12"}: {size?: Spacing}) {
-    const {color: contextColor} = useContext(IconContext);
-
-    const color =
-        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
-
-    const splashColorClassName = sprinkles({
-        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
-        opacity: brandIconSplashColorOpacity,
-    });
-
+export function TaskBrandBigIcon({
+    size = spacing["12"],
+    color,
+    splashColorClassName,
+}: {
+    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
+    color?: SVGAttributes<SVGPathElement>["fill"];
+    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
+}) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -31,7 +17,7 @@ function TaskBrandBigIcon({size = "12"}: {size?: Spacing}) {
             viewBox="0 0 48 48"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: spacing[size], height: spacing[size]}}
+            style={{width: size, height: size}}
         >
             <path
                 className={splashColorClassName}

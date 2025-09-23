@@ -29,7 +29,7 @@ ts_project(
 ts_project(
     name = "design",
     srcs = glob(
-        ["**/*.ts"],
+        ["**/*.ts", "**/*.tsx"],
         exclude = CORE_SRCS + ["**/*.test.ts"],
     ),
     visibility = ["//visibility:public"],

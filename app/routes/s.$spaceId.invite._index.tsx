@@ -7,7 +7,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {BrandLogoIcon} from "~/client/icons/brand/brand_logo_icon.js";
+import {ClientBrandLogoIcon} from "~/client/icons/brand/client_brand_logo_icon.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -100,7 +100,7 @@ export default function HomeRoute() {
                 flexDirection="column"
                 gap="4"
             >
-                <BrandLogoIcon size="32" />
+                <ClientBrandLogoIcon size="32" />
                 <Box
                     display="flex"
                     flexDirection="column"

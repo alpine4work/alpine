@@ -5,10 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
-import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
-import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
-import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
-import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
+import {ClientBrandBigIcon} from "~/client/icons/brand/client_brand_big_icon.js";
 import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
@@ -43,7 +40,7 @@ export default function CreateRoute() {
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
                 <CreateRouteButton
                     withBorderTop
-                    icon={<PostBrandBigIcon />}
+                    icon={<ClientBrandBigIcon iconType="Post" />}
                     label="Post"
                     description="Share your ideas in a channel"
                     pressErrorTitle="Couldn’t create post"
@@ -54,7 +51,7 @@ export default function CreateRoute() {
                     }}
                 />
                 <CreateRouteButton
-                    icon={<ChatBrandBigIcon />}
+                    icon={<ClientBrandBigIcon iconType="Chat" />}
                     label="Message"
                     description="Start a chat with anyone"
                     pressErrorTitle="Couldn’t open new chat"
@@ -63,7 +60,7 @@ export default function CreateRoute() {
                     }}
                 />
                 <CreateRouteButton
-                    icon={<DocumentBrandBigIcon />}
+                    icon={<ClientBrandBigIcon iconType="Document" />}
                     label="Document"
                     description="Write what’s on your mind"
                     pressErrorTitle="Couldn’t create document"
@@ -73,7 +70,7 @@ export default function CreateRoute() {
                     }}
                 />
                 <CreateRouteButton
-                    icon={<TaskBrandBigIcon />}
+                    icon={<ClientBrandBigIcon iconType="Task" />}
                     label="Task"
                     description="Keep track of work to do later"
                     pressErrorTitle="Couldn’t open tasks"

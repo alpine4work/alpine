@@ -2,10 +2,7 @@ import {ReactNode} from "react";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
-import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
-import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
-import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
+import {ClientBrandIcon} from "~/client/icons/brand/client_brand_icon.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
@@ -153,13 +150,13 @@ import {Store} from "~/shared/store/store.js";
  *
  * ### Don't use the comment brand icon variant
  *
- * For products that have a comment brand icon (e.g. `<TaskCommentBrandIcon>`,
- * `<DocumentCommentBrandIcon>`, and `<PostCommentBrandIcon>`) don't use them
- * for the inbox entry brand icon. Instead use the main product brand icon:
+ * For products that have a comment brand icon (e.g. `<ClientBrandIcon iconType="TaskComment" />`,
+ * `<ClientBrandIcon iconType="DocumentComment" />`, and `<ClientBrandIcon iconType="PostComment" />`)
+ * don't use them for the inbox entry brand icon. Instead use the main product brand icon:
  *
- * - `<TaskCommentBrandIcon>` → `<TaskBrandIcon>`
- * - `<DocumentCommentBrandIcon>` → `<DocumentBrandIcon>`
- * - `<PostCommentBrandIcon>` → `<PostBrandIcon>`
+ * - `<ClientBrandIcon iconType="TaskComment" />` → `<ClientBrandIcon iconType="Task" />`
+ * - `<ClientBrandIcon iconType="DocumentComment" />` → `<ClientBrandIcon iconType="Document" />`
+ * - `<ClientBrandIcon iconType="PostComment" />` → `<ClientBrandIcon iconType="Post" />`
  * - etc.
  *
  * We use the comment brand icons in search.
@@ -353,7 +350,7 @@ function getInboxChatEntryDisplay({
 
     return {
         time: entry.latestMessage.createdTime,
-        brandIcon: <ChatBrandIcon />,
+        brandIcon: <ClientBrandIcon iconType="Chat" />,
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.latestMessage,
@@ -422,7 +419,7 @@ function getInboxPostCommentsEntryDisplay({
 
     return {
         time: entry.latestComment?.createdTime ?? entry.postCreatedTime,
-        brandIcon: <PostBrandIcon />,
+        brandIcon: <ClientBrandIcon iconType="Post" />,
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage:
@@ -471,7 +468,7 @@ function getInboxChannelPostsEntryDisplay({
 
     return {
         time: entry.latestPost.createdTime,
-        brandIcon: <PostBrandIcon />,
+        brandIcon: <ClientBrandIcon iconType="Post" />,
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.latestPost,
@@ -534,7 +531,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
             // Given the document icon has a vertical orientation vs horizontal
             // orientation.
             <Box position="relative" style={{right: "-0.0625rem"}}>
-                <DocumentBrandIcon />
+                <ClientBrandIcon iconType="Document" />
             </Box>
         ),
         firstAccount: firstAccount,
@@ -586,7 +583,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
             // Given the document icon has a vertical orientation vs horizontal
             // orientation.
             <Box position="relative" style={{right: "-0.0625rem"}}>
-                <DocumentBrandIcon />
+                <ClientBrandIcon iconType="Document" />
             </Box>
         ),
         firstAccount: firstAccount,
@@ -652,7 +649,7 @@ function getInboxTaskEntryDisplay({
 
     return {
         time: entry.latestComment.createdTime,
-        brandIcon: <TaskBrandIcon />,
+        brandIcon: <ClientBrandIcon iconType="Task" />,
         firstAccount,
         secondAccount,
         latestMessage: entry.latestComment,

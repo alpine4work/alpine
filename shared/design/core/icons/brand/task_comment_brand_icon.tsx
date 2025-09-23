@@ -1,37 +1,20 @@
-import {IconContext} from "phosphor-react";
-import {memo, useContext} from "react";
-import {
-    brandIconSplashColorOpacity,
-    brandIconSplashColorShade,
-} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
-import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {SVGAttributes} from "react";
 
-const TaskCommentBrandIconMemo = memo(TaskCommentBrandIcon);
-export {TaskCommentBrandIconMemo as TaskCommentBrandIcon};
-
-function TaskCommentBrandIcon({size}: {size?: Spacing}) {
-    const {size: contextSize, color: contextColor} = useContext(IconContext);
-
-    const color =
-        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
-
-    const splashColorClassName = sprinkles({
-        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
-        opacity: brandIconSplashColorOpacity,
-    });
-
-    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
-
+export function TaskCommentBrandIcon({
+    size,
+    color,
+    splashColorClassName,
+}: {
+    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
+    color?: SVGAttributes<SVGPathElement>["fill"];
+    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
+}) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 20 20"
-            style={{width: actualSize, height: actualSize}}
+            style={{width: size, height: size}}
         >
             <path
                 className={splashColorClassName}

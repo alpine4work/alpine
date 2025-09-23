@@ -6,13 +6,8 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
-import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
-import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
-import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
-import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
-import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
-import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
+import {ClientBrandBigIcon} from "~/client/icons/brand/client_brand_big_icon.js";
+import {ClientBrandIcon} from "~/client/icons/brand/client_brand_icon.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -81,7 +76,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             },
                             render: ({isPressed, shouldShowPendingSpinner}) => (
                                 <SpaceLayoutSideBarCreateButtonItem
-                                    icon={<DocumentBrandBigIcon />}
+                                    icon={<ClientBrandBigIcon iconType="Document" />}
                                     label="Document"
                                     description="Write what’s on your mind"
                                     isPressed={isPressed}
@@ -100,7 +95,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             },
                             render: ({isPressed, shouldShowPendingSpinner}) => (
                                 <SpaceLayoutSideBarCreateButtonItem
-                                    icon={<TaskBrandBigIcon />}
+                                    icon={<ClientBrandBigIcon iconType="Task" />}
                                     label="Task"
                                     description="Keep track of work to do later"
                                     isPressed={isPressed}
@@ -120,7 +115,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             },
                             render: ({isPressed, shouldShowPendingSpinner}) => (
                                 <SpaceLayoutSideBarCreateButtonItem
-                                    icon={<PostBrandBigIcon />}
+                                    icon={<ClientBrandBigIcon iconType="Post" />}
                                     label="Post"
                                     description="Share your ideas in a channel"
                                     isPressed={isPressed}
@@ -136,7 +131,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             },
                             render: ({isPressed, shouldShowPendingSpinner}) => (
                                 <SpaceLayoutSideBarCreateButtonItem
-                                    icon={<ChatBrandBigIcon />}
+                                    icon={<ClientBrandBigIcon iconType="Chat" />}
                                     label="Message"
                                     description="Start a chat with anyone"
                                     isPressed={isPressed}
@@ -153,7 +148,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             actions: [
                                 {
                                     label: "Task collection",
-                                    icon: <TaskCollectionBrandIcon />,
+                                    icon: <ClientBrandIcon iconType="TaskCollection" />,
                                     pressErrorTitle: "Couldn’t create task collection",
                                     onPress: async () => {
                                         const collectionId = generateId();
@@ -165,7 +160,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 },
                                 {
                                     label: "Task view",
-                                    icon: <TaskQueryBrandIcon />,
+                                    icon: <ClientBrandIcon iconType="TaskQuery" />,
                                     pressErrorTitle: "Couldn’t create task view",
                                     onPress: async () => {
                                         await peekStackContext.push(`/s/${space.id}/tasks/view`);
@@ -173,7 +168,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 },
                                 {
                                     label: "Channel",
-                                    icon: <ChannelBrandIcon />,
+                                    icon: <ClientBrandIcon iconType="Channel" />,
                                     pressErrorTitle: "Couldn’t create channel",
                                     onPress: async () => {
                                         await peekStackContext.push(
