@@ -34,8 +34,9 @@ genrule(
     #  - Within script, we call the drawBlob function to initialize it (so esbuild doesn't remove it)
     #  - We find the last instance of a function call and assume that's the end of our library calls
     #  - We set the drawBlob function to the last function call (which is our init function)
+    #  - We filter out sourceMappingURL so the browser doesn't request a non-existent map file
     cmd = """
-        $(location //:node) --eval "let bundle = fs.readFileSync('$<').toString(); console.log('export const blobScriptString = ' + JSON.stringify(bundle));" > $@
+        $(location //:node) --eval "let bundle = fs.readFileSync('$<').toString(); bundle = bundle.split('\\n').filter(line => !line.startsWith('//# sourceMappingURL=')).join('\\n'); console.log('export const blobScriptString = ' + JSON.stringify(bundle));" > $@
     """,
     tools = [
         "//:node",
