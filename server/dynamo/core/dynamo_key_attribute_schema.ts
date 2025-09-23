@@ -7,7 +7,9 @@ import {
     serializeScheduleDateTime,
     serializeScheduleDateTimeString,
 } from "~/server/notifications/core/schedule_date_time.js";
+import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -22,6 +24,7 @@ import {
     maxIsoLexicographicallySortableDate,
     minIsoLexicographicallySortableDate,
 } from "~/shared/helpers/date/max_date.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     ElenFloat,
@@ -42,11 +45,7 @@ import {
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
-import {
-    LabelStringSchema,
-    maxLabelString,
-    minLabelString,
-} from "~/shared/schema/helpers/label_string_schema.js";
+import {LabelStringSchema, minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`
@@ -181,6 +180,15 @@ export type DynamoKeyAttributeSchemaDescription =
 const orderKeyDigitIndexByChar = new Map<string, number>(
     orderKeyDigits.split("").map((char, index) => [char, index]),
 );
+
+/**
+ * The maximum label string is the largest Unicode code point
+ * [U+10FFFF noncharacter][1]. We don't allow strings to start with this code
+ * point.
+ *
+ * [1]: https://graphemica.com/10FFFF
+ */
+export const maxLabelStringForDynamoKeyAttribute = "\u{10FFFF}";
 
 /**
  * An attribute of a DynamoDB key.
@@ -546,37 +554,82 @@ export class DynamoKeyAttributeSchema<Value> {
      * A short, single-line, string that is validated with `LabelStringSchema`.
      */
     public static labelString<Value extends string>(): DynamoKeyAttributeSchema<Value> {
-        return DynamoKeyAttributeSchema._labelString as DynamoKeyAttributeSchema<any> as DynamoKeyAttributeSchema<Value>;
+        // Use a cache to optimize a `getByteCount()` that may be immediately followed by
+        // `serializeBytes()` for the same value.
+        const valueToBytesCache = new Map<string, Uint8Array>();
+
+        const schema = new DynamoKeyAttributeSchema<string>({
+            description: {type: "LabelString"},
+
+            minValue: minLabelString,
+            maxValue: maxLabelStringForDynamoKeyAttribute,
+
+            serialize: value => {
+                // Don't allow strings that start with the max label string. You could create
+                // a string that's larger than our max label string by starting with U+10FFFF
+                // and adding more characters. So we ban that possibility.
+                assert(
+                    !value.startsWith(maxLabelStringForDynamoKeyAttribute) ||
+                        value === maxLabelStringForDynamoKeyAttribute,
+                    "Can’t start a label string with U+10FFFF",
+                );
+
+                const serializedString = LabelStringSchema.serialize(value);
+                assert(typeof serializedString === "string");
+                return serializeStringDynamoKeyAttribute(serializedString);
+            },
+            deserialize: keyAttribute =>
+                LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+
+            binary: {
+                getByteCount: originalValue => {
+                    const value = LabelStringSchema.serialize(originalValue) as string;
+
+                    // Optimization: We often call `getByteCount()` then `serializeBytes()` right
+                    // after. Given we won't know the byte count of a string without fully
+                    // serializing it to UTF-8 we cache byte serialization here so we can reuse
+                    // it later.
+                    const valueBytes = getOrSetDefaultMapValue(valueToBytesCache, value, () => {
+                        scheduleMicrotask(() => valueToBytesCache.delete(value));
+                        return serializeLabelStringDynamoKeyAttributeToBinary(value);
+                    });
+
+                    return valueBytes.length;
+                },
+                serializeBytes: (originalValue, bytes, byteOffset) => {
+                    const value = LabelStringSchema.serialize(originalValue) as string;
+
+                    // Optimization: We often call `getByteCount()` then `serializeBytes()` right
+                    // after. Given we won't know the byte count of a string without fully
+                    // serializing it to UTF-8 we cache byte serialization here so we can reuse
+                    // it later.
+                    const valueBytes = getOrSetDefaultMapValue(valueToBytesCache, value, () => {
+                        scheduleMicrotask(() => valueToBytesCache.delete(value));
+                        return serializeLabelStringDynamoKeyAttributeToBinary(value);
+                    });
+
+                    bytes.set(valueBytes, byteOffset);
+                },
+                deserializeBytes: (bytes, byteOffset) => {
+                    const {value, valueBytes} = deserializeLabelStringDynamoKeyAttributeFromBinary(
+                        bytes,
+                        byteOffset,
+                    );
+
+                    // Optimization: We often call `deserializeBytes()` then `getByteCount()` right
+                    // after. Given we won't know the byte count of a string without fully
+                    // serializing it to UTF-8 we cache byte deserialization here so we can reuse
+                    // it later.
+                    valueToBytesCache.set(value, valueBytes);
+                    scheduleMicrotask(() => valueToBytesCache.delete(value));
+
+                    return LabelStringSchema.deserialize(value);
+                },
+            },
+        });
+
+        return schema as DynamoKeyAttributeSchema<any> as DynamoKeyAttributeSchema<Value>;
     }
-
-    private static _labelString = new DynamoKeyAttributeSchema<string>({
-        description: {type: "LabelString"},
-
-        minValue: minLabelString,
-        maxValue: maxLabelString,
-
-        serialize: value => {
-            const serializedString = LabelStringSchema.serialize(value);
-            assert(typeof serializedString === "string");
-            return serializeStringDynamoKeyAttribute(serializedString);
-        },
-        deserialize: keyAttribute =>
-            LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
-
-        // Order preserving binary string encodings are challenging to get right. We
-        // can't encode the length at the beginning of the string since longer strings
-        // may sort before shorter strings.
-        //
-        // A possible encoding could be "include the byte 0x01 before every code unit
-        // and terminate the string with 0x00" but that's not efficient.
-        //
-        // Ignoring the problem for now and throwing an unimplemented error...
-        //
-        // See this blog post on the FoundationDB order preserving encoding for a good
-        // encoding example:
-        // https://activesphere.com/blog/2018/08/17/order-preserving-serialization
-        binary: null,
-    });
 
     /**
      * An email address string.
@@ -589,9 +642,18 @@ export class DynamoKeyAttributeSchema<Value> {
         description: {type: "EmailAddress"},
 
         minValue: minLabelString as EmailAddress,
-        maxValue: maxLabelString as EmailAddress,
+        maxValue: maxLabelStringForDynamoKeyAttribute as EmailAddress,
 
         serialize: value => {
+            // Don't allow strings that start with the max label string. You could create
+            // a string that's larger than our max label string by starting with U+10FFFF
+            // and adding more characters. So we ban that possibility.
+            assert(
+                !value.startsWith(maxLabelStringForDynamoKeyAttribute) ||
+                    value === maxLabelStringForDynamoKeyAttribute,
+                "Can’t start a label string with U+10FFFF",
+            );
+
             const serializedString = DynamoEmailAddressSchema.serialize(value);
             assert(typeof serializedString === "string");
             return serializeStringDynamoKeyAttribute(serializedString);
@@ -994,17 +1056,17 @@ function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
     // restriction we believe we can relax in the future.
     assert(string.length > 0);
 
+    // Encode string to UTF-8 (not UTF-16!).
+    const stringBytes = new TextEncoder().encode(string);
+
     let serializedString = "";
 
-    for (let index = 0; index < string.length; index++) {
-        const char = string[index]!;
-        const charCode = string.charCodeAt(index);
-
+    for (const stringByte of stringBytes) {
         if (
-            charCode >= dynamoKeyAttributeMinCharCode + 1 &&
-            charCode <= dynamoKeyAttributeMaxCharCode - 1
+            stringByte >= dynamoKeyAttributeMinCharCode + 1 &&
+            stringByte <= dynamoKeyAttributeMaxCharCode - 1
         ) {
-            serializedString += char;
+            serializedString += String.fromCharCode(stringByte);
         } else {
             // Any characters outside our key attribute character range need to be escaped
             // using a Unicode escape sequence.
@@ -1013,10 +1075,10 @@ function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
             // character. We use the minimum character if the escaped character is before
             // our valid character range.
             serializedString += `${
-                charCode < dynamoKeyAttributeMinCharCode + 1
+                stringByte < dynamoKeyAttributeMinCharCode + 1
                     ? String.fromCharCode(dynamoKeyAttributeMinCharCode)
                     : String.fromCharCode(dynamoKeyAttributeMaxCharCode)
-            }u${charCode.toString(16).padStart(4, "0").toUpperCase()}`;
+            }u${stringByte.toString(16).padStart(2, "0").toUpperCase()}`;
         }
     }
 
@@ -1028,17 +1090,16 @@ function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
  * back into a regular string.
  */
 function deserializeStringDynamoKeyAttribute(string: DynamoKeyAttribute): string {
-    let deserializedString = "";
+    const stringBytes: Array<number> = [];
 
     for (let index = 0; index < string.length; index++) {
-        const char = string[index]!;
         const charCode = string.charCodeAt(index);
 
         if (
             charCode >= dynamoKeyAttributeMinCharCode + 1 &&
             charCode <= dynamoKeyAttributeMaxCharCode - 1
         ) {
-            deserializedString += char;
+            stringBytes.push(charCode);
         } else {
             assert(
                 charCode === dynamoKeyAttributeMinCharCode ||
@@ -1048,14 +1109,17 @@ function deserializeStringDynamoKeyAttribute(string: DynamoKeyAttribute): string
             index++;
             assert(string[index] === "u", "Expected unicode escape");
 
-            const escapedCharCodeString = string.slice(index + 1, index + 5);
-            assert(/^[0-9A-F]{4}$/.test(escapedCharCodeString), "Expected unicode escape");
+            const escapedCharCodeString = string.slice(index + 1, index + 3);
+            assert(/^[0-9A-F]{2}$/.test(escapedCharCodeString), "Expected unicode escape");
             const escapedCharCode = parseInt(escapedCharCodeString, 16);
-            index += 4;
+            index += 2;
 
-            deserializedString += String.fromCharCode(escapedCharCode);
+            stringBytes.push(escapedCharCode);
         }
     }
+
+    // Deserialize string from UTF-8 (not UTF-16!).
+    const deserializedString = new TextDecoder().decode(new Uint8Array(stringBytes));
 
     return deserializedString;
 }
@@ -1114,6 +1178,73 @@ export function deserializeReversedDynamoKeyAttribute(
     }
 
     return chars.join("") as DynamoKeyAttribute;
+}
+
+/**
+ * Serializes a label string into a null byte terminated variable length binary
+ * format where special code units like 0x00 are escaped with 0x0a
+ * (newline U+000A) because newlines aren't allowed in label strings.
+ */
+function serializeLabelStringDynamoKeyAttributeToBinary(string: string): Uint8Array {
+    // For now, we require DynamoDB key attributes to be non-empty. This is a
+    // restriction we believe we can relax in the future.
+    assert(string.length > 0);
+
+    // Encode string to UTF-8 (not UTF-16!).
+    const bytes = new TextEncoder().encode(string);
+    const newBytes: Array<number> = [];
+
+    for (const byte of bytes) {
+        // [U+000A newline][1] isn't allowed in label strings. We force label strings
+        // to be a single line. So we use U+000A as our string escape character.
+        //
+        // [1]: https://graphemica.com/000A
+        assert(byte !== 0x0a);
+
+        if (byte < 0x0a) {
+            newBytes.push(0x0a);
+            newBytes.push(byte);
+        } else {
+            newBytes.push(byte);
+        }
+    }
+
+    newBytes.push(0x00);
+
+    return new Uint8Array(newBytes);
+}
+
+/**
+ * Deserializes a label string
+ */
+function deserializeLabelStringDynamoKeyAttributeFromBinary(
+    bytes: Uint8Array,
+    byteOffset: number,
+): {value: string; valueBytes: Uint8Array} {
+    const newBytes: Array<number> = [];
+
+    for (let byteIndex = byteOffset; byteIndex < bytes.length; byteIndex++) {
+        const byte = bytes[byteIndex]!;
+
+        // Null terminator ends the string.
+        if (byte === 0x00) {
+            return {
+                value: new TextDecoder().decode(new Uint8Array(newBytes)),
+                valueBytes: bytes.subarray(byteOffset, byteIndex + 1),
+            };
+        }
+
+        // If escaped, use the next byte.
+        if (byte === 0x0a) {
+            byteIndex++;
+            const nextByte = bytes[byteIndex]!;
+            newBytes.push(nextByte);
+        } else {
+            newBytes.push(byte);
+        }
+    }
+
+    throw new InternalError("Expected null terminator byte");
 }
 
 function compareBytes(bytes1: Uint8Array, bytes2: Uint8Array): number {
