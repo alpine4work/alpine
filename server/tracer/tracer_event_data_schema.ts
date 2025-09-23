@@ -448,6 +448,7 @@ const TracerEventDataSchema = {
         jobType: Schema.string,
         jobReason: Schema.string,
         processorType: IdentifierStringSchema,
+        createdTime: DateStringSchema,
         alternative: {
             contentType: Schema.string,
             contentLength: Schema.integer,

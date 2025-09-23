@@ -39,6 +39,7 @@ import {
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -265,12 +266,28 @@ export async function resizeFile(
             isDefinitelyMissingAlphaChannel = !fileData.preview.size.hasAlpha;
         }
 
+        parentSpan.addData({
+            file: {createdTime: new Date(getChronologicalIdTime(fileId)).toISOString()},
+        });
+
         const object = await context.r2.GetObject({
             Bucket: filesBucketName,
             Key: `${spaceId}/${fileId}${variant !== null ? `-${variant}` : ""}`,
         });
 
         assert(object.Body instanceof ReadableStream);
+
+        if (contentType === "image/gif") {
+            // NOTE(ifitzsimmons, 2025-09-23, #dont-resize-gifs): We stopped resizing gifs because
+            // they take too long (often timing out at 30 seconds).
+            return new Response(
+                ReadableStream.toWeb(object.Body) as globalThis.ReadableStream<Uint8Array>,
+                {
+                    status: 200,
+                    headers: {"content-type": "image/gif"},
+                },
+            );
+        }
 
         const inputPath = joinPath(
             temporaryDirectoryPath,

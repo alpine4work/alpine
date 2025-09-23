@@ -1396,6 +1396,9 @@ export type TracerEventData = {
         /** The reason the job was sent to the job type. */
         readonly jobReason?: string;
 
+        /** The creation time of the file in epoch milliseconds. */
+        readonly createdTime?: string;
+
         readonly alternative?: {
             /** The content type of the file's alternative. */
             readonly contentType?: string;
