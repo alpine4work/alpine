@@ -169,7 +169,7 @@ export default function SpaceGeneralSettingsRoute() {
                 <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
                     <Box>
                         <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
-                            Logo (light mode)
+                            Logo
                         </Box>
                         <Box
                             paddingTop="1"
@@ -185,7 +185,7 @@ export default function SpaceGeneralSettingsRoute() {
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >
-                            Recommended size is 256x256px
+                            May render over colorful backgrounds.
                         </Box>
                     </Box>
                     <AvatarUploader
@@ -218,7 +218,7 @@ export default function SpaceGeneralSettingsRoute() {
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >
-                            Recommended size is 256x256px
+                            Optional: May render over colorful backgrounds.
                         </Box>
                     </Box>
                     <AvatarUploader
