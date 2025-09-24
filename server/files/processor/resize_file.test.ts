@@ -639,20 +639,17 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                         },
                     );
 
-                    expect(resizeResponse.status).toEqual(200);
                     // NOTE(ifitzsimmons, #dont-resize-gifs): We stopped resizing gifs because they
                     // take too long (often timing out at 30 seconds).
                     // If we get to a place where we want to resize gifs asynchronously while
                     // serving the original image/gif content, we can re-use the old tests gif
                     // tests here:
                     // https://github.com/cyberworlds/cyberworlds/blob/2a492ef16f10196366605fcaa90d8f8a392cce2e/server/files/processor/resize_file.test.ts#L595-L1301
-                    expect(resizeResponse.headers.get("content-type")).toEqual("image/gif");
-
-                    const inputBody = await inputBodyPromise;
-                    const resizeBody = await resizeResponse.arrayBuffer();
-
-                    //
-                    expect(resizeBody).toEqual(inputBody.buffer);
+                    expect(resizeResponse.status).toEqual(400);
+                    expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
+                    expect(await resizeResponse.text()).toMatch(
+                        /^400 Bad Request\n*FailedPreconditionError: Resizing `image\/gif` is not supported\n*/,
+                    );
                 }
             },
             // For some reason, this test can take a while compared to other tests in

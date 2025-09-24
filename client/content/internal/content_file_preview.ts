@@ -636,7 +636,11 @@ function renderContentFileImagePreviewInner(
         const isVectorImage =
             (filePreview.content?.contentType ?? file.contentType) === "image/svg+xml";
 
-        if (isVectorImage) {
+        // NOTE(ifitzsimmons, #dont-resize-gifs): We stopped resizing gifs because
+        // they take too long (often timing out at 30 seconds).
+        const isGif = (filePreview.content?.contentType ?? file.contentType) === "image/gif";
+
+        if (isVectorImage || isGif) {
             image1xSource = imageSourceBase;
             image2xSource = imageSourceBase;
             image3xSource = imageSourceBase;

@@ -254,6 +254,12 @@ export async function resizeFile(
             );
         }
 
+        if (contentType === "image/gif") {
+            // NOTE(ifitzsimmons, 2025-09-23, #dont-resize-gifs): We stopped resizing gifs because
+            // they take too long (often timing out at 30 seconds).
+            throw new FailedPreconditionError(quote`Resizing ${contentType} is not supported`);
+        }
+
         let isDefinitelyMissingAlphaChannel = false;
 
         if (contentType === "image/jpeg") {
@@ -276,18 +282,6 @@ export async function resizeFile(
         });
 
         assert(object.Body instanceof ReadableStream);
-
-        if (contentType === "image/gif") {
-            // NOTE(ifitzsimmons, 2025-09-23, #dont-resize-gifs): We stopped resizing gifs because
-            // they take too long (often timing out at 30 seconds).
-            return new Response(
-                ReadableStream.toWeb(object.Body) as globalThis.ReadableStream<Uint8Array>,
-                {
-                    status: 200,
-                    headers: {"content-type": "image/gif"},
-                },
-            );
-        }
 
         const inputPath = joinPath(
             temporaryDirectoryPath,
