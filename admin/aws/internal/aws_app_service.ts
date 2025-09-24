@@ -12,7 +12,7 @@ import {
     Secret as EcsSecret,
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
-import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import {ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
@@ -24,6 +24,7 @@ import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
+import {AwsApplicationLoadBalancerFromCloudflare} from "~/admin/aws/internal/constructs/aws_application_load_balancer_from_cloudflare.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 export class AwsAppService extends Construct {
@@ -328,11 +329,11 @@ export class AwsAppService extends Construct {
         // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
         // updated our DNS record, waited for all requests to move to `LoadBalancer2`
         // then deleted `LoadBalancer`.
-        const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer2", {
+        const loadBalancer = new AwsApplicationLoadBalancerFromCloudflare(this, "LoadBalancer2", {
             vpc,
             loadBalancerName: "cyberworlds-app",
             internetFacing: true,
-        });
+        }).applicationLoadBalancer;
 
         // Make sure the load balancer can make requests against our service.
         autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));

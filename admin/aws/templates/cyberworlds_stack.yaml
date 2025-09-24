@@ -2378,10 +2378,10 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000527063C8:
+    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2DefaultSecurityGroup60BE4C6040000175A9A5:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
+            Description: from CyberworldsStackAppServiceLoadBalancer2DefaultSecurityGroup60BE4C60:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -2390,12 +2390,12 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
+                    - AppServiceLoadBalancer2DefaultSecurityGroup770CF998
                     - GroupId
             ToPort: 4000
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
+                CyberworldsStackAppServiceLoadBalancer2DefaultSecurityGroup60BE4C60:4000
     AppServiceAutoScalingGroupInstanceRoleA46BECD2:
         Type: AWS::IAM::Role
         Properties:
@@ -3092,18 +3092,146 @@ Resources:
                 - ContainerName: Container
                   ContainerPort: 4000
                   TargetGroupArn:
-                      Ref: AppServiceLoadBalancer2ListenerTargetGroupGroup0937BA0F
+                      Ref: AppServiceLoadBalancer2AlbListenerTargetGroupGroup6A18173F
             SchedulingStrategy: REPLICA
             TaskDefinition:
                 Ref: AppServiceTaskDefinition576A8666
         DependsOn:
-            - AppServiceLoadBalancer2ListenerA283039F
-            - AppServiceLoadBalancer2ListenerTargetGroupGroup0937BA0F
+            - AppServiceLoadBalancer2AlbListenerA4254EBF
+            - AppServiceLoadBalancer2AlbListenerTargetGroupGroup6A18173F
             - AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
             - AppServiceTaskDefinitionTaskRole4C9D7E3B
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Service/Service
-    AppServiceLoadBalancer28D7B45BD:
+    AppServiceLoadBalancer2DefaultSecurityGroup770CF998:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Only allow from Cloudflare IPs
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            SecurityGroupIngress:
+                - CidrIp: 173.245.48.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.21.244.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.22.200.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.31.4.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 141.101.64.0/18
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 108.162.192.0/18
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 190.93.240.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 188.114.96.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 197.234.240.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 198.41.128.0/17
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 162.158.0.0/15
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 104.16.0.0/13
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 104.24.0.0/14
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 172.64.0.0/13
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 131.0.72.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2400:cb00::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2606:4700::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2803:f800::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2405:b500::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2405:8100::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2a06:98c0::/29
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2c0f:f248::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow from anyone on port 443
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/DefaultSecurityGroup/Resource
+    AppServiceLoadBalancer2AlbBB348FF5:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
             LoadBalancerAttributes:
@@ -3113,7 +3241,7 @@ Resources:
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
-                      - AppServiceLoadBalancer2SecurityGroupA5F365F8
+                      - AppServiceLoadBalancer2DefaultSecurityGroup770CF998
                       - GroupId
             Subnets:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
@@ -3125,41 +3253,8 @@ Resources:
             - VpcPublicSubnet2DefaultRoute97F91067
             - VpcPublicSubnet2RouteTableAssociationDD5762D8
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Resource
-    AppServiceLoadBalancer2SecurityGroupA5F365F8:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatically created Security Group for ELB
-                CyberworldsStackAppServiceLoadBalancer22D1A77A2
-            SecurityGroupIngress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/SecurityGroup/Resource
-    AppServiceLoadBalancer2SecurityGrouptoCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF84000936134F5:
-        Type: AWS::EC2::SecurityGroupEgress
-        Properties:
-            Description: to CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
-            DestinationSecurityGroupId:
-                Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
-                    - GroupId
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
-                    - GroupId
-            IpProtocol: tcp
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/SecurityGroup/to
-                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
-    AppServiceLoadBalancer2ListenerA283039F:
+            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Alb/Resource
+    AppServiceLoadBalancer2AlbListenerA4254EBF:
         Type: AWS::ElasticLoadBalancingV2::Listener
         Properties:
             Certificates:
@@ -3167,15 +3262,15 @@ Resources:
                       Ref: AppServiceCertificate7B1FA47C
             DefaultActions:
                 - TargetGroupArn:
-                      Ref: AppServiceLoadBalancer2ListenerTargetGroupGroup0937BA0F
+                      Ref: AppServiceLoadBalancer2AlbListenerTargetGroupGroup6A18173F
                   Type: forward
             LoadBalancerArn:
-                Ref: AppServiceLoadBalancer28D7B45BD
+                Ref: AppServiceLoadBalancer2AlbBB348FF5
             Port: 443
             Protocol: HTTPS
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Listener/Resource
-    AppServiceLoadBalancer2ListenerTargetGroupGroup0937BA0F:
+            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Alb/Listener/Resource
+    AppServiceLoadBalancer2AlbListenerTargetGroupGroup6A18173F:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             HealthCheckIntervalSeconds: 5
@@ -3198,7 +3293,7 @@ Resources:
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Listener/TargetGroupGroup/Resource
+            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Alb/Listener/TargetGroupGroup/Resource
     AppServiceCertificate7B1FA47C:
         Type: AWS::CertificateManager::Certificate
         Properties:
@@ -4427,7 +4522,135 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/InstanceSecurityGroup/Resource
-    FileProcessorServiceLoadBalancerE2970553:
+    FileProcessorServiceLoadBalancerDefaultSecurityGroup1E73E2F9:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Only allow from Cloudflare IPs
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            SecurityGroupIngress:
+                - CidrIp: 173.245.48.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.21.244.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.22.200.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.31.4.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 141.101.64.0/18
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 108.162.192.0/18
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 190.93.240.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 188.114.96.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 197.234.240.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 198.41.128.0/17
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 162.158.0.0/15
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 104.16.0.0/13
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 104.24.0.0/14
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 172.64.0.0/13
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 131.0.72.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2400:cb00::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2606:4700::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2803:f800::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2405:b500::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2405:8100::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2a06:98c0::/29
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2c0f:f248::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow from anyone on port 443
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/DefaultSecurityGroup/Resource
+    FileProcessorServiceLoadBalancerAlb736015CB:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
             LoadBalancerAttributes:
@@ -4437,7 +4660,7 @@ Resources:
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
-                      - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                      - FileProcessorServiceLoadBalancerDefaultSecurityGroup1E73E2F9
                       - GroupId
             Subnets:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
@@ -4449,42 +4672,8 @@ Resources:
             - VpcPublicSubnet2DefaultRoute97F91067
             - VpcPublicSubnet2RouteTableAssociationDD5762D8
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Resource
-    FileProcessorServiceLoadBalancerSecurityGroup2345292F:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatically created Security Group for ELB
-                CyberworldsStackFileProcessorServiceLoadBalancer9FAA8720
-            SecurityGroupIngress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/Resource
-    FileProcessorServiceLoadBalancerSecurityGrouptoCyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791400000737CAB:
-        Type: AWS::EC2::SecurityGroupEgress
-        Properties:
-            Description: to
-                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
-            DestinationSecurityGroupId:
-                Fn::GetAtt:
-                    - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
-                    - GroupId
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
-                    - GroupId
-            IpProtocol: tcp
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/to
-                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
-    FileProcessorServiceLoadBalancerListenerB76CB696:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Alb/Resource
+    FileProcessorServiceLoadBalancerAlbListenerE758BBB3:
         Type: AWS::ElasticLoadBalancingV2::Listener
         Properties:
             Certificates:
@@ -4495,12 +4684,12 @@ Resources:
                       Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
                   Type: forward
             LoadBalancerArn:
-                Ref: FileProcessorServiceLoadBalancerE2970553
+                Ref: FileProcessorServiceLoadBalancerAlb736015CB
             Port: 443
             Protocol: HTTPS
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/Resource
-    FileProcessorServiceLoadBalancerListenerWeightedResizeFileRoutingRule3F413AD9:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Alb/Listener/Resource
+    FileProcessorServiceLoadBalancerAlbListenerWeightedResizeFileRoutingRule734134D3:
         Type: AWS::ElasticLoadBalancingV2::ListenerRule
         Properties:
             Actions:
@@ -4521,11 +4710,11 @@ Resources:
                       Values:
                           - /*/resize/*
             ListenerArn:
-                Ref: FileProcessorServiceLoadBalancerListenerB76CB696
+                Ref: FileProcessorServiceLoadBalancerAlbListenerE758BBB3
             Priority: 100
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/WeightedResizeFileRoutingRule/Resource
-    FileProcessorServiceLoadBalancerListenerResizeAvatarRoutingRule3C33934C:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Alb/Listener/WeightedResizeFileRoutingRule/Resource
+    FileProcessorServiceLoadBalancerAlbListenerResizeAvatarRoutingRule81BB6F9C:
         Type: AWS::ElasticLoadBalancingV2::ListenerRule
         Properties:
             Actions:
@@ -4542,10 +4731,10 @@ Resources:
                       Values:
                           - POST
             ListenerArn:
-                Ref: FileProcessorServiceLoadBalancerListenerB76CB696
+                Ref: FileProcessorServiceLoadBalancerAlbListenerE758BBB3
             Priority: 101
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/ResizeAvatarRoutingRule/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Alb/Listener/ResizeAvatarRoutingRule/Resource
     FileProcessorServiceResizeFileLambdaExecutionRoleF8DE5EEB:
         Type: AWS::IAM::Role
         Properties:
@@ -5350,10 +5539,10 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    FileProcessorServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B40007F4B684B:
+    FileProcessorServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileProcessorServiceLoadBalancerDefaultSecurityGroup693DC0044000D31F7CB9:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
+            Description: from CyberworldsStackFileProcessorServiceLoadBalancerDefaultSecurityGroup693DC004:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -5362,13 +5551,13 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                    - FileProcessorServiceLoadBalancerDefaultSecurityGroup1E73E2F9
                     - GroupId
             ToPort: 4000
         Metadata:
             aws:cdk:path:
                 CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
+                CyberworldsStackFileProcessorServiceLoadBalancerDefaultSecurityGroup693DC004:4000
     FileProcessorServiceAutoScalingGroupInstanceRoleFECBC5DF:
         Type: AWS::IAM::Role
         Properties:
@@ -5810,9 +5999,9 @@ Resources:
             TaskDefinition:
                 Ref: FileProcessorServiceTaskDefinitionB92D7613
         DependsOn:
-            - FileProcessorServiceLoadBalancerListenerResizeAvatarRoutingRule3C33934C
-            - FileProcessorServiceLoadBalancerListenerB76CB696
-            - FileProcessorServiceLoadBalancerListenerWeightedResizeFileRoutingRule3F413AD9
+            - FileProcessorServiceLoadBalancerAlbListenerResizeAvatarRoutingRule81BB6F9C
+            - FileProcessorServiceLoadBalancerAlbListenerE758BBB3
+            - FileProcessorServiceLoadBalancerAlbListenerWeightedResizeFileRoutingRule734134D3
             - FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920
             - FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
         Metadata:

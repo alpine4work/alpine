@@ -36,6 +36,7 @@ import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
+import {AwsApplicationLoadBalancerFromCloudflare} from "~/admin/aws/internal/constructs/aws_application_load_balancer_from_cloudflare.js";
 import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js";
 import {AwsSqsLambdaSubscriber} from "~/admin/aws/internal/constructs/aws_sqs_lambda.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -117,11 +118,15 @@ export class AwsFileProcessorService extends Construct {
             "FileProcessorServiceSecrets",
         );
 
-        this.fileProcessorServiceLoadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
-            vpc,
-            loadBalancerName: "cyberworlds-files",
-            internetFacing: true,
-        });
+        this.fileProcessorServiceLoadBalancer = new AwsApplicationLoadBalancerFromCloudflare(
+            this,
+            "LoadBalancer",
+            {
+                vpc,
+                loadBalancerName: "cyberworlds-files",
+                internetFacing: true,
+            },
+        ).applicationLoadBalancer;
 
         // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration):
         // To maintain naming consistency of the File Processor Service, we created
