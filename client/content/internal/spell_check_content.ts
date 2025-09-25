@@ -1,7 +1,7 @@
-import {LocalLinter, WorkerLinter, binary} from "harper.js";
 import {Node} from "prosemirror-model";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
+import {spellCheckLint} from "~/client/content/internal/spell_check_lint.js";
 import {renderContentMentionToTextForClient} from "~/client/content/render_content_mention_to_text_for_client.js";
 import {
     ContentSpellCheckLint,
@@ -209,24 +209,10 @@ type ContentSpellCheckActualLint = {
     readonly suggestions: Array<{text: string; kind: ContentSpellCheckSuggestionKind}>;
 };
 
-// TODO(#spell-check): Is this performant or stateful? Should we initialize one per
-// `<ContentEditor>`?
-// https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/e2wpcvsffaycp91hne7gdpdqkr
-const linter =
-    typeof window !== "undefined"
-        ? process.env.NODE_ENV === "test"
-            ? new LocalLinter({binary})
-            : new WorkerLinter({binary})
-        : null;
-
 export async function actuallySpellCheckContent(
     text: string,
 ): Promise<Array<ContentSpellCheckActualLint>> {
-    if (linter === null) {
-        return [];
-    }
-
-    const lints = await linter.lint(text);
+    const lints = await spellCheckLint(text);
     const result: Array<ContentSpellCheckActualLint> = [];
     const suggestionMap: Array<ContentSpellCheckSuggestionKind> = [
         "replace",
