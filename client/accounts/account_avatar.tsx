@@ -14,7 +14,7 @@ import {
 } from "~/client/accounts/internal/get_avatar_data.js";
 import {AvatarImage} from "~/client/avatar/avatar_image.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {backgroundColorVar, colorSchemeVars} from "~/client/styles/styles.js";
+import {backgroundColorVar, borderRadius, colorSchemeVars} from "~/client/styles/styles.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
@@ -57,6 +57,7 @@ export function AccountAvatar({
             style={{
                 width: spacing[size],
                 height: spacing[size],
+                borderRadius: borderRadius["full"],
                 backgroundColor:
                     avatarData.type === "Initials" ? avatarData.backgroundColor : undefined,
                 boxShadow:
@@ -71,6 +72,7 @@ export function AccountAvatar({
                     style={{
                         position: "absolute",
                         overflow: "hidden",
+                        borderRadius: borderRadius["full"],
                         width: avatarPx,
                         height: avatarPx,
                         backgroundColor: colorSchemeVars["grey-0"],

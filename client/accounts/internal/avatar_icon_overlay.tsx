@@ -32,25 +32,16 @@ export function AvatarIconOverlay({
 
     return (
         <>
-            <span
+            <Icon
+                color={backgroundColorVar}
                 style={{
-                    position: "absolute",
+                    ...iconStyleBase,
                     overflow: "hidden",
-                    width: avatarPixelSize,
-                    height: avatarPixelSize,
                 }}
-            >
-                <Icon
-                    color={backgroundColorVar}
-                    style={{
-                        ...iconStyleBase,
-                        overflow: "hidden",
-                    }}
-                    // The stroke width gets scaled according to the ghost icons size, so
-                    // this hardcoded value looks good at all (tested) scales.
-                    strokeWidth={148}
-                />
-            </span>
+                // The stroke width gets scaled according to the ghost icons size, so
+                // this hardcoded value looks good at all (tested) scales.
+                strokeWidth={148}
+            />
             <Icon
                 color={colorSchemeVars["grey-60"]}
                 style={{

@@ -68,6 +68,7 @@ export function renderAccountAvatar({
     const outerStyle = {
         width: spacing[size],
         height: spacing[size],
+        borderRadius: borderRadiusValues["full"],
         "background-color": avatarData.type === "Initials" ? avatarData.backgroundColor : undefined,
         "box-shadow":
             backgroundBorderWidth !== undefined
@@ -97,6 +98,7 @@ export function renderAccountAvatar({
             "overflow: hidden",
             `width: ${avatarPx}px`,
             `height: ${avatarPx}px`,
+            `border-radius: ${borderRadiusValues["full"]}`,
             `background-color: ${colorSchemeVars["grey-0"]}`,
             "opacity: 0.6",
             "pointer-events: none",
@@ -105,11 +107,11 @@ export function renderAccountAvatar({
     }
 
     if (avatarData.iconOverlayType) {
-        const {iconCutoutSpan, iconOverlay} = renderAvatarIconOverlay({
+        const {iconCutout, iconOverlay} = renderAvatarIconOverlay({
             avatarPixelSize: avatarPx,
             iconType: avatarData.iconOverlayType,
         });
-        outerHtml.appendChildren(iconCutoutSpan, iconOverlay);
+        outerHtml.appendChildren(iconCutout, iconOverlay);
     }
 
     return outerHtml;

@@ -13,18 +13,9 @@ export function renderAvatarIconOverlay({
     avatarPixelSize: number;
     iconType: "ghost" | "bot";
 }): {
-    iconCutoutSpan: HtmlElementGenerator;
+    iconCutout: HtmlElementGenerator;
     iconOverlay: HtmlElementGenerator;
 } {
-    const iconCutoutSpanStyleString = [
-        "position: absolute",
-        "overflow: hidden",
-        `width: ${avatarPixelSize}px`,
-        `height: ${avatarPixelSize}px`,
-    ].join(";");
-    const iconCutoutSpan = new HtmlElementGenerator("span");
-    iconCutoutSpan.setAttribute("style", iconCutoutSpanStyleString);
-
     const iconSize = avatarPixelSize / 1.618033988749; // golden ratio
     const iconStyleBase = [
         "position: absolute",
@@ -39,18 +30,14 @@ export function renderAvatarIconOverlay({
 
     const iconSvgGenerator = iconType === "bot" ? botIconSvg : ghostIconSvg;
 
-    iconCutoutSpan.appendChild(
-        createSvgHtmlGenerator(
+    return {
+        iconCutout: createSvgHtmlGenerator(
             iconSvgGenerator({
                 color: backgroundColorVar,
                 strokeWidth: 148,
                 style: [...iconStyleBase, "overflow: hidden"].join(";"),
             }),
-        ),
-    );
-
-    return {
-        iconCutoutSpan,
+        ) as HtmlElementGenerator,
         iconOverlay: createSvgHtmlGenerator(
             iconSvgGenerator({
                 color: colorSchemeVars["grey-60"],
