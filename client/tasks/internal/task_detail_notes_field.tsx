@@ -164,6 +164,7 @@ function TaskDetailNotesField(
                                 });
                             }}
                             onEnsureFileAttachmentTarget={ensureCreateTask}
+                            spellCheckEntityId={`Task:${taskId}`}
                         />
                     </Box>
                 )}

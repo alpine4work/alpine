@@ -1839,6 +1839,7 @@ export function DocumentContentEditor({
                                 }}
                                 onSelectionLeave={onClearOurPresenceState}
                                 onSelectionEnter={onUnclearOurPresenceState}
+                                spellCheckEntityId={`Document:${documentId}`}
                             />
                         </GlobalKeyDownEvent>
                         {

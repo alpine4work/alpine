@@ -227,8 +227,10 @@ import {
 } from "~/shared/rpc/files_rpc_definitions.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {SpellCheckEntityId} from "~/shared/spell_check/spell_check_entity_id.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -651,6 +653,12 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * note that's rendered on a separate line.
      */
     withContentUpdatedTimePlaceholder?: boolean;
+
+    /**
+     * This is a required ID on any content editor that can have spell
+     * checks ignored. If that is not needed, do not provide this prop.
+     */
+    spellCheckEntityId?: SpellCheckEntityId;
 } & (
     | {
           /**
@@ -877,6 +885,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         commentFileAttachmentTarget,
         isBodyEmpty: isBodyEmptyFromProps,
         withContentUpdatedTimePlaceholder = false,
+        spellCheckEntityId,
     } = props;
 
     const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
@@ -4694,6 +4703,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                         }
                     };
 
+                    const selectedLintText = state.doc.textBetween(
+                        selectedLint.from,
+                        selectedLint.to,
+                    );
+
                     const heading =
                         selectedLint.suggestions.length === 0
                             ? "No Suggestions"
@@ -4711,11 +4725,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                             })),
                         });
                     } else {
-                        const selectedLintText = state.doc.textBetween(
-                            selectedLint.from,
-                            selectedLint.to,
-                        );
-
                         lintMenuActions.push({
                             heading,
                             actions: selectedLint.suggestions.map(suggestion => ({
@@ -4723,6 +4732,22 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 onPress: createLintActionOnPress(suggestion),
                             })),
                         });
+                    }
+
+                    if (spellCheckEntityId) {
+                        lintMenuActions.push([
+                            {
+                                label: "Ignore this issue",
+                                onPress: async () => {
+                                    await createSpellCheckIgnoredLint(assertExists(context), {
+                                        spellCheckEntityId,
+                                        key: selectedLintText,
+                                        kind: selectedLint.category,
+                                    });
+                                },
+                                pressErrorTitle: "Couldn’t ignore issue",
+                            },
+                        ]);
                     }
 
                     return {
@@ -4768,7 +4793,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ],
             };
         },
-        [canRedo, canUndo, clientInfo.isAppleDevice, hasEditAccessLevel, schema],
+        [
+            canRedo,
+            canUndo,
+            clientInfo.isAppleDevice,
+            hasEditAccessLevel,
+            schema,
+            context,
+            spellCheckEntityId,
+        ],
     );
 
     // Manually add context menu actions on `contextmenu` event since we can't

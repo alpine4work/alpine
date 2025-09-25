@@ -1424,6 +1424,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/SpacesTable/Resource
+    SpellCheckTable1F4FC39B:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: SpellCheck
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/SpellCheckTable/Resource
     TaskActionsTableFC756837:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1858,6 +1883,9 @@ Resources:
                                 - SpacesTable8A997355
                                 - Arn
                           - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
                                 - TaskActionsTableFC756837
                                 - Arn
                           - Fn::GetAtt:
@@ -1945,6 +1973,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2600,6 +2634,9 @@ Resources:
                                 - SpacesTable8A997355
                                 - Arn
                           - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
                                 - TaskActionsTableFC756837
                                 - Arn
                           - Fn::GetAtt:
@@ -2687,6 +2724,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3537,6 +3580,9 @@ Resources:
                                 - SpacesTable8A997355
                                 - Arn
                           - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
                                 - TaskActionsTableFC756837
                                 - Arn
                           - Fn::GetAtt:
@@ -3624,6 +3670,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -4189,6 +4241,9 @@ Resources:
                                 - SpacesTable8A997355
                                 - Arn
                           - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
                                 - TaskActionsTableFC756837
                                 - Arn
                           - Fn::GetAtt:
@@ -4276,6 +4331,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
                                         - Arn
                                   - /index/*
                           - Fn::Join:

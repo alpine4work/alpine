@@ -46,6 +46,10 @@ const LoaderSchema = Schema.object({
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     }).nullable(),
     isFavorite: Schema.boolean,
+    // TODO(#ignored-lints)
+    // spellCheckIgnoredLints: Schema.array(
+    //     createDynamoGeneralRealtimeItemSchema(SpellCheckIgnoredLintModel.schema()),
+    // ),
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
@@ -71,6 +75,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
             spaceId,
             entityId: `Document:${documentId}`,
         }),
+        // TODO(#ignored-lints)
+        // getSpellCheckIgnoredLints(context, `Document:${documentId}`),
     ]);
 
     // Must have the `create` search param to load a document that doesn't exist.
@@ -136,6 +142,7 @@ export default function DocumentRoute() {
         document: initialDocument,
         commentThreadResult: initialCommentThreadResult,
         isFavorite: initialIsFavorite,
+        // TODO(#ignored-lints)
     } = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();

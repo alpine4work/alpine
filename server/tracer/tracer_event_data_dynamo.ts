@@ -28,6 +28,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
     "Inbox",
     "SearchEntities",
     "Spaces",
+    "SpellCheck",
     "TaskActions",
     "Tasks",
     "Accounts_Index1",
@@ -75,6 +76,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["Inbox", ["Account", "Inbox", "Realtime", "Graveyard"]],
     ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections", "IndexSearchEntityEmbeddingChunksJob"]],
     ["Spaces", ["Space", "Account", "Bot"]],
+    ["SpellCheck", ["IgnoredLint", "Realtime", "Graveyard"]],
     ["TaskActions", ["TaskActions"]],
     ["Tasks", ["Account", "TaskCollection", "Task", "TaskGridViewExpansionState"]],
 ]);

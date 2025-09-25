@@ -25,6 +25,7 @@ ts_project(
         "//shared/schema",
         "//shared/search",
         "//shared/spaces",
+        "//shared/spell_check",
         "//shared/tasks",
         "//shared/tracer",
     ],
