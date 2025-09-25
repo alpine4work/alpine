@@ -185,7 +185,7 @@ export default function SpaceGeneralSettingsRoute() {
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >
-                            May render over colorful backgrounds.
+                            May render over colorful backgrounds
                         </Box>
                     </Box>
                     <AvatarUploader
@@ -201,8 +201,13 @@ export default function SpaceGeneralSettingsRoute() {
                 </Box>
                 <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
                     <Box>
-                        <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
-                            Logo (dark mode)
+                        <Box userSelect="text">
+                            <Box display="inline" fontSize="100" fontStyle="semi-bold">
+                                Logo{" "}
+                            </Box>
+                            <Box display="inline" fontSize="50" fontStyle="normal" color="grey-50">
+                                (dark mode)
+                            </Box>
                         </Box>
                         <Box
                             paddingTop="1"
@@ -218,7 +223,7 @@ export default function SpaceGeneralSettingsRoute() {
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >
-                            Optional: May render over colorful backgrounds.
+                            Optional. May render over colorful backgrounds
                         </Box>
                     </Box>
                     <AvatarUploader
