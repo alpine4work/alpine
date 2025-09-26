@@ -712,11 +712,11 @@ export function InboxEntryView({
                                         bottom="0"
                                         right="0"
                                         borderRadius="full"
-                                        style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
                                     >
                                         <AccountAvatar
                                             account={entryDisplay.secondAccount}
                                             size="7"
+                                            backgroundBorderWidth={2}
                                         />
                                     </Box>
                                 </>

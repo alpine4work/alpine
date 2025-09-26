@@ -543,6 +543,11 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
 
     try {
         await createChatGptAgentResponse(tracer, request, messageState);
+    } catch (error) {
+        content.pushText(
+            "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at [support@alpine.inc](mailto:support@alpine.inc)",
+        );
+        throw error;
     } finally {
         // @ts-expect-error: TypeScript is dumb and doesn't realize
         // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
