@@ -434,7 +434,7 @@ export class AwsFileProcessorService extends Construct {
 
         const fileProcessorServiceTargetGroup = new ApplicationTargetGroup(
             this,
-            "LegacyTargetGroup",
+            "LegacyFilesTargetGroup",
             {
                 targetGroupName: "legacy-files-target-group-2",
                 port: port,
@@ -497,8 +497,9 @@ function getResizeFileLambda(
         disallowQuery: true,
     });
 
-    const resizeFileTargetGroup = new ApplicationTargetGroup(scope, "ResizeFileLambdaTargetGroup", {
+    const resizeFileTargetGroup = new ApplicationTargetGroup(scope, "ResizeFileTargetGroup", {
         targetType: TargetType.LAMBDA,
+        targetGroupName: "resize-file-target-group",
         targets: [new LambdaTarget(resizeFileLambda.lambdaFunctionAlias)],
         vpc,
     });
@@ -542,15 +543,12 @@ function getResizeAvatarLambda(
     // Needs access in order to fetch the session
     dynamo.grantReadDataForTable(resizeAvatarLambda.executionRole, "Accounts");
 
-    const resizeAvatarTargetGroup = new ApplicationTargetGroup(
-        scope,
-        "ResizeAvatarLambdaTargetGroup",
-        {
-            targetType: TargetType.LAMBDA,
-            targets: [new LambdaTarget(resizeAvatarLambda.lambdaFunctionAlias)],
-            vpc,
-        },
-    );
+    const resizeAvatarTargetGroup = new ApplicationTargetGroup(scope, "ResizeAvatarTargetGroup", {
+        targetGroupName: "resize-avatar-target-group",
+        targetType: TargetType.LAMBDA,
+        targets: [new LambdaTarget(resizeAvatarLambda.lambdaFunctionAlias)],
+        vpc,
+    });
 
     return {
         resizeAvatarLambda: resizeAvatarLambda.lambdaFunctionAlias,
