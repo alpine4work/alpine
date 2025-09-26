@@ -4742,7 +4742,7 @@ Resources:
                       Ref: FileProcessorServiceCertificate599FAD03
             DefaultActions:
                 - TargetGroupArn:
-                      Ref: FileProcessorServiceLegacyFilesTargetGroup2630DDB3
+                      Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
                   Type: forward
             LoadBalancerArn:
                 Ref: FileProcessorServiceLoadBalancerAlb736015CB
@@ -4757,11 +4757,11 @@ Resources:
                 - ForwardConfig:
                       TargetGroups:
                           - TargetGroupArn:
-                                Ref: FileProcessorServiceLegacyFilesTargetGroup2630DDB3
+                                Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
                             Weight:
                                 Ref: FileProcessorServiceLegacyFileProcessorServiceWeightFE41AE99
                           - TargetGroupArn:
-                                Ref: FileProcessorServiceResizeFileTargetGroup253FC149
+                                Ref: FileProcessorServiceResizeFileLambdaTargetGroup732CA815
                             Weight:
                                 Ref: FileProcessorServiceResizeFileServiceLambdaWeight8C995723
                   Type: forward
@@ -4780,7 +4780,7 @@ Resources:
         Properties:
             Actions:
                 - TargetGroupArn:
-                      Ref: FileProcessorServiceResizeAvatarTargetGroupD619B043
+                      Ref: FileProcessorServiceResizeAvatarLambdaTargetGroupA92E0C14
                   Type: forward
             Conditions:
                 - Field: path-pattern
@@ -4973,10 +4973,9 @@ Resources:
             Principal: elasticloadbalancing.amazonaws.com
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambda/Function/Aliaslatest/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
-    FileProcessorServiceResizeFileTargetGroup253FC149:
+    FileProcessorServiceResizeFileLambdaTargetGroup732CA815:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
-            Name: resize-file-target-group
             TargetType: lambda
             Targets:
                 - Id:
@@ -4984,7 +4983,7 @@ Resources:
         DependsOn:
             - FileProcessorServiceResizeFileLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY1BF387DE
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileTargetGroup/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeFileLambdaTargetGroup/Resource
     FileProcessorServiceResizeAvatarLambdaExecutionRole91E02961:
         Type: AWS::IAM::Role
         Properties:
@@ -5163,10 +5162,9 @@ Resources:
             Principal: elasticloadbalancing.amazonaws.com
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Aliaslatest/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y=
-    FileProcessorServiceResizeAvatarTargetGroupD619B043:
+    FileProcessorServiceResizeAvatarLambdaTargetGroupA92E0C14:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
-            Name: resize-avatar-target-group
             TargetType: lambda
             Targets:
                 - Id:
@@ -5174,7 +5172,7 @@ Resources:
         DependsOn:
             - FileProcessorServiceResizeAvatarLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY610C724B
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarTargetGroup/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambdaTargetGroup/Resource
     FileProcessorServiceFileProcessorLightExecutionRole0A556452:
         Type: AWS::IAM::Role
         Properties:
@@ -6057,7 +6055,7 @@ Resources:
                 - ContainerName: Container
                   ContainerPort: 4000
                   TargetGroupArn:
-                      Ref: FileProcessorServiceLegacyFilesTargetGroup2630DDB3
+                      Ref: FileProcessorServiceLegacyTargetGroup0A95BD63
             SchedulingStrategy: REPLICA
             TaskDefinition:
                 Ref: FileProcessorServiceTaskDefinitionB92D7613
@@ -6069,7 +6067,7 @@ Resources:
             - FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/Service/Service
-    FileProcessorServiceLegacyFilesTargetGroup2630DDB3:
+    FileProcessorServiceLegacyTargetGroup0A95BD63:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
             HealthCheckIntervalSeconds: 5
@@ -6088,7 +6086,7 @@ Resources:
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LegacyFilesTargetGroup/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LegacyTargetGroup/Resource
     FileProcessorServiceCertificate599FAD03:
         Type: AWS::CertificateManager::Certificate
         Properties:
