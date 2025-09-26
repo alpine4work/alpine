@@ -123,7 +123,7 @@ export class AwsFileProcessorService extends Construct {
             "LoadBalancer",
             {
                 vpc,
-                loadBalancerName: "cyberworlds-files",
+                loadBalancerName: "cyberworlds-files-2",
                 internetFacing: true,
             },
         ).applicationLoadBalancer;
@@ -436,7 +436,7 @@ export class AwsFileProcessorService extends Construct {
             this,
             "LegacyTargetGroup",
             {
-                targetGroupName: "legacy-files-target-group",
+                targetGroupName: "legacy-files-target-group-2",
                 port: port,
                 protocol: ApplicationProtocol.HTTP,
                 targets: [service],

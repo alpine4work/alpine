@@ -3280,7 +3280,7 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
-            Name: cyberworlds-app
+            Name: cyberworlds-app-2
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
@@ -3320,7 +3320,7 @@ Resources:
             HealthCheckPath: /api/internal/healthcheck
             HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
-            Name: cyberworlds-app-target-group
+            Name: cyberworlds-app-target-group-2
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:
@@ -4717,7 +4717,7 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
-            Name: cyberworlds-files
+            Name: cyberworlds-files-2
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
@@ -6074,7 +6074,7 @@ Resources:
             HealthCheckPath: /healthcheck
             HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
-            Name: legacy-files-target-group
+            Name: legacy-files-target-group-2
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:

@@ -331,7 +331,7 @@ export class AwsAppService extends Construct {
         // then deleted `LoadBalancer`.
         const loadBalancer = new AwsApplicationLoadBalancerFromCloudflare(this, "LoadBalancer2", {
             vpc,
-            loadBalancerName: "cyberworlds-app",
+            loadBalancerName: "cyberworlds-app-2",
             internetFacing: true,
         }).applicationLoadBalancer;
 
@@ -350,7 +350,7 @@ export class AwsAppService extends Construct {
         });
 
         listener.addTargets("TargetGroup", {
-            targetGroupName: "cyberworlds-app-target-group",
+            targetGroupName: "cyberworlds-app-target-group-2",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],
