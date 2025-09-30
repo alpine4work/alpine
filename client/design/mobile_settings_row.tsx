@@ -117,7 +117,7 @@ export function MobileSettingsRow({
                         value={{
                             size: spacing["4"],
                             // We need `<IconContext.Provider>` to set the actual color since brand icons
-                            // (e.g. `<ClientBrandIcon>`) need the actual color in context.
+                            // (e.g. `<ChannelBrandIcon>`) need the actual color in context.
                             color: isPressed
                                 ? colorSchemeVars["grey-100"]
                                 : colorSchemeVars["grey-80"],

@@ -1,15 +1,28 @@
-import {SVGAttributes} from "react";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {IconContext} from "phosphor-react";
+import {memo, useContext} from "react";
+import {
+    brandIconSplashColorOpacity,
+    brandIconSplashColorShade,
+} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export function TaskBrandBigIcon({
-    size = spacing["12"],
-    color,
-    splashColorClassName,
-}: {
-    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
-    color?: SVGAttributes<SVGPathElement>["fill"];
-    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
-}) {
+const TaskBrandBigIconMemo = memo(TaskBrandBigIcon);
+export {TaskBrandBigIconMemo as TaskBrandBigIcon};
+
+function TaskBrandBigIcon({size = "12"}: {size?: Spacing}) {
+    const {color: contextColor} = useContext(IconContext);
+
+    const color =
+        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+            ? contextColor
+            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+
+    const splashColorClassName = sprinkles({
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
+    });
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -17,10 +30,11 @@ export function TaskBrandBigIcon({
             viewBox="0 0 48 48"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: size, height: size}}
+            style={{width: spacing[size], height: spacing[size]}}
         >
             <path
                 className={splashColorClassName}
+                opacity={brandIconSplashColorOpacity}
                 d="M15 13.25h28v29a4 4 0 0 1-4 4H19a4 4 0 0 1-4-4v-29Z"
             />
             <path

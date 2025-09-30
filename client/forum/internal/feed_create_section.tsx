@@ -7,7 +7,10 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {ClientBrandBigIcon} from "~/client/icons/brand/client_brand_big_icon.js";
+import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
+import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
+import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
+import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
 import {peekMaxHeight} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -145,12 +148,7 @@ export function FeedCreateSection({
                     }}
                 >
                     <FeedCreateSectionButton
-                        icon={
-                            <ClientBrandBigIcon
-                                iconType="Document"
-                                size={feedCreateSectionButtonSize}
-                            />
-                        }
+                        icon={<DocumentBrandBigIcon size={feedCreateSectionButtonSize} />}
                         label="Document"
                         description="Write stuff"
                         onPress={event => {
@@ -168,12 +166,7 @@ export function FeedCreateSection({
                     />
                     <FeedCreateSectionDivider />
                     <FeedCreateSectionButton
-                        icon={
-                            <ClientBrandBigIcon
-                                iconType="Task"
-                                size={feedCreateSectionButtonSize}
-                            />
-                        }
+                        icon={<TaskBrandBigIcon size={feedCreateSectionButtonSize} />}
                         label="Task"
                         description="Track work"
                         onPress={() => {
@@ -184,12 +177,7 @@ export function FeedCreateSection({
                     />
                     <FeedCreateSectionDivider />
                     <FeedCreateSectionButton
-                        icon={
-                            <ClientBrandBigIcon
-                                iconType="Post"
-                                size={feedCreateSectionButtonSize}
-                            />
-                        }
+                        icon={<PostBrandBigIcon size={feedCreateSectionButtonSize} />}
                         label="Post"
                         description="Share ideas"
                         onPress={() => {
@@ -200,12 +188,7 @@ export function FeedCreateSection({
                     />
                     <FeedCreateSectionDivider />
                     <FeedCreateSectionButton
-                        icon={
-                            <ClientBrandBigIcon
-                                iconType="Chat"
-                                size={feedCreateSectionButtonSize}
-                            />
-                        }
+                        icon={<ChatBrandBigIcon size={feedCreateSectionButtonSize} />}
                         label="Message"
                         description="Start a chat"
                         onPress={() => {

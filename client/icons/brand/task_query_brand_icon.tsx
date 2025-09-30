@@ -1,14 +1,30 @@
-import {SVGAttributes} from "react";
+import {IconContext} from "phosphor-react";
+import {memo, useContext} from "react";
+import {
+    brandIconSplashColorOpacity,
+    brandIconSplashColorShade,
+} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export function TaskQueryBrandIcon({
-    size,
-    color,
-    splashColorClassName,
-}: {
-    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
-    color?: SVGAttributes<SVGPathElement>["fill"];
-    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
-}) {
+const TaskQueryBrandIconMemo = memo(TaskQueryBrandIcon);
+export {TaskQueryBrandIconMemo as TaskQueryBrandIcon};
+
+function TaskQueryBrandIcon({size}: {size?: Spacing}) {
+    const {size: contextSize, color: contextColor} = useContext(IconContext);
+
+    const color =
+        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+            ? contextColor
+            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+
+    const splashColorClassName = sprinkles({
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),
+    });
+
+    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -16,10 +32,11 @@ export function TaskQueryBrandIcon({
             viewBox="0 0 20 20"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: size, height: size}}
+            style={{width: actualSize, height: actualSize}}
         >
             <path
                 className={splashColorClassName}
+                opacity={brandIconSplashColorOpacity}
                 d="M6.25 5.52h11.667v12.084c0 .92-.747 1.667-1.667 1.667H7.917c-.92 0-1.667-.746-1.667-1.667V5.521Z"
             />
             <path

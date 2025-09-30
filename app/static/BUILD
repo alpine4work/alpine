@@ -10,6 +10,7 @@ filegroup(
         "files/fonts/inter.v1.woff2",
         "files/fonts/inter-italic.v1.woff2",
         ":files",
+        ":icon_pngs",
     ],
     visibility = ["//app:__subpackages__"],
 )
@@ -133,10 +134,16 @@ ts_project(
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/opentype.js",
+        "//:node_modules/@types/react",
+        "//:node_modules/@types/react-dom",
         "//:node_modules/@types/wawoff2",
         "//:node_modules/fs-extra",
         "//:node_modules/opentype.js",
+        "//:node_modules/react",
+        "//:node_modules/react-dom",
+        "//:node_modules/sharp",
         "//:node_modules/wawoff2",
+        "//client/icons",
         "//server/helpers/node",
         "//shared/helpers",
     ],
@@ -177,4 +184,31 @@ js_run_binary(
     chdir = package_name(),
     tool = ":generate_font_metrics",
     visibility = ["//shared/design:__pkg__"],
+)
+
+js_binary(
+    name = "generate_icon_pngs",
+    data = [
+        ":static_lib",
+    ],
+    entry_point = "icons/generate_icon_pngs_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_run_binary(
+    name = "icon_pngs",
+    outs = [
+        "files/icons/chat_brand_icon_dark.png",
+        "files/icons/chat_brand_icon_light.png",
+        "files/icons/document_brand_icon_dark.png",
+        "files/icons/document_brand_icon_light.png",
+        "files/icons/logo_wordmark_dark.png",
+        "files/icons/logo_wordmark_light.png",
+        "files/icons/post_brand_icon_dark.png",
+        "files/icons/post_brand_icon_light.png",
+        "files/icons/task_brand_icon_dark.png",
+        "files/icons/task_brand_icon_light.png",
+    ],
+    chdir = package_name(),
+    tool = ":generate_icon_pngs",
 )

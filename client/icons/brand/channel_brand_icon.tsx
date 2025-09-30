@@ -1,14 +1,30 @@
-import {SVGAttributes} from "react";
+import {IconContext} from "phosphor-react";
+import {memo, useContext} from "react";
+import {
+    brandIconSplashColorOpacity,
+    brandIconSplashColorShade,
+} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export function ChannelBrandIcon({
-    size,
-    color,
-    splashColorClassName,
-}: {
-    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
-    color?: SVGAttributes<SVGPathElement>["fill"];
-    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
-}) {
+const ChannelBrandIconMemo = memo(ChannelBrandIcon);
+export {ChannelBrandIconMemo as ChannelBrandIcon};
+
+function ChannelBrandIcon({size}: {size?: Spacing}) {
+    const {size: contextSize, color: contextColor} = useContext(IconContext);
+
+    const color =
+        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+            ? contextColor
+            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+
+    const splashColorClassName = sprinkles({
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `orange-${shade}` as const),
+    });
+
+    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -16,11 +32,12 @@ export function ChannelBrandIcon({
             viewBox="0 0 20 20"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: size, height: size}}
+            style={{width: actualSize, height: actualSize}}
         >
             <path
                 className={splashColorClassName}
                 d="M5.75 6.41667C5.75 6.18654 5.93654 6 6.16667 6H19.7083C19.9385 6 20.125 6.18654 20.125 6.41667V16.8333C20.125 17.0635 19.9385 17.25 19.7083 17.25H6.16667C5.93654 17.25 5.75 17.0635 5.75 16.8333V6.41667Z"
+                opacity={brandIconSplashColorOpacity}
             />
             <path
                 fill={color}

@@ -1,14 +1,30 @@
-import {SVGAttributes} from "react";
+import {IconContext} from "phosphor-react";
+import {memo, useContext} from "react";
+import {
+    brandIconSplashColorOpacity,
+    brandIconSplashColorShade,
+} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export function SearchFavoritesBrandIcon({
-    size,
-    color,
-    splashColorClassName,
-}: {
-    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
-    color?: SVGAttributes<SVGPathElement>["fill"];
-    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
-}) {
+const SearchFavoritesBrandIconMemo = memo(SearchFavoritesBrandIcon);
+export {SearchFavoritesBrandIconMemo as SearchFavoritesBrandIcon};
+
+function SearchFavoritesBrandIcon({size}: {size?: Spacing}) {
+    const {size: contextSize, color: contextColor} = useContext(IconContext);
+
+    const color =
+        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+            ? contextColor
+            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+
+    const splashColorClassName = sprinkles({
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `orange-${shade}` as const),
+    });
+
+    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -16,10 +32,11 @@ export function SearchFavoritesBrandIcon({
             viewBox="0 0 20 20"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: size, height: size}}
+            style={{width: actualSize, height: actualSize}}
         >
             <path
                 className={splashColorClassName}
+                opacity={brandIconSplashColorOpacity}
                 d="m18.974 11.075-3.165 2.73.964 4.084a1.153 1.153 0 0 1-1.722 1.253L11.5 16.956l-3.553 2.186a1.154 1.154 0 0 1-1.72-1.253l.967-4.083-3.164-2.73a1.157 1.157 0 0 1 .655-2.03l4.149-.334 1.6-3.873a1.15 1.15 0 0 1 2.128 0l1.6 3.873 4.149.335a1.157 1.157 0 0 1 .658 2.03l.005-.002Z"
             />
             <path

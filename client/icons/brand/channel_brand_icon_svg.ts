@@ -19,7 +19,6 @@ export const channelBrandIconSvg = ({
 
     const splashColorClassName = sprinkles({
         fill: mapObjectValues(brandIconSplashColorShade, shade => `orange-${shade}` as const),
-        opacity: brandIconSplashColorOpacity,
     });
 
     const actualSize = size
@@ -36,6 +35,7 @@ export const channelBrandIconSvg = ({
         `style="width: ${actualSize}; height: ${actualSize}">` +
         "<path " +
         `class="${splashColorClassName}" ` +
+        `opacity="${brandIconSplashColorOpacity}" ` +
         'd="M5.75 6.41667C5.75 6.18654 5.93654 6 6.16667 6H19.7083C19.9385 6 20.125 6.18654 20.125 6.41667V16.8333C20.125 17.0635 19.9385 17.25 19.7083 17.25H6.16667C5.93654 17.25 5.75 17.0635 5.75 16.8333V6.41667Z" ' +
         "/>" +
         "<path " +

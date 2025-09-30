@@ -1,15 +1,28 @@
-import {SVGAttributes} from "react";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {IconContext} from "phosphor-react";
+import {memo, useContext} from "react";
+import {
+    brandIconSplashColorOpacity,
+    brandIconSplashColorShade,
+} from "~/client/icons/brand/internal/brand_icon_splash_color.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export function PostBrandBigIcon({
-    size = spacing["12"],
-    color,
-    splashColorClassName,
-}: {
-    size?: React.CSSProperties["width"] & React.CSSProperties["height"];
-    color?: SVGAttributes<SVGPathElement>["fill"];
-    splashColorClassName?: SVGAttributes<SVGPathElement>["className"];
-}) {
+const PostBrandBigIconMemo = memo(PostBrandBigIcon);
+export {PostBrandBigIconMemo as PostBrandBigIcon};
+
+function PostBrandBigIcon({size = "12"}: {size?: Spacing}) {
+    const {color: contextColor} = useContext(IconContext);
+
+    const color =
+        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+            ? contextColor
+            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+
+    const splashColorClassName = sprinkles({
+        fill: mapObjectValues(brandIconSplashColorShade, shade => `orange-${shade}` as const),
+    });
+
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -17,10 +30,11 @@ export function PostBrandBigIcon({
             viewBox="0 0 48 48"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: size, height: size}}
+            style={{width: spacing[size], height: spacing[size]}}
         >
             <path
                 className={splashColorClassName}
+                opacity={brandIconSplashColorOpacity}
                 d="M11.75 19.25a1 1 0 0 1 1-1h32.5a1 1 0 0 1 1 1v25a1 1 0 0 1-1 1h-32.5a1 1 0 0 1-1-1v-25Z"
             />
             <path
