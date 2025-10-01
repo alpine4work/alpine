@@ -79,7 +79,7 @@ import {
     authorizeSpaceAccessIfPossible,
     getOwnAccountIfExists,
     getSpace,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";

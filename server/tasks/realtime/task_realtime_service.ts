@@ -31,7 +31,7 @@ import {
     serviceOpensearchOptions,
 } from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
 import {
     TaskRealtimeActionContext,
     TaskRealtimeProcessContextModules,

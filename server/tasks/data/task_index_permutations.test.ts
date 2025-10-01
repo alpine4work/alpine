@@ -3,8 +3,8 @@ import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,

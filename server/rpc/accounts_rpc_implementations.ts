@@ -7,7 +7,7 @@ import {
     updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_actions.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_actions.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definitions from "~/shared/rpc/accounts_rpc_definitions.js";

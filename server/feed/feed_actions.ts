@@ -16,7 +16,7 @@ import {
     authorizeSpaceAccess,
     getAccount,
     isBotSpaceAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";

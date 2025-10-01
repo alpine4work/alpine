@@ -6,7 +6,7 @@ import {
     acceptSpaceAccountInvite,
     addSpaceAccountForTest,
     getSpaceAccountForTest,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

@@ -9,7 +9,7 @@ import {
     isAccountMemberOfSpaceWithoutAuthorization,
     rejectSpaceAccountInviteAsSpam,
     removeSpaceAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";

@@ -4,7 +4,7 @@ import {SearchInjectionContextModule} from "~/server/context/injection_context_m
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/forum_actions.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {seedTestBotAccounts, seedTestSpaces} from "~/server/spaces/spaces_table.js";
+import {seedTestBotAccounts, seedTestSpaces} from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";

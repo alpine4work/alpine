@@ -33,7 +33,7 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,

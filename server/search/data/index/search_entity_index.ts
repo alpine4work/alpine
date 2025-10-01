@@ -88,7 +88,7 @@ import {
     getAccountIfExists,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountSettings,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,

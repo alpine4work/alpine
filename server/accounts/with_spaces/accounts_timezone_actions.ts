@@ -3,7 +3,7 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/spaces_actions.js";
 import {AccountsSettingsSchema} from "~/shared/accounts/accounts_settings_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TimeZone, assertTimeZone, isTimeZone} from "~/shared/helpers/intl/time_zone.js";

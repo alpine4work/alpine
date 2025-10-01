@@ -7,7 +7,7 @@ import {
 } from "~/server/search/data/index/internal/chunk_search_content.js";
 import {chunkDocumentSearchContent} from "~/server/search/data/index/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
-import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getAccountIfExists} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";

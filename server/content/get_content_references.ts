@@ -7,7 +7,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileIfExistsFromAttachment} from "~/server/files/data/files_actions.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getAccountIfExists} from "~/server/spaces/spaces_actions.js";
 import {
     ContentReferencedIds,
     getContentReferencedIdsForNode,

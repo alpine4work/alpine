@@ -39,13 +39,13 @@ import {
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
-import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccount,
     removeSpaceAccount,
     updateSpaceAccountSettings,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

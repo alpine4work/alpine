@@ -22,7 +22,7 @@ import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {
     getSpaceAccountBotIdIfExistsWithoutAuthorization,
     isAccountMemberOfSpaceWithoutAuthorization,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {
     BotTokenPayload,

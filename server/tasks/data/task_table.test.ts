@@ -17,13 +17,13 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccountForTest,
     getSpaceAccountForTest,
     removeSpaceAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

@@ -1,4 +1,4 @@
-import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_table.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";

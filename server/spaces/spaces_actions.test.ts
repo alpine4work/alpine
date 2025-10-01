@@ -9,7 +9,6 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client_get_item_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccount,
@@ -42,7 +41,8 @@ import {
     removeSpaceAccountBeforeExecuteTestCheckpoint,
     updateSpaceAccountRole,
     updateSpaceName,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
+import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

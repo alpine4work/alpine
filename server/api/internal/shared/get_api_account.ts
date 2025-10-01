@@ -1,6 +1,6 @@
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {getAccountWithoutAvatar} from "~/server/spaces/spaces_table.js";
+import {getAccountWithoutAvatar} from "~/server/spaces/spaces_actions.js";
 import {ApiAccount} from "~/shared/api/types/api_specification_convenience_types.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";

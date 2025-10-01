@@ -19,7 +19,7 @@ import {
     expensiveScanEverySpaceAccountForMigration,
     isAccountMemberOfSpaceWithoutAuthorization,
     isBotSpaceAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";

@@ -12,7 +12,7 @@ import {
     authorizePostDraftAccess,
     getChannelPreview,
 } from "~/server/forum/data/forum_actions.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileModel} from "~/shared/files/file_model.js";

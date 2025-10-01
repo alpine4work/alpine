@@ -62,7 +62,7 @@ import {
     authorizeSpaceAccess,
     getAccount,
     isAccountMemberOfSpace,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";

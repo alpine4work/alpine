@@ -33,7 +33,7 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
-import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_actions.js";
 import {
     getTaskCollectionFromIndex,
     getTaskCollectionFromIndexIfExists,

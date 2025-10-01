@@ -2,7 +2,7 @@ import {ServerSessionActionContextWithEmail} from "~/server/context/server_actio
 import {
     authorizeSpaceAccess,
     internalValidateInviteEmailAddressToSpace,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

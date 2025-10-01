@@ -3,7 +3,7 @@ import {
     authorizeSpaceAccess,
     dangerouslyGetAccountStubIfExistsWithoutAuthorization,
     getAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

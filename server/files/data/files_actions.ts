@@ -21,7 +21,7 @@ import {
 } from "~/server/files/data/internal/files_table.js";
 import {routeFileToProcessor} from "~/server/files/data/route_file_to_processor.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
 import {
     FailedPreconditionError,
     InternalError,

@@ -59,7 +59,7 @@ import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
-import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
+import {removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";

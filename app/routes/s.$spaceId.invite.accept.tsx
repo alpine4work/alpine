@@ -9,7 +9,7 @@ import {FeedRouteShimmer} from "~/client/shimmer/route_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getOwnAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getOwnAccountIfExists} from "~/server/spaces/spaces_actions.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {acceptSpaceAccountInvite} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";

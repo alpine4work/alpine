@@ -8,7 +8,7 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
     isBotSpaceAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {
     AccessLevel,
     AccessPolicyUrlGrant,

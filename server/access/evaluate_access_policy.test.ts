@@ -5,7 +5,7 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {isBotSpaceAccount} from "~/server/spaces/spaces_table.js";
+import {isBotSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccessPolicy, allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";

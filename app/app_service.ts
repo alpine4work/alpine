@@ -57,8 +57,8 @@ import {createServiceOpensearchContextModule} from "~/server/opensearch/create_s
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {getSpaceAccountsCacheForTest} from "~/server/spaces/spaces_actions.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
-import {getSpaceAccountsCacheForTest} from "~/server/spaces/spaces_table.js";
 import {createServiceTaskRealtimeServiceRouter} from "~/server/tasks/data/create_service_task_realtime_service_router.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";

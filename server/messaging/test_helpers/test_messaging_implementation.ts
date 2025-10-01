@@ -20,7 +20,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {

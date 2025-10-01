@@ -1,6 +1,6 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/spaces_actions.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
     TaskRealtimeActionContext,

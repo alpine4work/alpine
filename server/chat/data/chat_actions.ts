@@ -49,7 +49,7 @@ import {
     getAccount,
     isAccountMemberOfSpace,
     isBotSpaceAccount,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {

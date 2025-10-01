@@ -30,7 +30,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

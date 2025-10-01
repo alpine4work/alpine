@@ -1,6 +1,6 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
-import {getSpace} from "~/server/spaces/spaces_table.js";
+import {getSpace} from "~/server/spaces/spaces_actions.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 export const apiSpacesPaths: Pick<

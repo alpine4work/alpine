@@ -6,7 +6,7 @@ import {
     expensiveScanEveryPostCommentForMigration,
 } from "~/server/forum/data/forum_actions.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_table.js";
+import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_actions.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";

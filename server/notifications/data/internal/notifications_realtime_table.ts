@@ -15,7 +15,7 @@ import {
     getPostAuthorAndChannelPreviewIfPossible,
 } from "~/server/forum/data/forum_actions.js";
 import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
-import {getAccount, impersonateAccountAsSystemContext} from "~/server/spaces/spaces_table.js";
+import {getAccount, impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
 import {getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";

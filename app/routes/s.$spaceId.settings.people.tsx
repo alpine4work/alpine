@@ -17,7 +17,7 @@ import {SettingsInvitePeopleModal} from "~/client/settings/settings_invite_peopl
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_table.js";
+import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";

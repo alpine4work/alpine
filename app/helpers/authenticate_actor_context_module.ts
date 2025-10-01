@@ -6,7 +6,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_actions.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";

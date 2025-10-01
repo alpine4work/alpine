@@ -5,7 +5,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     authorizeSpaceAccessIfPossible,
     dangerouslyGetAccountStubIfExistsWithoutAuthorization,
-} from "~/server/spaces/spaces_table.js";
+} from "~/server/spaces/spaces_actions.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

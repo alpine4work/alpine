@@ -15,7 +15,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_actions.js";
-import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_table.js";
+import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_actions.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     AlphaAccessRequestDecisionSchema,
