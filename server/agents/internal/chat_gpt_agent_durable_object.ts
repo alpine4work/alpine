@@ -630,14 +630,11 @@ async function createChatGptAgentResponse(
     // - [ ] Load previous chat messages
     // - [ ] Load content underneath peek
     // - [ ] Alpine search
-    // - [ ] [Web search][1]
     // - [ ] Update/create documents
     // - [ ] Update/create tasks, task collections, and subtasks
     // - [ ] View uploaded files (images mostly)
     // - [ ] Forget context tool or force compaction tool (if user feels like
     //       bot is going off the rails)
-    //
-    // [1]: https://platform.openai.com/docs/guides/tools-web-search
     //
     // TODO(calebmer, #ai): How do we enable the AI to mention users and other
     // content? We can include a mention database but what if they try to mention
@@ -647,10 +644,16 @@ async function createChatGptAgentResponse(
     const responseStream = request.openAiClient.get().createResponseWithStreaming(tracer, {
         stream: true,
 
+        // TODO(ifitzsimmons, #ai): Manage models with config (environment variables?)
         model: "gpt-5-nano",
+        // https://platform.openai.com/docs/guides/prompt-caching
         prompt_cache_key: `${request.spaceId}:${request.event.roomPath}`,
         safety_identifier: request.event.authorId,
-        tools: [chatGptReadLinkTool.get()],
+        tools: [
+            chatGptReadLinkTool.get(),
+            // https://platform.openai.com/docs/guides/tools-web-search
+            {type: "web_search"},
+        ],
 
         // Load the entire conversation history and use that as our input to OpenAI.
         input,
