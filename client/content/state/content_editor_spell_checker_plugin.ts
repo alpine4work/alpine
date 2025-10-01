@@ -202,10 +202,12 @@ export function contentEditorSpellCheckerPlugin() {
                     let textblockDepth = $from.depth;
                     let textblockNode = $from.node(textblockDepth);
 
-                    while (!textblockNode?.isTextblock) {
+                    while (!textblockNode?.isTextblock && textblockDepth >= 0) {
                         textblockDepth--;
                         textblockNode = $from.node(textblockDepth);
                     }
+
+                    if (!textblockNode) continue;
 
                     // TODO(#spell-check): Don't render lints in code blocks
                     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/b1zgg6kj6r95te8n97ngbmkg6m
