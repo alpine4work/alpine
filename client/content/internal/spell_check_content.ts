@@ -41,6 +41,9 @@ export function createSpellCheckContent({
     >(node => {
         if (!node.isTextblock) return null;
 
+        // Don't spell check content in code blocks
+        if (node.type.name === "codeBlockLine") return null;
+
         let text: string = "";
         const content: Array<{pos: number; text: string; isTextNode: boolean}> = [];
 
@@ -60,7 +63,12 @@ export function createSpellCheckContent({
 
             switch (childNodeType) {
                 case "text": {
-                    addContent({pos, text: childNode.text!, isTextNode: true});
+                    // Don't spell check content in code marks
+                    if (childNode.marks.some(mark => mark.type.name === "code")) {
+                        addContent({pos, text: childNode.text!, isTextNode: false});
+                    } else {
+                        addContent({pos, text: childNode.text!, isTextNode: true});
+                    }
                     break;
                 }
                 case "break": {
@@ -125,6 +133,11 @@ export function createSpellCheckContent({
                     let iterationIndex = 0;
                     let from: number | null = null;
 
+                    // TODO(#spell-check): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w2razny8st2t5x9h29vp7hw3vm
+                    //   The indexing of the matching lint here isn't quite right. For example,
+                    //   if we have "`InboxTable` is InboxTable", the lint for `InboxTable` is
+                    //   ignored because it's code, but the lint for the second InboxTable
+                    //   (that is not in code), will be ignored as well. Why?
                     // Go through our content items to find the matching lint
                     for (let i = 0; i < content.length; i++) {
                         const item = assertExists(content[i]);
