@@ -35,6 +35,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsApplicationLoadBalancerFromCloudflare} from "~/admin/aws/internal/constructs/aws_application_load_balancer_from_cloudflare.js";
 import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js";
@@ -102,12 +103,14 @@ export class AwsFileProcessorService extends Construct {
             cloudflareAccountId,
             dynamo,
             sqs,
+            loggingService,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             cloudflareAccountId: string;
             dynamo: AwsDynamo;
             sqs: AwsSqs;
+            loggingService: AwsLoggingService;
         },
     ) {
         super(parentConstruct, "FileProcessorService");
@@ -127,6 +130,14 @@ export class AwsFileProcessorService extends Construct {
                 internetFacing: true,
             },
         ).applicationLoadBalancer;
+        this.fileProcessorServiceLoadBalancer.logAccessLogs(
+            loggingService.loggingBucket,
+            "fileProcessorService",
+        );
+        this.fileProcessorServiceLoadBalancer.logConnectionLogs(
+            loggingService.loggingBucket,
+            "fileProcessorService",
+        );
 
         // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration):
         // To maintain naming consistency of the File Processor Service, we created

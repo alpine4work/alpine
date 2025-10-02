@@ -914,6 +914,86 @@ Resources:
                 MailFromDomain: mail.alpine.inc
         Metadata:
             aws:cdk:path: CyberworldsStack/Ses/EmailIdentity/Resource
+    LoggingServiceBucket66AE76E8:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: cyberworlds-logs
+            LifecycleConfiguration:
+                Rules:
+                    - ExpirationInDays: 90
+                      Status: Enabled
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Resource
+    LoggingServiceBucketPolicyEA2FC156:
+        Type: AWS::S3::BucketPolicy
+        Properties:
+            Bucket:
+                Ref: LoggingServiceBucket66AE76E8
+            PolicyDocument:
+                Statement:
+                    - Action: s3:PutObject
+                      Effect: Allow
+                      Principal:
+                          AWS: arn:aws:iam::127311923021:root
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - LoggingServiceBucket66AE76E8
+                                      - Arn
+                                - /appService/AWSLogs/
+                                - Ref: AWS::AccountId
+                                - /*
+                    - Action: s3:PutObject
+                      Condition:
+                          StringEquals:
+                              s3:x-amz-acl: bucket-owner-full-control
+                      Effect: Allow
+                      Principal:
+                          Service: delivery.logs.amazonaws.com
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - LoggingServiceBucket66AE76E8
+                                        - Arn
+                                  - /appService/AWSLogs/
+                                  - Ref: AWS::AccountId
+                                  - /*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - LoggingServiceBucket66AE76E8
+                                        - Arn
+                                  - /fileProcessorService/AWSLogs/
+                                  - Ref: AWS::AccountId
+                                  - /*
+                    - Action: s3:GetBucketAcl
+                      Effect: Allow
+                      Principal:
+                          Service: delivery.logs.amazonaws.com
+                      Resource:
+                          Fn::GetAtt:
+                              - LoggingServiceBucket66AE76E8
+                              - Arn
+                    - Action: s3:PutObject
+                      Effect: Allow
+                      Principal:
+                          AWS: arn:aws:iam::127311923021:root
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - LoggingServiceBucket66AE76E8
+                                      - Arn
+                                - /fileProcessorService/AWSLogs/
+                                - Ref: AWS::AccountId
+                                - /*
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Policy/Resource
     CronJobsRetryUnprocessedTaskActionTransactionsRule39B01BFA:
         Type: AWS::Events::Rule
         Properties:
@@ -3280,6 +3360,20 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
+                - Key: access_logs.s3.enabled
+                  Value: "true"
+                - Key: access_logs.s3.bucket
+                  Value:
+                      Ref: LoggingServiceBucket66AE76E8
+                - Key: access_logs.s3.prefix
+                  Value: appService
+                - Key: connection_logs.s3.enabled
+                  Value: "true"
+                - Key: connection_logs.s3.bucket
+                  Value:
+                      Ref: LoggingServiceBucket66AE76E8
+                - Key: connection_logs.s3.prefix
+                  Value: appService
             Name: cyberworlds-app
             Scheme: internet-facing
             SecurityGroups:
@@ -3291,6 +3385,7 @@ Resources:
                 - Ref: VpcPublicSubnet2Subnet691E08A3
             Type: application
         DependsOn:
+            - LoggingServiceBucketPolicyEA2FC156
             - VpcPublicSubnet1DefaultRoute3DA9E72A
             - VpcPublicSubnet1RouteTableAssociation97140677
             - VpcPublicSubnet2DefaultRoute97F91067
@@ -4717,6 +4812,20 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
+                - Key: access_logs.s3.enabled
+                  Value: "true"
+                - Key: access_logs.s3.bucket
+                  Value:
+                      Ref: LoggingServiceBucket66AE76E8
+                - Key: access_logs.s3.prefix
+                  Value: fileProcessorService
+                - Key: connection_logs.s3.enabled
+                  Value: "true"
+                - Key: connection_logs.s3.bucket
+                  Value:
+                      Ref: LoggingServiceBucket66AE76E8
+                - Key: connection_logs.s3.prefix
+                  Value: fileProcessorService
             Name: cyberworlds-files
             Scheme: internet-facing
             SecurityGroups:
@@ -4728,6 +4837,7 @@ Resources:
                 - Ref: VpcPublicSubnet2Subnet691E08A3
             Type: application
         DependsOn:
+            - LoggingServiceBucketPolicyEA2FC156
             - VpcPublicSubnet1DefaultRoute3DA9E72A
             - VpcPublicSubnet1RouteTableAssociation97140677
             - VpcPublicSubnet2DefaultRoute97F91067

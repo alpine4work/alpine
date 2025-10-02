@@ -8,6 +8,7 @@ import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsFileProcessorService} from "~/admin/aws/internal/aws_file_processor_service.js";
 import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
+import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
@@ -54,7 +55,7 @@ async function addAwsResources(
     const opensearch = await AwsOpensearch.new(stack, vpc);
     const sqs = AwsSqs.new(stack);
     const ses = new AwsSes(stack);
-
+    const loggingService = new AwsLoggingService(stack);
     new AwsCronJobs(stack, sqs);
 
     const dynamo = await AwsDynamo.new(stack);
@@ -76,6 +77,7 @@ async function addAwsResources(
         sqs,
         ses,
         taskRealtimeService,
+        loggingService,
     });
 
     new AwsJobQueueService(stack, {
@@ -103,6 +105,7 @@ async function addAwsResources(
         cloudflareAccountId,
         dynamo,
         sqs,
+        loggingService,
     });
 
     // Create our schedule deploy lambda and allow our CI credentials to invoke it

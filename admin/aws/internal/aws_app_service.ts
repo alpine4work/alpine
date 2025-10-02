@@ -19,6 +19,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
@@ -39,6 +40,7 @@ export class AwsAppService extends Construct {
             sqs,
             ses,
             taskRealtimeService,
+            loggingService,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
@@ -48,6 +50,7 @@ export class AwsAppService extends Construct {
             sqs: AwsSqs;
             ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
+            loggingService: AwsLoggingService;
         },
     ) {
         super(parentConstruct, "AppService");
@@ -334,6 +337,8 @@ export class AwsAppService extends Construct {
             loadBalancerName: "cyberworlds-app",
             internetFacing: true,
         }).applicationLoadBalancer;
+        loadBalancer.logAccessLogs(loggingService.loggingBucket, "appService");
+        loadBalancer.logConnectionLogs(loggingService.loggingBucket, "appService");
 
         // Make sure the load balancer can make requests against our service.
         autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
