@@ -1,3 +1,9 @@
+// To update generated snapshots run:
+//
+// ```
+// bazel run //client/content:file_entity/internal/content_file_task_collection_entity_preview_test -- --updateSnapshot
+// ```
+
 import {renderContentFileTaskCollectionEntityPreview} from "~/client/content/file_entity/internal/content_file_task_collection_entity_preview.js";
 import {normalizeHtmlClassNameHashesForTest} from "~/client/content/file_entity/internal/test_helpers/normalize_html_class_name_hashes_for_test.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";

@@ -20,6 +20,7 @@ ts_project(
         "//:node_modules/@react-email/render",
         "//:node_modules/@react-email/components",
         "//:node_modules/react",
+        "//:node_modules/react-email",
         "//server/helpers",
         "//server/helpers/node",
         "//server/jobs/core",
@@ -27,5 +28,6 @@ ts_project(
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
+        "//shared/spaces",
     ],
 )

@@ -1,20 +1,17 @@
 import {render} from "@react-email/render";
 import {decode as decodeHtmlEntities} from "html-entities";
 import {ComponentProps} from "react";
-import {AlphaAccessRequestApprovedEmailTemplate} from "~/server/emails/internal/alpha_access_request_approved_email_template.js";
-import {SignInEmailTemplate} from "~/server/emails/internal/sign_in_email_template.js";
-import {SpaceInviteEmailTemplate} from "~/server/emails/internal/space_invite_email_template.js";
+import {NotificationDigestEmailTemplate} from "~/server/emails/internal/templates/notification_digest_email_template.js";
+import {SignInEmailTemplate} from "~/server/emails/internal/templates/sign_in_email_template.js";
+import {SpaceInviteEmailTemplate} from "~/server/emails/internal/templates/space_invite_email_template.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 // To preserve types, we must explicitly set keys and their respective templates / names.
 // If we use maps or other iterables, we'll lose prop type validation.
 export const emailTemplates = {
     SignIn: createEmailTemplate(SignInEmailTemplate, "SignIn"),
-    AlphaAccessRequestApproved: createEmailTemplate(
-        AlphaAccessRequestApprovedEmailTemplate,
-        "AlphaAccessRequestApproved",
-    ),
     SpaceInvite: createEmailTemplate(SpaceInviteEmailTemplate, "SpaceInvite"),
+    NotificationDigest: createEmailTemplate(NotificationDigestEmailTemplate, "NotificationDigest"),
 };
 
 /**

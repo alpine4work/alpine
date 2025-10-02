@@ -7,7 +7,7 @@ import {
     EmailTemplates,
     RenderedEmail,
     renderReactEmailTemplate,
-} from "~/server/emails/internal/email_templates.js";
+} from "~/server/emails/internal/templates/email_templates.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";

@@ -1,26 +1,21 @@
 import {renderAvatarIconOverlay} from "~/client/accounts/internal/avatar_icon_overlay_html.js";
-import {
-    AvatarData,
-    AvatarImageData,
-    AvatarInitialsData,
-    getAvatarData,
-} from "~/client/accounts/internal/get_avatar_data.js";
-import {
-    backgroundColorVar,
-    borderRadius as borderRadiusValues,
-    colorSchemeVars,
-    sprinkles,
-} from "~/client/styles/styles.js";
-import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
 import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
+import {borderRadius as borderRadiusValues} from "~/shared/design/core/border_radius.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
+import {
+    AvatarData,
+    AvatarImageData,
+    AvatarInitialsData,
+    getAvatarData,
+} from "~/shared/spaces/get_avatar_data.js";
 
 export const accountAvatarClassName = sprinkles({
     flexShrink: "0",
@@ -173,7 +168,7 @@ function renderAccountAvatarWithInitials({
     size: Spacing;
     avatarData: AvatarInitialsData;
 }) {
-    const {firstInitial, lastInitial} = getAccountAvatarInitials(accountData);
+    const {firstInitial, lastInitial} = getAccountInitials(accountData);
 
     const avatarHtml = new HtmlElementGenerator("span");
 
@@ -189,23 +184,4 @@ function renderAccountAvatarWithInitials({
     );
 
     return avatarHtml;
-}
-
-export function getAccountAvatarInitials(accountData: AccountModelData) {
-    // TODO(calebmer): If we ever support eastern name order of family name first
-    // then given name, the initials should preserve that order. We shouldn't put
-    // the given name initial first.
-    const {givenName, familyName} = parseAccountNameAssumingWesternNameOrder(accountData.name);
-
-    // We use iterators instead of indexing into the name because iterators give us
-    // full Unicode unicode code points. This means grapheme clusters will be
-    // split, but surrogate pairs will be preserved.
-    //
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/@@iterator
-    const firstInitial: string = iterateGraphemes(givenName).next().value;
-    const lastInitial: string | null = familyName
-        ? iterateGraphemes(familyName).next().value
-        : null;
-
-    return {firstInitial, lastInitial};
 }

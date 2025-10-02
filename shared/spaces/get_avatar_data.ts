@@ -8,6 +8,8 @@ type AvatarDataBase = {
 export type AvatarImageData = AvatarDataBase & {
     type: "Image";
     content: Uint8Array;
+    textColor: string;
+    backgroundColor: string;
 };
 export type AvatarInitialsData = AvatarDataBase & {
     type: "Initials";
@@ -24,7 +26,12 @@ export function getAvatarData(accountData: AccountModelData): AvatarData {
     const avatarDataBase = {shouldShowRemovedAvatar, iconOverlayType} as const;
 
     return imageContent
-        ? {type: "Image", content: imageContent, ...avatarDataBase}
+        ? {
+              type: "Image",
+              content: imageContent,
+              ...getAvatarThemeColors(accountData.id),
+              ...avatarDataBase,
+          }
         : {type: "Initials", ...getAvatarThemeColors(accountData.id), ...avatarDataBase};
 }
 

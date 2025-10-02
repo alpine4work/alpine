@@ -5,8 +5,9 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
-import {BorderRadius, buttonStyles, spinAnimationClassName} from "~/client/styles/styles.js";
+import {buttonStyles, spinAnimationClassName} from "~/client/styles/styles.js";
 import {maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
+import {BorderRadius} from "~/shared/design/core/border_radius.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 

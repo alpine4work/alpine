@@ -1,3 +1,4 @@
+import {pretty} from "@react-email/render";
 import {Link, ShouldRevalidateFunction, useParams} from "@remix-run/react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
@@ -5,6 +6,7 @@ import {useButton} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -74,7 +76,7 @@ export async function loader({params, context}: LoaderArgs) {
 
         return {
             title: emailTemplatePreview.title,
-            html: renderedEmail.html,
+            html: await pretty(renderedEmail.html),
             htmlTitle: renderedEmail.title,
         };
     });
@@ -180,6 +182,10 @@ export default function EmailPreviewPage() {
                         </Box>
                     )}
                     <Box flexGrow="1" />
+                    <Box paddingX="2">
+                        <ColorSchemeToggleButton />
+                    </Box>
+
                     <Box display="flex" border="grey-10" borderRadius="1" overflow="hidden">
                         <ViewSwitcherButton
                             description="Desktop view"
@@ -217,9 +223,7 @@ export default function EmailPreviewPage() {
                             desktop: (
                                 <iframe
                                     title="Email preview"
-                                    src={`data:text/html;charset=utf-8,${escape(
-                                        emailPreviewResult.value.html,
-                                    )}`}
+                                    srcDoc={emailPreviewResult.value.html}
                                     className={sprinkles({
                                         width: "full",
                                         height: "full",
@@ -230,9 +234,7 @@ export default function EmailPreviewPage() {
                             mobile: (
                                 <iframe
                                     title="Email preview"
-                                    src={`data:text/html;charset=utf-8,${escape(
-                                        emailPreviewResult.value.html,
-                                    )}`}
+                                    srcDoc={emailPreviewResult.value.html}
                                     className={sprinkles({
                                         width: "96",
                                         height: "192",

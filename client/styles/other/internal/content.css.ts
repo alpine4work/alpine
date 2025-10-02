@@ -12,7 +12,6 @@ import {
     accentThemeForegroundColor,
     backgroundColorVar,
     backgroundFontSizePercentage,
-    borderRadius,
     colorSchemeVars,
     darkColorSchemeSelector,
     desktopPlatformSelector,
@@ -68,6 +67,7 @@ import {
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
+import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";

@@ -18,6 +18,8 @@ ts_project(
         "//client/helpers",
         "//client/spaces",
         "//shared/accounts",
+        "//shared/design",
         "//shared/helpers",
+        "//shared/spaces",
     ],
 )

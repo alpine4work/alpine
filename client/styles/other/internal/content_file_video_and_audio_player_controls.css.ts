@@ -1,6 +1,5 @@
 import {ComplexStyleRule, globalStyle, style} from "@vanilla-extract/css";
 import {
-    borderRadius,
     colorSchemeVars,
     darkColorSchemeSelector,
     elevationVars,
@@ -10,6 +9,7 @@ import {
     overlayAnimateFadeInFromTopAnimation,
     overlayAnimateFadeOutFromTopAnimation,
 } from "~/client/styles/other/internal/overlay_animated.css.js";
+import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 
 export const containerClassName = style({});

@@ -1,4 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {
     IntlDateTimeFormatOptions,
     getIntlDateTimeFormat,
@@ -65,8 +66,40 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
 
     const formatter = isCurrentYear ? formatterWithoutYear : formatterWithYear;
 
-    return formatter
-        .format(time)
-        .replace(/, (\d+:\d+)/, " at $1")
-        .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+    const dateStringParts = formatter.formatToParts(time);
+    const dateString = dateStringParts
+        .map(({type, value}) => {
+            switch (type) {
+                case "day":
+                    return formatNumberWithOrdinal(Number(value));
+                default:
+                    return value;
+            }
+        })
+        .join("")
+        .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase())
+        .replace(/, (\d+:\d+)/, " at $1");
+    return dateString;
+}
+
+/**
+ * Format a number into a string with its English ordinal suffix. For example, 1 becomes "1st",
+ * 2 becomes "2nd", 3 becomes "3rd", and so on.
+ */
+function formatNumberWithOrdinal(number: number) {
+    assert(number >= 0, "Cannot get ordinal for a negative number");
+    if (number > 3 && number < 21) {
+        // Handles 11th, 12th, 13th
+        return `${number}th`;
+    }
+    switch (number % 10) {
+        case 1:
+            return `${number}st`;
+        case 2:
+            return `${number}nd`;
+        case 3:
+            return `${number}rd`;
+        default:
+            return `${number}th`;
+    }
 }

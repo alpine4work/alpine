@@ -414,11 +414,11 @@ importers:
         specifier: 3.21.0
         version: 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-email/components':
-        specifier: ^0.5.2
-        version: 0.5.2(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
+        specifier: ^0.5.5
+        version: 0.5.5(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
       '@react-email/render':
-        specifier: ^1.2.1
-        version: 1.2.2(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
+        specifier: ^1.3.1
+        version: 1.3.1(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
       '@react-stately/collections':
         specifier: 3.10.2
         version: 3.10.2(patch_hash=c7k6giwt342kog44mzlradtusa)(react@18.2.0)
@@ -2539,74 +2539,92 @@ packages:
   '@miniflare/cache@2.14.4':
     resolution: {integrity: sha512-ayzdjhcj+4mjydbNK7ZGDpIXNliDbQY4GPcY2KrYw0v1OSUdj5kZUkygD09fqoGRfAks0d91VelkyRsAXX8FQA==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/cli-parser@2.14.4':
     resolution: {integrity: sha512-ltc6DDg0Sb1ZI6zbaPf9+CJbpRQXOLoCZqUdwtQyWCdZpAYQCT3tOeN19/tJC/uuL8NHj+EWKQIQriDYwp6uYQ==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/core@2.14.4':
     resolution: {integrity: sha512-FMmZcC1f54YpF4pDWPtdQPIO8NXfgUxCoR9uyrhxKJdZu7M6n8QKopPVNuaxR40jcsdxb7yKoQoFWnHfzJD9GQ==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/d1@2.14.4':
     resolution: {integrity: sha512-pMBVq9XWxTDdm+RRCkfXZP+bREjPg1JC8s8C0JTovA9OGmLQXqGTnFxIaS9vf1d8k3uSUGhDzPTzHr0/AUW1gA==}
     engines: {node: '>=16.7'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/durable-objects@2.14.4':
     resolution: {integrity: sha512-+JrmHP6gHHrjxV8S3axVw5lGHLgqmAGdcO/1HJUPswAyJEd3Ah2YnKhpo+bNmV4RKJCtEq9A2hbtVjBTD2YzwA==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/html-rewriter@2.14.4':
     resolution: {integrity: sha512-GB/vZn7oLbnhw+815SGF+HU5EZqSxbhIa3mu2L5MzZ2q5VOD5NHC833qG8c2GzDPhIaZ99ITY+ZJmbR4d+4aNQ==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/http-server@2.14.4':
     resolution: {integrity: sha512-2YrJi4o5Jf1FdT2XvdPCgaYpxuai7jn6Z1k5pgL1+s2qIaXr/uShceBLjJjEf3jz+daDxwmB1+BP0xyO/Cu4+g==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/kv@2.14.4':
     resolution: {integrity: sha512-QlERH0Z+klwLg0xw+/gm2yC34Nnr/I0GcQ+ASYqXeIXBwjqOtMBa3YVQnocaD+BPy/6TUtSpOAShHsEj76R2uw==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/queues@2.14.4':
     resolution: {integrity: sha512-aXQ5Ik8Iq1KGMBzGenmd6Js/jJgqyYvjom95/N9GptCGpiVWE5F0XqC1SL5rCwURbHN+aWY191o8XOFyY2nCUA==}
     engines: {node: '>=16.7'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/r2@2.14.4':
     resolution: {integrity: sha512-4ctiZWh7Ty7LB3brUjmbRiGMqwyDZgABYaczDtUidblo2DxX4JZPnJ/ZAyxMPNJif32kOJhcg6arC2hEthR9Sw==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/runner-vm@2.14.4':
     resolution: {integrity: sha512-Nog0bB9SVhPbZAkTWfO4lpLAUsBXKEjlb4y+y66FJw77mPlmPlVdpjElCvmf8T3VN/pqh83kvELGM+/fucMf4g==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/scheduler@2.14.4':
     resolution: {integrity: sha512-tBgQGFiRoqDSSuWyJDPbk6sNvGYrjE7O6Fhsx1d7h7/2ThofSqPxOnlttTTzeqnGc7Nt4Rf/s/JjQnzXOVXmqQ==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/shared@2.14.4':
     resolution: {integrity: sha512-upl4RSB3hyCnITOFmRZjJj4A72GmkVrtfZTilkdq5Qe5TTlzsjVeDJp7AuNUM9bM8vswRo+N5jOiot6O4PVwwQ==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/sites@2.14.4':
     resolution: {integrity: sha512-O5npWopi+fw9W9Ki0gy99nuBbgDva/iXy8PDC4dAXDB/pz45nISDqldabk0rL2t4W2+lY6LXKzdOw+qJO1GQTA==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/storage-file@2.14.4':
     resolution: {integrity: sha512-JxcmX0hXf4cB0cC9+s6ZsgYCq+rpyUKRPCGzaFwymWWplrO3EjPVxKCcMxG44jsdgsII6EZihYUN2J14wwCT7A==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/storage-memory@2.14.4':
     resolution: {integrity: sha512-9jB5BqNkMZ3SFjbPFeiVkLi1BuSahMhc/W1Y9H0W89qFDrrD+z7EgRgDtHTG1ZRyi9gIlNtt9qhkO1B6W2qb2A==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/watcher@2.14.4':
     resolution: {integrity: sha512-PYn05ET2USfBAeXF6NZfWl0O32KVyE8ncQ/ngysrh3hoIV7l3qGGH7ubeFx+D8VWQ682qYhwGygUzQv2j1tGGg==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@miniflare/web-sockets@2.14.4':
     resolution: {integrity: sha512-stTxvLdJ2IcGOs76AnvGYAzGvx8JvQPRxC5DW0P5zdAAnhL33noqb5LKdPt3P37BKp9FzBKZHuihQI9oVqwm0g==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
 
   '@motionone/animation@10.18.0':
     resolution: {integrity: sha512-9z2p5GFGCm0gBsZbi8rVMOAJCtw1WqBTIPw3ozk06gDvZInBPIsQcHgYogEJ4yuHJ+akuW8g1SEIOpTOvYs8hw==}
@@ -3011,8 +3029,8 @@ packages:
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
 
-  '@react-email/components@0.5.2':
-    resolution: {integrity: sha512-P0HHIWWMaBZaou0dB3AhSfIgQm2wWkx/+7etg1t8r6IwIbT8Vygjl01j23GvxfL5Ncs5JpjxGP/n2A1ALRgc4g==}
+  '@react-email/components@0.5.5':
+    resolution: {integrity: sha512-+utnip1DiXTq5TQKvL8qztWy0EC3L+qdRIeJkBZXJA4WGIukbaqimWCTBGIMW19Pj+1iKvDYk2JQHEQDLiq7uQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -3076,8 +3094,8 @@ packages:
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
 
-  '@react-email/render@1.2.2':
-    resolution: {integrity: sha512-9MOMX7bGUvb3a7hNtoPguxyQUg38PuL88jhXmAgpWlF93yn0spj6pmVHkngLDlJYwYeBEQusPsQyyBv622Kdnw==}
+  '@react-email/render@1.3.1':
+    resolution: {integrity: sha512-BOc/kanieEVyiuldFFvceriiBGBBVhe4JWWXCXE2ehLIqz+gSWD4rgCoXAGbJRnnVyyp4joPqK62bSfa88yonA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
@@ -3400,6 +3418,7 @@ packages:
   '@remix-run/eslint-config@2.9.2':
     resolution: {integrity: sha512-tZV98Fz1QHAwIA9MOo48Es0ltAzvOIj/uCjCDsKOEndhEX+qwH1qC7eLIBGJiRDgEO3hIQUtzUuw5S6J8B2B+w==}
     engines: {node: '>=18.0.0'}
+    deprecated: Will no longer be maintained in React Router v7
     peerDependencies:
       eslint: ^8.0.0
       react: ^18.0.0
@@ -5537,6 +5556,7 @@ packages:
   eslint@8.57.0:
     resolution: {integrity: sha512-dZ6+mexnaTIbSBZWgou51U6OmzIhYM2VcNdtiTtI7qPNZm35Akpr0f6vtw3w1Kmn5PYo+tZVfh13WrhpS6oLqQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
 
   espree@9.6.1:
@@ -7150,6 +7170,7 @@ packages:
   miniflare@2.14.4:
     resolution: {integrity: sha512-sMV8oJRWwqxPsgg7EOMizkv7pLxd1HOzqv055PcsM4kcRECPhnJSaCtAUc+ZfpOgR4musgfooM6kQo8o+ifZ+w==}
     engines: {node: '>=16.13'}
+    deprecated: Miniflare v2 is no longer supported. Please upgrade to Miniflare v4
     hasBin: true
     peerDependencies:
       '@miniflare/storage-redis': 2.14.4
@@ -7962,7 +7983,7 @@ packages:
   react-stately@3.27.0:
     resolution: {integrity: sha512-C5ubKP33M3SmilXYv2vHYgfSLsOM0jlZ8y1KyEKWeJzN4yxy0sGku2SRUpUWTDdncB5lOeLE21EZBJVz71wePA==}
     peerDependencies:
-      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0
 
   react@18.2.0:
     resolution: {integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==}
@@ -12344,7 +12365,7 @@ snapshots:
     dependencies:
       react: 18.2.0
 
-  '@react-email/components@0.5.2(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)':
+  '@react-email/components@0.5.5(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@react-email/body': 0.1.0(react@18.2.0)
       '@react-email/button': 0.2.0(react@18.2.0)
@@ -12361,7 +12382,7 @@ snapshots:
       '@react-email/link': 0.0.12(react@18.2.0)
       '@react-email/markdown': 0.0.15(react@18.2.0)
       '@react-email/preview': 0.0.13(react@18.2.0)
-      '@react-email/render': 1.2.2(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
+      '@react-email/render': 1.3.1(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)
       '@react-email/row': 0.0.12(react@18.2.0)
       '@react-email/section': 0.0.16(react@18.2.0)
       '@react-email/tailwind': 1.2.2(react@18.2.0)
@@ -12411,7 +12432,7 @@ snapshots:
     dependencies:
       react: 18.2.0
 
-  '@react-email/render@1.2.2(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)':
+  '@react-email/render@1.3.1(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)':
     dependencies:
       html-to-text: 9.0.5
       prettier: 3.6.2

@@ -12,7 +12,6 @@
 import {createVar} from "@vanilla-extract/css";
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
 import murmurhash from "murmurhash";
-import {borderRadius} from "~/client/styles/core/internal/border_radius.css.js";
 import {
     CssVarFunction,
     colorSchemeVars,
@@ -25,6 +24,7 @@ import {
     desktopPlatformSelector,
     mobilePlatformSelector,
 } from "~/client/styles/core/internal/selectors.css.js";
+import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";

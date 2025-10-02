@@ -1,6 +1,5 @@
 import {globalStyle, keyframes, style} from "@vanilla-extract/css";
 import {
-    borderRadius,
     colorSchemeVars,
     darkColorSchemeSelector,
     elevation,
@@ -14,6 +13,7 @@ import {
     playingClassName,
     waitingClassName,
 } from "~/client/styles/other/internal/content_file_video_and_audio_player_controls.css.js";
+import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 

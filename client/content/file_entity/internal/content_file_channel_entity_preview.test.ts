@@ -1,3 +1,9 @@
+// To update generated snapshots run:
+//
+// ```
+// bazel run //client/content:file_entity/internal/content_file_channel_entity_preview_test -- --updateSnapshot
+// ```
+
 import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";

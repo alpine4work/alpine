@@ -2,22 +2,23 @@ import {useMemo} from "react";
 import {
     accountAvatarClassName,
     accountAvatarInitialsClassName,
-    getAccountAvatarInitials,
 } from "~/client/accounts/account_avatar_html.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {AvatarIconOverlay} from "~/client/accounts/internal/avatar_icon_overlay.js";
+import {AvatarImage} from "~/client/avatar/avatar_image.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {backgroundColorVar, colorSchemeVars} from "~/client/styles/styles.js";
+import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
+import {borderRadius} from "~/shared/design/core/border_radius.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {
     AvatarData,
     AvatarImageData,
     AvatarInitialsData,
     getAvatarData,
-} from "~/client/accounts/internal/get_avatar_data.js";
-import {AvatarImage} from "~/client/avatar/avatar_image.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {backgroundColorVar, borderRadius, colorSchemeVars} from "~/client/styles/styles.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+} from "~/shared/spaces/get_avatar_data.js";
 
 // This component is rendered in hot paths (like `<TaskRowView>`) avoid using
 // `<Box>` until we implement a transform that automatically inlines `<Box>`.
@@ -121,7 +122,7 @@ function DefaultAccountAvatar({
     size: Spacing;
     avatarData: AvatarInitialsData;
 }) {
-    const {firstInitial, lastInitial} = useMemo(() => getAccountAvatarInitials(account), [account]);
+    const {firstInitial, lastInitial} = useMemo(() => getAccountInitials(account), [account]);
     const initialsText = useMemo(
         () => `${firstInitial}${lastInitial ?? ""}`,
         [firstInitial, lastInitial],

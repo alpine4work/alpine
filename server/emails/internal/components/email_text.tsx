@@ -1,8 +1,9 @@
 import {Text} from "@react-email/components";
 import {ReactNode} from "react";
-import {Color, colors} from "~/shared/design/core/colors.js";
+import {Color} from "~/shared/design/core/colors.js";
 import {FontSize, createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const emailFontStyles = createFontStyles({
@@ -12,21 +13,23 @@ export const emailFontStyles = createFontStyles({
 
 export function EmailText({
     children,
-    color = "grey-100",
     fontSize = "200",
-    fontStyle: style = "normal",
+    fontStyle = "normal",
     letterSpacingOverride,
+    style,
+    color,
 }: {
     children?: ReactNode;
-    color?: Color;
     fontSize?: FontSize;
     fontStyle?: "normal" | "semi-bold" | "bold";
     letterSpacingOverride?: string;
+    style?: React.CSSProperties;
+    color?: Color;
 }) {
     return (
         <Text
+            className={color ? `email-text ${color}` : "email-text"}
             style={{
-                fontFamily: "Inter, Arial",
                 fontSize: fontSizesBySpacingScale[fontSize].small.fontSize,
                 letterSpacing:
                     letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].small.letterSpacing,
@@ -34,9 +37,11 @@ export function EmailText({
                     fontSizesBySpacingScale[fontSize].small.lineHeight,
                     "small",
                 )}px`,
-                fontStyle: emailFontStyles[style].fontStyle,
-                fontWeight: emailFontStyles[style].fontWeight,
-                color: colors[color],
+                fontStyle: emailFontStyles[fontStyle].fontStyle,
+                fontWeight: emailFontStyles[fontStyle].fontWeight,
+                marginBottom: convertRemLengthToPx(cast<RemLength>("0.75rem"), "small"),
+                marginTop: "0px",
+                ...style,
             }}
         >
             {children}

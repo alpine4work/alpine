@@ -7,7 +7,6 @@
 import "~/client/styles/core/internal/global_1_reset.css.js";
 import "~/client/styles/core/internal/global_2_defaults.css.js";
 
-export * from "~/client/styles/core/internal/border_radius.css.js";
 export * from "~/client/styles/core/internal/color_scheme.css.js";
 export * from "~/client/styles/core/internal/elevation.css.js";
 export * from "~/client/styles/core/internal/fonts.css.js";

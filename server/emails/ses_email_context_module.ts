@@ -1,7 +1,7 @@
 import {SESClient, SESServiceException, SendEmailCommand} from "@aws-sdk/client-ses";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
+import {RenderedEmail} from "~/server/emails/internal/templates/email_templates.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 
 /**
