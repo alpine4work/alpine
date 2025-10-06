@@ -34,7 +34,7 @@ export function renderAvatarIconOverlay({
         iconCutout: createSvgHtmlGenerator(
             iconSvgGenerator({
                 color: backgroundColorVar,
-                strokeWidth: 148,
+                strokeWidth: 96,
                 style: [...iconStyleBase, "overflow: hidden"].join(";"),
             }),
         ) as HtmlElementGenerator,

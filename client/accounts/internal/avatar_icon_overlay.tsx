@@ -40,7 +40,7 @@ export function AvatarIconOverlay({
                 }}
                 // The stroke width gets scaled according to the ghost icons size, so
                 // this hardcoded value looks good at all (tested) scales.
-                strokeWidth={148}
+                strokeWidth={96}
             />
             <Icon
                 color={colorSchemeVars["grey-60"]}
