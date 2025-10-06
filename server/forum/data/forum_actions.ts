@@ -123,11 +123,8 @@ import {
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {DynamoGeneralRealtimePostEvent} from "~/shared/forum/post_realtime_protocol.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -265,68 +262,6 @@ export async function* expensiveScanEveryPostCommentForMigration(
             };
         }
     }
-}
-
-/**
- * Move channel and post data from `ForumTable` into `ForumRealtimeTable`.
- *
- * IMPORTANT: This is not a good example of a migration if you need to do
- * something similar in the future! Since I (@calebmer) am running this
- * migration in private alpha I'm ok with having a bit of downtime. This
- * migration requires some downtime and has other risks given briefly after
- * the deploy new code will be reading from `ForumRealtimeTable` but this
- * migration won't have been run.
- */
-export async function runMoveForumChannelsAndPostsMigration(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
-) {
-    let n = 0;
-    const promiseWaiter = new PromiseWaiter();
-    const mutexes = createArrayWithLength(8, () => new Mutex());
-
-    for await (const item of ForumTable.expensiveScan(context, {
-        segmentIndex,
-        totalSegmentCount,
-        filter: [
-            {partitionType: "Channel", sortRangeType: "Attributes"},
-            {partitionType: "Post", sortRangeType: "Attributes"},
-        ],
-    })) {
-        if (
-            (item.partitionType === "Channel" && item.sortRangeType === "Attributes") ||
-            (item.partitionType === "Post" && item.sortRangeType === "Attributes")
-        ) {
-            const mutex = mutexes[n++ % mutexes.length]!;
-
-            // Make sure we're not overriding an existing `accessPolicy`.
-            assert(!("accessPolicy" in item));
-
-            promiseWaiter.waitUntil(
-                mutex.withLock(async () => {
-                    await DynamoTableSchema.executeTransaction(context, [
-                        ForumTable.transactionDeleteItem(item),
-                        ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
-                            {
-                                ...item,
-                                // NOTE(calebmer, 2025-04-21): This migration was run before channels had
-                                // access policies. And the implicit access policy was public to everyone in
-                                // the space.
-                                accessPolicy: {
-                                    accountGrantById: emptyMap,
-                                    defaultGrant: {level: "Manage", generation: 0},
-                                    urlGrant: null,
-                                },
-                                hasAddedFeedCandidateEntry: false,
-                            },
-                        ),
-                    ]);
-                }),
-            );
-        }
-    }
-
-    await promiseWaiter.wait();
 }
 
 export async function seedTestChannels(

@@ -6,7 +6,6 @@ import {
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_actions.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     runIndexEverySearchEntityMigration,
@@ -45,7 +44,6 @@ export const allMigrations: {
     IndexEverySearchEntity: runIndexEverySearchEntityMigration,
     IndexPostAndChannelSearchEntities: runIndexPostAndChannelSearchEntitiesMigration,
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
-    MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
     IndexTaskInitialAssigneePosition: runIndexTaskInitialAssigneePositionMigration,
     FavoriteTaskPersonalSearchEntity: runFavoriteTaskPersonalSearchEntityMigration,
     IndexEveryTaskActionStep1Of2: runIndexEveryTaskActionStep1Of2,

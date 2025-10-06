@@ -6881,57 +6881,6 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
-                        "Attributes": {
-                            "id": 0,
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "spaceId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "createdTime": {
-                                        "valueSchema": {
-                                            "type": "Date"
-                                        },
-                                        "optional": false
-                                    },
-                                    "creatorId": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Id"
-                                            }
-                                        },
-                                        "optional": true
-                                    },
-                                    "name": {
-                                        "valueSchema": {
-                                            "type": "String"
-                                        },
-                                        "optional": false
-                                    },
-                                    "description": {
-                                        "valueSchema": {
-                                            "type": "Reference",
-                                            "reuseReferenceId": "05d7837f"
-                                        },
-                                        "optional": true
-                                    },
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            },
-                            "childSortRangeByType": {}
-                        },
                         "Subscription": {
                             "id": 1,
                             "orderKey": "a1",
@@ -6969,688 +6918,6 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
-                        "Attributes": {
-                            "id": 0,
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "spaceId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "channelId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "createdTime": {
-                                        "valueSchema": {
-                                            "type": "Date"
-                                        },
-                                        "optional": false
-                                    },
-                                    "authorId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "content": {
-                                        "valueSchema": {
-                                            "type": "Object",
-                                            "referenceId": "e7c1103e",
-                                            "propertySchemaByKey": {
-                                                "type": {
-                                                    "valueSchema": {
-                                                        "type": "Value",
-                                                        "value": "doc"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "content": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "referenceId": "9cb631dd",
-                                                        "schema": {
-                                                            "type": "Array",
-                                                            "itemSchema": {
-                                                                "type": "Union",
-                                                                "typeKey": "type",
-                                                                "variantSchemaByTypeValue": {
-                                                                    "doc": {
-                                                                        "type": "Reference",
-                                                                        "reuseReferenceId": "e7c1103e"
-                                                                    },
-                                                                    "text": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "text"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "marks": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Array",
-                                                                                    "itemSchema": {
-                                                                                        "type": "Union",
-                                                                                        "typeKey": "type",
-                                                                                        "variantSchemaByTypeValue": {
-                                                                                            "code": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "code"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "link": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "link"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    },
-                                                                                                    "attrs": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Object",
-                                                                                                            "propertySchemaByKey": {
-                                                                                                                "url": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "String"
-                                                                                                                    },
-                                                                                                                    "optional": false
-                                                                                                                }
-                                                                                                            }
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "bold": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "bold"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "italic": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "italic"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            },
-                                                                                            "strike": {
-                                                                                                "type": "Object",
-                                                                                                "propertySchemaByKey": {
-                                                                                                    "type": {
-                                                                                                        "valueSchema": {
-                                                                                                            "type": "Value",
-                                                                                                            "value": "strike"
-                                                                                                        },
-                                                                                                        "optional": false
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    },
-                                                                                    "referenceId": "a5c113a5"
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "text": {
-                                                                                "valueSchema": {
-                                                                                    "type": "String"
-                                                                                },
-                                                                                "optional": false
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "paragraph": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "paragraph"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "marks": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "a5c113a5"
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "quoteBlock": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "quoteBlock"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "codeBlock": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "codeBlock"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "language": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Reference",
-                                                                                                    "reuseReferenceId": "d78bffd7"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "codeBlockLine": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "codeBlockLine"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "marks": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "a5c113a5"
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "unorderedListItem": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "unorderedListItem"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "indent": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Integer"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "orderedListItem": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "orderedListItem"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "indent": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Integer"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "break": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "break"
-                                                                                },
-                                                                                "optional": false
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "mention": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "mention"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Object",
-                                                                                    "propertySchemaByKey": {
-                                                                                        "mention": {
-                                                                                            "valueSchema": {
-                                                                                                "type": "Reference",
-                                                                                                "reuseReferenceId": "b2c0eadd"
-                                                                                            },
-                                                                                            "optional": false
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "marks": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "a5c113a5"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "table": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "table"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "columnWidths": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Reference",
-                                                                                                    "reuseReferenceId": "9a55f7b0"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
-                                                                                            "tableWidth": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Float"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
-                                                                                            "hasHeaderRow": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Boolean"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
-                                                                                            "hasHeaderColumn": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Boolean"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "tableRow": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "tableRow"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "tableCell": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "tableCell"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "heading": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "heading"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "level": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Integer"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "marks": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "a5c113a5"
-                                                                                },
-                                                                                "optional": true
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "divider": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "divider"
-                                                                                },
-                                                                                "optional": false
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "fileRow": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "fileRow"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "file": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "file"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "fileId": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Nullable",
-                                                                                                    "schema": {
-                                                                                                        "type": "String"
-                                                                                                    }
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "fileRowTable": {
-                                                                        "type": "Object",
-                                                                        "propertySchemaByKey": {
-                                                                            "type": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Value",
-                                                                                    "value": "fileRowTable"
-                                                                                },
-                                                                                "optional": false
-                                                                            },
-                                                                            "content": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Reference",
-                                                                                    "reuseReferenceId": "9cb631dd"
-                                                                                },
-                                                                                "optional": true
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                }
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "contentUpdatedTime": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Date"
-                                            }
-                                        },
-                                        "optional": true
-                                    },
-                                    "commentsSummary": {
-                                        "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "nextCommentIndex": {
-                                                    "valueSchema": {
-                                                        "type": "Integer"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "lastChangeTime": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
-                                                            "type": "Date"
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                },
-                                                "commentCountByAuthorId": {
-                                                    "valueSchema": {
-                                                        "type": "Map",
-                                                        "keySchema": {
-                                                            "type": "Id"
-                                                        },
-                                                        "valueSchema": {
-                                                            "type": "Integer"
-                                                        }
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "mentionCountByAccountId": {
-                                                    "valueSchema": {
-                                                        "type": "Map",
-                                                        "keySchema": {
-                                                            "type": "Id"
-                                                        },
-                                                        "valueSchema": {
-                                                            "type": "Integer"
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                }
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            },
-                            "childSortRangeByType": {}
-                        },
                         "Comments": {
                             "id": 1,
                             "orderKey": "a1",
@@ -7893,8 +7160,586 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "content": {
                                         "valueSchema": {
-                                            "type": "Reference",
-                                            "reuseReferenceId": "e7c1103e"
+                                            "type": "Object",
+                                            "referenceId": "19daf1e8",
+                                            "propertySchemaByKey": {
+                                                "type": {
+                                                    "valueSchema": {
+                                                        "type": "Value",
+                                                        "value": "doc"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "content": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "referenceId": "50b81d4c",
+                                                        "schema": {
+                                                            "type": "Array",
+                                                            "itemSchema": {
+                                                                "type": "Union",
+                                                                "typeKey": "type",
+                                                                "variantSchemaByTypeValue": {
+                                                                    "doc": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "19daf1e8"
+                                                                    },
+                                                                    "text": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "text"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Array",
+                                                                                    "itemSchema": {
+                                                                                        "type": "Union",
+                                                                                        "typeKey": "type",
+                                                                                        "variantSchemaByTypeValue": {
+                                                                                            "code": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "code"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "link": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "link"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "attrs": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "url": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "String"
+                                                                                                                    },
+                                                                                                                    "optional": false
+                                                                                                                }
+                                                                                                            }
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "bold": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "bold"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "italic": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "italic"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            "strike": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "type": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Value",
+                                                                                                            "value": "strike"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "referenceId": "717ad2d0"
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "text": {
+                                                                                "valueSchema": {
+                                                                                    "type": "String"
+                                                                                },
+                                                                                "optional": false
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "paragraph": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "paragraph"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "717ad2d0"
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "quoteBlock": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "quoteBlock"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "codeBlock": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "codeBlock"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "language": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "d78bffd7"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "codeBlockLine": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "codeBlockLine"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "717ad2d0"
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "unorderedListItem": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "unorderedListItem"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "indent": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "orderedListItem": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "orderedListItem"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "indent": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "break": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "break"
+                                                                                },
+                                                                                "optional": false
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "mention": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "mention"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Object",
+                                                                                    "propertySchemaByKey": {
+                                                                                        "mention": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Reference",
+                                                                                                "reuseReferenceId": "b2c0eadd"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "717ad2d0"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "table": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "table"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "columnWidths": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "9a55f7b0"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "tableWidth": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Float"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "hasHeaderRow": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "hasHeaderColumn": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "tableRow": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "tableRow"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "tableCell": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "tableCell"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "heading": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "heading"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "level": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "717ad2d0"
+                                                                                },
+                                                                                "optional": true
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "divider": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "divider"
+                                                                                },
+                                                                                "optional": false
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "fileRow": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "fileRow"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "file": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "file"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "fileId": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Nullable",
+                                                                                                    "schema": {
+                                                                                                        "type": "String"
+                                                                                                    }
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "fileRowTable": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "fileRowTable"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "50b81d4c"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                }
+                                            }
                                         },
                                         "optional": false
                                     },
@@ -7911,37 +7756,7 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             },
-            "indexes": [
-                {
-                    "projection": "KeysOnly",
-                    "partitionKeyBehavior": {
-                        "type": "Separate"
-                    },
-                    "overloadByName": {
-                        "ChannelPosts": {
-                            "itemTypes": [
-                                {
-                                    "partitionType": "Post",
-                                    "sortRangeType": "Attributes"
-                                }
-                            ],
-                            "partitionKeyAttributeByKey": {
-                                "channelId": {
-                                    "type": "Id"
-                                }
-                            },
-                            "sortKeyAttributeByKey": {
-                                "createdTime": {
-                                    "type": "Date"
-                                },
-                                "postId": {
-                                    "type": "Id"
-                                }
-                            }
-                        }
-                    }
-                }
-            ]
+            "indexes": []
         },
         "ForumRealtime": {
             "name": "ForumRealtime",
@@ -8148,7 +7963,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "content": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "e7c1103e"
+                                            "reuseReferenceId": "19daf1e8"
                                         },
                                         "optional": false
                                     },
@@ -8686,7 +8501,7 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "Reference",
-                                                "reuseReferenceId": "e7c1103e"
+                                                "reuseReferenceId": "19daf1e8"
                                             }
                                         },
                                         "optional": true
@@ -8845,7 +8660,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "contentSnippet": {
                                                     "valueSchema": {
                                                         "type": "Reference",
-                                                        "reuseReferenceId": "e7c1103e"
+                                                        "reuseReferenceId": "19daf1e8"
                                                     },
                                                     "optional": false
                                                 }

@@ -2,15 +2,11 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContentSchema,
-    emptyMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayloadSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
-import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // Contains forum data that's not covered by our general realtime system. For
@@ -18,28 +14,12 @@ import {Schema} from "~/shared/schema/schema.js";
 export const ForumTable = DynamoTableSchema.new({
     name: "Forum",
     partitions: [
-        // NOTE(calebmer, 2024-04-11): Forum used to not use general realtime. Since
-        // this date I've migrated data into a table with general realtime support. The
-        // old index and partition types remain for backwards compatibility. Ideally
-        // we'd fully delete this code someday.
         {
             name: "Channel",
             partitionKeyAttributes: {
                 channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
             },
             sortRanges: [
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        spaceId: Schema.id<SpaceId>(),
-                        createdTime: Schema.date,
-                        creatorId: Schema.id<AccountId>().nullable().default(null),
-                        name: LabelStringSchema,
-                        description: MessageContentSchema.default(emptyMessageContent),
-                    }),
-                },
-
                 /**
                  * Accounts who are subscribed to get notifications in their inbox whenever a
                  * post is created in this channel.
@@ -61,35 +41,6 @@ export const ForumTable = DynamoTableSchema.new({
                 postId: DynamoKeyAttributeSchema.id<PostId>(),
             },
             sortRanges: [
-                // NOTE(calebmer, 2024-04-11): Forum used to not use general realtime. Since
-                // this date I've migrated data into a table with general realtime support. The
-                // old index and partition types remain for backwards compatibility. Ideally
-                // we'd fully delete this code someday.
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        spaceId: Schema.id<SpaceId>(),
-                        channelId: Schema.id<ChannelId>(),
-                        createdTime: Schema.date,
-                        authorId: Schema.id<AccountId>(),
-                        content: PostContentSchema,
-                        contentUpdatedTime: Schema.date.nullable().default(null),
-                        commentsSummary: Schema.object({
-                            nextCommentIndex: Schema.integer.min(0),
-                            lastChangeTime: Schema.date.nullable().default(null),
-                            commentCountByAuthorId: Schema.map(
-                                Schema.id<AccountId>(),
-                                Schema.integer.min(1),
-                            ),
-                            mentionCountByAccountId: Schema.map(
-                                Schema.id<AccountId>(),
-                                Schema.integer.min(0),
-                            ).default(new Map()),
-                        }),
-                    }),
-                },
-
                 /**
                  * Comments on a post. Has all the attributes needed for a message in
                  * `MessageInterface`.
@@ -226,22 +177,4 @@ export const ForumTable = DynamoTableSchema.new({
             ],
         },
     ],
-});
-
-// NOTE(calebmer, 2024-04-11): Forum used to not use general realtime. Since
-// this date I've migrated data into a table with general realtime support. The
-// old index and partition types remain for backwards compatibility. Ideally
-// we'd fully delete this code someday.
-ForumTable.addIndex({
-    name: "ChannelPosts",
-    itemTypes: [{partitionType: "Post", sortRangeType: "Attributes"}],
-    partitionKeyAttributes: {
-        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
-    },
-    sortKeyAttributes: {
-        createdTime: DynamoKeyAttributeSchema.date,
-        // Include the post ID in the index sort key so if two posts have the same
-        // created time we have a deterministic ordering between them.
-        postId: DynamoKeyAttributeSchema.id<PostId>(),
-    },
 });
