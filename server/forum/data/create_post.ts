@@ -24,7 +24,7 @@ import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_conte
 import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {getNotificationPostContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
-import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/spaces_actions.js";
 import {
     DynamoGeneralRealtimeEvent,

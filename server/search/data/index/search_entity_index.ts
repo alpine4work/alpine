@@ -78,7 +78,7 @@ import {
     searchEntityKeywordIndexRefreshIntervalMs,
     searchEntityKeywordIndexWaitForRefreshDelayMs,
     withIndexSearchEntityEmbeddingChunksJobLock,
-} from "~/server/search/data/table/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_actions.js";
 import {
     authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,

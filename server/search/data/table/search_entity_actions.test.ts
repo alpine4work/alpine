@@ -2,6 +2,7 @@ import {addDays} from "date-fns";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getSearchEntityTableForTest} from "~/server/search/data/table/internal/search_entity_table.js";
 import {
     addSearchAffinityEntityActiveTaskAssigneePoints,
     assignSearchAffinityEntityDerivedAttributes,
@@ -11,7 +12,6 @@ import {
     getSearchAffinitiesEarlyReturnTestCounter,
     getSearchAffinityEntityExpirationDuration,
     getSearchAffinityEntityPointsBucket,
-    getSearchEntityTableForTest,
     internalGetSearchAffinityEntities,
     internalGetSearchFavoriteEntities,
     isSearchFavoriteEntity,
@@ -23,7 +23,7 @@ import {
     searchAffinityEntityQueryPageLimit,
     thirtyDaysDurationMs,
     unfavoriteSearchEntity,
-} from "~/server/search/data/table/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";

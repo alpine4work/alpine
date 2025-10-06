@@ -35,7 +35,7 @@ import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/hel
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
-import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {getAccount, isAccountMemberOfSpace} from "~/server/spaces/spaces_actions.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";

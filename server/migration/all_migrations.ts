@@ -13,7 +13,7 @@ import {
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
 } from "~/server/migration/migrations/index_every_search_entity_migration.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {runFavoriteTaskPersonalSearchEntityMigration} from "~/server/search/data/table/search_entity_table.js";
+import {runFavoriteTaskPersonalSearchEntityMigration} from "~/server/search/data/table/search_entity_actions.js";
 import {
     runIndexEveryTaskActionStep1Of2,
     runIndexEveryTaskActionStep2Of2,

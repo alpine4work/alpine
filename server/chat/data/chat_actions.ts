@@ -41,7 +41,7 @@ import {
     processMessagesQuery,
 } from "~/server/messaging/helpers/process_messages_query.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
-import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
     authorizeOwnSpaceAccountAccess,
     authorizeSpaceAccess,

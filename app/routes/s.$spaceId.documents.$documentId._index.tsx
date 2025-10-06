@@ -22,7 +22,7 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {

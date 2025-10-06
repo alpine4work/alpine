@@ -11,7 +11,7 @@ import {
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
-import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";

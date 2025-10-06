@@ -1,6 +1,6 @@
 import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_table.js";
+import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_actions.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

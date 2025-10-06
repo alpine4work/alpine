@@ -57,7 +57,7 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
-} from "~/server/search/data/table/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_actions.js";
 import {
     authorizeSpaceAccess,
     getAccount,

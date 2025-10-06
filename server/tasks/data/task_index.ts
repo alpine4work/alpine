@@ -23,7 +23,7 @@ import {
     addSearchAffinityEntityActiveTaskAssigneePoints,
     markSearchAffinityEntityInteractionForAccount,
     removeSearchAffinityEntityActiveTaskAssigneePoints,
-} from "~/server/search/data/table/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_actions.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";

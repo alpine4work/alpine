@@ -36,7 +36,7 @@ import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments
 import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccessIfPossible, getAccount} from "~/server/spaces/spaces_actions.js";
 import {
     getTaskNotesContentAndOptionalInitialComments,

@@ -15,7 +15,7 @@ import {
     markSearchAffinityEntityInteraction,
     moveSearchFavoriteEntity,
     unfavoriteSearchEntity,
-} from "~/server/search/data/table/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_actions.js";
 import * as definitions from "~/shared/rpc/search_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

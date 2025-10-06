@@ -17,7 +17,7 @@ import {getChatAndInitialMessages} from "~/server/chat/data/chat_actions.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";

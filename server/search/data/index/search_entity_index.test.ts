@@ -37,7 +37,7 @@ import {
     favoriteSearchEntity,
     markSearchAffinityEntityInteraction,
     unfavoriteSearchEntity,
-} from "~/server/search/data/table/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_actions.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {
     acceptSpaceAccountInvite,
