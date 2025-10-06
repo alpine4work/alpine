@@ -645,7 +645,7 @@ async function createChatGptAgentResponse(
         stream: true,
 
         // TODO(ifitzsimmons, #ai): Manage models with config (environment variables?)
-        model: "gpt-5-nano",
+        model: "gpt-5",
         // https://platform.openai.com/docs/guides/prompt-caching
         prompt_cache_key: `${request.spaceId}:${request.event.roomPath}`,
         safety_identifier: request.event.authorId,
