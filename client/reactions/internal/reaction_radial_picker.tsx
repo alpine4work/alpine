@@ -1,9 +1,10 @@
 import {AnimationPlaybackControls, animate, spring} from "motion";
-import {DotsThree, Heart} from "phosphor-react";
+import {DotsThree} from "phosphor-react";
 import {Memo, Ref, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
@@ -66,7 +67,7 @@ function ReactionRadialPicker(
     }: {
         isVisible: boolean;
         creature: ReactionCreature;
-        onSetReaction: (reaction: Reaction | "GenericHeart") => void;
+        onSetReaction: (reaction: Reaction | "GenericLike") => void;
         onCloseWithAnimation: Memo<() => void>;
         isMouseDownFromOverlayOpen: boolean;
     },
@@ -217,7 +218,7 @@ function ReactionRadialPicker(
         // Don't select if the mouse is over the center heart button.
         if (activeIndex !== null) {
             if (activeIndex === 0) {
-                onSetReaction("GenericHeart");
+                onSetReaction("GenericLike");
             } else if (activeIndex === 4) {
                 // TODO(calebmer): Implement!
             } else {
@@ -265,7 +266,7 @@ function ReactionRadialPicker(
 
                         if (activeIndex !== null) {
                             if (activeIndex === 0) {
-                                onSetReaction("GenericHeart");
+                                onSetReaction("GenericLike");
                             } else if (activeIndex === 4) {
                                 // TODO(calebmer): Implement!
                             } else {
@@ -333,8 +334,8 @@ function ReactionRadialPicker(
                                     color={
                                         activeIndex === index &&
                                         (isPressed || isMouseDownFromOverlayOpen)
-                                            ? {light: "red-60-const", dark: "red-40-const"}
-                                            : "red-50-const"
+                                            ? {light: "theme-60-const", dark: "theme-40-const"}
+                                            : "theme-50-const"
                                     }
                                     borderRadius="full"
                                     style={{
@@ -349,9 +350,8 @@ function ReactionRadialPicker(
                                         transition: "color 0.15s ease, background-color 0.15s ease",
                                     }}
                                 >
-                                    <Heart
+                                    <ThumbsUpFill2Icon
                                         size={spacing[reactionRadialPickerOptionButtonIconSize]}
-                                        weight="fill"
                                     />
                                 </Box>
                             );

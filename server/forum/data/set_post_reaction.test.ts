@@ -36,10 +36,10 @@ test("can add a default reaction to post", async () => {
 
     expect((await post.get()).reactions.get()).toEqual(new Map());
 
-    await setPostReaction(session2.action(), post.id, "GenericHeart");
+    await setPostReaction(session2.action(), post.id, "GenericLike");
 
     expect((await post.get()).reactions.get()).toEqual(
-        new Map([[session2.account.id, "GenericHeart"]]),
+        new Map([[session2.account.id, "GenericLike"]]),
     );
 });
 
@@ -79,10 +79,10 @@ test("can update a reaction to post to default reaction", async () => {
         emotion: "Laugh",
     });
 
-    await setPostReaction(session2.action(), post.id, "GenericHeart");
+    await setPostReaction(session2.action(), post.id, "GenericLike");
 
     expect((await post.get()).reactions.get()).toEqual(
-        new Map([[session2.account.id, "GenericHeart"]]),
+        new Map([[session2.account.id, "GenericLike"]]),
     );
 });
 
@@ -93,7 +93,7 @@ test("can update a reaction to post from default reaction", async () => {
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, "GenericHeart");
+    await setPostReaction(session2.action(), post.id, "GenericLike");
 
     await setPostReaction(session2.action(), post.id, {
         creature: {type: "Tree", variant: "Green"},

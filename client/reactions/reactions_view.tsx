@@ -1,9 +1,9 @@
-import {Heart} from "phosphor-react";
 import {useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
 import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
 import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
@@ -79,7 +79,7 @@ function ReactionsViewReaction({
     reaction,
 }: {
     account: AccountModel;
-    reaction: Reaction | "GenericHeart";
+    reaction: Reaction | "GenericLike";
 }) {
     const accountData = useAccountModel(account);
 
@@ -108,11 +108,10 @@ function ReactionsViewReaction({
                 alignItems="center"
                 justifyContent="center"
             >
-                {reaction === "GenericHeart" ? (
-                    <Heart
-                        weight="fill"
+                {reaction === "GenericLike" ? (
+                    <ThumbsUpFill2Icon
                         size={spacing["5"]}
-                        color={colorSchemeVars["red-50-const"]}
+                        color={colorSchemeVars["theme-50-const"]}
                     />
                 ) : (
                     <Box position="relative" top="-0.5">

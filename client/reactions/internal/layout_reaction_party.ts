@@ -19,7 +19,7 @@ export function layoutReactionParty(
     secondRowReactionEntries: Array<ReactionEntry>;
 } {
     const originalReactionEntries = filterMapArray(reactions.get(), ([accountId, reaction]) => {
-        if (reaction === "GenericHeart") return;
+        if (reaction === "GenericLike") return;
         return {accountId, reaction};
     });
 

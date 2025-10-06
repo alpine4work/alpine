@@ -1,9 +1,10 @@
-import {Heart} from "phosphor-react";
+import {ThumbsUp} from "phosphor-react";
 import {useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
 import {
     ReactionRadialPicker,
@@ -32,7 +33,7 @@ export function ReactionButton({
     onDeleteReaction,
 }: {
     reactions: ReactionSet;
-    onSetReaction: (reaction: Reaction | "GenericHeart") => void;
+    onSetReaction: (reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: () => void;
 }) {
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
@@ -123,17 +124,16 @@ export function ReactionButton({
                 height={postContentViewFooterButtonHeight}
                 paddingX="1.5"
                 icon={({isPressed}) =>
-                    currentAccountReaction === "GenericHeart" ? (
+                    currentAccountReaction === "GenericLike" ? (
                         <Box
                             color={
                                 isPressed
-                                    ? {light: "red-60-const", dark: "red-40-const"}
-                                    : "red-50-const"
+                                    ? {light: "theme-60-const", dark: "theme-40-const"}
+                                    : "theme-50-const"
                             }
                         >
-                            <Heart
+                            <ThumbsUpFill2Icon
                                 size={spacing[postContentViewFooterButtonIconSize]}
-                                weight="fill"
                             />
                         </Box>
                     ) : currentAccountReaction !== undefined ? (
@@ -146,7 +146,7 @@ export function ReactionButton({
                             </Box>
                         </Box>
                     ) : (
-                        <Heart size={spacing[postContentViewFooterButtonIconSize]} />
+                        <ThumbsUp size={spacing[postContentViewFooterButtonIconSize]} />
                     )
                 }
                 onPress={() => {

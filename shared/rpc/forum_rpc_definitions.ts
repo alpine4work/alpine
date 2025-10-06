@@ -424,9 +424,9 @@ export const setPostReaction = defineRpc({
     name: "setPostReaction",
     input: {
         postId: Schema.id<PostId>(),
-        reaction: ReactionSchema.nullable().transform<Reaction | "GenericHeart">({
-            serialize: value => (value === "GenericHeart" ? null : value),
-            deserialize: value => (value === null ? "GenericHeart" : value),
+        reaction: ReactionSchema.nullable().transform<Reaction | "GenericLike">({
+            serialize: value => (value === "GenericLike" ? null : value),
+            deserialize: value => (value === null ? "GenericLike" : value),
         }),
     },
     output: {

@@ -26,7 +26,7 @@ export type ReactionSet = InstanceType<typeof ReactionSet>;
  */
 export const ReactionSet = createSchemaLazyTransformClass<
     Uint8Array,
-    ReadonlyMap<AccountId, Reaction | "GenericHeart">
+    ReadonlyMap<AccountId, Reaction | "GenericLike">
 >(Schema.bytes, {
     serialize: map => {
         const bytes = new Uint8Array(map.size * (idByteLength + 2));
@@ -40,7 +40,7 @@ export const ReactionSet = createSchemaLazyTransformClass<
             // conflict with our reaction icon IDs.
             view.setUint16(
                 byteOffset,
-                reactionIcon !== "GenericHeart" ? getReactionInMap(reactionIds, reactionIcon) : 0,
+                reactionIcon !== "GenericLike" ? getReactionInMap(reactionIds, reactionIcon) : 0,
                 false, // Make sure we always use big-endian format
             );
             byteOffset += 2;
@@ -52,7 +52,7 @@ export const ReactionSet = createSchemaLazyTransformClass<
         return bytes;
     },
     deserialize: bytes => {
-        const map = new Map<AccountId, Reaction | "GenericHeart">();
+        const map = new Map<AccountId, Reaction | "GenericLike">();
         const view = new DataView(bytes.buffer);
 
         let byteOffset = 0;
@@ -73,10 +73,10 @@ export const ReactionSet = createSchemaLazyTransformClass<
             const accountId = encodeId<AccountId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            let reaction: Reaction | "GenericHeart";
+            let reaction: Reaction | "GenericLike";
 
             if (reactionId === 0) {
-                reaction = "GenericHeart";
+                reaction = "GenericLike";
             } else {
                 const actualReactionIcon = reactionById.get().get(reactionId);
                 if (!actualReactionIcon) {

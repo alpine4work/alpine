@@ -17,7 +17,7 @@ import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 export async function setPostReaction(
     context: ServerAccountActionContext,
     postId: PostId,
-    reaction: Reaction | "GenericHeart",
+    reaction: Reaction | "GenericLike",
 ) {
     const item = await getPostItemWithContentForAuthorization(context, postId);
 
