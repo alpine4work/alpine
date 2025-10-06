@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {AnimationControls, animate} from "motion";
+import {AnimationPlaybackControls, animate} from "motion";
 import {Ref, forwardRef, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -153,7 +153,7 @@ function OverlayAnimated(
         };
     }, [isActuallyVisible, state.isAnimating, state.isVisible]);
 
-    const fadeOutAnimationRef = useRef<AnimationControls | null>(null);
+    const fadeOutAnimationRef = useRef<AnimationPlaybackControls | null>(null);
 
     // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with
     // the `motion` package. I've observed CSS class based animations randomly stop
@@ -168,7 +168,7 @@ function OverlayAnimated(
             if (state.isVisible) {
                 fadeOutAnimationRef.current?.cancel();
             } else {
-                fadeOutAnimationRef.current?.finish();
+                fadeOutAnimationRef.current?.complete();
             }
             fadeOutAnimationRef.current = null;
             return;
@@ -246,7 +246,7 @@ function OverlayAnimated(
 
             fadeOutAnimationRef.current = animate(overlayElement, animationKeyframes, {
                 duration: overlayFadeOutAnimationDurationMs / 1000,
-                easing: parseCubicBezier(overlayFadeInOutTimingFunction),
+                ease: parseCubicBezier(overlayFadeInOutTimingFunction),
             });
 
             void fadeOutAnimationRef.current.finished.finally(() => {

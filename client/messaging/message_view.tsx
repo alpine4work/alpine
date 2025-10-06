@@ -2,7 +2,7 @@ import {usePress} from "@react-aria/interactions";
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
-import {timeline} from "motion";
+import {animate} from "motion";
 import {ArrowArcLeft, ArrowArcRight, Copy, Link as LinkIcon, Trash} from "phosphor-react";
 import {
     Fragment,
@@ -736,35 +736,20 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
                             const remPx = getRemPxWithoutListening();
 
-                            const animation = timeline(
+                            const animation = animate(
                                 [
                                     [
                                         elements,
                                         {x: 0},
-                                        {
-                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                                            // default `motion` turns it off.
-                                            // https://motion.dev/guides/performance#webkits-exceptions
-                                            allowWebkitAcceleration: true,
-                                        },
+                                        {ease: parseCubicBezier(easeOutExpo.cubicBezier)},
                                     ],
                                     [
                                         touchReplyIconElement ?? [],
                                         {x: -0.75 * remPx, opacity: 0},
-                                        {
-                                            at: 0,
-                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                                            // default `motion` turns it off.
-                                            // https://motion.dev/guides/performance#webkits-exceptions
-                                            allowWebkitAcceleration: true,
-                                        },
+                                        {at: 0, ease: parseCubicBezier(easeOutExpo.cubicBezier)},
                                     ],
                                 ],
-                                {
-                                    duration: 0.5,
-                                },
+                                {duration: 0.5},
                             );
 
                             return animation.finished;
@@ -811,7 +796,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     touchState.hasReplyGestureActivated = false;
                 }
 
-                timeline(
+                void animate(
                     [
                         [elements, {x: translateX}],
                         [

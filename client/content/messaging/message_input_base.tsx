@@ -476,11 +476,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         const inputElement = assertExists(inputRef.current);
 
         if (isKeyboardToolbarVisible && !NativeMobileBridge) {
-            animate(
+            void animate(
                 inputElement,
-                {
-                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
-                },
+                {y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()]},
                 {duration: 0},
             );
         }
@@ -496,7 +494,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             if (NativeMobileBridge) {
                 // Noop...
             } else {
-                animate(
+                void animate(
                     inputElement,
                     {
                         y: [
@@ -504,13 +502,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
                         ],
                     },
-                    {
-                        duration: 0.2,
-                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                        // default `motion` turns it off.
-                        // https://motion.dev/guides/performance#webkits-exceptions
-                        allowWebkitAcceleration: true,
-                    },
+                    {duration: 0.2},
                 );
             }
         } else {
@@ -527,13 +519,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             0,
                         ],
                     },
-                    {
-                        duration: 0.2,
-                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                        // default `motion` turns it off.
-                        // https://motion.dev/guides/performance#webkits-exceptions
-                        allowWebkitAcceleration: true,
-                    },
+                    {duration: 0.2},
                 );
 
                 void animation.finished.finally(() => {

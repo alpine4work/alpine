@@ -105,18 +105,10 @@ export function ContentEditorMobileKeyboardToolbar({
 
         const toolbarElement = assertExists(toolbarRef.current);
 
-        animate(
+        void animate(
             toolbarElement,
-            {
-                y: [0, `-${mobileBottomBarKeyboardToolbarHeightRem}rem`],
-            },
-            {
-                duration: 0.2,
-                // Make sure we use hardware acceleration for this animation in WebKit. By
-                // default `motion` turns it off.
-                // https://motion.dev/guides/performance#webkits-exceptions
-                allowWebkitAcceleration: true,
-            },
+            {y: [0, `-${mobileBottomBarKeyboardToolbarHeightRem}rem`]},
+            {duration: 0.2},
         );
     }, [isFocused, isNativeMobile]);
 
@@ -135,16 +127,8 @@ export function ContentEditorMobileKeyboardToolbar({
         if (!NativeMobileBridge) {
             const animation = animate(
                 toolbarElement,
-                {
-                    y: [`-${mobileBottomBarKeyboardToolbarHeightRem}rem`, 0],
-                },
-                {
-                    duration: 0.2,
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
+                {y: [`-${mobileBottomBarKeyboardToolbarHeightRem}rem`, 0]},
+                {duration: 0.2},
             );
 
             void animation.finished.finally(() => {

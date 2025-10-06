@@ -14,6 +14,9 @@ import {keyframes} from "@vanilla-extract/css";
  * [2]: https://www.kirillvasiltsov.com/writing/how-to-create-a-spring-animation-with-web-animation-api/
  * [3]: https://github.com/pmndrs/react-spring/blob/07b229cf03507de1c66e2ffd1e7d8c617fcb3f61/packages/core/src/constants.ts#L1-L9
  */
+// TODO(calebmer): We could use `motion` now instead of writing our own spring
+// CSS generator!
+// https://motion.dev/docs/css
 export function createSpringAnimation({
     startX = 0,
     startY = 0,

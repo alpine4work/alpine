@@ -1,5 +1,5 @@
 import {compareAsc as compareDatesAsc} from "date-fns/compareAsc";
-import {Easing, timeline} from "motion";
+import {Easing, animate} from "motion";
 import {useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
@@ -17,7 +17,7 @@ import {
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {easeInOutSin} from "~/shared/design/core/easing.js";
+import {easeInOutSin, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
@@ -91,24 +91,24 @@ function MessagingTypingIndicator({account}: {account: AccountModel}) {
         const duration = 0.8;
         const staggerDuration = duration / 6;
         const offset = `${parseRemLength("0.5") / 2}rem`;
-        const easing = easeInOutSin.cubicBezier as Easing;
+        const ease: Easing = parseCubicBezier(easeInOutSin.cubicBezier);
 
-        const createSequence = (element: HTMLElement): Parameters<typeof timeline>[0] => [
-            [element, {y: [`-${offset}`, offset]}, {duration: duration / 2, easing}],
-            [element, {y: [offset, `-${offset}`]}, {duration: duration / 2, easing}],
+        const createSequence = (element: HTMLElement): Array<{}> => [
+            [element, {y: [`-${offset}`, offset]}, {duration: duration / 2, ease}],
+            [element, {y: [offset, `-${offset}`]}, {duration: duration / 2, ease}],
         ];
 
-        const animation1 = timeline(createSequence(dot1Element), {repeat: Infinity});
-        const animation2 = timeline(createSequence(dot2Element), {repeat: Infinity});
-        const animation3 = timeline(createSequence(dot3Element), {repeat: Infinity});
+        const animation1 = animate(createSequence(dot1Element), {repeat: Infinity});
+        const animation2 = animate(createSequence(dot2Element), {repeat: Infinity});
+        const animation3 = animate(createSequence(dot3Element), {repeat: Infinity});
 
         // We want the second dot's animation to start in the center. That will be 25%
         // through the animation. We start the whole animation one cycle through so we
         // can stagger our other animation start times.
-        animation2.currentTime = duration * 1.25;
+        animation2.time = duration * 1.25;
 
-        animation1.currentTime = animation2.currentTime - staggerDuration;
-        animation3.currentTime = animation2.currentTime + staggerDuration;
+        animation1.time = animation2.time - staggerDuration;
+        animation3.time = animation2.time + staggerDuration;
     }, []);
 
     return (

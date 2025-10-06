@@ -1022,10 +1022,9 @@ function PeekStackOverlay({
                     y: [translateY, 0],
                 },
                 {
-                    easing: spring({
-                        stiffness: 400,
-                        damping: 35,
-                    }),
+                    type: spring,
+                    stiffness: 400,
+                    damping: 35,
                 },
             );
 
@@ -1081,10 +1080,9 @@ function PeekStackOverlay({
                     y: [0, translateY],
                 },
                 {
-                    easing: spring({
-                        stiffness: 350,
-                        damping: 35,
-                    }),
+                    type: spring,
+                    stiffness: 350,
+                    damping: 35,
                 },
             );
 
@@ -1114,7 +1112,7 @@ function PeekStackOverlay({
             const {transform, opacity} = getPeekStackOverlayAnimationStyles(initialIndex);
 
             overlayElement.style.transform = transform;
-            overlayElement.style.opacity = opacity;
+            overlayElement.style.opacity = String(opacity);
         }, [index, state.disableEntranceAnimationsDuringNextRender]);
 
         const {transform, opacity} = getPeekStackOverlayAnimationStyles(index);
@@ -1133,7 +1131,7 @@ function PeekStackOverlay({
                 },
                 {
                     duration: 0.2,
-                    easing: "linear",
+                    ease: "linear",
                 },
             );
 
@@ -1143,7 +1141,7 @@ function PeekStackOverlay({
                 if (isCancelled) return;
 
                 // Once the element has fully disappeared, let's unmount it.
-                if (opacity === "0") dispatch({type: "SetUnmountedStart", stackIndex: index});
+                if (opacity === 0) dispatch({type: "SetUnmountedStart", stackIndex: index});
             });
 
             return () => {
@@ -1192,12 +1190,12 @@ function PeekStackOverlay({
                 const animation = animate(
                     overlayContentContainerElement,
                     {
-                        opacity: "0",
+                        opacity: 0,
                     },
                     {
                         delay: 0.5,
                         duration: 0.2,
-                        easing: "linear",
+                        ease: "linear",
                     },
                 );
 
@@ -1236,11 +1234,11 @@ function PeekStackOverlay({
                 const animation = animate(
                     overlayContentContainerElement,
                     {
-                        opacity: "1",
+                        opacity: 1,
                     },
                     {
                         duration: 0.2,
-                        easing: "linear",
+                        ease: "linear",
                     },
                 );
 
@@ -1367,7 +1365,7 @@ function getPeekStackOverlayAnimationStyles(index: number) {
     const translateX = `${parseRemLength(peekUnderlayOffset) * Math.max(0, index)}rem`;
     const translateY = `${parseRemLength(peekUnderlayOffset) * Math.max(0, index)}rem`;
     const transform = `translate(${translateX}, ${translateY})`;
-    const opacity = index < 3 ? "1" : "0";
+    const opacity = index < 3 ? 1 : 0;
     return {transform, opacity};
 }
 

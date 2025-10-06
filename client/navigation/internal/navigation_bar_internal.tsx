@@ -15,7 +15,7 @@
 // navigation bar behavior. We have consistent scroll events across web code
 // and native code so we can use that. Touch events are more dicey.
 
-import {AnimationControls, timeline} from "motion";
+import {AnimationPlaybackControls, animate} from "motion";
 import {Memo, MutableRefObject, ReactNode, Ref, useImperativeHandle, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
@@ -262,7 +262,7 @@ export function NavigationBar({
         [],
     );
 
-    const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
+    const animationControlsRef = useRef<Set<AnimationPlaybackControls> | null>(null);
 
     useImperativeHandle(
         handleRef,
@@ -330,7 +330,7 @@ export function NavigationBar({
                     animationControlsRef.current = null;
 
                     for (const animationControl of animationControls) {
-                        animationControl.finish();
+                        animationControl.complete();
                     }
                 }
 
@@ -479,7 +479,7 @@ export function NavigationBar({
                     animationControlsRef.current = null;
 
                     for (const animationControl of animationControls) {
-                        animationControl.finish();
+                        animationControl.complete();
                     }
                 }
 
@@ -928,15 +928,15 @@ export function NavigationBar({
         const doesNavigationBarHaveSafeAreaInsetTop =
             getElementSafeAreaInsetTopPx(navigationBarContentElement) > 0;
 
-        const timelineDefinition: Parameters<typeof timeline>[0] = [
-            [navigationBarElement, {y: [-translateY, 0]}, {easing: "ease-in-out"}],
+        const timelineDefinition: Array<{}> = [
+            [navigationBarElement, {y: [-translateY, 0]}, {ease: "easeInOut"}],
         ];
 
         if (doesNavigationBarHaveSafeAreaInsetTop) {
             timelineDefinition.push([
                 navigationBarContentElement,
                 {opacity: translateY > 0 ? 1 : 0},
-                {at: "<", easing: "ease-in"},
+                {at: "<", ease: "easeIn"},
             ]);
         }
 
@@ -944,11 +944,11 @@ export function NavigationBar({
             timelineDefinition.push([
                 navigationBarTitleElement,
                 {opacity: isNavigationBarTitleVisible ? 1 : 0},
-                {at: "<", easing: "ease-in"},
+                {at: "<", ease: "easeIn"},
             ]);
         }
 
-        const animationControls = timeline(timelineDefinition, {
+        const animationControls = animate(timelineDefinition, {
             duration: navigationBarRevealOrHideAnimationDurationMs / 1000,
         });
 

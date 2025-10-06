@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {AnimationControls, animate, spring, timeline} from "motion";
+import {AnimationPlaybackControls, animate, spring} from "motion";
 import {
     ArrowLeft,
     ArrowUp,
@@ -352,8 +352,8 @@ export function DocumentContentEditor({
     const mobileFakeCommentInputRef = useRef<HTMLDivElement>(null);
     const mobileFakeCommentInputEditorRef = useRef<HTMLDivElement>(null);
 
-    const sidebarAnimationInRef = useRef<AnimationControls | null>(null);
-    const sidebarAnimationOutRef = useRef<AnimationControls | null>(null);
+    const sidebarAnimationInRef = useRef<AnimationPlaybackControls | null>(null);
+    const sidebarAnimationOutRef = useRef<AnimationPlaybackControls | null>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!(sidebarState.isOpen && sidebarState.animationState === "Opening")) {
@@ -370,7 +370,7 @@ export function DocumentContentEditor({
 
         const spacingScale = getSpacingScaleWithoutListening();
 
-        let animation: AnimationControls;
+        let animation: AnimationPlaybackControls;
 
         if (routeLayout === "narrow") {
             const editorContainerRect = editorContainerElement.getBoundingClientRect();
@@ -381,30 +381,17 @@ export function DocumentContentEditor({
 
             const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
-            animation = timeline(
+            animation = animate(
                 [
                     [
                         sidebarElement,
                         {y: [sidebarHeight, 0]},
-                        {
-                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                            // default `motion` turns it off.
-                            // https://motion.dev/guides/performance#webkits-exceptions
-                            allowWebkitAcceleration: true,
-                        },
+                        {ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
                     ],
                     [
                         mobileFakeCommentInputElement ?? [],
                         {y: [sidebarHeight, 0]},
-                        {
-                            at: 0,
-                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                            // default `motion` turns it off.
-                            // https://motion.dev/guides/performance#webkits-exceptions
-                            allowWebkitAcceleration: true,
-                        },
+                        {at: 0, ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
                     ],
                 ],
                 {
@@ -434,25 +421,23 @@ export function DocumentContentEditor({
                 (editorContainerElement.clientWidth - blockMaxWidth) / 2,
             );
 
-            animation = timeline(
+            animation = animate(
                 [
-                    [sidebarElement, {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]}],
+                    [
+                        sidebarElement,
+                        {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]},
+                        {type: spring, stiffness: 300, damping: 31},
+                    ],
                     [
                         editorContainerElement,
                         {x: [oldContentOffset - newContentOffset, 0]},
-                        {at: 0},
+                        {at: 0, type: spring, stiffness: 300, damping: 31},
                     ],
                 ],
                 {
                     // Add a little bit of delay so React can finish rendering before playing our
                     // animation.
                     delay: 0.05,
-                    defaultOptions: {
-                        easing: spring({
-                            stiffness: 300,
-                            damping: 31,
-                        }),
-                    },
                 },
             );
         }
@@ -506,7 +491,7 @@ export function DocumentContentEditor({
 
         const spacingScale = getSpacingScaleWithoutListening();
 
-        let animation: AnimationControls;
+        let animation: AnimationPlaybackControls;
         let sidebarHeight: number | undefined;
 
         if (routeLayout === "narrow") {
@@ -534,30 +519,17 @@ export function DocumentContentEditor({
 
             const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
-            animation = timeline(
+            animation = animate(
                 [
                     [
                         sidebarElement,
                         {y: [0, sidebarHeight]},
-                        {
-                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                            // default `motion` turns it off.
-                            // https://motion.dev/guides/performance#webkits-exceptions
-                            allowWebkitAcceleration: true,
-                        },
+                        {ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
                     ],
                     [
                         mobileFakeCommentInputElement ?? [],
                         {y: [0, sidebarHeight]},
-                        {
-                            at: 0,
-                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                            // default `motion` turns it off.
-                            // https://motion.dev/guides/performance#webkits-exceptions
-                            allowWebkitAcceleration: true,
-                        },
+                        {at: 0, ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
                     ],
                 ],
                 {
@@ -587,25 +559,23 @@ export function DocumentContentEditor({
                 (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
             );
 
-            animation = timeline(
+            animation = animate(
                 [
-                    [sidebarElement, {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]}],
+                    [
+                        sidebarElement,
+                        {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]},
+                        {type: spring, stiffness: 420, damping: 35},
+                    ],
                     [
                         editorContainerElement,
                         {x: [0, -(oldContentOffset - newContentOffset)]},
-                        {at: 0},
+                        {at: 0, type: spring, stiffness: 420, damping: 35},
                     ],
                 ],
                 {
                     // Add a little bit of delay so React can finish rendering before playing our
                     // animation.
                     delay: 0.05,
-                    defaultOptions: {
-                        easing: spring({
-                            stiffness: 420,
-                            damping: 35,
-                        }),
-                    },
                 },
             );
         }
@@ -675,8 +645,8 @@ export function DocumentContentEditor({
         editorContainerElement.style.setProperty("--safe-area-inset-bottom", `${sidebarHeight}px`);
     }, [routeLayout, sidebarState.isOpen]);
 
-    const sidebarMobileFullScreenAnimationInRef = useRef<AnimationControls | null>(null);
-    const sidebarMobileFullScreenAnimationOutRef = useRef<AnimationControls | null>(null);
+    const sidebarMobileFullScreenAnimationInRef = useRef<AnimationPlaybackControls | null>(null);
+    const sidebarMobileFullScreenAnimationOutRef = useRef<AnimationPlaybackControls | null>(null);
 
     useEffect(() => {
         if (
@@ -724,11 +694,7 @@ export function DocumentContentEditor({
             {y: [0, -offset]},
             {
                 duration: mobileFullScreenModalAnimationDurationMs / 1000,
-                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                // Make sure we use hardware acceleration for this animation in WebKit. By
-                // default `motion` turns it off.
-                // https://motion.dev/guides/performance#webkits-exceptions
-                allowWebkitAcceleration: true,
+                ease: mobileFullScreenModalAnimationEasingParsedCubicBezier,
             },
         );
 
@@ -792,11 +758,7 @@ export function DocumentContentEditor({
             {y: [-offset, 0]},
             {
                 duration: mobileFullScreenModalAnimationDurationMs / 1000,
-                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                // Make sure we use hardware acceleration for this animation in WebKit. By
-                // default `motion` turns it off.
-                // https://motion.dev/guides/performance#webkits-exceptions
-                allowWebkitAcceleration: true,
+                ease: mobileFullScreenModalAnimationEasingParsedCubicBezier,
             },
         );
 

@@ -237,11 +237,7 @@ export function MobileFullScreenModal({
                         {y: [modalElement.getBoundingClientRect().height, 0]},
                         {
                             duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
-                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                            // default `motion` turns it off.
-                            // https://motion.dev/guides/performance#webkits-exceptions
-                            allowWebkitAcceleration: true,
+                            ease: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                         },
                     );
 
@@ -259,11 +255,7 @@ export function MobileFullScreenModal({
                         {y: [0, modalElement.getBoundingClientRect().height]},
                         {
                             duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
-                            easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                            // default `motion` turns it off.
-                            // https://motion.dev/guides/performance#webkits-exceptions
-                            allowWebkitAcceleration: true,
+                            ease: mobileFullScreenModalAnimationEasingParsedCubicBezier,
                         },
                     );
 

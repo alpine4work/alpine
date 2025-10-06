@@ -1,4 +1,4 @@
-import {animate, spring, timeline} from "motion";
+import {animate, spring} from "motion";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {Box} from "~/client/design/box.js";
@@ -248,21 +248,23 @@ export function TaskDetailAndCommentsView({
                     (detailElement.clientWidth - blockMaxWidth) / 2,
                 );
 
-                const animation = timeline(
+                const animation = animate(
                     [
-                        [commentsElement, {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]}],
-                        [detailElement, {x: [oldContentOffset - newContentOffset, 0]}, {at: 0}],
+                        [
+                            commentsElement,
+                            {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]},
+                            {type: spring, stiffness: 300, damping: 31},
+                        ],
+                        [
+                            detailElement,
+                            {x: [oldContentOffset - newContentOffset, 0]},
+                            {at: 0, type: spring, stiffness: 300, damping: 31},
+                        ],
                     ],
                     {
                         // Add a little bit of delay so React can finish rendering before playing our
                         // animation.
                         delay: 0.05,
-                        defaultOptions: {
-                            easing: spring({
-                                stiffness: 300,
-                                damping: 31,
-                            }),
-                        },
                     },
                 );
 
@@ -300,21 +302,23 @@ export function TaskDetailAndCommentsView({
                     (detailElement.clientWidth - blockMaxWidth) / 2,
                 );
 
-                const animation = timeline(
+                const animation = animate(
                     [
-                        [commentsElement, {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]}],
-                        [detailElement, {x: [0, oldContentOffset - newContentOffset]}, {at: 0}],
+                        [
+                            commentsElement,
+                            {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]},
+                            {type: spring, stiffness: 300, damping: 31},
+                        ],
+                        [
+                            detailElement,
+                            {x: [0, oldContentOffset - newContentOffset]},
+                            {at: 0, type: spring, stiffness: 300, damping: 31},
+                        ],
                     ],
                     {
                         // Add a little bit of delay so React can finish rendering before playing our
                         // animation.
                         delay: 0.05,
-                        defaultOptions: {
-                            easing: spring({
-                                stiffness: 300,
-                                damping: 31,
-                            }),
-                        },
                     },
                 );
 
@@ -331,15 +335,15 @@ export function TaskDetailAndCommentsView({
                 const commentsElement = assertExists(commentsRef.current);
 
                 // Reset any animation state.
-                animate(detailElement, {x: 0}, {duration: 0});
-                animate(commentsElement, {x: 0}, {duration: 0});
+                void animate(detailElement, {x: 0}, {duration: 0});
+                void animate(commentsElement, {x: 0}, {duration: 0});
                 break;
             }
             case "Closed": {
                 const detailElement = assertExists(detailRef.current);
 
                 // Reset any animation state.
-                animate(detailElement, {x: 0}, {duration: 0});
+                void animate(detailElement, {x: 0}, {duration: 0});
                 break;
             }
             default:

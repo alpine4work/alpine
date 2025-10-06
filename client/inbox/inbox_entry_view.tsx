@@ -1,6 +1,6 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns/differenceInHours";
-import {AnimationControls, animate, timeline} from "motion";
+import {AnimationPlaybackControls, animate} from "motion";
 import {Check, DotsThree, IconContext} from "phosphor-react";
 import {useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
@@ -134,7 +134,7 @@ export function InboxEntryView({
     }, [archiveFilterMoreMenuButtonState]);
 
     const lastDeletedItemAnimationRef = useRef(deletedItemAnimation);
-    const lastAnimationRef = useRef<AnimationControls | null>(null);
+    const lastAnimationRef = useRef<AnimationPlaybackControls | null>(null);
     useEffect(() => {
         if (lastDeletedItemAnimationRef.current === deletedItemAnimation) return;
         lastDeletedItemAnimationRef.current = deletedItemAnimation;
@@ -144,7 +144,7 @@ export function InboxEntryView({
         lastAnimationRef.current = null;
 
         // Reset any animated values.
-        animate(entryElement, {opacity: 1, y: 0}, {duration: 0});
+        void animate(entryElement, {opacity: 1, y: 0}, {duration: 0});
 
         if (!deletedItemAnimation) return;
 
@@ -153,7 +153,7 @@ export function InboxEntryView({
                 entryElement,
                 {opacity: 0},
                 {
-                    easing: "linear",
+                    ease: "linear",
                     duration: inboxEntryDeleteAnimationFadeDurationMs / 1000,
                 },
             );
@@ -162,7 +162,7 @@ export function InboxEntryView({
                 entryElement,
                 {y: -deletedItemAnimation.offset},
                 {
-                    easing: "ease",
+                    ease: "easeInOut",
                     duration: inboxEntryDeleteAnimationSlideDurationMs / 1000,
                     delay: inboxEntryDeleteAnimationSlideDelayDurationMs / 1000,
                 },
@@ -306,30 +306,17 @@ export function InboxEntryView({
                     const touchSwipeIconElement = touchSwipeIconRef.current;
 
                     if (!touchState?.hasSwipeGestureActivated) {
-                        const animation = timeline(
+                        const animation = animate(
                             [
                                 [
                                     entryContentElement,
                                     {x: 0},
-                                    {
-                                        easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                                        // default `motion` turns it off.
-                                        // https://motion.dev/guides/performance#webkits-exceptions
-                                        allowWebkitAcceleration: true,
-                                    },
+                                    {ease: parseCubicBezier(easeOutExpo.cubicBezier)},
                                 ],
                                 [
                                     touchSwipeIconElement ?? [],
                                     {x: 0, opacity: 0},
-                                    {
-                                        at: 0,
-                                        easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                        // Make sure we use hardware acceleration for this animation in WebKit. By
-                                        // default `motion` turns it off.
-                                        // https://motion.dev/guides/performance#webkits-exceptions
-                                        allowWebkitAcceleration: true,
-                                    },
+                                    {at: 0, ease: parseCubicBezier(easeOutExpo.cubicBezier)},
                                 ],
                             ],
                             {
@@ -350,11 +337,7 @@ export function InboxEntryView({
                             {x: -entryElement.clientWidth},
                             {
                                 duration: 0.5,
-                                easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                // Make sure we use hardware acceleration for this animation in WebKit. By
-                                // default `motion` turns it off.
-                                // https://motion.dev/guides/performance#webkits-exceptions
-                                allowWebkitAcceleration: true,
+                                ease: parseCubicBezier(easeOutExpo.cubicBezier),
                             },
                         );
 
@@ -408,7 +391,7 @@ export function InboxEntryView({
                     touchState.hasSwipeGestureActivated = false;
                 }
 
-                timeline(
+                void animate(
                     [
                         [entryContentElement, {x: translateX}],
                         [

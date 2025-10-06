@@ -1,6 +1,6 @@
 import {useDndContext} from "@dnd-kit/core";
 import {setInteractionModality} from "@react-aria/interactions";
-import {AnimationControls, animate} from "motion";
+import {AnimationPlaybackControls, animate} from "motion";
 import {Selection} from "prosemirror-state";
 import {
     Key,
@@ -2297,7 +2297,7 @@ export function useTaskGridViewVirtualizedListBase({
         if (!renderedRange) return null;
 
         const currentTime = Date.now();
-        const actualAnimations = new Set<AnimationControls>();
+        const actualAnimations = new Set<AnimationPlaybackControls>();
 
         // Loop through every rendered item checking if it needs to be animated.
         for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
@@ -2501,7 +2501,7 @@ export function useTaskGridViewVirtualizedListBase({
 
             if (!element) continue;
 
-            const {keyframes, offset, duration} = convertMovementsToKeyframes(movements);
+            const {keyframes, times, duration} = convertMovementsToKeyframes(movements);
 
             const actualAnimation = animate(
                 element,
@@ -2509,7 +2509,7 @@ export function useTaskGridViewVirtualizedListBase({
                     y: keyframes,
                 },
                 {
-                    offset,
+                    times,
                     duration,
                     // Since we interrupt this animation and start a new one as our animation
                     // state changes, linear easing helps the animation appear continuous.
@@ -2518,11 +2518,7 @@ export function useTaskGridViewVirtualizedListBase({
                     // care to making it non-interruptible which seems challenging. If multiple
                     // animations overlap, does a non-linear easing look janky since we restart the
                     // curve whenever there's a new animation?
-                    easing: "linear",
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
+                    ease: "linear",
                 },
             );
 
@@ -2531,7 +2527,7 @@ export function useTaskGridViewVirtualizedListBase({
 
         return () => {
             for (const actualAnimation of actualAnimations) {
-                actualAnimation.finish();
+                actualAnimation.complete();
             }
         };
     }, [
@@ -3070,7 +3066,7 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
     }
 
     const keyframes = [totalDistance];
-    const offset = [0];
+    const times = [0];
 
     let workingDistance = 0;
     let workingDuration = 0;
@@ -3079,13 +3075,13 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
         workingDistance += workingMovements.value.distance;
         workingDuration += workingMovements.value.duration;
         keyframes.push(totalDistance - workingDistance);
-        offset.push(workingDuration / totalDuration);
+        times.push(workingDuration / totalDuration);
         workingMovements = workingMovements.next;
     }
 
     return {
         keyframes,
-        offset,
+        times,
         duration: totalDuration / 1000,
     };
 }
@@ -3189,7 +3185,7 @@ export function useTaskGridViewVirtualizedListItemAnimation(
 
         if (!element) return noop;
 
-        const {keyframes, offset, duration} = convertMovementsToKeyframes(movements);
+        const {keyframes, times, duration} = convertMovementsToKeyframes(movements);
 
         const actualAnimation = animate(
             element,
@@ -3197,7 +3193,7 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                 y: keyframes,
             },
             {
-                offset,
+                times,
                 duration,
                 // Since we interrupt this animation and start a new one as our animation
                 // state changes, linear easing helps the animation appear continuous.
@@ -3206,16 +3202,12 @@ export function useTaskGridViewVirtualizedListItemAnimation(
                 // care to making it non-interruptible which seems challenging. If multiple
                 // animations overlap, does a non-linear easing look janky since we restart the
                 // curve whenever there's a new animation?
-                easing: "linear",
-                // Make sure we use hardware acceleration for this animation in WebKit. By
-                // default `motion` turns it off.
-                // https://motion.dev/guides/performance#webkits-exceptions
-                allowWebkitAcceleration: true,
+                ease: "linear",
             },
         );
 
         return () => {
-            actualAnimation.finish();
+            actualAnimation.complete();
         };
     }, [itemIndex, previousGridViewAnimations, viewRef]);
 

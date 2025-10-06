@@ -132,16 +132,12 @@ export function ContentEditorMobileKeyboardSubstitute({
 
         const substituteElement = assertExists(substituteRef.current);
 
-        animate(
+        void animate(
             substituteElement,
             {y: [0, -substituteElement.getBoundingClientRect().height]},
             {
                 duration: mobileFullScreenModalAnimationDurationMs / 1000,
-                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                // Make sure we use hardware acceleration for this animation in WebKit. By
-                // default `motion` turns it off.
-                // https://motion.dev/guides/performance#webkits-exceptions
-                allowWebkitAcceleration: true,
+                ease: mobileFullScreenModalAnimationEasingParsedCubicBezier,
             },
         );
     }, []);
@@ -159,11 +155,7 @@ export function ContentEditorMobileKeyboardSubstitute({
             {y: [-substituteElement.getBoundingClientRect().height, 0]},
             {
                 duration: mobileFullScreenModalAnimationDurationMs / 1000,
-                easing: mobileFullScreenModalAnimationEasingParsedCubicBezier,
-                // Make sure we use hardware acceleration for this animation in WebKit. By
-                // default `motion` turns it off.
-                // https://motion.dev/guides/performance#webkits-exceptions
-                allowWebkitAcceleration: true,
+                ease: mobileFullScreenModalAnimationEasingParsedCubicBezier,
             },
         );
 

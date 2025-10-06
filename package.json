@@ -245,7 +245,7 @@
         "micromark-extension-gfm-task-list-item": "^2.1.0",
         "micromark-extension-math": "^3.1.0",
         "miniflare": "2.14.4",
-        "motion": "^10.18.0",
+        "motion": "^12.23.18",
         "murmurhash": "^2.0.1",
         "mustache": "^4.2.0",
         "negotiator": "^1.0.0",
