@@ -147,6 +147,23 @@ export const elevation = {
             },
         ],
     }),
+    "elevation-30-inset": createElevation({
+        inset: true,
+        lightBorderColor: "rgb(0 0 0 / 0.09)",
+        darkBorderColor: "grey-80",
+        shadows: [
+            {
+                shadow: "0px 12px 16px -4px",
+                lightColor: "rgb(18 18 20 / 0.12)",
+                darkColor: "rgb(0 0 0 / 0.24)",
+            },
+            {
+                shadow: "0px 4px 6px -2px",
+                lightColor: "rgb(18 18 20 / 0.03)",
+                darkColor: "rgb(0 0 0 / 0.09)",
+            },
+        ],
+    }),
     "elevation-40": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-80",
@@ -204,10 +221,12 @@ export const elevation = {
 };
 
 function createElevation({
+    inset,
     lightBorderColor,
     darkBorderColor,
     shadows,
 }: {
+    inset?: boolean;
     lightBorderColor: `rgb(${string})` | "grey-10" | null;
     darkBorderColor: "grey-70" | "grey-80" | "grey-90" | null;
     shadows: Array<{shadow: string; lightColor: string; darkColor: string}>;
@@ -220,7 +239,7 @@ function createElevation({
     // If we are intentionally using a solid border color for our light border then
     // we want to render the shadow like we would an actual border, inset in
     // the box.
-    const borderInset = lightBorderColor === "grey-10" ? "inset " : "";
+    const borderInset = lightBorderColor === "grey-10" || inset ? "inset " : "";
 
     if (lightBorderColor !== null) {
         if (lightBorderColor === "grey-10") {
@@ -240,11 +259,13 @@ function createElevation({
         );
     }
 
+    const shadowInset = inset ? "inset " : "";
+
     for (const {shadow, lightColor, darkColor} of shadows) {
-        lightBoxShadows.push(`${shadow} ${lightColor}`);
-        darkBoxShadows.push(`${shadow} ${darkColor}`);
-        darkElevated1BoxShadows.push(`${shadow} ${darkColor}`);
-        darkElevated2BoxShadows.push(`${shadow} ${darkColor}`);
+        lightBoxShadows.push(`${shadowInset}${shadow} ${lightColor}`);
+        darkBoxShadows.push(`${shadowInset}${shadow} ${darkColor}`);
+        darkElevated1BoxShadows.push(`${shadowInset}${shadow} ${darkColor}`);
+        darkElevated2BoxShadows.push(`${shadowInset}${shadow} ${darkColor}`);
     }
 
     return {

@@ -81,3 +81,15 @@ export type ReactionMap<Value> = {
 export function getReactionInMap<Value>(map: ReactionMap<Value>, icon: Reaction): Value {
     return (map as any)[icon.creature.type][icon.creature.variant][icon.emotion];
 }
+
+/**
+ * Transforms a `ReactionMap` from one value to another.
+ */
+export function mapReactionMap<Value, NewValue>(
+    map: ReactionMap<Value>,
+    mapper: (value: Value) => NewValue,
+): ReactionMap<NewValue> {
+    return mapObjectValues(map, value1 =>
+        mapObjectValues(value1, value2 => mapObjectValues(value2, value3 => mapper(value3))),
+    ) as ReactionMap<NewValue>;
+}

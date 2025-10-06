@@ -149,6 +149,12 @@ function Button(
         withoutFocusOnPress?: boolean;
 
         /**
+         * Should we show the pressed style even if the button isn't currently pressed?
+         * Useful if there's some secondary press target for this button.
+         */
+        isPressed?: boolean;
+
+        /**
          * Control how much horizontal padding on this button. Default is `3`.
          */
         paddingX?: "1.5" | "2" | "2.5" | "3";
@@ -240,6 +246,7 @@ function Button(
         withoutMinWidth = false,
         shouldSubmitForm = false,
         withoutFocusOnPress = false,
+        isPressed: isPressedFromProps = false,
         onPress,
         pressErrorTitle,
         paddingX = "3",
@@ -304,7 +311,7 @@ function Button(
         handlePressRef.current = handlePress;
     });
 
-    const {buttonProps, isPressed} = useButton(
+    const {buttonProps, isPressed: isPressedFromButton} = useButton(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
@@ -335,6 +342,8 @@ function Button(
         localRef,
     );
 
+    const isPressed = isPressedFromButton || isPressedFromProps;
+
     const {hoverProps, isHovered} = useHover({});
 
     // If we are rendered inside an `<OverlayTriggerButton>` we want to apply our
@@ -342,7 +351,7 @@ function Button(
     // cover over the DOM.
     const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
 
-    const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
+    const isHoveredBackground = isHovered || isTriggeredOverlayOpen;
 
     const touchSlop = useTouchSlop(height);
 
@@ -412,7 +421,7 @@ function Button(
                 ? {
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
-                          : isHoveredOrTriggeredOverlayOpen
+                          : isHoveredBackground
                           ? "grey-5-translucent"
                           : undefined,
                       color: "grey-100",
@@ -430,7 +439,7 @@ function Button(
                 ? {
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
-                          : isHoveredOrTriggeredOverlayOpen
+                          : isHoveredBackground
                           ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-60",
@@ -448,7 +457,7 @@ function Button(
                 ? {
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
-                          : isHoveredOrTriggeredOverlayOpen
+                          : isHoveredBackground
                           ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-50",
@@ -480,7 +489,7 @@ function Button(
                 ? {
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
-                          : isHoveredOrTriggeredOverlayOpen
+                          : isHoveredBackground
                           ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-50",

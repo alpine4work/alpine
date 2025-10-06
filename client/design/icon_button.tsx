@@ -265,7 +265,7 @@ function IconButton(
         isPending: isPendingFromProps,
         withoutLoadingIndicator = false,
         withoutFocusOnPress = false,
-        isPressed: isPressedFromProps,
+        isPressed: isPressedFromProps = false,
         borderRadius = "full",
         backgroundColor: backgroundColorFromProps,
         cursor = "default",

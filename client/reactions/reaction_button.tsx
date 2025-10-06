@@ -1,5 +1,5 @@
 import {Heart} from "phosphor-react";
-import {useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
@@ -9,6 +9,7 @@ import {
     ReactionRadialPickerRef,
 } from "~/client/reactions/internal/reaction_radial_picker.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonHeightRem,
@@ -20,11 +21,20 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getDefaultReactionCreatureForId} from "~/shared/reactions/get_default_reaction_creature_for_id.js";
 
 export function ReactionButton() {
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+
     const radialPickerRef = useRef<ReactionRadialPickerRef>(null);
 
     const [translate, setTranslate] = useState<{xRem: number; yRem: number} | null>(null);
+    const [isMouseDownFromOverlayOpen, setIsMouseDownFromOverlayOpen] = useState(false);
+
+    const currentAccountCreature = useMemo(
+        () => getDefaultReactionCreatureForId(currentAccount.id),
+        [currentAccount.id],
+    );
 
     return (
         <OverlayTriggerButton
@@ -51,6 +61,8 @@ export function ReactionButton() {
                             ref={radialPickerRef}
                             isVisible={isVisible}
                             onCloseWithAnimation={onCloseWithAnimation}
+                            creature={currentAccountCreature}
+                            isMouseDownFromOverlayOpen={isMouseDownFromOverlayOpen}
                         />
                     </Box>
                 </Box>
@@ -70,10 +82,27 @@ export function ReactionButton() {
                     xRem: (event.clientX - buttonRect.left) / remPxBySpacingScale[spacingScale],
                     yRem: (event.clientY - buttonRect.top) / remPxBySpacingScale[spacingScale],
                 });
+
+                if (event.pointerType === "mouse") {
+                    setIsMouseDownFromOverlayOpen(true);
+
+                    const cleanup = () => {
+                        setIsMouseDownFromOverlayOpen(false);
+
+                        document.removeEventListener("pointerup", cleanup);
+                        document.removeEventListener("pointercancel", cleanup);
+                        document.removeEventListener("dragstart", cleanup);
+                    };
+
+                    document.addEventListener("pointerup", cleanup);
+                    document.addEventListener("pointercancel", cleanup);
+                    document.addEventListener("dragstart", cleanup);
+                }
             }}
         >
             <Button
                 variant="quietest"
+                isPressed={isMouseDownFromOverlayOpen}
                 height={postContentViewFooterButtonHeight}
                 paddingX="1.5"
                 icon={<Heart size={spacing[postContentViewFooterButtonIconSize]} />}

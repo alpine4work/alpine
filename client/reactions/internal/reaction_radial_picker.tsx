@@ -1,14 +1,44 @@
 import {AnimationPlaybackControls, animate, spring} from "motion";
-import {Memo, Ref, forwardRef, useEffect, useImperativeHandle, useRef} from "react";
+import {DotsThree, Heart} from "phosphor-react";
+import {Memo, Ref, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {reactionIconSvgDataUrls} from "~/client/reactions/icons/reaction_icon_svg_data_urls.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {reactionRadialPickerSize} from "~/client/styles/reaction_shared_styles.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
+import {getReactionAltText} from "~/shared/reactions/get_reaction_alt_text.js";
+import {ReactionCreature, ReactionEmotion, getReactionInMap} from "~/shared/reactions/reaction.js";
 
-const reactionRadialPickerInitialScale = 0.25;
+const reactionRadialPickerAnimationInitialScale = 0.25;
+
+const reactionRadialPickerOptionOffsetRem = parseRemLength("10") + parseRemLength("2");
+
+const reactionRadialPickerOptionIconSize = "8";
+const reactionRadialPickerOptionIconActiveExtraOffsetRem = parseRemLength("1");
+
+const reactionRadialPickerOptionIconPositionCenterRem =
+    reactionRadialPickerSizeRem / 2 - parseRemLength(reactionRadialPickerOptionIconSize) / 2;
+
+const reactionRadialPickerOptionButtonIconSize = "5";
+const reactionRadialPickerOptionButtonSize = "8";
+const reactionRadialPickerOptionButtonSizeRem = parseRemLength(
+    reactionRadialPickerOptionButtonSize,
+);
+
+const reactionRadialPickerOptionButtonPositionCenterRem =
+    reactionRadialPickerSizeRem / 2 - reactionRadialPickerOptionButtonSizeRem / 2;
+
+const reactionRadialPickerDonutWidthRem =
+    (reactionRadialPickerSizeRem / 2 -
+        (reactionRadialPickerOptionOffsetRem + reactionRadialPickerOptionButtonSizeRem / 2)) *
+        2 +
+    reactionRadialPickerOptionButtonSizeRem;
 
 export type ReactionRadialPickerRef = {
     animateOut(): AnimationPlaybackControls;
@@ -17,14 +47,37 @@ export type ReactionRadialPickerRef = {
 const ReactionRadialPickerForwardRef = forwardRef(ReactionRadialPicker);
 export {ReactionRadialPickerForwardRef as ReactionRadialPicker};
 
+const reactionRadialPickerIconEmotions: ReadonlyArray<ReactionEmotion> = [
+    "Laugh",
+    "Celebrate",
+    "Yes",
+    "DeadInside",
+    "Shock",
+    "Lolsob",
+];
+
 function ReactionRadialPicker(
-    {isVisible, onCloseWithAnimation}: {isVisible: boolean; onCloseWithAnimation: Memo<() => void>},
+    {
+        isVisible,
+        onCloseWithAnimation,
+        creature,
+        isMouseDownFromOverlayOpen,
+    }: {
+        isVisible: boolean;
+        onCloseWithAnimation: Memo<() => void>;
+        creature: ReactionCreature;
+        isMouseDownFromOverlayOpen: boolean;
+    },
     ref: Ref<ReactionRadialPickerRef>,
 ) {
     const circleContainerRef = useRef<HTMLDivElement>(null);
     const circleRef = useRef<HTMLDivElement>(null);
+    const circleContentsRef = useRef<HTMLDivElement>(null);
 
     const hasInitiallyMountedRef = useRef(false);
+
+    const [isPressed, setIsPressed] = useState(false);
+    const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -36,7 +89,7 @@ function ReactionRadialPicker(
             circleContainerElement,
             {
                 opacity: [0, 1],
-                scale: [reactionRadialPickerInitialScale, 1],
+                scale: [reactionRadialPickerAnimationInitialScale, 1],
             },
             {
                 type: spring,
@@ -51,18 +104,34 @@ function ReactionRadialPicker(
         () => ({
             animateOut: () => {
                 const circleContainerElement = assertExists(circleContainerRef.current);
+                const circleContentsElement = assertExists(circleContentsRef.current);
 
-                return animate(
-                    circleContainerElement,
-                    {
-                        opacity: 0,
-                        scale: reactionRadialPickerInitialScale,
-                    },
-                    {
-                        ease: "easeOut",
-                        duration: 0.2,
-                    },
-                );
+                return animate([
+                    [
+                        circleContainerElement,
+                        {
+                            opacity: 0,
+                            scale: reactionRadialPickerAnimationInitialScale,
+                        },
+                        {
+                            ease: "easeOut",
+                            duration: 0.2,
+                        },
+                    ],
+
+                    // Cross fade. The content should disappear first.
+                    [
+                        circleContentsElement,
+                        {
+                            opacity: 0,
+                        },
+                        {
+                            at: 0,
+                            ease: "easeOut",
+                            duration: 0.1,
+                        },
+                    ],
+                ]);
             },
         }),
         [],
@@ -88,16 +157,33 @@ function ReactionRadialPicker(
                 event.clientY - circleContainerCenterY,
             );
 
-            const maxTransformMagnitude = convertRemLengthToPx("12", spacingScale);
-            const inflectionPointerMagnitude = convertRemLengthToPx("64", spacingScale);
+            // Move the circle so it follows the pointer.
+            {
+                const maxTransformMagnitude = convertRemLengthToPx("12", spacingScale);
+                const inflectionPointerMagnitude = convertRemLengthToPx("64", spacingScale);
 
-            const transformMagnitude =
-                maxTransformMagnitude *
-                (pointerVector.magnitude / (pointerVector.magnitude + inflectionPointerMagnitude));
+                const transformMagnitude =
+                    maxTransformMagnitude *
+                    (pointerVector.magnitude /
+                        (pointerVector.magnitude + inflectionPointerMagnitude));
 
-            const transformVector = Vector2.fromPolar(pointerVector.angle, transformMagnitude);
+                const transformVector = Vector2.fromPolar(pointerVector.angle, transformMagnitude);
 
-            circleElement.style.transform = `translate(${transformVector.x}px, ${transformVector.y}px)`;
+                circleElement.style.transform = `translate(${transformVector.x}px, ${transformVector.y}px)`;
+            }
+
+            // Detect which icon is active. (So if there's a click, we'll select
+            // this icon.)
+            {
+                const minActiveMagnitude =
+                    ((reactionRadialPickerSizeRem - reactionRadialPickerDonutWidthRem * 2) / 2) *
+                    remPxBySpacingScale[spacingScale];
+
+                const activeIndex =
+                    (Math.round((pointerVector.angle / (2 * Math.PI) + 0.25) * 8) + 8) % 8;
+
+                setActiveIndex(pointerVector.magnitude > minActiveMagnitude ? activeIndex : null);
+            }
         };
 
         // Called when the pointer leaves the document.
@@ -113,32 +199,222 @@ function ReactionRadialPicker(
         };
     }, [isVisible, onCloseWithAnimation]);
 
+    const shouldCloseOnMouseUpFromOverlayOpenRef = useRef(isMouseDownFromOverlayOpen);
+
+    useEffect(() => {
+        if (!shouldCloseOnMouseUpFromOverlayOpenRef.current) return;
+
+        // Wait until mouse up.
+        if (isMouseDownFromOverlayOpen) return;
+
+        // Don't run this effect again.
+        shouldCloseOnMouseUpFromOverlayOpenRef.current = false;
+
+        // Don't select if the mouse is over the center heart button.
+        if (activeIndex !== null) {
+            onCloseWithAnimation();
+        }
+    }, [activeIndex, isMouseDownFromOverlayOpen, onCloseWithAnimation]);
+
     return (
         <Box
             ref={circleContainerRef}
             pointerEvents="none"
-            width={reactionRadialPickerSize}
-            height={reactionRadialPickerSize}
+            style={{
+                width: `${reactionRadialPickerSizeRem}rem`,
+                height: `${reactionRadialPickerSizeRem}rem`,
+            }}
         >
             <Box
                 ref={circleRef}
+                className={greyElevated2ClassName}
+                position="relative"
+                zIndex="0"
                 pointerEvents="auto"
-                width={reactionRadialPickerSize}
-                height={reactionRadialPickerSize}
-                backgroundColor="grey-0"
                 boxShadow="elevation-30"
                 overflow="hidden"
                 borderRadius="full"
+                style={{
+                    width: `${reactionRadialPickerSizeRem}rem`,
+                    height: `${reactionRadialPickerSizeRem}rem`,
+                }}
+                onPointerDown={() => {
+                    setIsPressed(true);
+
+                    const cleanup = () => {
+                        setIsPressed(false);
+
+                        document.removeEventListener("pointerup", cleanup);
+                        document.removeEventListener("pointercancel", cleanup);
+                        document.removeEventListener("dragstart", cleanup);
+
+                        onCloseWithAnimation();
+                    };
+
+                    document.addEventListener("pointerup", cleanup);
+                    document.addEventListener("pointercancel", cleanup);
+                    document.addEventListener("dragstart", cleanup);
+                }}
             >
-                <Box width="full" height="full" display="flex" flexDirection="column" gap="0.5">
-                    <Box flexGrow="1" width="full" display="flex" flexDirection="row" gap="0.5">
-                        <Box flexGrow="1" height="full" backgroundColor="grey-5" />
-                        <Box flexGrow="1" height="full" backgroundColor="grey-5" />
-                    </Box>
-                    <Box flexGrow="1" width="full" display="flex" flexDirection="row" gap="0.5">
-                        <Box flexGrow="1" height="full" backgroundColor="grey-5" />
-                        <Box flexGrow="1" height="full" backgroundColor="grey-5" />
-                    </Box>
+                <Box
+                    position="absolute"
+                    inset="0"
+                    zIndex="-20"
+                    borderRadius="full"
+                    boxShadow="elevation-30-inset"
+                    style={{
+                        border: `${reactionRadialPickerDonutWidthRem}rem solid ${colorSchemeVars["grey-0"]}`,
+                    }}
+                />
+                <Box
+                    ref={circleContentsRef}
+                    position="relative"
+                    style={{
+                        width: `${reactionRadialPickerSizeRem}rem`,
+                        height: `${reactionRadialPickerSizeRem}rem`,
+                    }}
+                >
+                    {createArrayWithLength(8, index => {
+                        const vector = Vector2.fromPolar(
+                            index * ((2 * Math.PI) / 8) - Math.PI / 2,
+                            reactionRadialPickerOptionOffsetRem,
+                        );
+
+                        if (index === 0) {
+                            return (
+                                <Box
+                                    // Remount this element when entering the pressed state so we don't animate the
+                                    // background color with the CSS transition. If the user presses and moves
+                                    // their mouse around, then we want to animate. We only want an immediate
+                                    // response to the press action.
+                                    key={`${index}-${isPressed}`}
+                                    position="absolute"
+                                    width={reactionRadialPickerOptionButtonSize}
+                                    height={reactionRadialPickerOptionButtonSize}
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    backgroundColor={
+                                        activeIndex === index
+                                            ? isPressed || isMouseDownFromOverlayOpen
+                                                ? "grey-10"
+                                                : "grey-5"
+                                            : undefined
+                                    }
+                                    color={
+                                        activeIndex === index &&
+                                        (isPressed || isMouseDownFromOverlayOpen)
+                                            ? {light: "red-60-const", dark: "red-40-const"}
+                                            : "red-50-const"
+                                    }
+                                    borderRadius="full"
+                                    style={{
+                                        left: `${
+                                            reactionRadialPickerOptionButtonPositionCenterRem +
+                                            vector.x
+                                        }rem`,
+                                        top: `${
+                                            reactionRadialPickerOptionButtonPositionCenterRem +
+                                            vector.y
+                                        }rem`,
+                                        transition: "color 0.15s ease, background-color 0.15s ease",
+                                    }}
+                                >
+                                    <Heart
+                                        size={spacing[reactionRadialPickerOptionButtonIconSize]}
+                                        weight="fill"
+                                    />
+                                </Box>
+                            );
+                        } else if (index === 4) {
+                            return (
+                                <Box
+                                    // Remount this element when entering the pressed state so we don't animate the
+                                    // background color with the CSS transition. If the user presses and moves
+                                    // their mouse around, then we want to animate. We only want an immediate
+                                    // response to the press action.
+                                    key={`${index}-${isPressed}`}
+                                    position="absolute"
+                                    width={reactionRadialPickerOptionButtonSize}
+                                    height={reactionRadialPickerOptionButtonSize}
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    backgroundColor={
+                                        activeIndex === index
+                                            ? isPressed || isMouseDownFromOverlayOpen
+                                                ? "grey-10"
+                                                : "grey-5"
+                                            : undefined
+                                    }
+                                    color={activeIndex === index ? "grey-100" : "grey-70"}
+                                    borderRadius="full"
+                                    style={{
+                                        left: `${
+                                            reactionRadialPickerOptionButtonPositionCenterRem +
+                                            vector.x
+                                        }rem`,
+                                        top: `${
+                                            reactionRadialPickerOptionButtonPositionCenterRem +
+                                            vector.y
+                                        }rem`,
+                                        transition: "color 0.15s ease, background-color 0.15s ease",
+                                    }}
+                                >
+                                    <DotsThree
+                                        size={spacing[reactionRadialPickerOptionButtonIconSize]}
+                                    />
+                                </Box>
+                            );
+                        } else {
+                            // The "more" button is placed in the middle of our reactions at index 4 and
+                            // the generic like button is placed at the beginning of our reactions at index
+                            // 0. So to get the correct emotion index we need to "skip" index 0 and index
+                            // 4. This code does that.
+                            const emotionIndex = index > 4 ? index - 2 : index - 1;
+                            const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
+                            const icon = {creature, emotion};
+
+                            return (
+                                <Box
+                                    key={index}
+                                    position="absolute"
+                                    style={{
+                                        left: `${
+                                            reactionRadialPickerOptionIconPositionCenterRem +
+                                            vector.x
+                                        }rem`,
+                                        top: `${
+                                            reactionRadialPickerOptionIconPositionCenterRem +
+                                            vector.y
+                                        }rem`,
+                                        transition: "transform 0.15s ease",
+                                        transformOrigin: "center",
+                                        transform:
+                                            activeIndex === index
+                                                ? (() => {
+                                                      const activeVector = vector.withMagnitude(
+                                                          reactionRadialPickerOptionIconActiveExtraOffsetRem,
+                                                      );
+
+                                                      return `translate(${activeVector.x}rem, ${activeVector.y}rem) scale(1.2)`;
+                                                  })()
+                                                : undefined,
+                                    }}
+                                >
+                                    <img
+                                        className={sprinkles({
+                                            width: reactionRadialPickerOptionIconSize,
+                                            height: reactionRadialPickerOptionIconSize,
+                                        })}
+                                        draggable={false}
+                                        alt={getReactionAltText(icon)}
+                                        src={getReactionInMap(reactionIconSvgDataUrls, icon).get()}
+                                    />
+                                </Box>
+                            );
+                        }
+                    })}
                 </Box>
             </Box>
         </Box>
