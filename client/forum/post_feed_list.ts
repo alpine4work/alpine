@@ -141,6 +141,12 @@ export class PostFeedList implements PostListInterface {
         };
     }
 
+    public getPostRealtimeItemIfExists(
+        postId: PostId,
+    ): DynamoGeneralRealtimeItem<PostModel> | null {
+        return this._entries.getPostRealtimeItemIfExists(postId);
+    }
+
     public hasOpenPostComments(): boolean {
         return this._entries.openPostCommentsCount > 0;
     }
@@ -359,6 +365,18 @@ class PostFeedListVirtualizedTree extends VirtualizedTreeBase<
             },
             startItemIndex,
         };
+    }
+
+    public getPostRealtimeItemIfExists(
+        postId: PostId,
+    ): DynamoGeneralRealtimeItem<PostModel> | null {
+        const nodeKey = this._postVisibilityById.get(postId);
+        if (!nodeKey?.isVisible) return null;
+
+        const iterator = this._nodeByOrderKey.find(nodeKey.index);
+        assert(iterator.value?.type === "Post");
+
+        return iterator.value.post;
     }
 
     /**

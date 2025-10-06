@@ -167,6 +167,7 @@ function PostListView(
         onLoadMorePosts,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
+        onOptimisticPostRealtimeEventTransaction,
         aside,
         sideBarLeftSize,
         sideBarRightSize,
@@ -243,6 +244,26 @@ function PostListView(
                 readTime: Date;
                 eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
             }) => void
+        >;
+
+        /**
+         * Make an arbitrary update to a post optimistically. Must provide a promise
+         * that resolves to a realtime event transaction. If the promise resolves then
+         * the event transaction update is applied. If the promise rejects then we
+         * revert the optimistic update.
+         *
+         * Similar to `onPostRealtimeEventTransaction` but allows for an optimistic
+         * update.
+         */
+        onOptimisticPostRealtimeEventTransaction: Memo<
+            (
+                promise: Promise<{
+                    readTime: Date;
+                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+                }>,
+                postId: PostId,
+                update: (post: PostModel) => PostModel,
+            ) => void
         >;
 
         /**
@@ -1227,6 +1248,9 @@ function PostListView(
                                                 },
                                             );
                                         }}
+                                        onOptimisticPostRealtimeEventTransaction={
+                                            onOptimisticPostRealtimeEventTransaction
+                                        }
                                     />
                                 </div>
                                 {asideSpacer}
@@ -1742,6 +1766,7 @@ function PostListView(
             isShowingAllContentByPostId,
             onTogglePostComments,
             loadInitialPostComments,
+            onOptimisticPostRealtimeEventTransaction,
             messageEditing,
             fileAttachmentTargetByPostId,
             highlightPostComment,

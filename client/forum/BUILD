@@ -54,6 +54,7 @@ ts_project(
         "//shared/helpers:helpers_core",
         "//shared/id",
         "//shared/messaging",
+        "//shared/reactions",
         "//shared/remix",
         "//shared/rpc",
         "//shared/search",

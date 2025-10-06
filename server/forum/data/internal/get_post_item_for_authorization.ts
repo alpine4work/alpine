@@ -59,3 +59,35 @@ export async function getPostItemForAuthorization(
     if (!item) throw createPostNotFoundError(postId);
     return item;
 }
+
+export function getPostItemWithContentForAuthorizationIfExists(
+    context: ServerMinimalActionContext,
+    postId: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<PostAttributesItem | null> {
+    const itemPromise = ForumRealtimeTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {consistency},
+    );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, consistency, postId, itemPromise);
+
+    return itemPromise;
+}
+
+export async function getPostItemWithContentForAuthorization(
+    context: ServerMinimalActionContext,
+    postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<PostAttributesItem> {
+    const item = await getPostItemWithContentForAuthorizationIfExists(context, postId, options);
+    if (!item) throw createPostNotFoundError(postId);
+    return item;
+}

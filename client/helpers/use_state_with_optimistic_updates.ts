@@ -1,5 +1,6 @@
 import {Memo, useCallback, useEffect, useReducer} from "react";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 /**
  * React state which may be updated optimistically while waiting on some data
@@ -35,12 +36,15 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * e.g. `reduceStateWithOptimisticUpdates()`.
  */
 export function useStateWithOptimisticUpdates<Value>(
-    initialValue: Value,
+    initialValue: MaybeThunk<Value>,
 ): [
     value: Value,
     updateValue: Memo<(update: (value: Value) => Value) => void>,
     updateValueOptimistically: Memo<
-        (promise: Promise<unknown>, update: (value: Value) => Value) => void
+        <PromiseValue>(
+            promise: Promise<PromiseValue>,
+            update: (value: Value, promiseValue: PromiseValue | undefined) => Value,
+        ) => void
     >,
 ] {
     const [state, dispatch] = useReducer<
@@ -48,7 +52,7 @@ export function useStateWithOptimisticUpdates<Value>(
             state: StateWithOptimisticUpdates<Value>,
             action: ActionForStateWithOptimisticUpdates<Value>,
         ) => StateWithOptimisticUpdates<Value>,
-        Value
+        MaybeThunk<Value>
     >(reduceStateWithOptimisticUpdates, initialValue, getInitialStateWithOptimisticUpdates);
 
     useStateWithOptimisticUpdatesMonitor(state, dispatch);
@@ -56,7 +60,11 @@ export function useStateWithOptimisticUpdates<Value>(
     return [
         state.value,
         useCallback(update => dispatch({type: "Update", update}), []),
-        useCallback((promise, update) => dispatch({type: "OptimisticUpdate", promise, update}), []),
+        useCallback(
+            (promise, update) =>
+                dispatch({type: "OptimisticUpdate", promise, update: update as any}),
+            [],
+        ),
     ];
 }
 
@@ -65,7 +73,7 @@ export type StateWithOptimisticUpdates<Value> = {
     readonly valueWithoutOptimisticUpdates: Value;
     readonly optimisticUpdates: ReadonlyArray<{
         readonly promise: Promise<unknown>;
-        readonly update: (value: Value) => Value;
+        readonly update: (value: Value, promiseValue: unknown) => Value;
     }>;
 };
 
@@ -77,11 +85,12 @@ export type ActionForStateWithOptimisticUpdates<Value> =
     | {
           readonly type: "OptimisticUpdate";
           readonly promise: Promise<unknown>;
-          readonly update: (query: Value) => Value;
+          readonly update: (value: Value, promiseValue: unknown) => Value;
       }
     | {
           readonly type: "ResolveOptimisticUpdate";
           readonly promise: Promise<unknown>;
+          readonly promiseValue: unknown;
       }
     | {
           readonly type: "RejectOptimisticUpdate";
@@ -89,11 +98,14 @@ export type ActionForStateWithOptimisticUpdates<Value> =
       };
 
 export function getInitialStateWithOptimisticUpdates<Value>(
-    initialValue: Value,
+    initialValue: MaybeThunk<Value>,
 ): StateWithOptimisticUpdates<Value> {
+    const value =
+        typeof initialValue === "function" ? (initialValue as () => Value)() : initialValue;
+
     return {
-        value: initialValue,
-        valueWithoutOptimisticUpdates: initialValue,
+        value,
+        valueWithoutOptimisticUpdates: value,
         optimisticUpdates: [],
     };
 }
@@ -109,7 +121,7 @@ export function reduceStateWithOptimisticUpdates<Value>(
             );
 
             const newValue = state.optimisticUpdates.reduce(
-                (value, {update}) => update(value),
+                (value, {update}) => update(value, undefined),
                 newValueWithoutOptimisticUpdates,
             );
 
@@ -128,7 +140,7 @@ export function reduceStateWithOptimisticUpdates<Value>(
                 },
             ];
 
-            const newValue = action.update(state.value);
+            const newValue = action.update(state.value, undefined);
 
             return {
                 value: newValue,
@@ -153,12 +165,12 @@ export function reduceStateWithOptimisticUpdates<Value>(
 
             // Permanently apply optimistic update...
             const newValueWithoutOptimisticUpdates = resolvedOptimisticUpdates.reduce(
-                (value, {update}) => update(value),
+                (value, {update}) => update(value, action.promiseValue),
                 state.valueWithoutOptimisticUpdates,
             );
 
             const newValue = pendingOptimisticUpdates.reduce(
-                (value, {update}) => update(value),
+                (value, {update}) => update(value, undefined),
                 newValueWithoutOptimisticUpdates,
             );
 
@@ -181,7 +193,7 @@ export function reduceStateWithOptimisticUpdates<Value>(
             if (pendingOptimisticUpdates.length === state.optimisticUpdates.length) return state;
 
             const newValue = pendingOptimisticUpdates.reduce(
-                (value, {update}) => update(value),
+                (value, {update}) => update(value, undefined),
                 state.valueWithoutOptimisticUpdates,
             );
 
@@ -205,12 +217,13 @@ export function useStateWithOptimisticUpdatesMonitor<Value>(
 
         for (const {promise} of state.optimisticUpdates) {
             promise.then(
-                () => {
+                promiseValue => {
                     if (isCancelled) return;
 
                     dispatch({
                         type: "ResolveOptimisticUpdate",
                         promise,
+                        promiseValue,
                     });
                 },
                 () => {

@@ -56,6 +56,7 @@ ts_project(
         "//shared/id",
         "//shared/messaging",
         "//shared/prosemirror",
+        "//shared/reactions",
         "//shared/schema",
         "//shared/spaces",
     ],

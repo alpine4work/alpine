@@ -48,6 +48,7 @@ import {
     MessageContentSchema,
     emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -286,6 +287,11 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                                 Schema.integer.min(0),
                             ).default(new Map()),
                         }),
+
+                        /**
+                         * All reactions on the post.
+                         */
+                        reactions: ReactionSet.schema.default(new ReactionSet(emptyMap)),
                     }),
                 },
             ],
@@ -663,6 +669,7 @@ async function createPostModelFromItem(
             readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
             readonly lastChangeTime: Date | null;
         };
+        readonly reactions: ReactionSet;
         readonly updateLockVersion?: number;
     },
 ): Promise<PostModel> {
@@ -709,6 +716,7 @@ async function createPostModelFromItem(
         lastCommentChangeTime: item.commentsSummary.lastChangeTime,
         commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
         previewCommentAuthors,
+        reactions: item.reactions,
     });
 }
 

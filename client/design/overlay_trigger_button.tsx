@@ -105,6 +105,7 @@ export {OverlayTriggerButtonForwardRef as OverlayTriggerButton};
 // [1]: https://www.w3.org/TR/wai-aria-practices-1.2/#menubutton
 function OverlayTriggerButton(
     {
+        isDisabled = false,
         overlay,
         "aria-haspopup": ariaHasPopup,
         placement = "bottom-start",
@@ -123,6 +124,12 @@ function OverlayTriggerButton(
         onOverlayOutsidePress,
         animateOverlayOut: animateOverlayOutFromProps,
     }: {
+        /**
+         * If true then the overlay is closed and won't open when the button
+         * is pressed.
+         */
+        isDisabled?: boolean;
+
         /**
          * The overlay element the trigger will render. Must provide a ref to an
          * HTML element or we will throw an error.
@@ -243,6 +250,11 @@ function OverlayTriggerButton(
 
     const [state, setState] = useState(initialOverlayTriggerButtonState);
 
+    // If the button is disabled then close the overlay (with an animation out).
+    if (state.isExpanded && isDisabled) {
+        setState({isExpanded: false, disableAnimationOut: false});
+    }
+
     const {
         onOpen,
         onClose,
@@ -264,6 +276,7 @@ function OverlayTriggerButton(
             }),
 
         open: ({initiallyFocus, stopPropagation = false} = {}) => {
+            if (isDisabled) return;
             if (state.isExpanded) return;
 
             // Borrowing the language of DOM event handling here. `onOpen` may
@@ -289,6 +302,7 @@ function OverlayTriggerButton(
             returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
             withoutAnimation?: boolean;
         } = {}) => {
+            if (isDisabled) return;
             if (!state.isExpanded) return;
 
             onClose({withoutAnimation});
@@ -329,6 +343,7 @@ function OverlayTriggerButton(
             close({withoutAnimation: true});
         },
     });
+
     useEffect(() => {
         onStateChange(state);
     }, [onStateChange, state]);
@@ -353,6 +368,8 @@ function OverlayTriggerButton(
                     "Expected the children of `<OverlayTrigger>` to render with a ref to an HTML `<button>` element",
                 );
             }
+
+            if (isDisabled) return;
 
             // If the overlay portal element is not ready then `overlayRef` will not have
             // mounted yet even if `state.isExpanded` is true.
@@ -556,6 +573,7 @@ function OverlayTriggerButton(
         },
         [
             ariaHasPopup,
+            isDisabled,
             isWaitingForOverlayPortalElement,
             onOpen,
             onPointerDown,
@@ -567,6 +585,7 @@ function OverlayTriggerButton(
     // Close the overlay if there’s a click somewhere else in the document outside
     // the overlay or overlay button.
     const outsidePressRef = useOutsidePress(event => {
+        if (isDisabled) return;
         if (!state.isExpanded) return;
 
         const overlayTriggerElement = overlayTriggerRef.current;
@@ -625,7 +644,7 @@ function OverlayTriggerButton(
             disableAnimationOut={state.disableAnimationOut}
             animateOut={animateOverlayOutFromProps !== undefined ? animateOverlayOut : undefined}
             overlay={
-                <OverlayTriggerOverlay
+                <OverlayTriggerButtonOverlay
                     ref={useMergedRefs<HTMLDivElement>(overlayRef, outsidePressRef)}
                     overlay={
                         typeof overlay !== "function"
@@ -703,7 +722,7 @@ function OverlayTriggerButton(
 
 let isReDispatchingKeyboardEvent = false;
 
-const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
+const OverlayTriggerButtonOverlay = forwardRef(function OverlayTriggerButtonOverlay(
     {
         overlay,
         initiallyFocus,

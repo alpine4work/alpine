@@ -38,6 +38,7 @@ import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
@@ -91,7 +92,7 @@ function Button(
         /**
          * An optional icon element rendered next to the button label.
          */
-        icon?: ReactNode;
+        icon?: MaybeThunk<ReactNode, [props: {isPressed: boolean}]>;
 
         /**
          * Is the icon at the front or back of the button? Defaults to `start`.
@@ -397,7 +398,7 @@ function Button(
                         weight: isBold ? "bold" : "regular",
                     }}
                 >
-                    {icon}
+                    {typeof icon === "function" ? icon({isPressed}) : icon}
                 </IconContext.Provider>
             </span>
             {shouldShowPendingSpinner && (

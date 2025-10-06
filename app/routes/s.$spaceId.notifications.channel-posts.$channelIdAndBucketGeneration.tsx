@@ -1,10 +1,11 @@
-import {ReactElement, useCallback, useMemo, useState} from "react";
+import {ReactElement, useCallback, useMemo} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {PostView} from "~/client/forum/post_view.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
@@ -200,7 +201,7 @@ function ChannelPostsRoute() {
 
     const totalPostCount = initialPostsResult.totalPostCount;
 
-    const [posts, setPosts] = useState(() =>
+    const [posts, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
         PostBasicList.new({
             type: "Many",
             posts: initialPostsResult.posts,
@@ -212,7 +213,7 @@ function ChannelPostsRoute() {
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
     // expanded comments on mobile. So make sure to close them all.
     if (platform === "mobile" && posts.hasOpenPostComments()) {
-        setPosts(posts.closeAllPostComments());
+        setPosts(posts => posts.closeAllPostComments());
     }
 
     const {item: channel} = useDynamoGeneralRealtimeItem(initialChannel, {
@@ -223,7 +224,7 @@ function ChannelPostsRoute() {
                     subscriber(eventTransaction);
                     setPosts(posts => posts.handleEventTransaction(eventTransaction));
                 }),
-            [subscribeToEvents],
+            [setPosts, subscribeToEvents],
         ),
         reloadItemWithStrongReadConsistency: useCallback(async () => {
             const {channel} = await getChannelWithStrongReadConsistency(context, {channelId});
@@ -246,11 +247,11 @@ function ChannelPostsRoute() {
             posts={posts}
             onTogglePostComments={useCallback(
                 postId => setPosts(posts => posts.togglePostComments(postId)),
-                [],
+                [setPosts],
             )}
             onUpdatePostComments={useCallback(
                 (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
-                [],
+                [setPosts],
             )}
             onLoadMorePosts={async ({limit}) => {
                 const postsResult = await getInboxChannelPostsEntryPosts(context, {
@@ -269,9 +270,41 @@ function ChannelPostsRoute() {
                 setPosts(posts => posts.loadMorePosts(postsResult));
             }}
             shouldBeConnectedToChannelRealtime={true}
-            onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
-                setPosts(posts => posts.handleEventTransaction(eventTransaction));
-            }, [])}
+            onPostRealtimeEventTransaction={useCallback(
+                ({eventTransaction}) => {
+                    setPosts(posts => posts.handleEventTransaction(eventTransaction));
+                },
+                [setPosts],
+            )}
+            onOptimisticPostRealtimeEventTransaction={useCallback(
+                (promise, postId, update) => {
+                    setPostsOptimistically(promise, (posts, promiseValue) => {
+                        // Once `promise` resolves, use the event transaction from `promise` to update
+                        // the posts instead of our optimistic updater.
+                        if (promiseValue) {
+                            return posts.handleEventTransaction(promiseValue.eventTransaction);
+                        }
+
+                        const oldPostItem = posts.getPostRealtimeItemIfExists(postId);
+                        if (!oldPostItem) return posts;
+                        const newPost = update(oldPostItem.model);
+
+                        const newPostItem = {
+                            ...oldPostItem,
+                            // Always pretend like our optimistic update is one version higher than what's
+                            // currently in state. Once `promise` resolves then we'll update the item with
+                            // the real version.
+                            version: oldPostItem.version + 1,
+                            model: newPost,
+                        };
+
+                        return posts.handleEventTransaction([
+                            {type: "PutItem", item: newPostItem, indexes: new Map()},
+                        ]);
+                    });
+                },
+                [setPostsOptimistically],
+            )}
             navigationBar={navigationBar}
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.

@@ -4,6 +4,7 @@ import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js"
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_post_draft.js";
 import {createPost} from "~/server/forum/data/create_post.js";
+import {deletePostReaction} from "~/server/forum/data/delete_post_reaction.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
 import {
@@ -24,6 +25,7 @@ import {
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {sendChannelShareNotification} from "~/server/forum/data/send_channel_share_notification.js";
+import {setPostReaction} from "~/server/forum/data/set_post_reaction.js";
 import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
 import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
@@ -347,6 +349,35 @@ export default implementRpcs(definitions, {
             );
 
             return {readTime, eventTransaction};
+        },
+    },
+
+    setPostReaction: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const readTime = new Date();
+
+            const {getDynamoGeneralRealtimeEvent} = await setPostReaction(
+                context.actor.authorizeSession(),
+                input.postId,
+                input.reaction,
+            );
+
+            return {readTime, eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
+        },
+    },
+
+    deletePostReaction: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const readTime = new Date();
+
+            const {getDynamoGeneralRealtimeEvent} = await deletePostReaction(
+                context.actor.authorizeSession(),
+                input.postId,
+            );
+
+            return {readTime, eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
         },
     },
 });

@@ -1,10 +1,11 @@
-import {useCallback, useMemo, useState} from "react";
+import {useCallback, useMemo} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FeedViewSideBar} from "~/client/feed/internal/feed_view_side_bar.js";
 import {PostFeedList} from "~/client/forum/post_feed_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -43,7 +44,9 @@ export function FeedView({
 
     const [resizeRef, size] = useResizeObserver();
 
-    const [feed, setFeed] = useState(() => PostFeedList.new(initialFeed));
+    const [feed, setFeed, setFeedOptimistically] = useStateWithOptimisticUpdates(() =>
+        PostFeedList.new(initialFeed),
+    );
 
     const sideBarLeftSize = useMemo(
         () =>
@@ -83,7 +86,7 @@ export function FeedView({
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
     // expanded comments on mobile. So make sure to close them all.
     if (platform === "mobile" && feed.hasOpenPostComments()) {
-        setFeed(feed.closeAllPostComments());
+        setFeed(feed => feed.closeAllPostComments());
     }
 
     return (
@@ -96,12 +99,16 @@ export function FeedView({
                 )}
                 posts={feed}
                 onTogglePostComments={useCallback(
-                    postId => setFeed(feed => feed.togglePostComments(postId)),
-                    [],
+                    postId => {
+                        setFeed(feed => feed.togglePostComments(postId));
+                    },
+                    [setFeed],
                 )}
                 onUpdatePostComments={useCallback(
-                    (postId, update) => setFeed(feed => feed.updatePostComments(postId, update)),
-                    [],
+                    (postId, update) => {
+                        setFeed(feed => feed.updatePostComments(postId, update));
+                    },
+                    [setFeed],
                 )}
                 onLoadMorePosts={async ({limit}) => {
                     const output = await getFeedEntries(context, {
@@ -113,9 +120,41 @@ export function FeedView({
                     setFeed(feed => feed.loadMoreEntries(output));
                 }}
                 shouldBeConnectedToChannelRealtime={false}
-                onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
-                    setFeed(feed => feed.handleEventTransaction(eventTransaction));
-                }, [])}
+                onPostRealtimeEventTransaction={useCallback(
+                    ({eventTransaction}) => {
+                        setFeed(feed => feed.handleEventTransaction(eventTransaction));
+                    },
+                    [setFeed],
+                )}
+                onOptimisticPostRealtimeEventTransaction={useCallback(
+                    (promise, postId, update) => {
+                        setFeedOptimistically(promise, (feed, promiseValue) => {
+                            // Once `promise` resolves, use the event transaction from `promise` to update
+                            // the posts instead of our optimistic updater.
+                            if (promiseValue) {
+                                return feed.handleEventTransaction(promiseValue.eventTransaction);
+                            }
+
+                            const oldPostItem = feed.getPostRealtimeItemIfExists(postId);
+                            if (!oldPostItem) return feed;
+                            const newPost = update(oldPostItem.model);
+
+                            const newPostItem = {
+                                ...oldPostItem,
+                                // Always pretend like our optimistic update is one version higher than what's
+                                // currently in state. Once `promise` resolves then we'll update the item with
+                                // the real version.
+                                version: oldPostItem.version + 1,
+                                model: newPost,
+                            };
+
+                            return feed.handleEventTransaction([
+                                {type: "PutItem", item: newPostItem, indexes: new Map()},
+                            ]);
+                        });
+                    },
+                    [setFeedOptimistically],
+                )}
                 // The amount of space to reserve for our left sidebar. We render the sidebar
                 // using `extraChildren`. We also reserve some right sidebar space on large
                 // screens to visually center our post content.

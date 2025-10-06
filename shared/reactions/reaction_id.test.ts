@@ -4,6 +4,10 @@ const reactionIdsArray = Object.values(reactionIds).flatMap(ids =>
     Object.values(ids).flatMap(ids => Object.values(ids)),
 );
 
+test("`reactionIds` doesn’t include zero", () => {
+    expect(reactionIdsArray.includes(0)).toEqual(false);
+});
+
 test("`reactionIds` has unique IDs", () => {
     expect(reactionIdsArray.length).toEqual(new Set(reactionIdsArray).size);
 });

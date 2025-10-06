@@ -25,6 +25,8 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
+import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -415,5 +417,31 @@ export const getChannelRealtimeEvent = defineRpc({
     output: {
         readTime: Schema.date,
         eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
+    },
+});
+
+export const setPostReaction = defineRpc({
+    name: "setPostReaction",
+    input: {
+        postId: Schema.id<PostId>(),
+        reaction: ReactionSchema.nullable().transform<Reaction | "GenericHeart">({
+            serialize: value => (value === "GenericHeart" ? null : value),
+            deserialize: value => (value === null ? "GenericHeart" : value),
+        }),
+    },
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
+    },
+});
+
+export const deletePostReaction = defineRpc({
+    name: "deletePostReaction",
+    input: {
+        postId: Schema.id<PostId>(),
+    },
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
     },
 });

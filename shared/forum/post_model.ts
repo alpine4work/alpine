@@ -3,6 +3,7 @@ import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schem
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -27,24 +28,33 @@ export class PostModel extends Model(
         author: AccountModel.schema,
         content: PostContentWithReferencesSchema,
         contentUpdatedTime: Schema.date.nullable(),
+
         /**
          * The total number of comments on the post.
          */
         commentCount: Schema.integer,
+
         /**
          * The last time a comment on this post changed.
          */
         lastCommentChangeTime: Schema.date.nullable(),
+
         /**
          * The number of accounts who authored a comment on this post.
          */
         commentAuthorCount: Schema.integer,
+
         /**
          * Some of the authors who commented on this post. Only the first 5 or so. If
          * the length of this array is shorter than `commentAuthorCount` then you know
          * there are more authors we aren't including.
          */
         previewCommentAuthors: Schema.array(AccountModel.schema),
+
+        /**
+         * All reactions to this post.
+         */
+        reactions: ReactionSet.schema,
     }),
 ) {}
 

@@ -24,7 +24,10 @@ import {
     PostAttributesItem,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
-import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
+import {
+    PostItemAuthorizationCache,
+    getPostItemWithContentForAuthorization,
+} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -1056,26 +1059,7 @@ export async function getPostAndInitialComments(
         }),
     );
 
-    const postItemConsistency: DynamoReadConsistency = "Eventual";
-
-    const postItemPromise = ForumRealtimeTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId: postId,
-        },
-        {consistency: postItemConsistency},
-    );
-
-    // After we've loaded a post, save it to the authorization cache so if we need
-    // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
-
-    // Important that this comes after the query call since we want to load the
-    // query and post item in parallel.
-    const postItem = await postItemPromise;
-    if (!postItem) throw createPostNotFoundError(postId);
+    const postItem = await getPostItemWithContentForAuthorization(context, postId);
 
     const commentPromises: Array<Promise<PostCommentModel>> = [];
 
@@ -1106,7 +1090,6 @@ export async function getPostAndInitialComments(
                         context,
                         postId,
                         parentCommentIndex,
-                        {consistency: postItemConsistency},
                     );
                     if (!commentItem) throw new InternalError("Parent comment not found");
 

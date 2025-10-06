@@ -19,6 +19,7 @@ import {
     PostQueryListDynamoGeneralRealtimeIndexQuery,
 } from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -150,13 +151,15 @@ export function ChannelView({
         );
     }, [channel.name, channelId, channelItem.version, searchEntityRegistry]);
 
-    const [posts, setPosts] = useState(() => PostQueryList.new(initialPostsResult));
+    const [posts, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
+        PostQueryList.new(initialPostsResult),
+    );
 
     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
     // expanded comments on mobile. So make sure to close them all.
     if (platform === "mobile" && posts.hasOpenPostComments()) {
-        setPosts(posts.closeAllPostComments());
+        setPosts(posts => posts.closeAllPostComments());
     }
 
     useDevConsoleTool("channel", () => ({
@@ -173,7 +176,7 @@ export function ChannelView({
                         query: PostQueryListDynamoGeneralRealtimeIndexQuery,
                     ) => PostQueryListDynamoGeneralRealtimeIndexQuery,
                 ) => setPosts(posts => posts.updateQuery(update)),
-                [],
+                [setPosts],
             ),
         },
         {
@@ -220,7 +223,7 @@ export function ChannelView({
                 ),
             );
         });
-    }, [channel.id]);
+    }, [channel.id, setPosts]);
 
     const [isEditingNameInline, setIsEditingNameInline] = useState(false);
     if (isEditingNameInline && platform === "mobile") setIsEditingNameInline(false);
@@ -455,11 +458,11 @@ export function ChannelView({
                 posts={posts}
                 onTogglePostComments={useCallback(
                     postId => setPosts(posts => posts.togglePostComments(postId)),
-                    [],
+                    [setPosts],
                 )}
                 onUpdatePostComments={useCallback(
                     (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
-                    [],
+                    [setPosts],
                 )}
                 onLoadMorePosts={async ({limit}) => {
                     const {postsResult} = await getChannelPosts(context, {
@@ -471,13 +474,58 @@ export function ChannelView({
                     setPosts(posts => posts.updateQuery(query => query.loadMore(postsResult)));
                 }}
                 shouldBeConnectedToChannelRealtime={true}
-                onPostRealtimeEventTransaction={useCallback(event => {
-                    setPosts(posts =>
-                        posts.updateQuery(query =>
-                            query.handleEventTransaction(event.readTime, event.eventTransaction),
-                        ),
-                    );
-                }, [])}
+                onPostRealtimeEventTransaction={useCallback(
+                    event => {
+                        setPosts(posts =>
+                            posts.updateQuery(query =>
+                                query.handleEventTransaction(
+                                    event.readTime,
+                                    event.eventTransaction,
+                                ),
+                            ),
+                        );
+                    },
+                    [setPosts],
+                )}
+                onOptimisticPostRealtimeEventTransaction={useCallback(
+                    (promise, postId, update) => {
+                        setPostsOptimistically(promise, (posts, promiseValue) => {
+                            // Once `promise` resolves, use the event transaction from `promise` to update
+                            // the posts instead of our optimistic updater.
+                            if (promiseValue) {
+                                return posts.updateQuery(query =>
+                                    query.handleEventTransaction(
+                                        promiseValue.readTime,
+                                        promiseValue.eventTransaction,
+                                    ),
+                                );
+                            }
+
+                            const oldPostItem = posts.getPostRealtimeItemIfExists(postId);
+                            if (!oldPostItem) return posts;
+                            const newPost = update(oldPostItem.model);
+
+                            const newPostItem = {
+                                ...oldPostItem,
+                                // Always pretend like our optimistic update is one version higher than what's
+                                // currently in state. Once `promise` resolves then we'll update the item with
+                                // the real version.
+                                version: oldPostItem.version + 1,
+                                model: newPost,
+                            };
+
+                            return posts.updateQuery(query =>
+                                query.handleEventTransaction(
+                                    // Don't increase the read time for this optimistic update. If we need to
+                                    // backfill the query we should backfill from the last read.
+                                    query.getReadTime(),
+                                    [{type: "PutItem", item: newPostItem, indexes: new Map()}],
+                                ),
+                            );
+                        });
+                    },
+                    [setPostsOptimistically],
+                )}
                 aside={
                     routeLayout !== "narrow" && (
                         <ChannelViewAside

@@ -2,10 +2,9 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelAccessIfPossible} from "~/server/forum/data/authorize_channel_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
+import {getPostItemWithContentForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ErrorBase} from "~/shared/error/error.js";
-import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -34,22 +33,7 @@ export async function getPostIfPossible(
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<Result<DynamoGeneralRealtimeItem<PostModel>, ErrorBase>> {
-    const postItemPromise = ForumRealtimeTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId,
-        },
-        {consistency},
-    );
-
-    // After we've loaded a post, save it to the authorization cache so if we need
-    // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
-
-    const postItem = await postItemPromise;
-    if (!postItem) throw createPostNotFoundError(postId);
+    const postItem = await getPostItemWithContentForAuthorization(context, postId, {consistency});
 
     const [authorizationResult, postResult] = await runAllPromises([
         authorizeChannelAccessIfPossible(context, postItem.channelId, "View"),

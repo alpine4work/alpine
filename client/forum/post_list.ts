@@ -336,6 +336,12 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
         };
     }
 
+    public getPostRealtimeItemIfExists(
+        postId: PostId,
+    ): DynamoGeneralRealtimeItem<PostModel> | null {
+        return this._posts.getPostRealtimeItemIfExists(postId);
+    }
+
     public abstract hasMorePosts(): boolean;
 
     public getItemCount(): number {
@@ -447,6 +453,19 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
             },
             startItemIndex,
         };
+    }
+
+    public getPostRealtimeItemIfExists(
+        postId: PostId,
+    ): DynamoGeneralRealtimeItem<PostModel> | null {
+        const nodeKey = this._getNodeOrderKeyByKeyIfExists(postId);
+        if (nodeKey === null) return null;
+
+        const iterator = this._nodeByOrderKey.find(nodeKey);
+        assert(iterator.valid);
+        const node = iterator.value!;
+
+        return node;
     }
 }
 

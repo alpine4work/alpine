@@ -2,18 +2,18 @@ import {AnimationPlaybackControls, animate, spring} from "motion";
 import {DotsThree, Heart} from "phosphor-react";
 import {Memo, Ref, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {reactionIconSvgDataUrls} from "~/client/reactions/icons/reaction_icon_svg_data_urls.js";
+import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
 import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
-import {getReactionAltText} from "~/shared/reactions/get_reaction_alt_text.js";
-import {ReactionCreature, ReactionEmotion, getReactionInMap} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionCreature, ReactionEmotion} from "~/shared/reactions/reaction.js";
 
 const reactionRadialPickerAnimationInitialScale = 0.25;
 
@@ -59,13 +59,15 @@ const reactionRadialPickerIconEmotions: ReadonlyArray<ReactionEmotion> = [
 function ReactionRadialPicker(
     {
         isVisible,
-        onCloseWithAnimation,
         creature,
+        onSetReaction: onSetReactionFromProps,
+        onCloseWithAnimation,
         isMouseDownFromOverlayOpen,
     }: {
         isVisible: boolean;
-        onCloseWithAnimation: Memo<() => void>;
         creature: ReactionCreature;
+        onSetReaction: (reaction: Reaction | "GenericHeart") => void;
+        onCloseWithAnimation: Memo<() => void>;
         isMouseDownFromOverlayOpen: boolean;
     },
     ref: Ref<ReactionRadialPickerRef>,
@@ -78,6 +80,8 @@ function ReactionRadialPicker(
 
     const [isPressed, setIsPressed] = useState(false);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+    const onSetReaction = useEvent(onSetReactionFromProps);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -212,9 +216,20 @@ function ReactionRadialPicker(
 
         // Don't select if the mouse is over the center heart button.
         if (activeIndex !== null) {
+            if (activeIndex === 0) {
+                onSetReaction("GenericHeart");
+            } else if (activeIndex === 4) {
+                // TODO(calebmer): Implement!
+            } else {
+                const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
+                const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
+
+                onSetReaction({creature, emotion});
+            }
+
             onCloseWithAnimation();
         }
-    }, [activeIndex, isMouseDownFromOverlayOpen, onCloseWithAnimation]);
+    }, [activeIndex, creature, isMouseDownFromOverlayOpen, onCloseWithAnimation, onSetReaction]);
 
     return (
         <Box
@@ -247,6 +262,20 @@ function ReactionRadialPicker(
                         document.removeEventListener("pointerup", cleanup);
                         document.removeEventListener("pointercancel", cleanup);
                         document.removeEventListener("dragstart", cleanup);
+
+                        if (activeIndex !== null) {
+                            if (activeIndex === 0) {
+                                onSetReaction("GenericHeart");
+                            } else if (activeIndex === 4) {
+                                // TODO(calebmer): Implement!
+                            } else {
+                                const emotionIndex =
+                                    activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
+                                const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
+
+                                onSetReaction({creature, emotion});
+                            }
+                        }
 
                         onCloseWithAnimation();
                     };
@@ -373,7 +402,7 @@ function ReactionRadialPicker(
                             // 4. This code does that.
                             const emotionIndex = index > 4 ? index - 2 : index - 1;
                             const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
-                            const icon = {creature, emotion};
+                            const reaction = {creature, emotion};
 
                             return (
                                 <Box
@@ -402,14 +431,9 @@ function ReactionRadialPicker(
                                                 : undefined,
                                     }}
                                 >
-                                    <img
-                                        className={sprinkles({
-                                            width: reactionRadialPickerOptionIconSize,
-                                            height: reactionRadialPickerOptionIconSize,
-                                        })}
-                                        draggable={false}
-                                        alt={getReactionAltText(icon)}
-                                        src={getReactionInMap(reactionIconSvgDataUrls, icon).get()}
+                                    <ReactionIcon
+                                        reaction={reaction}
+                                        size={reactionRadialPickerOptionIconSize}
                                     />
                                 </Box>
                             );

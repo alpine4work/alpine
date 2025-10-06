@@ -1,8 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
-import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
+import {getPostItemWithContentForAuthorizationIfExists} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
@@ -61,21 +60,9 @@ export async function getPostContentAndChannelPreviewIfPossible(
     },
     ErrorBase
 > | null> {
-    const postItemPromise = ForumRealtimeTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId,
-        },
-        {consistency},
-    );
-
-    // After we've loaded a post, save it to the authorization cache so if we need
-    // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
-
-    const postItem = await postItemPromise;
+    const postItem = await getPostItemWithContentForAuthorizationIfExists(context, postId, {
+        consistency,
+    });
     if (!postItem) return null;
 
     const channelResult = await getChannelPreviewIfPossible(context, postItem.channelId, {

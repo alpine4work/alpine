@@ -36,9 +36,11 @@ import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
 /**
  * Create a new post by the current account in the provided channel.
@@ -91,6 +93,7 @@ export async function createPost(
             commentCountByAuthorId: new Map(),
             mentionCountByAccountId,
         },
+        reactions: new ReactionSet(emptyMap),
     };
 
     // Add our new post to the authorization cache BEFORE we create the post. That

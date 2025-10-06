@@ -15,6 +15,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
@@ -33,7 +34,10 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    useSpaceContext,
+    useSpaceContextAndRequireSpaceAccess,
+} from "~/client/spaces/space_context.js";
 import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
@@ -50,6 +54,7 @@ import {colorSchemeVars, navigationBarStyles, sprinkles} from "~/client/styles/s
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
@@ -63,8 +68,13 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
-import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
+import {AccountId, FileId, PostId} from "~/shared/id/types/id_types.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {
+    deletePostReaction,
+    getPostCommentAuthors,
+    setPostReaction,
+} from "~/shared/rpc/forum_rpc_definitions.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -88,6 +98,7 @@ export function PostContentView({
     onScrollToIfNotVisible,
     isShowingAllContent,
     onIsShowingAllContentChange,
+    onOptimisticPostRealtimeEventTransaction,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
@@ -102,6 +113,14 @@ export function PostContentView({
     onScrollToIfNotVisible: () => void;
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
+    onOptimisticPostRealtimeEventTransaction: (
+        promise: Promise<{
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+        }>,
+        postId: PostId,
+        update: (post: PostModel) => PostModel,
+    ) => void;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -346,6 +365,7 @@ export function PostContentView({
                 postCommentsState={postCommentsState}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
+                onOptimisticPostRealtimeEventTransaction={onOptimisticPostRealtimeEventTransaction}
             />
         </Box>
     );
@@ -357,15 +377,27 @@ function PostContentViewFooter({
     postCommentsState,
     onTogglePostComments,
     onLoadInitialPostComments,
+    onOptimisticPostRealtimeEventTransaction,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
+    onOptimisticPostRealtimeEventTransaction: (
+        promise: Promise<{
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+        }>,
+        postId: PostId,
+        update: (post: PostModel) => PostModel,
+    ) => void;
 }) {
+    const context = useAppContext();
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
+    const reporter = useReporter();
 
     return (
         <Box
@@ -380,7 +412,35 @@ function PostContentViewFooter({
             alignItems="center"
         >
             <Box marginLeft="-1.5">
-                <ReactionButton />
+                <ReactionButton
+                    reactions={post.reactions}
+                    onSetReaction={reaction => {
+                        const promise = setPostReaction(context, {postId: post.id, reaction});
+
+                        promise.catch(error => {
+                            reporter.displayError("Couldn’t like post", error);
+                        });
+
+                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                            const newReactions = new Map(post.reactions.get());
+                            newReactions.set(currentAccount.id, reaction);
+                            return post.clone({reactions: new ReactionSet(newReactions)});
+                        });
+                    }}
+                    onDeleteReaction={() => {
+                        const promise = deletePostReaction(context, {postId: post.id});
+
+                        promise.catch(error => {
+                            reporter.displayError("Couldn’t remove like from post", error);
+                        });
+
+                        onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
+                            const newReactions = new Map(post.reactions.get());
+                            newReactions.delete(currentAccount.id);
+                            return post.clone({reactions: new ReactionSet(newReactions)});
+                        });
+                    }}
+                />
             </Box>
             <Box flexGrow="1" />
             <Box marginRight="-1.5" display="flex" alignItems="center" gap="1.5">
