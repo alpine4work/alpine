@@ -3,11 +3,9 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {
-    createChannel,
-    createOrReplacePostDraft,
-    createPost,
-} from "~/server/forum/data/forum_actions.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
+import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_post_draft.js";
+import {createPost} from "~/server/forum/data/create_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";

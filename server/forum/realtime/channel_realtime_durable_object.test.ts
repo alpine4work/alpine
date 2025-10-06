@@ -1,7 +1,7 @@
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {createChannel} from "~/server/forum/data/forum_actions.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
 import {ChannelRealtimeDurableObject} from "~/server/forum/realtime/channel_realtime_durable_object.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";

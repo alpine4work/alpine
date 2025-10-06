@@ -10,7 +10,7 @@ import {
     startUploadingFile,
 } from "~/server/files/data/files_actions.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
-import {FilePostAuthorizer} from "~/server/forum/data/forum_actions.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

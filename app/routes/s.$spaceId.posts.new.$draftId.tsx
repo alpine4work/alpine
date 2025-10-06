@@ -4,11 +4,9 @@ import {PostCreator} from "~/client/forum/post_creator.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
-import {
-    FilePostAuthorizer,
-    getChannelPreview,
-    getPostDraftIfExists,
-} from "~/server/forum/data/forum_actions.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
+import {getPostDraftIfExists} from "~/server/forum/data/get_post_draft_if_exists.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";

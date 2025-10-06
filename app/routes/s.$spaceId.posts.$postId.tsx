@@ -11,7 +11,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {getPostAndInitialComments} from "~/server/forum/data/forum_actions.js";
+import {getPostAndInitialComments} from "~/server/forum/data/post_messaging.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

@@ -1,0 +1,97 @@
+import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
+import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
+import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
+import {ErrorBase} from "~/shared/error/error.js";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
+import {PostContent} from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+
+// Designed for `server/search/data/index/internal/get_search_entity.ts`.
+export async function getPostContentAndChannelPreview(
+    context: ServerActionContext,
+    postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    version: number;
+    createdTime: Date;
+    authorId: AccountId;
+    content: PostContent;
+    channel: ChannelPreviewModel;
+}> {
+    const postResult = await getPostContentAndChannelPreviewIfPossible(context, postId, options);
+    if (!postResult) throw createPostNotFoundError(postId);
+    return unwrapResult(postResult);
+}
+
+// Designed for `server/search/data/index/internal/get_search_entity.ts`.
+export async function getPostContentAndChannelPreviewIfExists(
+    context: ServerActionContext,
+    postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    version: number;
+    createdTime: Date;
+    authorId: AccountId;
+    content: PostContent;
+    channel: ChannelPreviewModel;
+} | null> {
+    const postResult = await getPostContentAndChannelPreviewIfPossible(context, postId, options);
+    if (!postResult) return null;
+    return unwrapResult(postResult);
+}
+
+// Designed for `server/search/data/index/internal/get_search_entity.ts`.
+export async function getPostContentAndChannelPreviewIfPossible(
+    context: ServerActionContext,
+    postId: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<Result<
+    {
+        version: number;
+        createdTime: Date;
+        authorId: AccountId;
+        content: PostContent;
+        channel: ChannelPreviewModel;
+    },
+    ErrorBase
+> | null> {
+    const postItemPromise = ForumRealtimeTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {consistency},
+    );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
+
+    const postItem = await postItemPromise;
+    if (!postItem) return null;
+
+    const channelResult = await getChannelPreviewIfPossible(context, postItem.channelId, {
+        consistency,
+    });
+    assert(channelResult);
+    if (!channelResult.ok) return channelResult;
+
+    return {
+        ok: true,
+        value: {
+            version: postItem.updateLockVersion ?? 0,
+            createdTime: postItem.createdTime,
+            authorId: postItem.authorId,
+            content: postItem.content,
+            channel: channelResult.value,
+        },
+    };
+}

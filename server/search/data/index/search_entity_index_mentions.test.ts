@@ -4,7 +4,8 @@ import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {updateChannelName, updatePostContent} from "~/server/forum/data/forum_actions.js";
+import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
+import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     getSearchEntityIndexesForTest,

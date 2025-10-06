@@ -2,7 +2,9 @@ import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_actions.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
+import {createPost} from "~/server/forum/data/create_post.js";
+import {createPostComment} from "~/server/forum/data/post_messaging.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 

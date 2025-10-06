@@ -1,10 +1,8 @@
 import {expensiveScanEveryChatAndChatMessageForMigration} from "~/server/chat/data/chat_actions.js";
 import {expensiveScanEveryDocumentAndDocumentCommentForMigration} from "~/server/documents/data/documents_actions.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {
-    expensiveScanEveryChannelAndPostForMigration,
-    expensiveScanEveryPostCommentForMigration,
-} from "~/server/forum/data/forum_actions.js";
+import {expensiveScanEveryChannelAndPostForMigration} from "~/server/forum/data/expensive_scan_every_channel_and_post_for_migration.js";
+import {expensiveScanEveryPostCommentForMigration} from "~/server/forum/data/expensive_scan_every_post_comment_for_migration.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_actions.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";

@@ -4,16 +4,16 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
+import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
     completePostCommentStream,
     createPostComment,
-    getChannelNameAndDescriptionContent,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
     getPostCommentPayloadsFromStart,
-    getPostContentWithCustomReferencesAndChannelPreview,
     putPostCommentStreamPart,
-} from "~/server/forum/data/forum_actions.js";
+} from "~/server/forum/data/post_messaging.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {

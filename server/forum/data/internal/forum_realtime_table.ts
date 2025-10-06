@@ -4,14 +4,17 @@ import {
 } from "~/server/content/get_content_references.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {
+    DynamoGeneralRealtimeTableItemType,
+    DynamoGeneralRealtimeTableSchema,
+    DynamoGeneralRealtimeTableSchemaGetTypes,
+} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
-import {
-    authorizePostAccess,
-    authorizePostDraftAccess,
-    getChannelPreview,
-} from "~/server/forum/data/forum_actions.js";
+import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js";
+import {authorizePostDraftAccess} from "~/server/forum/data/authorize_post_draft_access.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
+import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -49,12 +52,6 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-
-/**
- * The max contribution count in the `Contributors` DynamoDB item.
- */
-const maxChannelContributionCount = 8;
-export {maxChannelContributionCount as internalMaxChannelContributionCount};
 
 export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     // Enable optional features we use that may incur extra costs.
@@ -713,4 +710,53 @@ async function createPostModelFromItem(
         commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
         previewCommentAuthors,
     });
+}
+
+export type ChannelAttributesItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Channel",
+    "Attributes"
+>;
+
+export type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Post",
+    "Attributes"
+>;
+
+export type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Channel",
+    "PostFiles"
+>;
+
+// Uses TypeScript to make sure if a new channel sort range is added we
+// consider whether `getChannelRealtimeEvent()` is allowed to return it or not.
+export const allowedChannelSortRangeTypesForGetChannelRealtimeEvent: Record<
+    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+        readonly partitionType: "Channel";
+    })["sortRangeType"],
+    boolean
+> = {
+    Attributes: true,
+    Contributors: true,
+    PostFiles: true,
+};
+
+// Uses TypeScript to make sure if a new post sort range is added we
+// consider whether `getPostRealtimeEvent()` is allowed to return it or not.
+export const allowedPostSortRangeTypesForGetPostRealtimeEvent: Record<
+    (DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"] & {
+        readonly partitionType: "Post";
+    })["sortRangeType"],
+    boolean
+> = {
+    Attributes: true,
+};
+
+export function serializeForumRealtimeTableOpaqueItemKeyForTest(
+    itemKey: DynamoGeneralRealtimeTableSchemaGetTypes<typeof ForumRealtimeTable>["ItemKey"],
+) {
+    assert(import.meta.jest);
+    return ForumRealtimeTable.serializeOpaqueItemKey(itemKey);
 }

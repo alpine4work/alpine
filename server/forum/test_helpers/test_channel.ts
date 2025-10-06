@@ -1,12 +1,10 @@
 import {Node} from "prosemirror-model";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {
-    createChannel,
-    getChannel,
-    getChannelPreview,
-    updateChannelAccessPolicy,
-} from "~/server/forum/data/forum_actions.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
+import {getChannel} from "~/server/forum/data/get_channel.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
+import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";

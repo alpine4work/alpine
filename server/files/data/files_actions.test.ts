@@ -15,7 +15,8 @@ import {
     getPostDraftFileAttachments,
     startUploadingFile,
 } from "~/server/files/data/files_actions.js";
-import {FilePostAuthorizer, createOrReplacePostDraft} from "~/server/forum/data/forum_actions.js";
+import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_post_draft.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

@@ -3,7 +3,7 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {createChannel} from "~/server/forum/data/forum_actions.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,

@@ -8,12 +8,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
-import {
-    FilePostAuthorizer,
-    dangerouslyGetPostAuthorWithoutAuthorization,
-    getChannelPreviewIfPossible,
-    getPostAuthorAndChannelPreviewIfPossible,
-} from "~/server/forum/data/forum_actions.js";
+import {dangerouslyGetPostAuthorWithoutAuthorization} from "~/server/forum/data/dangerously_get_post_author_without_authorization.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
+import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
+import {getPostAuthorAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_author_and_channel_preview.js";
 import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
 import {getAccount, impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
 import {getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";

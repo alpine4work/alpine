@@ -2,7 +2,7 @@ import {seedTestAccounts} from "~/server/accounts/accounts_actions.js";
 import {seedTestBots} from "~/server/bots/bots_table.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {seedTestChannels} from "~/server/forum/data/forum_actions.js";
+import {seedTestChannels} from "~/server/forum/data/seed_test_channels.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {seedTestBotAccounts, seedTestSpaces} from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";

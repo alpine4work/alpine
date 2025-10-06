@@ -6,7 +6,7 @@ import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_ac
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
-import {subscribeToChannel} from "~/server/forum/data/forum_actions.js";
+import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {

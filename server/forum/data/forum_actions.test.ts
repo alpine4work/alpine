@@ -1,3 +1,12 @@
+// IMPORTANT: Don't add tests to this file! This is leftover from the
+// `forum_actions.ts` refactor. Everything, and I mean everything, in
+// `server/forum/data` used to be in a single `forum_actions.ts` file. And this
+// test tested everything in that file. Now we want to move tests into
+// individual files that live next to the implementation of those tests. We
+// haven't performed that refactor yet for this test file. New tests should go
+// into files next to their implementation. For example tests for
+// `createPost()` should go into `create_post.test.ts`.
+
 import {addMinutes} from "date-fns";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
@@ -7,57 +16,64 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {addAccountGrantsToChannelAccessPolicy} from "~/server/forum/data/add_account_grants_to_channel_access_policy.js";
 import {
-    FilePostAuthorizer,
-    addAccountGrantsToChannelAccessPolicy,
     authorizeChannelAccess,
     authorizeChannelAccessIfPossible,
+} from "~/server/forum/data/authorize_channel_access.js";
+import {
     authorizePostAccess,
     authorizePostAccessIfPossible,
-    authorizePostDraftAccess,
+} from "~/server/forum/data/authorize_post_access.js";
+import {authorizePostDraftAccess} from "~/server/forum/data/authorize_post_draft_access.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
+import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_post_draft.js";
+import {createPost} from "~/server/forum/data/create_post.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
+import {getChannel, getChannelIfPossible} from "~/server/forum/data/get_channel.js";
+import {
     backfillChannelAndMetadata,
-    backfillChannelPosts,
-    createChannel,
-    createOrReplacePostDraft,
-    createPost,
-    deletePostComment,
-    getChannel,
     getChannelAndMetadata,
+} from "~/server/forum/data/get_channel_and_metadata.js";
+import {
     getChannelContributors,
     getChannelContributorsKey,
-    getChannelIfPossible,
-    getChannelNameAndDescriptionContent,
-    getChannelNameAndDescriptionContentAndContributors,
-    getChannelNotificationSubscribers,
-    getChannelPosts,
-    getChannelPreview,
-    getChannelRealtimeEvent,
-    getPost,
-    getPostAccessPolicyForBotScope,
-    getPostAndInitialComments,
-    getPostAuthorAndChannelPreviewIfPossible,
-    getPostCommentAuthors,
-    getPostCommentsFromEnd,
-    getPostCommentsFromStart,
+} from "~/server/forum/data/get_channel_contributors.js";
+import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
+import {getChannelNameAndDescriptionContentAndContributors} from "~/server/forum/data/get_channel_name_and_description_content_and_contributors.js";
+import {getChannelNotificationSubscribers} from "~/server/forum/data/get_channel_notification_subscribers.js";
+import {backfillChannelPosts, getChannelPosts} from "~/server/forum/data/get_channel_posts.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
+import {getChannelRealtimeEvent} from "~/server/forum/data/get_channel_realtime_event.js";
+import {getPost, getPostIfPossible} from "~/server/forum/data/get_post.js";
+import {getPostAccessPolicyForBotScope} from "~/server/forum/data/get_post_acccess_policy_for_bot_scope.js";
+import {getPostAuthorAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_author_and_channel_preview.js";
+import {getPostCommentAuthors} from "~/server/forum/data/get_post_comment_authors.js";
+import {
     getPostContentAndChannelPreview,
     getPostContentAndChannelPreviewIfPossible,
-    getPostContentWithCustomReferencesAndChannelPreview,
-    getPostDraftIfExists,
-    getPostIfPossible,
-    getPostNotificationSubscribers,
-    getPostRealtimeEvent,
-    isSubscribedToChannel,
-    sendChannelShareNotification,
-    serializeForumRealtimeTableOpaqueItemKeyForTest,
-    subscribeToChannel,
-    unsubscribeFromChannel,
-    updateChannelAccessPolicy,
-    updateChannelDescription,
-    updateChannelName,
-    updateChannelNameAndDescription,
+} from "~/server/forum/data/get_post_content_and_channel_preview.js";
+import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
+import {getPostDraftIfExists} from "~/server/forum/data/get_post_draft_if_exists.js";
+import {getPostNotificationSubscribers} from "~/server/forum/data/get_post_notification_subscribers.js";
+import {getPostRealtimeEvent} from "~/server/forum/data/get_post_realtime_event.js";
+import {serializeForumRealtimeTableOpaqueItemKeyForTest} from "~/server/forum/data/internal/forum_realtime_table.js";
+import {isSubscribedToChannel} from "~/server/forum/data/is_subscribed_to_channel.js";
+import {
+    deletePostComment,
+    getPostAndInitialComments,
+    getPostCommentsFromEnd,
+    getPostCommentsFromStart,
     updatePostCommentContent,
-    updatePostContent,
-} from "~/server/forum/data/forum_actions.js";
+} from "~/server/forum/data/post_messaging.js";
+import {sendChannelShareNotification} from "~/server/forum/data/send_channel_share_notification.js";
+import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
+import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
+import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
+import {updateChannelDescription} from "~/server/forum/data/update_channel_description.js";
+import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
+import {updateChannelNameAndDescription} from "~/server/forum/data/update_channel_name_and_description.js";
+import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     acceptSpaceAccountInvite,
