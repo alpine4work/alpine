@@ -58,8 +58,8 @@ function getReactionEmotionAltText(emotion: ReactionEmotion): string {
             return "who’s dead inside";
         case "Hardship":
             return "who’s sad";
-        case "Heart":
-            return "with heart";
+        case "Happy":
+            return "who’s happy";
         case "Laugh":
             return "laughing";
         case "Lolsob":

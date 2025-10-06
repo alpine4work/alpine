@@ -50,7 +50,7 @@ EMOTIONS = {
     "Celebrate": {"file_name": "celebrate"},
     "DeadInside": {"file_name": "dead_inside"},
     "Hardship": {"file_name": "hardship"},
-    "Heart": {"file_name": "heart"},
+    "Happy": {"file_name": "happy"},
     "Laugh": {"file_name": "laugh"},
     "Lolsob": {"file_name": "lolsob"},
     "No": {"file_name": "no"},

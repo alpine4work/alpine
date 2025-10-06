@@ -1,3 +1,4 @@
+import {cast} from "~/shared/helpers/control/cast.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
@@ -20,12 +21,26 @@ export type ReactionEmotion =
     | "Celebrate"
     | "DeadInside"
     | "Hardship"
-    | "Heart"
+    | "Happy"
     | "Laugh"
     | "Lolsob"
     | "No"
     | "Shock"
     | "Yes";
+
+export const allReactionEmotions: ReadonlyArray<ReactionEmotion> = getObjectKeysWithKeyofType(
+    cast<Record<ReactionEmotion, true>>({
+        Celebrate: true,
+        DeadInside: true,
+        Hardship: true,
+        Happy: true,
+        Laugh: true,
+        Lolsob: true,
+        No: true,
+        Shock: true,
+        Yes: true,
+    }),
+);
 
 export type ReactionCreatureType = ReactionCreature["type"];
 
