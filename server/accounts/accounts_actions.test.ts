@@ -14,6 +14,7 @@ import {
     getOurLastOpenedSpaceId,
     regenerateOneTimePasswordSignIn,
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
+    updateAccountReactionCreature,
     updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -21,6 +22,7 @@ import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.
 import {getAccountIfExists, removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     FailedPreconditionError,
@@ -1283,5 +1285,28 @@ describe("getOurLastOpenedSpaceId()", () => {
         // Should default to our first space
         const result = await getOurLastOpenedSpaceId(session.action());
         expect(result).toBe(space1.id);
+    });
+});
+
+describe("`updateAccountReactionCreature()`", () => {
+    test("can update the reaction creature for the account", async () => {
+        const account = await TestAccount.create(context);
+        const session = await TestSession.create(account);
+
+        expect((await account.get()).initialData.reactionCreature).toEqual(expect.any(Object));
+
+        await updateAccountReactionCreature(session.action(), {type: "Cat", variant: "Pink"});
+
+        expect((await account.get()).initialData.reactionCreature).toEqual({
+            type: "Cat",
+            variant: "Pink",
+        });
+
+        await updateAccountReactionCreature(session.action(), {type: "Tree", variant: "Green"});
+
+        expect((await account.get()).initialData.reactionCreature).toEqual({
+            type: "Tree",
+            variant: "Green",
+        });
     });
 });

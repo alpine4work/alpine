@@ -21,6 +21,9 @@ export function createTestAccountModel(accountModelDataOptions: Partial<AccountM
             addedTime: new Date("2025-01-01T00:00:00Z"),
         },
         avatar: null,
+        // NOTE(calebmer): This may be called in Playwright which doesn't have a global
+        // `expect()` function.
+        reactionCreature: typeof expect === "function" ? expect.any(Object) : null,
         ...accountModelDataOptions,
     });
 }
@@ -34,6 +37,9 @@ export function createTestAccountModelWithoutSpace(
         version: 0,
         nameVersion: 0,
         avatar: null,
+        // NOTE(calebmer): This may be called in Playwright which doesn't have a global
+        // `expect()` function.
+        reactionCreature: typeof expect === "function" ? expect.any(Object) : null,
         ...accountModelDataOptions,
     });
 }

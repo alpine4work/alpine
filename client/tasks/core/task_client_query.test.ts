@@ -62,6 +62,7 @@ const account1 = createTestAccountModel({
     name: "Test Account 1",
     nameVersion: 0,
     version: 0,
+    reactionCreature: null,
     space: {
         version: 0,
         addedTime: new Date(),
@@ -75,6 +76,7 @@ const account2 = createTestAccountModel({
     name: "Test Account 2",
     nameVersion: 0,
     version: 0,
+    reactionCreature: null,
     space: {
         version: 0,
         addedTime: new Date(),

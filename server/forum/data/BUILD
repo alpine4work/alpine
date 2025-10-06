@@ -23,6 +23,7 @@ ts_project(
     ],
     tests = {
         "forum_actions_test": {"size": "medium"},
+        "post_messaging_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

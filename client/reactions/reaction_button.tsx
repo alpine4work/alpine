@@ -23,7 +23,7 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getDefaultReactionCreatureForId} from "~/shared/reactions/get_default_reaction_creature_for_id.js";
+import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
@@ -44,7 +44,7 @@ export function ReactionButton({
     const [isMouseDownFromOverlayOpen, setIsMouseDownFromOverlayOpen] = useState(false);
 
     const currentAccountCreature = useMemo(
-        () => getDefaultReactionCreatureForId(currentAccount.id),
+        () => getLegacyFallbackReactionCreatureForId(currentAccount.id),
         [currentAccount.id],
     );
 

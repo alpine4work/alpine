@@ -19,6 +19,7 @@ ts_project(
             "tags": ["cpu:3"],
         },
         "task_table_test": {"size": "medium"},
+        "task_table_messaging_test": {"size": "medium"},
         "task_index_permutations_test": {
             "size": "medium",
             # Give this test at least three CPUs. Two for OpenSearch, one for the test

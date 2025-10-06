@@ -77,6 +77,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "reactionCreature": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Integer"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -9875,6 +9884,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "botId": {
                                                                             "valueSchema": {
                                                                                 "type": "Id"
+                                                                            },
+                                                                            "optional": true
+                                                                        },
+                                                                        "reactionCreature": {
+                                                                            "valueSchema": {
+                                                                                "type": "Nullable",
+                                                                                "schema": {
+                                                                                    "type": "Integer"
+                                                                                }
                                                                             },
                                                                             "optional": true
                                                                         }

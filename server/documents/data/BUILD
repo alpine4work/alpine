@@ -15,6 +15,7 @@ ts_project(
     tests = {
         "documents_actions_test": {"size": "medium"},
         "documents_actions_slow_test": {"size": "medium"},
+        "document_table_messaging_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

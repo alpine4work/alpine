@@ -10,6 +10,7 @@ import {
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
+    pickRandomReactionCreatureForAccount,
 } from "~/server/accounts/accounts_actions.js";
 import {getBot} from "~/server/bots/bots_table.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
@@ -2473,6 +2474,11 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
         version: accountData.version + smiMinValue,
         name: accountData.name,
         nameVersion: accountData.nameVersion + smiMinValue,
+        botId: accountData.botId,
+        // The account's reaction creature is available publicly via entities shared by
+        // URL when there's no avatar set. Since the creature is used to determine the
+        // avatar.
+        reactionCreature: !accountData.avatar ? accountData.reactionCreature : null,
         space: {
             version: accountData.space.version + smiMinValue,
             addedTime: new Date(0),
@@ -2876,6 +2882,10 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                 // Just do a hard truncate here
                 name: emailAddress.substring(0, 50),
                 nameVersion: 0,
+                // Pick a random character for the account since we don't want to reveal the
+                // character selected by the account (which is private information along with
+                // the rest of the account's data).
+                reactionCreature: pickRandomReactionCreatureForAccount(),
             },
             wasPreviouslyRemoved: spaceAccountItem?.state.type === "Removed",
         };

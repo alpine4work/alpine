@@ -1,6 +1,7 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, BotId} from "~/shared/id/types/id_types.js";
+import {ReactionCreatureSchema} from "~/shared/reactions/reaction_creature_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -26,6 +27,7 @@ export const AccountModelWithoutSpaceAndAvatarDataSchema = Schema.object({
     nameVersion: Schema.integer,
     // If the account is a bot then this will be defined.
     botId: Schema.id<BotId>().optional(),
+    reactionCreature: ReactionCreatureSchema.nullable().default(null),
 });
 export const AccountModelWithoutSpaceDataSchema = AccountModelWithoutSpaceAndAvatarDataSchema.merge(
     Schema.object({
@@ -92,6 +94,7 @@ export class AccountModelWithoutSpace {
             name: "Unknown",
             nameVersion: 0,
             avatar: null,
+            reactionCreature: {type: "Yeti", variant: "Blue"},
         });
 
         return this._unknown;

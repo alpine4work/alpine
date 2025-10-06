@@ -3,6 +3,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {AccountsSettingsSchema} from "~/shared/accounts/accounts_settings_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ReactionCreatureSchema} from "~/shared/reactions/reaction_creature_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -59,6 +60,23 @@ export const AccountsTable = DynamoTableSchema.new({
                             spaceId: Schema.id<SpaceId>(),
                             botId: Schema.id<BotId>(),
                         }).optional(),
+
+                        /**
+                         * The reaction character chosen by this account to represent them. When
+                         * reacting, the account uses emotions from this character. We pick a random
+                         * reaction character when creating the account and let the user configure from
+                         * there.
+                         *
+                         * `null` is for accounts created before 2025-10-06 which we didn't select a
+                         * random reaction for on account creation. If you see null then call
+                         * `getLegacyFallbackReactionCharacterForId()` to get the character. This
+                         * function only returns a character from our initial set of reaction
+                         * characters so we make sure the character never changes over time.
+                         *
+                         * This property is visible to everyone with access to the account's
+                         * information and shared across all the spaces an account is a member of.
+                         */
+                        reactionCreature: ReactionCreatureSchema.nullable().default(null),
                     }),
                 },
                 /**

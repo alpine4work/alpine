@@ -52,10 +52,17 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, AvatarId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    ReactionCreature,
+    allReactionCreatureTypes,
+    allReactionCreatureVariantsByType,
+} from "~/shared/reactions/reaction.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
@@ -255,6 +262,7 @@ export async function createAccountForTest(
         createdTime,
         hasInternalAccess,
         observedTimeZone,
+        reactionCreature: pickRandomReactionCreatureForAccount(),
     });
 
     return {createdTime};
@@ -345,6 +353,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         createdTime: new Date(),
         hasInternalAccess: true,
         observedTimeZone: defaultTimeZone,
+        reactionCreature: pickRandomReactionCreatureForAccount(),
     });
 
     await AccountsTable.createItemIfNoneExists(context, {
@@ -455,7 +464,18 @@ export function createAccountTransactionEntry({
         createdTime: currentTime,
         observedTimeZone: null,
         bot: dangerouslyInstantiateBot,
+        reactionCreature: pickRandomReactionCreatureForAccount(),
     });
+}
+
+export function pickRandomReactionCreatureForAccount(): ReactionCreature {
+    const typeIndex = randomInteger(0, allReactionCreatureTypes.length);
+    const type = allReactionCreatureTypes[typeIndex]!;
+
+    const variantIndex = randomInteger(0, allReactionCreatureVariantsByType[type].length);
+    const variant = allReactionCreatureVariantsByType[type][variantIndex]!;
+
+    return {type, variant} as ReactionCreature;
 }
 
 /**
@@ -961,6 +981,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
         botId: accountItem.bot?.botId,
+        reactionCreature: accountItem.reactionCreature,
         avatar: accountItem.avatar
             ? {
                   avatarId: accountItem.avatar.avatarId,
@@ -1073,6 +1094,7 @@ export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthoriza
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
         botId: accountItem.bot?.botId,
+        reactionCreature: accountItem.reactionCreature,
     };
 }
 
@@ -1344,19 +1366,20 @@ export async function updateAccountAvatar(
     context.actor.authorizeSession();
 
     const accountId = context.actor.getAccountId();
-    const oldAccountItem = await getAccountItem(context, accountId);
-    const oldAccountAvatar = oldAccountItem.avatar;
-
-    const newAvatarItem: AccountAvatarItem = {
-        ...oldAccountAvatar,
-        partitionType: "Account",
-        sortRangeType: "Avatar",
-        accountId,
-        avatarId,
-        content: avatarContent,
-    };
 
     return context.dynamo.retryTransaction(async context => {
+        const oldAccountItem = await getAccountItem(context, accountId);
+        const oldAccountAvatar = oldAccountItem.avatar;
+
+        const newAvatarItem: AccountAvatarItem = {
+            ...oldAccountAvatar,
+            partitionType: "Account",
+            sortRangeType: "Avatar",
+            accountId,
+            avatarId,
+            content: avatarContent,
+        };
+
         // NOTE(ifitzsimmons, 2025-08-15): We considered adding a check to ensure that the
         // new avatarId is newer than the old avatarId. We opted against that for now, see
         // reasoning here: https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/312/add-rpc-implementation-for-uploading-account-avatars#comment-PRRC_kwDOH2ktg86H2sCi
@@ -1365,6 +1388,34 @@ export async function updateAccountAvatar(
         return createAccountModelFromItem({
             ...oldAccountItem,
             avatar: accountAvatarItem,
+        });
+    });
+}
+
+/**
+ * Updates the reaction creature for the account.
+ */
+export async function updateAccountReactionCreature(
+    context: Context<
+        DynamoContextModules & {cache: CacheContextModule; actor: SessionActorContextModule}
+    >,
+    reactionCreature: ReactionCreature,
+): Promise<AccountModelWithoutSpace> {
+    context.actor.authorizeSession();
+
+    const accountId = context.actor.getAccountId();
+
+    return context.dynamo.retryTransaction(async context => {
+        const oldAccountItem = await getAccountItem(context, accountId);
+
+        const newAccountItem = await AccountsTable.directlyUpdateItem(context, {
+            ...omitObject(oldAccountItem, ["avatar"]),
+            reactionCreature,
+        });
+
+        return createAccountModelFromItem({
+            ...newAccountItem,
+            avatar: oldAccountItem.avatar,
         });
     });
 }

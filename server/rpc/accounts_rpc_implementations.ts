@@ -3,6 +3,7 @@ import {
     getAccountByIdAsAdmin,
     registerOurAccountAppleDeviceToken,
     updateAccountAvatar,
+    updateAccountReactionCreature,
     updateOurAccountName,
     updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_actions.js";
@@ -124,6 +125,17 @@ export default implementRpcs(definitions, {
                 avatarContent: input.avatarContent,
                 avatarId: input.avatarId,
             });
+            return {account};
+        },
+    },
+
+    updateAccountReactionCreature: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const account = await updateAccountReactionCreature(
+                context.actor.authorizeSession(),
+                input.creature,
+            );
             return {account};
         },
     },
