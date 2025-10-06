@@ -1,11 +1,12 @@
 import {ThumbsUp} from "phosphor-react";
-import {useMemo, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
+import {ReactionMegaPicker} from "~/client/reactions/internal/reaction_mega_picker.js";
 import {
     ReactionRadialPicker,
     ReactionRadialPickerRef,
@@ -23,7 +24,6 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
@@ -43,10 +43,7 @@ export function ReactionButton({
     const [translate, setTranslate] = useState<{xRem: number; yRem: number} | null>(null);
     const [isMouseDownFromOverlayOpen, setIsMouseDownFromOverlayOpen] = useState(false);
 
-    const currentAccountCreature = useMemo(
-        () => getLegacyFallbackReactionCreatureForId(currentAccount.id),
-        [currentAccount.id],
-    );
+    const [isMegaPickerOpen, setIsMegaPickerOpen] = useState(false);
 
     const currentAccountReaction = reactions.get().get(currentAccount.id);
 
@@ -57,37 +54,53 @@ export function ReactionButton({
             isDisabled={!!currentAccountReaction}
             aria-haspopup="true"
             placement="bottom-start"
-            offset="0"
+            offset={!isMegaPickerOpen ? "0" : undefined}
             // Don't move the overlay if it's near the container bounds. We position the
             // overlay relative to the button using the cursor position.
-            fallbackPlacements={emptyArray}
-            overlay={({isVisible, onCloseWithAnimation}) => (
+            fallbackPlacements={!isMegaPickerOpen ? emptyArray : undefined}
+            overlay={({isVisible, onCloseWithAnimation, onCloseWithoutAnimation}) => (
                 <Box>
-                    <Box
-                        style={{
-                            transform: `translate(${
-                                (translate?.xRem ?? 0) - reactionRadialPickerSizeRem / 2
-                            }rem, ${
-                                (translate?.yRem ?? 0) -
-                                reactionRadialPickerSizeRem / 2 -
-                                postContentViewFooterButtonHeightRem
-                            }rem)`,
-                        }}
-                    >
-                        <ReactionRadialPicker
-                            ref={radialPickerRef}
-                            isVisible={isVisible}
-                            creature={currentAccountCreature}
+                    {isMegaPickerOpen ? (
+                        <ReactionMegaPicker
                             onSetReaction={onSetReaction}
-                            onCloseWithAnimation={onCloseWithAnimation}
-                            isMouseDownFromOverlayOpen={isMouseDownFromOverlayOpen}
+                            onCloseWithoutAnimation={onCloseWithoutAnimation}
                         />
-                    </Box>
+                    ) : (
+                        <Box
+                            style={{
+                                transform: `translate(${
+                                    (translate?.xRem ?? 0) - reactionRadialPickerSizeRem / 2
+                                }rem, ${
+                                    (translate?.yRem ?? 0) -
+                                    reactionRadialPickerSizeRem / 2 -
+                                    postContentViewFooterButtonHeightRem
+                                }rem)`,
+                            }}
+                        >
+                            <ReactionRadialPicker
+                                ref={radialPickerRef}
+                                isVisible={isVisible}
+                                onSetReaction={onSetReaction}
+                                onOpenMegaPicker={() => setIsMegaPickerOpen(true)}
+                                onCloseWithAnimation={onCloseWithAnimation}
+                                isMouseDownFromOverlayOpen={isMouseDownFromOverlayOpen}
+                            />
+                        </Box>
+                    )}
                 </Box>
             )}
-            animateOverlayOut={() => {
-                const radialPicker = assertExists(radialPickerRef.current);
-                return radialPicker.animateOut();
+            animateOverlayOut={
+                !isMegaPickerOpen
+                    ? () => {
+                          const radialPicker = assertExists(radialPickerRef.current);
+                          return radialPicker.animateOut();
+                      }
+                    : undefined
+            }
+            onActuallyVisibleChange={isActuallyVisible => {
+                if (!isActuallyVisible) {
+                    setIsMegaPickerOpen(false);
+                }
             }}
             onPointerDown={event => {
                 const spacingScale = getSpacingScaleWithoutListening();

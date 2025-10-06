@@ -1,12 +1,23 @@
 import {AnimationPlaybackControls, animate, spring} from "motion";
 import {DotsThree} from "phosphor-react";
-import {Memo, Ref, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
+import {
+    Memo,
+    Ref,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
 import {colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
 import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
@@ -14,7 +25,8 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
-import {Reaction, ReactionCreature, ReactionEmotion} from "~/shared/reactions/reaction.js";
+import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
+import {Reaction, ReactionEmotion} from "~/shared/reactions/reaction.js";
 
 const reactionRadialPickerAnimationInitialScale = 0.25;
 
@@ -60,19 +72,30 @@ const reactionRadialPickerIconEmotions: ReadonlyArray<ReactionEmotion> = [
 function ReactionRadialPicker(
     {
         isVisible,
-        creature,
         onSetReaction: onSetReactionFromProps,
+        onOpenMegaPicker: onOpenMegaPickerFromProps,
         onCloseWithAnimation,
         isMouseDownFromOverlayOpen,
     }: {
         isVisible: boolean;
-        creature: ReactionCreature;
         onSetReaction: (reaction: Reaction | "GenericLike") => void;
+        onOpenMegaPicker: () => void;
         onCloseWithAnimation: Memo<() => void>;
         isMouseDownFromOverlayOpen: boolean;
     },
     ref: Ref<ReactionRadialPickerRef>,
 ) {
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+
+    const currentAccountData = useAccountModel(currentAccount);
+
+    const creature = useMemo(
+        () =>
+            currentAccountData.reactionCreature ??
+            getLegacyFallbackReactionCreatureForId(currentAccount.id),
+        [currentAccount.id, currentAccountData.reactionCreature],
+    );
+
     const circleContainerRef = useRef<HTMLDivElement>(null);
     const circleRef = useRef<HTMLDivElement>(null);
     const circleContentsRef = useRef<HTMLDivElement>(null);
@@ -82,7 +105,10 @@ function ReactionRadialPicker(
     const [isPressed, setIsPressed] = useState(false);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-    const onSetReaction = useEvent(onSetReactionFromProps);
+    const {onSetReaction, onOpenMegaPicker} = useEvents({
+        onSetReaction: onSetReactionFromProps,
+        onOpenMegaPicker: onOpenMegaPickerFromProps,
+    });
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -206,7 +232,10 @@ function ReactionRadialPicker(
 
     const shouldCloseOnMouseUpFromOverlayOpenRef = useRef(isMouseDownFromOverlayOpen);
 
-    useEffect(() => {
+    // Layout effect since when the mouse is released, we want the background color
+    // of `<ReactionButton>` to change in the same paint as whatever this hook is
+    // doing (which could be setting a like or opening the mega picker).
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (!shouldCloseOnMouseUpFromOverlayOpenRef.current) return;
 
         // Wait until mouse up.
@@ -219,18 +248,25 @@ function ReactionRadialPicker(
         if (activeIndex !== null) {
             if (activeIndex === 0) {
                 onSetReaction("GenericLike");
+                onCloseWithAnimation();
             } else if (activeIndex === 4) {
-                // TODO(calebmer): Implement!
+                onOpenMegaPicker();
             } else {
                 const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
                 onSetReaction({creature, emotion});
+                onCloseWithAnimation();
             }
-
-            onCloseWithAnimation();
         }
-    }, [activeIndex, creature, isMouseDownFromOverlayOpen, onCloseWithAnimation, onSetReaction]);
+    }, [
+        activeIndex,
+        creature,
+        isMouseDownFromOverlayOpen,
+        onCloseWithAnimation,
+        onOpenMegaPicker,
+        onSetReaction,
+    ]);
 
     return (
         <Box
@@ -264,21 +300,23 @@ function ReactionRadialPicker(
                         document.removeEventListener("pointercancel", cleanup);
                         document.removeEventListener("dragstart", cleanup);
 
-                        if (activeIndex !== null) {
+                        if (activeIndex === null) {
+                            onCloseWithAnimation();
+                        } else {
                             if (activeIndex === 0) {
                                 onSetReaction("GenericLike");
+                                onCloseWithAnimation();
                             } else if (activeIndex === 4) {
-                                // TODO(calebmer): Implement!
+                                onOpenMegaPicker();
                             } else {
                                 const emotionIndex =
                                     activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
                                 onSetReaction({creature, emotion});
+                                onCloseWithAnimation();
                             }
                         }
-
-                        onCloseWithAnimation();
                     };
 
                     document.addEventListener("pointerup", cleanup);
