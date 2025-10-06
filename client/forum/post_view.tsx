@@ -6,6 +6,7 @@ import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -28,6 +29,7 @@ export function PostView({
     initialScroll: Memo<PostViewInitialScroll> | null;
 }) {
     const {currentAccount} = useSpaceContext();
+    const navigate = useNavigate();
 
     const postListRef = useRef<PostListViewRef>(null);
     const hasInitializedRef = useRef(false);
@@ -92,6 +94,7 @@ export function PostView({
         menuActions: getPostMoreActions({
             currentAccount,
             post: postResult.post,
+            navigate,
             onStartEditingPost: () => {
                 assertExists(postListRef.current).startEditingPost(
                     postResult.post.id,

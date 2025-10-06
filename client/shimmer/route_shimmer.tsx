@@ -221,9 +221,12 @@ const shimmerOptionsByRouteId: Record<
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
-    "routes/s.$spaceId.posts.$postId": {
+    "routes/s.$spaceId.posts.$postId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: PostRouteShimmer,
+    },
+    "routes/s.$spaceId.posts.$postId.reactions": {
+        component: ReactionsRouteShimmer,
     },
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
@@ -1716,6 +1719,88 @@ function PostRouteShimmer() {
             </Box>
             <MessageInputShimmer />
             <Box flexShrink="0" height="safe-area-inset-bottom" />
+        </Box>
+    );
+}
+
+function ReactionsRouteShimmer() {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+
+    const maxWidth = routeLayout !== "narrow" ? peekNarrowLayoutWidth : undefined;
+
+    return (
+        <Box width="full" height="full">
+            <Box width="full" maxWidth={maxWidth} paddingTop="safe-area-inset" marginX="center">
+                <Box
+                    width="full"
+                    height={navigationBarHeight}
+                    paddingX={platform === "mobile" ? navigationBarMobileGap : screenPaddingX}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                >
+                    {platform === "mobile" ? <MobileBackButton /> : <Box />}
+                    <TextShimmer
+                        fontSize={platform === "mobile" ? "100" : "400"}
+                        width={platform === "mobile" ? "10" : "12"}
+                    />
+                    {platform === "mobile" ? <MobileBackButtonSpacer /> : <Box />}
+                </Box>
+                <Box
+                    maxWidth={contentStyles.contentMaxWidth}
+                    marginX="auto"
+                    paddingX={screenPaddingX}
+                    paddingBottom={navigationBarHeight}
+                >
+                    <ReactionsRouteReactionShimmer />
+                    <ReactionsRouteReactionShimmer />
+                    <ReactionsRouteReactionShimmer />
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function ReactionsRouteReactionShimmer() {
+    return (
+        <Box
+            pointerEvents="auto"
+            display="flex"
+            alignItems="center"
+            gap="4"
+            paddingY="3"
+            style={{
+                boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+            }}
+        >
+            <Box flexGrow="1" display="flex" alignItems="center" gap="3">
+                <Box
+                    className={pulseAnimationClassName}
+                    position="relative"
+                    backgroundColor="grey-10"
+                    width="8"
+                    height="8"
+                    borderRadius="full"
+                />
+                <TextShimmer fontSize="100" width="32" ragRight="random" />
+            </Box>
+            <Box
+                flexShrink="0"
+                width="8"
+                height="8"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+            >
+                <Box
+                    className={pulseAnimationClassName}
+                    width="5"
+                    height="5"
+                    backgroundColor="grey-10"
+                    borderRadius="1.5"
+                />
+            </Box>
         </Box>
     );
 }

@@ -114,8 +114,8 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
         // Users generally won't navigate to this route on their own. Don't bother
         // testing the 404 not found page.
     },
-    "posts.$postId": () => {
-        test("not found error for route `posts.$postId`", async ({
+    "posts.$postId._index": () => {
+        test("not found error for route `posts.$postId._index`", async ({
             page,
             context: browserContext,
         }) => {
@@ -124,6 +124,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/posts/${generateId()}`);
+
+            await expect(page.getByText("This post doesn’t exist")).toBeVisible();
+        });
+    },
+    "posts.$postId.reactions": () => {
+        test("not found error for route `posts.$postId.reactions`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/posts/${generateId()}/reactions`);
 
             await expect(page.getByText("This post doesn’t exist")).toBeVisible();
         });

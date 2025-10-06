@@ -15,6 +15,7 @@ ts_project(
         "//client/content",
         "//client/design",
         "//client/helpers",
+        "//client/navigation",
         "//client/reactions/icons",
         "//client/remix",
         "//client/rpc",

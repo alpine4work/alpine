@@ -86,9 +86,11 @@ const reactionIconUnwrappedSvgs = mapReactionMap(
 export function ReactionParty({
     reactions,
     randomSeed,
+    onPress,
 }: {
     reactions: ReactionSet;
     randomSeed: string;
+    onPress: () => void;
 }) {
     const spacingScale = useSpacingScale();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
@@ -196,7 +198,7 @@ export function ReactionParty({
             },
         ).output?.accounts ?? emptyArray;
 
-    const {isPressed, pressProps} = usePress({});
+    const {isPressed, pressProps} = usePress({onPress});
 
     if (!node) return null;
 

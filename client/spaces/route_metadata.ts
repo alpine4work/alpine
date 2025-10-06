@@ -80,8 +80,11 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration": {
         errorTitle: "Couldn’t open notification",
     },
-    "routes/s.$spaceId.posts.$postId": {
+    "routes/s.$spaceId.posts.$postId._index": {
         errorTitle: "Couldn’t open post",
+    },
+    "routes/s.$spaceId.posts.$postId.reactions": {
+        errorTitle: "Couldn’t open post likes",
     },
     "routes/s.$spaceId.posts.new.$draftId": {
         errorTitle: "Couldn’t create post",

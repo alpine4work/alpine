@@ -141,6 +141,7 @@ export function PostContentView({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
+    const navigate = useNavigate();
 
     // Update `SearchEntityRegistry` with the post content. Now as the post content
     // changes in realtime, any `SearchEntityModel`s rendered elsewhere in
@@ -310,6 +311,7 @@ export function PostContentView({
                             actions={getPostMoreActions({
                                 currentAccount,
                                 post,
+                                navigate,
                                 onStartEditingPost: () => {
                                     postEditing.dispatch({
                                         type: "StartEditing",
@@ -407,10 +409,12 @@ function PostContentViewFooter({
 }) {
     const context = useAppContext();
     const platform = usePlatform();
-    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
+
+    const [isNavigatePending, setIsNavigatePending] = useState(false);
 
     const reactionButtonAreaWidth = "4.5rem";
     const commentButtonAndAvatarsAreaWidth = platform !== "mobile" ? "14rem" : "11rem";
@@ -481,7 +485,18 @@ function PostContentViewFooter({
                     [commentButtonAndAvatarsAreaWidth, platform],
                 )}
             >
-                <ReactionParty reactions={post.reactions} randomSeed={post.id} />
+                <ReactionParty
+                    reactions={post.reactions}
+                    randomSeed={post.id}
+                    onPress={() => {
+                        if (isNavigatePending) return;
+
+                        setIsNavigatePending(true);
+                        navigate(`/s/${space.id}/posts/${post.id}/reactions`).finally(() => {
+                            setIsNavigatePending(false);
+                        });
+                    }}
+                />
             </ContentBlockWidthContextProvider>
             <Box flexGrow="1" />
             <Box
