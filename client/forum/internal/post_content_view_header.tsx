@@ -92,7 +92,7 @@ export function PostContentViewHeaderBase({
                 </Box>
                 <Box className={forumStyles.postHeaderCreatedTimeClassName}>
                     <PrettyAbsoluteDate
-                        tooltipPlacement="bottom"
+                        tooltipPlacement="bottom-start"
                         date={createdTime}
                         withoutTime={shouldCreatedTimeExcludeTime}
                     />

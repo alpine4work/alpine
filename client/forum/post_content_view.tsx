@@ -3,6 +3,7 @@ import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentViewWithSeeMoreToggleBase} from "~/client/content/content_view_with_see_more_toggle.js";
@@ -28,6 +29,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_me
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {ReactionButton} from "~/client/reactions/reaction_button.js";
+import {ReactionParty} from "~/client/reactions/reaction_party.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -50,9 +52,19 @@ import {
     postViewMinHeightPx,
     screenPaddingXWithoutPostContentViewInnerMarginY,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    navigationBarStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {
+    addRemLengths,
+    screenPaddingX,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -394,10 +406,14 @@ function PostContentViewFooter({
     ) => void;
 }) {
     const context = useAppContext();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
+
+    const reactionButtonAreaWidth = "4.5rem";
+    const commentButtonAndAvatarsAreaWidth = platform !== "mobile" ? "14rem" : "11rem";
 
     return (
         <Box
@@ -411,7 +427,14 @@ function PostContentViewFooter({
             display="flex"
             alignItems="center"
         >
-            <Box marginLeft="-1.5">
+            <Box
+                flexShrink="0"
+                marginLeft="-1.5"
+                display="flex"
+                justifyContent="flex-start"
+                alignItems="center"
+                style={{width: reactionButtonAreaWidth}}
+            >
                 <ReactionButton
                     reactions={post.reactions}
                     onSetReaction={reaction => {
@@ -442,8 +465,34 @@ function PostContentViewFooter({
                     }}
                 />
             </Box>
+            <ContentBlockWidthContextProvider
+                maxWidth={contentStyles.contentMaxWidth}
+                paddingLeft={useMemo(
+                    () => addRemLengths(screenPaddingX[platform], reactionButtonAreaWidth, "-1.5"),
+                    [platform],
+                )}
+                paddingRight={useMemo(
+                    () =>
+                        addRemLengths(
+                            screenPaddingX[platform],
+                            commentButtonAndAvatarsAreaWidth,
+                            "-1.5",
+                        ),
+                    [commentButtonAndAvatarsAreaWidth, platform],
+                )}
+            >
+                <ReactionParty reactions={post.reactions} randomSeed={post.id} />
+            </ContentBlockWidthContextProvider>
             <Box flexGrow="1" />
-            <Box marginRight="-1.5" display="flex" alignItems="center" gap="1.5">
+            <Box
+                flexShrink="0"
+                marginRight="-1.5"
+                display="flex"
+                justifyContent="flex-end"
+                alignItems="center"
+                gap="1.5"
+                style={{width: commentButtonAndAvatarsAreaWidth}}
+            >
                 <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
                 {postCommentsState === "AlwaysOpen" ? (
                     <Box paddingX="1.5" color="grey-50" display="flex" alignItems="center" gap="1">
@@ -577,6 +626,7 @@ function PostCommentsAccountAvatarPile({
     postComments: MessageList<PostCommentModel>;
 }) {
     const context = useAppContext();
+    const platform = usePlatform();
 
     const [_additionalCommentAuthors, setAdditionalCommentAuthors] = useState<{
         endIndex: number;
@@ -613,13 +663,21 @@ function PostCommentsAccountAvatarPile({
         setAdditionalCommentAuthors(additionalCommentAuthors);
     }, [additionalCommentAuthors]);
 
+    const previewCommentAuthors = useMemo(
+        () =>
+            platform !== "mobile"
+                ? post.previewCommentAuthors.slice(0, maxPostPreviewCommentAuthorCount)
+                : post.previewCommentAuthors.slice(0, 3),
+        [platform, post.previewCommentAuthors],
+    );
+
     const {previewAccounts, accountCount} = useMemo(() => {
         // If there are unloaded comment authors then don't touch our author state.
         // Since we don't know whether an additional comment author has already been
         // counted in `commentAuthorCount`.
-        if (post.previewCommentAuthors.length < post.commentAuthorCount) {
+        if (previewCommentAuthors.length < post.commentAuthorCount) {
             return {
-                previewAccounts: post.previewCommentAuthors,
+                previewAccounts: previewCommentAuthors,
                 accountCount: post.commentAuthorCount,
             };
         }
@@ -627,7 +685,7 @@ function PostCommentsAccountAvatarPile({
         const previewCommentAuthorIds = new Set<AccountId>();
         const commentAuthors = [];
 
-        for (const account of post.previewCommentAuthors) {
+        for (const account of previewCommentAuthors) {
             previewCommentAuthorIds.add(account.id);
             commentAuthors.push(account);
         }
@@ -642,7 +700,7 @@ function PostCommentsAccountAvatarPile({
             previewAccounts: commentAuthors.slice(0, maxPostPreviewCommentAuthorCount),
             accountCount: commentAuthors.length,
         };
-    }, [additionalCommentAuthors.accountById, post.commentAuthorCount, post.previewCommentAuthors]);
+    }, [additionalCommentAuthors.accountById, post.commentAuthorCount, previewCommentAuthors]);
 
     return (
         <AccountAvatarPile

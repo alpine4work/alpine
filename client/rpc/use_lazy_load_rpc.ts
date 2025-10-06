@@ -36,6 +36,7 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     input: Input | null,
     {
         keepPreviousData,
+        onlyFetchIfNotAvailable,
         initialOutput,
     }: {
         /**
@@ -51,6 +52,12 @@ export function useLazyLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
+
+        /**
+         * Only refetch the entry in the SWR cache if it isn't available. Otherwise,
+         * use the existing data in the cache.
+         */
+        onlyFetchIfNotAvailable?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
@@ -72,6 +79,7 @@ export function useLazyLoadRpc<Input, Output extends {}>(
 
     const {isLoading, isValidating, data} = useSwr(key !== null ? key : null, fetcher, {
         keepPreviousData: keepPreviousData && input !== null,
+        onlyFetchIfNotAvailable,
         initialData: useMemo(
             () => (initialOutput ? {...initialOutput, input} : null),
             [initialOutput, input],

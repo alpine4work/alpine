@@ -22,11 +22,13 @@ export const accountAvatarPileSizes: Record<
         avatarOverlapWidth: "3",
         borderWidth: 1.5,
         overflowFontSize: "50",
+        overflowScale: 0.75,
     },
     "5": {
         avatarOverlapWidth: "4",
         borderWidth: 2,
         overflowFontSize: "50",
+        overflowScale: 0.75,
     },
     "6": {
         avatarOverlapWidth: "5",

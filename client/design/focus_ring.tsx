@@ -104,7 +104,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the top is
          * `offset - insetTop`.
          */
-        insetTop?: Spacing | "border";
+        insetTop?: Spacing | `-${Spacing}` | "border";
 
         /**
          * How far from the bottom should we inset our focus ring?

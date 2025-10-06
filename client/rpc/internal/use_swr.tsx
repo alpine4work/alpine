@@ -52,6 +52,7 @@ export function useSwr(
     {
         keepPreviousData = false,
         dedupingInterval = swrDefaultDedupingIntervalMs,
+        onlyFetchIfNotAvailable = false,
         initialData = null,
     }: {
         /**
@@ -70,6 +71,12 @@ export function useSwr(
          * the existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
+
+        /**
+         * Only refetch the entry in the SWR cache if it isn't available. Otherwise,
+         * use the existing data in the cache.
+         */
+        onlyFetchIfNotAvailable?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
@@ -103,7 +110,11 @@ export function useSwr(
         if (key === null) return;
 
         if (initialData === null) {
-            cache.revalidateEntry(key, fetcher, {dedupingInterval});
+            if (onlyFetchIfNotAvailable) {
+                cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
+            } else {
+                cache.revalidateEntry(key, fetcher, {dedupingInterval});
+            }
         } else {
             let isCancelled = false;
 
@@ -125,17 +136,21 @@ export function useSwr(
                 isCancelled = true;
             };
         }
-    }, [cache, dedupingInterval, fetcher, initialData, key]);
+    }, [cache, dedupingInterval, fetcher, initialData, key, onlyFetchIfNotAvailable]);
 
     // Revalidate whenever the browser activates (e.g. the window was hidden then
     // made visible again).
     useEffect(() => {
         if (key === null) return;
 
+        // Don't revalidate when the browser activates if we were instructed to only
+        // fetch if the data isn't already available.
+        if (onlyFetchIfNotAvailable) return;
+
         return cache.subscribeToBrowserActivated(() => {
             cache.revalidateEntry(key, fetcher, {dedupingInterval});
         });
-    }, [cache, dedupingInterval, fetcher, key]);
+    }, [cache, dedupingInterval, fetcher, key, onlyFetchIfNotAvailable]);
 
     const [originalHistoryStack, setHistoryStack] = useState<SwrCacheEntryHistoryStack | null>(() =>
         keepPreviousData && key !== null
