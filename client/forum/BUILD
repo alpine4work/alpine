@@ -30,6 +30,7 @@ ts_project(
         "//client/messaging",
         "//client/navigation",
         "//client/peek",
+        "//client/reactions",
         "//client/remix",
         "//client/rpc",
         "//client/search",

@@ -42,6 +42,9 @@ export const postContentViewHeaderHeight = "8";
 
 export const postContentViewFooterHeight = "8";
 export const postContentViewFooterButtonHeight = "7";
+export const postContentViewFooterButtonHeightRem = parseRemLength(
+    postContentViewFooterButtonHeight,
+);
 
 export const postContentViewHeaderMobilePostMetadataPaddingLeft = "2";
 export const postContentViewHeaderDesktopPostMetadataPaddingLeft = "3";

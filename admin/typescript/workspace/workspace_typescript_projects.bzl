@@ -48,6 +48,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/messaging:messaging",
     "//client/navigation:navigation",
     "//client/peek:peek",
+    "//client/reactions:reactions",
     "//client/remix:remix",
     "//client/rpc:rpc",
     "//client/search:search",

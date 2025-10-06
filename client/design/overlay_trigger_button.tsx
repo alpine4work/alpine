@@ -1,4 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
+import {AnimationPlaybackControls} from "motion";
 import {
     AriaAttributes,
     Memo,
@@ -38,6 +39,7 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -111,13 +113,15 @@ function OverlayTriggerButton(
         offsetAlong,
         withoutButtonElementRequirement = false,
         children: actualChildren,
-        onOpen: _onOpen,
-        onClose: _onClose,
-        onStateChange: _onStateChange,
+        onOpen: onOpenFromProps,
+        onClose: onCloseFromProps,
+        onStateChange: onStateChangeFromProps,
+        onPointerDown: onPointerDownFromProps,
         onActuallyVisibleChange,
         onOverlayEscapeGlobalKeyDown,
         onOverlayTabGlobalKeyDown,
         onOverlayOutsidePress,
+        animateOverlayOut: animateOverlayOutFromProps,
     }: {
         /**
          * The overlay element the trigger will render. Must provide a ref to an
@@ -202,6 +206,13 @@ function OverlayTriggerButton(
         onActuallyVisibleChange?: (isActuallyVisible: boolean) => void;
 
         /**
+         * Called when the `pointerdown` event is dispatched on the overlay trigger
+         * button. Called by a DOM event listener, not a React synthetic event
+         * listener. Called before the overlay opens.
+         */
+        onPointerDown?: (event: PointerEvent) => void;
+
+        /**
          * Called when the escape key is pressed while our overlay is open. Can be used
          * to prevent the default `<OverlayTriggerButton>` behavior on escape key down.
          */
@@ -218,6 +229,12 @@ function OverlayTriggerButton(
          * closing the overlay on outside press.
          */
         onOverlayOutsidePress?: () => void | {preventDefault: boolean};
+
+        /**
+         * Custom fade out animation for the overlay. The overlay will actually close
+         * once the animation finishes.
+         */
+        animateOverlayOut?: () => AnimationPlaybackControls;
     },
     ref: Ref<OverlayTriggerButtonRef>,
 ) {
@@ -226,10 +243,25 @@ function OverlayTriggerButton(
 
     const [state, setState] = useState(initialOverlayTriggerButtonState);
 
-    const {onOpen, onClose, onStateChange, open, close, closeWithoutAnimation} = useEvents({
-        onOpen: cast<() => {preventDefault: boolean} | void>(_onOpen ?? noop),
-        onClose: _onClose ?? noop,
-        onStateChange: _onStateChange ?? noop,
+    const {
+        onOpen,
+        onClose,
+        onStateChange,
+        onPointerDown,
+        animateOverlayOut,
+        open,
+        close,
+        closeWithoutAnimation,
+    } = useEvents({
+        onOpen: cast<() => {preventDefault: boolean} | void>(onOpenFromProps ?? noop),
+        onClose: onCloseFromProps ?? noop,
+        onStateChange: onStateChangeFromProps ?? noop,
+        onPointerDown: onPointerDownFromProps ?? noop,
+        animateOverlayOut:
+            animateOverlayOutFromProps ??
+            ((): never => {
+                throw new UnimplementedError("Unreachable");
+            }),
 
         open: ({initiallyFocus, stopPropagation = false} = {}) => {
             if (state.isExpanded) return;
@@ -241,7 +273,7 @@ function OverlayTriggerButton(
             if (stopPropagation) {
                 setState({isExpanded: true, initiallyFocus});
             } else {
-                const result = _onOpen?.();
+                const result = onOpenFromProps?.();
                 if (typeof result === "object" && result.preventDefault) {
                     // Do nothing if default was prevented...
                 } else {
@@ -425,6 +457,8 @@ function OverlayTriggerButton(
 
                 isPointerDown = true;
 
+                onPointerDown?.(event);
+
                 // Expand on `pointerdown` if this is the mouse. Expand on `pointerup` if this
                 // is touch. Because a touch press gesture might actually be a scroll. If the
                 // user starts scrolling that cancels our press.
@@ -524,6 +558,7 @@ function OverlayTriggerButton(
             ariaHasPopup,
             isWaitingForOverlayPortalElement,
             onOpen,
+            onPointerDown,
             state.isExpanded,
             withoutButtonElementRequirement,
         ],
@@ -588,6 +623,7 @@ function OverlayTriggerButton(
             offsetAlong={offsetAlong}
             disableAnimationIn={true}
             disableAnimationOut={state.disableAnimationOut}
+            animateOut={animateOverlayOutFromProps !== undefined ? animateOverlayOut : undefined}
             overlay={
                 <OverlayTriggerOverlay
                     ref={useMergedRefs<HTMLDivElement>(overlayRef, outsidePressRef)}

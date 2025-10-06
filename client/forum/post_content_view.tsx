@@ -1,4 +1,4 @@
-import {ChatCircle, ChatCircleDots, DotsThree, Smiley} from "phosphor-react";
+import {ChatCircle, ChatCircleDots, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
@@ -15,7 +15,6 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
-import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
@@ -27,6 +26,7 @@ import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_wi
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {ReactionButton} from "~/client/reactions/reaction_button.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -50,8 +50,6 @@ import {colorSchemeVars, navigationBarStyles, sprinkles} from "~/client/styles/s
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
@@ -368,7 +366,6 @@ function PostContentViewFooter({
 }) {
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
-    const reporter = useReporter();
 
     return (
         <Box
@@ -382,7 +379,12 @@ function PostContentViewFooter({
             display="flex"
             alignItems="center"
         >
-            <Box marginLeft="-1.5" display="flex" alignItems="center" gap="1.5">
+            <Box marginLeft="-1.5">
+                <ReactionButton />
+            </Box>
+            <Box flexGrow="1" />
+            <Box marginRight="-1.5" display="flex" alignItems="center" gap="1.5">
+                <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
                 {postCommentsState === "AlwaysOpen" ? (
                     <Box paddingX="1.5" color="grey-50" display="flex" alignItems="center" gap="1">
                         <ChatCircleDots size={spacing[postContentViewFooterButtonIconSize]} />
@@ -502,26 +504,6 @@ function PostContentViewFooter({
                         />
                     </Button>
                 )}
-                <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
-            </Box>
-            <Box flexGrow="1" />
-            <Box marginRight="-1.5">
-                <Button
-                    variant="quietest"
-                    icon={<Smiley size={spacing[postContentViewFooterButtonIconSize]} />}
-                    height={postContentViewFooterButtonHeight}
-                    paddingX="1.5"
-                    onPress={() => {
-                        reporter.displayError(
-                            "Can’t like post",
-                            new UnimplementedError("Liking posts hasn’t been implemented yet", {
-                                displayMessage: errorDisplayMessage`Liking posts hasn’t been implemented yet.`,
-                            }),
-                        );
-                    }}
-                >
-                    <PrettyNumber number={0} label="like" />
-                </Button>
             </Box>
         </Box>
     );

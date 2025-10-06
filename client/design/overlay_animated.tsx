@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {AnimationPlaybackControls, animate} from "motion";
-import {Ref, forwardRef, useRef, useState} from "react";
+import {Memo, Ref, forwardRef, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
@@ -50,6 +50,7 @@ function OverlayAnimated(
         overlay: originalOverlay,
         overlayZIndex,
         onActuallyVisibleChange,
+        animateOut,
         ...props
     }: OverlayProps & {
         /**
@@ -87,6 +88,12 @@ function OverlayAnimated(
          * animation is finished.
          */
         onActuallyVisibleChange?: (isActuallyVisible: boolean) => void;
+
+        /**
+         * Allow customizing the fade out animation for the overlay. The overlay's
+         * "actually visible" state doesn't change until the animation is finished.
+         */
+        animateOut?: Memo<() => AnimationPlaybackControls>;
     },
     ref: Ref<OverlayRef>,
 ) {
@@ -191,6 +198,32 @@ function OverlayAnimated(
         const overlayContainerElement = assertExists(overlayContainerRef.current);
         const overlayElement = assertExists(overlayRef.current);
 
+        // If a custom fade out animation was provided, then use it.
+        if (animateOut) {
+            let isCancelled = false;
+
+            // NOTE(calebmer): Without this `requestAnimationFrame()` the animation is
+            // [quite choppy on iOS Safari][1]. I have no idea why adding this helps.
+            // My best guess is the animation is being blocked by some JavaScript code?
+            //
+            // [1]: https://gist.github.com/calebmer/ab71d37aa8ebf3866043882ad17d32ca
+            requestAnimationFrame(() => {
+                if (isCancelled) return;
+
+                fadeOutAnimationRef.current = animateOut();
+
+                void fadeOutAnimationRef.current.finished.finally(() => {
+                    if (isCancelled) return;
+                    fadeOutAnimationRef.current = null;
+                    setState(prevState => ({...prevState, isAnimating: false}));
+                });
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        }
+
         const popperPlacement = overlayContainerElement.dataset.popperPlacement;
 
         let animationKeyframes: {
@@ -259,7 +292,7 @@ function OverlayAnimated(
         return () => {
             isCancelled = true;
         };
-    }, [state.isAnimating, state.isVisible]);
+    }, [animateOut, state.isAnimating, state.isVisible]);
 
     const wasActuallyVisibleRef = useRef(isActuallyVisible);
     useLayoutEffectWithoutServerSideWarning(() => {
