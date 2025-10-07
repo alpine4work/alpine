@@ -1,5 +1,5 @@
 import {redirect} from "@remix-run/node";
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -52,7 +52,12 @@ export default function InviteRejectAndMarkAsSpamRoute() {
 
     const [rejectedComplete, setRejectedComplete] = useState(false);
 
+    const hasInitiallyMountedRef = useRef(false);
+
     useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
         void (async () => {
             try {
                 await rejectSpaceAccountInviteAsSpam(appContext, {
@@ -61,7 +66,7 @@ export default function InviteRejectAndMarkAsSpamRoute() {
 
                 setRejectedComplete(true);
             } catch (error) {
-                reporter.displayError("Failed to reject invite", error);
+                reporter.displayError("Couldn’t reject invite", error);
             }
         })();
     }, [appContext, context.space.id, navigate, reporter]);

@@ -1369,7 +1369,7 @@ effect's dependency array to `[]`, instead use a ref:
 ```ts
 // ✅ Yes
 
-const hasInitiallyMountedRef = useRef(null);
+const hasInitiallyMountedRef = useRef(false);
 
 useEffect(() => {
     if (hasInitiallyMountedRef.current) return;

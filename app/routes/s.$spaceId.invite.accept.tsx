@@ -1,5 +1,5 @@
 import {redirect} from "@remix-run/node";
-import {useEffect} from "react";
+import {useEffect, useRef} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -50,7 +50,12 @@ export default function InviteAcceptRoute() {
     const appContext = useAppContext();
     const context = useSpaceContext();
 
+    const hasInitiallyMountedRef = useRef(false);
+
     useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
         void (async () => {
             await acceptSpaceAccountInvite(appContext, {
                 spaceId: context.space.id,
