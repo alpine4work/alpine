@@ -9,6 +9,9 @@ import {
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 const context = createTestContext({
     forumInjection,
@@ -17,13 +20,21 @@ const context = createTestContext({
 });
 
 describe("createSpace()", () => {
+    const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+    const timeZone = defaultTimeZone;
+
     describe("successful space creation", () => {
         test("creates space with owner as member", async () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession();
             const spaceName = "Test Space";
 
-            const space = await createSpace(session.action(), {name: spaceName});
+            const space = await createSpace(session.action(), {
+                name: spaceName,
+                actionTime: clock.now(),
+                timeZone,
+            });
+
             const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
                 session.action(),
                 space.spaceId,
@@ -39,7 +50,11 @@ describe("createSpace()", () => {
             const session = await existingSpace.createSession();
             const spaceName = "Test Space";
 
-            const space = await createSpace(session.action(), {name: spaceName});
+            const space = await createSpace(session.action(), {
+                name: spaceName,
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
             expect(spaceIds.size).toBe(2); // Existing space + new space
@@ -50,8 +65,16 @@ describe("createSpace()", () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession();
 
-            const space1 = await createSpace(session.action(), {name: "Space 1"});
-            const space2 = await createSpace(session.action(), {name: "Space 2"});
+            const space1 = await createSpace(session.action(), {
+                name: "Space 1",
+                actionTime: clock.now(),
+                timeZone,
+            });
+            const space2 = await createSpace(session.action(), {
+                name: "Space 2",
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             expect(space1.spaceId).not.toBe(space2.spaceId);
             expect(space1.spaceId).not.toBe(existingSpace.id);
@@ -62,7 +85,11 @@ describe("createSpace()", () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession();
 
-            const space = await createSpace(session.action(), {name: "Test Space"});
+            const space = await createSpace(session.action(), {
+                name: "Test Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             // Get the channels in the new space and verify Welcome channel exists
             const channels = await expensivelyGetChannelsInSpaceForTest(
@@ -101,7 +128,11 @@ describe("createSpace()", () => {
                 const session = await existingSpace.createSession();
 
                 const expectedName = givenExpectedName || spaceName;
-                const space = await createSpace(session.action(), {name: spaceName});
+                const space = await createSpace(session.action(), {
+                    name: spaceName,
+                    actionTime: clock.now(),
+                    timeZone,
+                });
                 expect(space.name).toBe(expectedName);
             });
         });
@@ -111,7 +142,9 @@ describe("createSpace()", () => {
             const session = await existingSpace.createSession();
             const longName = "A".repeat(51);
 
-            await expect(createSpace(session.action(), {name: longName})).rejects.toThrow(
+            await expect(
+                createSpace(session.action(), {name: longName, actionTime: clock.now(), timeZone}),
+            ).rejects.toThrow(
                 new InvalidArgumentError("Space name cannot be more than 50 characters"),
             );
         });
@@ -122,9 +155,21 @@ describe("createSpace()", () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession();
 
-            await createSpace(session.action(), {name: "First Space"});
-            await createSpace(session.action(), {name: "Second Space"});
-            await createSpace(session.action(), {name: "Third Space"});
+            await createSpace(session.action(), {
+                name: "First Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
+            await createSpace(session.action(), {
+                name: "Second Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
+            await createSpace(session.action(), {
+                name: "Third Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
             expect(spaceIds.size).toBe(4); // Existing space + 3 new spaces
@@ -136,8 +181,16 @@ describe("createSpace()", () => {
             const session1 = await space1.createSession();
             const session2 = await space2.createSession();
 
-            await createSpace(session1.action(), {name: "Session 1 Space"});
-            await createSpace(session2.action(), {name: "Session 2 Space"});
+            await createSpace(session1.action(), {
+                name: "Session 1 Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
+            await createSpace(session2.action(), {
+                name: "Session 2 Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             const {spaceIds: spaceIds1} = await getOurAccountSpaceIds(session1.action());
             const {spaceIds: spaceIds2} = await getOurAccountSpaceIds(session2.action());
@@ -156,7 +209,11 @@ describe("createSpace()", () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
-            await createSpace(session.action(), {name: "New Space"});
+            await createSpace(session.action(), {
+                name: "New Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
             expect(spaceIds.size).toBe(2); // Original space + new space
@@ -166,7 +223,11 @@ describe("createSpace()", () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Member"});
 
-            await createSpace(session.action(), {name: "New Space"});
+            await createSpace(session.action(), {
+                name: "New Space",
+                actionTime: clock.now(),
+                timeZone,
+            });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
             expect(spaceIds.size).toBe(2); // Original space + new space

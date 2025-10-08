@@ -7,10 +7,13 @@ import {
     getOurAccountSpaceIds,
     internalGetSpaceAccountItemIfExistsWithoutAuthorization,
 } from "~/server/spaces/spaces_actions.js";
+import {internalCreateTasksForCurrentUser} from "~/server/tasks/data/task_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 /**
@@ -23,8 +26,12 @@ export async function createSpace(
     context: ServerSessionActionContext,
     {
         name: originalName,
+        actionTime,
+        timeZone,
     }: {
         name: string;
+        actionTime: HybridLogicalTime;
+        timeZone: TimeZone;
     },
 ) {
     const name = originalName.trim().replace(/\s+/g, " ");
@@ -62,9 +69,6 @@ export async function createSpace(
             createdTime,
         });
 
-    // TODO(#onboarding): Implement onboarding tasks.
-    const createOnboardingTasksTransactionEntries = hasAdminRoleInAnySpace ? [] : [];
-
     const {newItem: space, transactionEntries: createSpaceTransactionEntries} =
         internalCreateSpaceTransactionEntries({
             spaceId,
@@ -75,7 +79,6 @@ export async function createSpace(
     await DynamoTableSchema.executeTransaction(context, [
         ...createSpaceTransactionEntries,
         ...createWelcomeChannelTransactionEntries,
-        ...createOnboardingTasksTransactionEntries,
     ]);
 
     // NOTE(imjoshin): The "addSpaceAccount" logic is isolated in a single function, and requires
@@ -88,6 +91,52 @@ export async function createSpace(
         accountId: ownerAccountId,
         role: "Owner",
     });
+
+    // If the user is not an admin in any space, we assume they're
+    // a beginner user and create some starter tasks for them.
+    if (!hasAdminRoleInAnySpace) {
+        const spaceSetupTaskId = generateId<TaskId>();
+
+        await internalCreateTasksForCurrentUser(
+            context,
+            {
+                spaceId,
+                actionTime,
+                timeZone,
+            },
+            [
+                {
+                    title: "View your tasks",
+                    active: true,
+                },
+                {
+                    title: "Upload your profile picture",
+                    active: false,
+                    notes: "1. Click the avatar on the bottom left\n2. Click ‘Settings’\n3. Update your avatar",
+                },
+                {
+                    title: "Set up your space",
+                    active: false,
+                    taskId: spaceSetupTaskId,
+                    notes: "Check out the subtasks below to get your space ready for your team!",
+                },
+                {
+                    title: "Upload your space logo",
+                    active: false,
+                    parentTaskId: spaceSetupTaskId,
+                    assignUser: false,
+                    notes: "1. Click the space logo on the top left\n2. Click ‘Settings’\n3. Update your logo",
+                },
+                {
+                    title: "Invite team members",
+                    active: false,
+                    parentTaskId: spaceSetupTaskId,
+                    assignUser: false,
+                    notes: "1. Click the space logo on the top left\n2. Click ‘People’\n3. Click ‘Invite’",
+                },
+            ],
+        );
+    }
 
     return space;
 }

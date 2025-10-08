@@ -20,6 +20,7 @@ ts_project(
         "//server/context",
         "//server/forum/data",
         "//server/spaces",
+        "//server/tasks/data",
         "//shared/error:error_core",
         "//shared/helpers",
         "//shared/id",

@@ -1,7 +1,8 @@
 import {CalendarDate} from "@internationalized/date";
 import {addHours, addMonths, addSeconds, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
-import {Step} from "prosemirror-transform";
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
@@ -183,12 +184,14 @@ import {
     taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
     taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/tasks/task_error_messages.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionStateSchema,
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotesContent,
+    TaskNotesContentProsemirrorSchema,
     TaskNotesContentSchema,
     TaskNotesContentWithReferences,
     emptyTaskNotesContent,
@@ -197,6 +200,7 @@ import {
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
@@ -7656,4 +7660,143 @@ export async function getTaskCollectionSearchResultIfPossible(
     if (!result.ok) return result;
 
     return {ok: true, value: createTaskCollectionModelSearchResultFromItem(collectionItem)};
+}
+
+export async function internalCreateTasksForCurrentUser(
+    context: ServerSessionActionContext,
+    {
+        actionTime,
+        timeZone,
+        spaceId,
+    }: {
+        actionTime: HybridLogicalTime;
+        timeZone: TimeZone;
+        spaceId: SpaceId;
+    },
+    taskData: Array<{
+        taskId?: TaskId;
+        title: string;
+        active?: boolean;
+        parentTaskId?: TaskId;
+        notes?: string;
+        assignUser?: boolean;
+    }>,
+) {
+    const accountId = context.actor.getAccountId();
+    const transactionEntries: Array<DynamoTransactionEntry> = [];
+    const actions: Array<TaskAction> = [];
+
+    const taskFilterableTime = new TaskFilterableTime({
+        absoluteTime: actionTime,
+        setterTimeZone: timeZone,
+    });
+
+    for (const data of taskData) {
+        const taskId = data.taskId || generateId<TaskId>();
+        const {title, active, parentTaskId, notes, assignUser = true} = data;
+        const taskActions: Array<TaskAction> = [];
+        const getActionTime: () => HybridLogicalTime = () => {
+            return [actionTime[0], actionTime[1] + taskActions.length];
+        };
+
+        // Create task attributes
+        taskActions.push({
+            type: "UpdateTask",
+            time: getActionTime(),
+            taskId: taskId,
+            taskAction: {
+                type: "Create",
+                creatorId: accountId,
+                creatorTimeZone: timeZone,
+            },
+        });
+
+        taskActions.push({
+            type: "UpdateTask",
+            time: getActionTime(),
+            taskId: taskId,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: TaskTitleModel.fromText(title).getRaw(),
+            },
+        });
+
+        if (assignUser) {
+            taskActions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assigneeId: accountId,
+                        assignerId: accountId,
+                        assignedTime: taskFilterableTime,
+                    },
+                },
+            });
+
+            if (active) {
+                taskActions.push({
+                    type: "UpdateTask",
+                    time: getActionTime(),
+                    taskId: taskId,
+                    taskAction: {
+                        type: "UpdateAssigneeStatus",
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: taskFilterableTime,
+                        },
+                    },
+                });
+            }
+        }
+
+        if (parentTaskId) {
+            taskActions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId,
+                },
+            });
+        }
+
+        actions.push(...taskActions);
+
+        // Create new notes
+        if (notes) {
+            let content = emptyTaskNotesContent;
+            const createNotesStep = new ReplaceStep(
+                1,
+                1,
+                new Slice(Fragment.from([TaskNotesContentProsemirrorSchema.text(notes)]), 0, 0),
+            );
+
+            const stepResult = createNotesStep.apply(content);
+            if (!stepResult.doc)
+                throw new FailedPreconditionError("Couldn’t apply step to content");
+
+            assert(isTaskNotesContent(stepResult.doc));
+            content = stepResult.doc;
+
+            const newNotesItem: TaskNotesItem = {
+                partitionType: "Task",
+                sortRangeType: "Notes",
+                spaceId,
+                taskId,
+                version: 1,
+                content,
+                stepCountByAccountId: new TaskStepCountByAccountId(new Map()),
+            };
+
+            transactionEntries.push(TaskTable.transactionCreateItem(newNotesItem));
+        }
+    }
+
+    await commitTaskActionTransaction(context, spaceId, actions, {
+        extraTransactionEntries: transactionEntries,
+    });
 }
