@@ -120,6 +120,234 @@ const options = {
     },
 };
 
+describe("failure modes", () => {
+    describe("describing time since now", () => {
+        test("'my documents from the last 7 days' doesn't recognize control texts", () => {
+            expect(
+                // From after 7 days ago is BETTER than "from the last 7 days"
+                // We should train the model to use that language instead. Honestly,
+                // when telling the LLM how to look for date related content, we should just point
+                // it to the `compromise-dates` plugin and tell it to use that documentation
+                // to build date qualifiers. However, this won't fix the user experience.
+                parseSearchNaturalLanguageQuery("my documents from the last 7 days", options),
+            ).toEqual({
+                isLowConfidence: false,
+                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
+                // "documents created by me and created yesterday" ->
+                //   - queryTexts: []
+                //   - controlQueryTexts: ["documents created by me and created yesterday"]
+                // If we're pattern matching, I'd expect this to say something like "my documents from
+                // the last 7 days"
+                queryTexts: ["from the last 7 days"],
+                controlQueryTexts: ["my documents"],
+
+                filters: [
+                    {
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Document"],
+                        // TODO(ifitzsimmons, #improve-search): This should be the last 7 days
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("'documents I updated within the last 7 days' doesn't recognize control texts", () => {
+            expect(
+                parseSearchNaturalLanguageQuery(
+                    "documents I updated within the last 7 days",
+                    options,
+                ),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["within the last 7 days"],
+                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
+                controlQueryTexts: ["documents I updated"],
+                filters: [
+                    {
+                        account: {
+                            field: "AnyContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Document"],
+                        // TODO(ifitzsimmons, #improve-search): This should be the last 7 days
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        // I believe this has the same intent as the previous 2 tests, but the wording feels much
+        // less natural
+        test("'my documents from after 7 days ago' recognizes control texts but feels unnatural", () => {
+            expect(
+                // From after 7 days ago is BETTER than "from the last 7 days"
+                // We should train the model to use that language instead. Honestly,
+                // when telling the LLM how to look for date related content, we should just point
+                // it to the `compromise-dates` plugin and tell it to use that documentation
+                // to build date qualifiers. However, this won't fix the user experience.
+                parseSearchNaturalLanguageQuery("my documents from after 7 days ago", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                // TODO(ifitzsimmons, #improve-search): This doesn't look right based on other tests
+                // "documents created by me and created yesterday" ->
+                //   - queryTexts: []
+                //   - controlQueryTexts: ["documents created by me and created yesterday"]
+                // If we're pattern matching, I'd expect this to say something like "my documents from
+                // the last 7 days"
+                controlQueryTexts: ["my documents from after 7 days ago"],
+                filters: [
+                    {
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Document"],
+                        time: {
+                            // TODO(ifitzsimmons, #improve-search): Based on query, I think I'd
+                            // expect this to be LastUpdated?
+                            field: "Created",
+                            range: {
+                                // "today date" is 1/4/2024 so this looks about right
+                                inclusiveLowerBoundDate: new Date("2023-12-28T07:00:00.000Z"),
+                                inclusiveUpperBoundDate: null,
+                            },
+                        },
+                    },
+                ],
+            });
+        });
+    });
+
+    describe("biases toward entity creation instead of entity update", () => {
+        test("'my documents from last month' only finds documents created last month", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("my documents from last month", options),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my documents from last month"],
+                filters: [
+                    {
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Document"],
+                        time: {
+                            // TODO(ifitzsimmons, #improve-search): This should be LastUpdated?
+                            field: "Created",
+                            range: {
+                                inclusiveLowerBoundDate: new Date("2023-12-01T07:00:00.000Z"),
+                                inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                            },
+                        },
+                    },
+                ],
+            });
+        });
+    });
+
+    describe("tasks", () => {
+        // Doesn't use assignee when user queries for "my tasks"
+        test("'my tasks updated yesterday' returns tasks in which I am the major contributor", () => {
+            expect(parseSearchNaturalLanguageQuery("my tasks updated yesterday", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["my tasks updated yesterday"],
+                filters: [
+                    {
+                        // TODO(ifitzsimmons, #improve-search): I think that this should really
+                        // be the Task Assignee with MajorContributor as a possible filter but with
+                        // a much lower rank
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Task", "TaskCollection"],
+                        time: {
+                            field: "LastUpdated",
+                            range: {
+                                inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                                inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                            },
+                        },
+                    },
+                ],
+            });
+        });
+
+        test("'my active tasks' can't filter on task status", () => {
+            expect(parseSearchNaturalLanguageQuery("my active tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["active"],
+                controlQueryTexts: ["my", "tasks"],
+                filters: [
+                    {
+                        // TODO(ifitzsimmons, #improve-search): I think that this should really
+                        // be the Task Assignee with MajorContributor as a possible filter but with
+                        // a much lower rank
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Task", "TaskCollection"],
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("'my tasks due this week' can't filter on due date", () => {
+            expect(parseSearchNaturalLanguageQuery("my tasks due this week", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["due this week"],
+                controlQueryTexts: ["my tasks"],
+                filters: [
+                    {
+                        // TODO(ifitzsimmons, #improve-search): I think that this should really
+                        // be the Task Assignee with MajorContributor as a possible filter but with
+                        // a much lower rank
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Task", "TaskCollection"],
+                        // We should have time filters for due dates
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("'my high priority tasks' can't filter on priority", () => {
+            expect(parseSearchNaturalLanguageQuery("my high priority tasks", options)).toEqual({
+                isLowConfidence: false,
+                queryTexts: ["high priority"],
+                controlQueryTexts: ["my", "tasks"],
+                filters: [
+                    {
+                        // TODO(ifitzsimmons, #improve-search): I think that this should really
+                        // be the Task Assignee with MajorContributor as a possible filter but with
+                        // a much lower rank
+                        account: {
+                            field: "MajorContributor",
+                            ids: [options.actorAccountId],
+                        },
+                        entityTypes: ["Task", "TaskCollection"],
+                        // We should have time filters for due dates
+                        time: null,
+                    },
+                ],
+            });
+        });
+    });
+});
+
 test("parses search entity type then account name", () => {
     expect(parseSearchNaturalLanguageQuery("documents by me", options)).toEqual({
         isLowConfidence: false,
