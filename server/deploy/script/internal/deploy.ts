@@ -252,7 +252,7 @@ async function actuallyDeploy(
         hasAwsDeployFinished = true;
 
         await context.tracer.withSpan("Deploy Cloudflare Workers", () =>
-            deployCloudflareWorkers({
+            deployCloudflareWorkers(context, {
                 accountId: cloudflareAccountId,
                 workersToken: cloudflareWorkersToken,
             }),
