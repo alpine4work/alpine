@@ -49,9 +49,6 @@ export function ReactionButton({
 
     return (
         <OverlayTriggerButton
-            // If the current account has reacted then disable the button. Clicking the
-            // button will remove the reaction instead of opening the radial picker.
-            isDisabled={!!currentAccountReaction}
             aria-haspopup="true"
             placement="bottom-start"
             offset={!isMegaPickerOpen ? "0" : undefined}
@@ -62,7 +59,9 @@ export function ReactionButton({
                 <Box>
                     {isMegaPickerOpen ? (
                         <ReactionMegaPicker
+                            currentAccountReaction={currentAccountReaction}
                             onSetReaction={onSetReaction}
+                            onDeleteReaction={onDeleteReaction}
                             onCloseWithoutAnimation={onCloseWithoutAnimation}
                         />
                     ) : (
@@ -80,7 +79,9 @@ export function ReactionButton({
                             <ReactionRadialPicker
                                 ref={radialPickerRef}
                                 isVisible={isVisible}
+                                currentAccountReaction={currentAccountReaction}
                                 onSetReaction={onSetReaction}
+                                onDeleteReaction={onDeleteReaction}
                                 onOpenMegaPicker={() => setIsMegaPickerOpen(true)}
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 isMouseDownFromOverlayOpen={isMouseDownFromOverlayOpen}
@@ -162,13 +163,6 @@ export function ReactionButton({
                         <ThumbsUp size={spacing[postContentViewFooterButtonIconSize]} />
                     )
                 }
-                onPress={() => {
-                    // If we have a reaction then the overlay will be disabled. Delete the reaction
-                    // so next click the user can set a new reaction.
-                    if (currentAccountReaction) {
-                        onDeleteReaction();
-                    }
-                }}
             >
                 <span style={{fontVariantNumeric: "tabular-nums"}}>
                     <PrettyNumber number={reactions.get().size} label="like" />

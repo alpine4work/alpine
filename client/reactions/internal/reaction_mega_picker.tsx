@@ -10,6 +10,7 @@ import {ReactionCharacterSelector} from "~/client/reactions/reaction_character_s
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {colorSchemeVars} from "~/client/styles/styles.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 
@@ -25,10 +26,14 @@ const widthRem =
     parseRemLength(iconGalleryPaddingX) * 2;
 
 export function ReactionMegaPicker({
+    currentAccountReaction,
     onSetReaction,
+    onDeleteReaction,
     onCloseWithoutAnimation,
 }: {
+    currentAccountReaction: Reaction | "GenericLike" | undefined;
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
+    onDeleteReaction: () => void;
     onCloseWithoutAnimation: () => void;
 }) {
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
@@ -73,7 +78,9 @@ export function ReactionMegaPicker({
                                 <ReactionMegaPickerGalleryIcon
                                     key={emotion}
                                     reaction={{character, emotion}}
+                                    currentAccountReaction={currentAccountReaction}
                                     onSetReaction={onSetReaction}
+                                    onDeleteReaction={onDeleteReaction}
                                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 />
                             ))}
@@ -112,22 +119,51 @@ export function ReactionMegaPicker({
 
 function ReactionMegaPickerGalleryIcon({
     reaction,
+    currentAccountReaction,
     onSetReaction,
+    onDeleteReaction,
     onCloseWithoutAnimation,
 }: {
     reaction: Reaction;
+    currentAccountReaction: Reaction | "GenericLike" | undefined;
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
+    onDeleteReaction: () => void;
     onCloseWithoutAnimation: () => void;
 }) {
+    const isCurrentAccountReaction = useMemo(
+        () => isDeepEqual(currentAccountReaction, reaction),
+        [currentAccountReaction, reaction],
+    );
+
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            onSetReaction(reaction);
+            if (isCurrentAccountReaction) {
+                onDeleteReaction();
+            } else {
+                onSetReaction(reaction);
+            }
             onCloseWithoutAnimation();
         },
     });
 
     return (
-        <Box {...pressProps} backgroundColor={isPressed ? "grey-10" : undefined} borderRadius="1">
+        <Box {...pressProps} position="relative" zIndex="0">
+            {(isPressed || isCurrentAccountReaction) && (
+                <Box
+                    position="absolute"
+                    zIndex="-10"
+                    backgroundColor={isPressed ? "grey-10" : "grey-5"}
+                    borderRadius="1"
+                    style={{
+                        // 1px away from the icon edge at the top/right so if we have a pressed icon
+                        // next to a selected icon there's some gap between the two icons.
+                        top: 1,
+                        right: 1,
+                        left: 0,
+                        bottom: 0,
+                    }}
+                />
+            )}
             <ReactionIcon reaction={reaction} size={iconSize} />
         </Box>
     );

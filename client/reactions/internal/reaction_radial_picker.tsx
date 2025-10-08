@@ -1,6 +1,7 @@
 import {AnimationPlaybackControls, animate, spring} from "motion";
 import {DotsThree} from "phosphor-react";
 import {
+    Fragment,
     Memo,
     Ref,
     forwardRef,
@@ -20,10 +21,16 @@ import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_cont
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
 import {colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
-import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    parseRemLength,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction, ReactionEmotion} from "~/shared/reactions/reaction.js";
@@ -72,13 +79,17 @@ const reactionRadialPickerIconEmotions: ReadonlyArray<ReactionEmotion> = [
 function ReactionRadialPicker(
     {
         isVisible,
+        currentAccountReaction,
         onSetReaction: onSetReactionFromProps,
+        onDeleteReaction: onDeleteReactionFromProps,
         onOpenMegaPicker: onOpenMegaPickerFromProps,
         onCloseWithAnimation,
         isMouseDownFromOverlayOpen,
     }: {
         isVisible: boolean;
+        currentAccountReaction: Reaction | "GenericLike" | undefined;
         onSetReaction: (reaction: Reaction | "GenericLike") => void;
+        onDeleteReaction: () => void;
         onOpenMegaPicker: () => void;
         onCloseWithAnimation: Memo<() => void>;
         isMouseDownFromOverlayOpen: boolean;
@@ -105,8 +116,9 @@ function ReactionRadialPicker(
     const [isPressed, setIsPressed] = useState(false);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-    const {onSetReaction, onOpenMegaPicker} = useEvents({
+    const {onSetReaction, onDeleteReaction, onOpenMegaPicker} = useEvents({
         onSetReaction: onSetReactionFromProps,
+        onDeleteReaction: onDeleteReactionFromProps,
         onOpenMegaPicker: onOpenMegaPickerFromProps,
     });
 
@@ -247,7 +259,11 @@ function ReactionRadialPicker(
         // Don't select if the mouse is over the center heart button.
         if (activeIndex !== null) {
             if (activeIndex === 0) {
-                onSetReaction("GenericLike");
+                if (currentAccountReaction === "GenericLike") {
+                    onDeleteReaction();
+                } else {
+                    onSetReaction("GenericLike");
+                }
                 onCloseWithAnimation();
             } else if (activeIndex === 4) {
                 onOpenMegaPicker();
@@ -255,15 +271,23 @@ function ReactionRadialPicker(
                 const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
-                onSetReaction({character: character, emotion});
+                const reaction: Reaction = {character, emotion};
+
+                if (isDeepEqual(reaction, currentAccountReaction)) {
+                    onDeleteReaction();
+                } else {
+                    onSetReaction(reaction);
+                }
                 onCloseWithAnimation();
             }
         }
     }, [
         activeIndex,
         character,
+        currentAccountReaction,
         isMouseDownFromOverlayOpen,
         onCloseWithAnimation,
+        onDeleteReaction,
         onOpenMegaPicker,
         onSetReaction,
     ]);
@@ -304,7 +328,11 @@ function ReactionRadialPicker(
                             onCloseWithAnimation();
                         } else {
                             if (activeIndex === 0) {
-                                onSetReaction("GenericLike");
+                                if (currentAccountReaction === "GenericLike") {
+                                    onDeleteReaction();
+                                } else {
+                                    onSetReaction("GenericLike");
+                                }
                                 onCloseWithAnimation();
                             } else if (activeIndex === 4) {
                                 onOpenMegaPicker();
@@ -313,7 +341,13 @@ function ReactionRadialPicker(
                                     activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
-                                onSetReaction({character: character, emotion});
+                                const reaction: Reaction = {character, emotion};
+
+                                if (isDeepEqual(reaction, currentAccountReaction)) {
+                                    onDeleteReaction();
+                                } else {
+                                    onSetReaction(reaction);
+                                }
                                 onCloseWithAnimation();
                             }
                         }
@@ -363,7 +397,13 @@ function ReactionRadialPicker(
                                     alignItems="center"
                                     justifyContent="center"
                                     backgroundColor={
-                                        activeIndex === index
+                                        currentAccountReaction === "GenericLike"
+                                            ? activeIndex === index
+                                                ? isPressed || isMouseDownFromOverlayOpen
+                                                    ? "grey-20"
+                                                    : "grey-10"
+                                                : "grey-5"
+                                            : activeIndex === index
                                             ? isPressed || isMouseDownFromOverlayOpen
                                                 ? "grey-10"
                                                 : "grey-5"
@@ -442,38 +482,72 @@ function ReactionRadialPicker(
                             const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
                             const reaction = {character, emotion};
 
-                            return (
-                                <Box
-                                    key={index}
-                                    position="absolute"
-                                    style={{
-                                        left: `${
-                                            reactionRadialPickerOptionIconPositionCenterRem +
-                                            vector.x
-                                        }rem`,
-                                        top: `${
-                                            reactionRadialPickerOptionIconPositionCenterRem +
-                                            vector.y
-                                        }rem`,
-                                        transition: "transform 0.15s ease",
-                                        transformOrigin: "center",
-                                        transform:
-                                            activeIndex === index
-                                                ? (() => {
-                                                      const activeVector = vector.withMagnitude(
-                                                          reactionRadialPickerOptionIconActiveExtraOffsetRem,
-                                                      );
+                            const extraSelectionHighlightSize = "1.5";
 
-                                                      return `translate(${activeVector.x}rem, ${activeVector.y}rem) scale(1.2)`;
-                                                  })()
-                                                : undefined,
-                                    }}
-                                >
-                                    <ReactionIcon
-                                        reaction={reaction}
-                                        size={reactionRadialPickerOptionIconSize}
-                                    />
-                                </Box>
+                            return (
+                                <Fragment key={index}>
+                                    {isDeepEqual(currentAccountReaction, reaction) && (
+                                        <Box
+                                            position="absolute"
+                                            zIndex="10"
+                                            borderRadius="full"
+                                            backgroundColor="grey-5"
+                                            style={{
+                                                width: addRemLengths(
+                                                    reactionRadialPickerOptionIconSize,
+                                                    extraSelectionHighlightSize,
+                                                ),
+                                                height: addRemLengths(
+                                                    reactionRadialPickerOptionIconSize,
+                                                    extraSelectionHighlightSize,
+                                                ),
+                                                left: `${
+                                                    reactionRadialPickerOptionIconPositionCenterRem -
+                                                    parseRemLength(extraSelectionHighlightSize) /
+                                                        2 +
+                                                    vector.x
+                                                }rem`,
+                                                top: `${
+                                                    reactionRadialPickerOptionIconPositionCenterRem -
+                                                    parseRemLength(extraSelectionHighlightSize) /
+                                                        2 +
+                                                    vector.y
+                                                }rem`,
+                                            }}
+                                        />
+                                    )}
+                                    <Box
+                                        position="absolute"
+                                        zIndex="20"
+                                        style={{
+                                            left: `${
+                                                reactionRadialPickerOptionIconPositionCenterRem +
+                                                vector.x
+                                            }rem`,
+                                            top: `${
+                                                reactionRadialPickerOptionIconPositionCenterRem +
+                                                vector.y
+                                            }rem`,
+                                            transition: "transform 0.15s ease",
+                                            transformOrigin: "center",
+                                            transform:
+                                                activeIndex === index
+                                                    ? (() => {
+                                                          const activeVector = vector.withMagnitude(
+                                                              reactionRadialPickerOptionIconActiveExtraOffsetRem,
+                                                          );
+
+                                                          return `translate(${activeVector.x}rem, ${activeVector.y}rem) scale(1.2)`;
+                                                      })()
+                                                    : undefined,
+                                        }}
+                                    >
+                                        <ReactionIcon
+                                            reaction={reaction}
+                                            size={reactionRadialPickerOptionIconSize}
+                                        />
+                                    </Box>
+                                </Fragment>
                             );
                         }
                     })}
