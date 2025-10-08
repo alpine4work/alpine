@@ -23,7 +23,7 @@ export function createTestAccountModel(accountModelDataOptions: Partial<AccountM
         avatar: null,
         // NOTE(calebmer): This may be called in Playwright which doesn't have a global
         // `expect()` function.
-        reactionCreature: typeof expect === "function" ? expect.any(Object) : null,
+        reactionCharacter: typeof expect === "function" ? expect.any(Object) : null,
         ...accountModelDataOptions,
     });
 }
@@ -39,7 +39,7 @@ export function createTestAccountModelWithoutSpace(
         avatar: null,
         // NOTE(calebmer): This may be called in Playwright which doesn't have a global
         // `expect()` function.
-        reactionCreature: typeof expect === "function" ? expect.any(Object) : null,
+        reactionCharacter: typeof expect === "function" ? expect.any(Object) : null,
         ...accountModelDataOptions,
     });
 }

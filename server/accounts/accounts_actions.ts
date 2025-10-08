@@ -59,9 +59,9 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, AvatarId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
-    ReactionCreature,
-    allReactionCreatureTypes,
-    allReactionCreatureVariantsByType,
+    ReactionCharacter,
+    allReactionCharacterTypes,
+    allReactionCharacterVariantsByType,
 } from "~/shared/reactions/reaction.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
@@ -262,7 +262,7 @@ export async function createAccountForTest(
         createdTime,
         hasInternalAccess,
         observedTimeZone,
-        reactionCreature: pickRandomReactionCreatureForAccount(),
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
     });
 
     return {createdTime};
@@ -353,7 +353,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         createdTime: new Date(),
         hasInternalAccess: true,
         observedTimeZone: defaultTimeZone,
-        reactionCreature: pickRandomReactionCreatureForAccount(),
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
     });
 
     await AccountsTable.createItemIfNoneExists(context, {
@@ -464,18 +464,18 @@ export function createAccountTransactionEntry({
         createdTime: currentTime,
         observedTimeZone: null,
         bot: dangerouslyInstantiateBot,
-        reactionCreature: pickRandomReactionCreatureForAccount(),
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
     });
 }
 
-export function pickRandomReactionCreatureForAccount(): ReactionCreature {
-    const typeIndex = randomInteger(0, allReactionCreatureTypes.length);
-    const type = allReactionCreatureTypes[typeIndex]!;
+export function pickRandomReactionCharacterForAccount(): ReactionCharacter {
+    const typeIndex = randomInteger(0, allReactionCharacterTypes.length);
+    const type = allReactionCharacterTypes[typeIndex]!;
 
-    const variantIndex = randomInteger(0, allReactionCreatureVariantsByType[type].length);
-    const variant = allReactionCreatureVariantsByType[type][variantIndex]!;
+    const variantIndex = randomInteger(0, allReactionCharacterVariantsByType[type].length);
+    const variant = allReactionCharacterVariantsByType[type][variantIndex]!;
 
-    return {type, variant} as ReactionCreature;
+    return {type, variant} as ReactionCharacter;
 }
 
 /**
@@ -981,7 +981,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
         botId: accountItem.bot?.botId,
-        reactionCreature: accountItem.reactionCreature,
+        reactionCharacter: accountItem.reactionCharacter,
         avatar: accountItem.avatar
             ? {
                   avatarId: accountItem.avatar.avatarId,
@@ -1094,7 +1094,7 @@ export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthoriza
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
         botId: accountItem.bot?.botId,
-        reactionCreature: accountItem.reactionCreature,
+        reactionCharacter: accountItem.reactionCharacter,
     };
 }
 
@@ -1393,13 +1393,13 @@ export async function updateAccountAvatar(
 }
 
 /**
- * Updates the reaction creature for the account.
+ * Updates the reaction character for the account.
  */
-export async function updateAccountReactionCreature(
+export async function updateAccountReactionCharacter(
     context: Context<
         DynamoContextModules & {cache: CacheContextModule; actor: SessionActorContextModule}
     >,
-    reactionCreature: ReactionCreature,
+    reactionCharacter: ReactionCharacter,
 ): Promise<AccountModelWithoutSpace> {
     context.actor.authorizeSession();
 
@@ -1410,7 +1410,7 @@ export async function updateAccountReactionCreature(
 
         const newAccountItem = await AccountsTable.directlyUpdateItem(context, {
             ...omitObject(oldAccountItem, ["avatar"]),
-            reactionCreature,
+            reactionCharacter,
         });
 
         return createAccountModelFromItem({

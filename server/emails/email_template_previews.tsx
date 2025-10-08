@@ -76,7 +76,7 @@ const emailTemplatePreviews: {
                                 name: "Bob Test",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: {
                                     avatarId: "1234" as AvatarId,
                                     content: sampleAccountAvatarTeemoBytes,
@@ -106,7 +106,7 @@ const emailTemplatePreviews: {
                                 name: "Bob",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: {
                                     avatarId: "1234" as AvatarId,
                                     content: sampleAccountAvatarTeemoBytes,
@@ -124,7 +124,7 @@ const emailTemplatePreviews: {
                                 name: "Caominhe",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: null,
                                 space: {
                                     version: 1,
@@ -148,7 +148,7 @@ const emailTemplatePreviews: {
                                 name: "Alice Murphy",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: null,
                                 space: {
                                     version: 1,
@@ -171,7 +171,7 @@ const emailTemplatePreviews: {
                                 name: "Bob",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: {
                                     avatarId: "1234" as AvatarId,
                                     content: sampleAccountAvatarTeemoBytes,
@@ -189,7 +189,7 @@ const emailTemplatePreviews: {
                                 name: "Kenji",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: {
                                     avatarId: "5678" as AvatarId,
                                     content: sampleAccountAvatarGuinnessBytes,
@@ -221,7 +221,7 @@ const emailTemplatePreviews: {
                                 name: "Felicia",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: null,
                                 space: {
                                     version: 1,
@@ -244,7 +244,7 @@ const emailTemplatePreviews: {
                                 name: "Kenji",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: {
                                     avatarId: "5678" as AvatarId,
                                     content: sampleAccountAvatarGuinnessBytes,
@@ -275,7 +275,7 @@ const emailTemplatePreviews: {
                                 name: "Kenji",
                                 version: 1,
                                 nameVersion: 1,
-                                reactionCreature: null,
+                                reactionCharacter: null,
                                 avatar: {
                                     avatarId: "5678" as AvatarId,
                                     content: sampleAccountAvatarGuinnessBytes,

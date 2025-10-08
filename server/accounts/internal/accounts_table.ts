@@ -3,7 +3,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {AccountsSettingsSchema} from "~/shared/accounts/accounts_settings_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
-import {ReactionCreatureSchema} from "~/shared/reactions/reaction_creature_schema.js";
+import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -76,7 +76,7 @@ export const AccountsTable = DynamoTableSchema.new({
                          * This property is visible to everyone with access to the account's
                          * information and shared across all the spaces an account is a member of.
                          */
-                        reactionCreature: ReactionCreatureSchema.nullable().default(null),
+                        reactionCharacter: ReactionCharacterSchema.nullable().default(null),
                     }),
                 },
                 /**

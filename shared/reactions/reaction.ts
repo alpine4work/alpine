@@ -4,18 +4,24 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 /**
  * An icon selected by the user to react to some content. Can be an emotion
- * from any of our creatures.
+ * from any of our characters.
  *
- * Right now each creature has each emotion but we may allow creatures to have
- * different emotions in the future.
+ * Right now each character has each emotion but we may allow characters to
+ * have different emotions in the future.
+ *
+ * In the product reactions are referred to as "likes". Normally we strive for
+ * names in code to be the same as names in the product. But in this case we're
+ * quite unsure about the name "like" in the product. "Reaction" is the
+ * standard name for this feature so choosing to use the name "reaction" in
+ * code for now.
  */
 export type Reaction = {
-    readonly creature: ReactionCreature;
+    readonly character: ReactionCharacter;
     readonly emotion: ReactionEmotion;
 };
 
 /**
- * An emotion a creature can have.
+ * An emotion a character can have.
  */
 export type ReactionEmotion =
     | "Celebrate"
@@ -42,79 +48,79 @@ export const allReactionEmotions: ReadonlyArray<ReactionEmotion> = getObjectKeys
     }),
 );
 
-export type ReactionCreatureType = ReactionCreature["type"];
+export type ReactionCharacterType = ReactionCharacter["type"];
 
-export type ReactionCatCreatureVariant = "Grey" | "Pink" | "Yellow";
+export type ReactionCatCharacterVariant = "Grey" | "Pink" | "Yellow";
 
-export type ReactionTreeCreatureVariant = "Blue" | "Green" | "Pink";
+export type ReactionTreeCharacterVariant = "Blue" | "Green" | "Pink";
 
-export type ReactionYetiCreatureVariant = "Blue" | "Brown" | "Olive";
+export type ReactionYetiCharacterVariant = "Blue" | "Brown" | "Olive";
 
 /**
- * The creature used for a reaction icon. We have different creature types with
- * some slight variants (basic recolors mostly).
+ * The character used for a reaction icon. We have different character types
+ * with some slight variants (basic recolors mostly).
  */
-export type ReactionCreature =
-    | {readonly type: "Cat"; readonly variant: ReactionCatCreatureVariant}
-    | {readonly type: "Tree"; readonly variant: ReactionTreeCreatureVariant}
-    | {readonly type: "Yeti"; readonly variant: ReactionYetiCreatureVariant};
+export type ReactionCharacter =
+    | {readonly type: "Cat"; readonly variant: ReactionCatCharacterVariant}
+    | {readonly type: "Tree"; readonly variant: ReactionTreeCharacterVariant}
+    | {readonly type: "Yeti"; readonly variant: ReactionYetiCharacterVariant};
 
-const allReactionCreatures: ReactionCreatureMap<true> = {
+const allReactionCharacters: ReactionCharacterMap<true> = {
     Cat: {Grey: true, Pink: true, Yellow: true},
     Tree: {Blue: true, Green: true, Pink: true},
     Yeti: {Blue: true, Brown: true, Olive: true},
 };
 
-export const allReactionCreatureTypes: ReadonlyArray<ReactionCreatureType> =
-    getObjectKeysWithKeyofType(allReactionCreatures);
+export const allReactionCharacterTypes: ReadonlyArray<ReactionCharacterType> =
+    getObjectKeysWithKeyofType(allReactionCharacters);
 
-export const allReactionCreatureVariantsByType: {
-    readonly [Type in ReactionCreatureType]: Readonly<
-        ReadonlyArray<Extract<ReactionCreature, {readonly type: Type}>["variant"]>
+export const allReactionCharacterVariantsByType: {
+    readonly [Type in ReactionCharacterType]: Readonly<
+        ReadonlyArray<Extract<ReactionCharacter, {readonly type: Type}>["variant"]>
     >;
-} = mapObjectValues(allReactionCreatures, getObjectKeysWithKeyofType) as any;
+} = mapObjectValues(allReactionCharacters, getObjectKeysWithKeyofType) as any;
 
 /**
- * An exhaustive map that lists each of our reaction creatures.
+ * An exhaustive map that lists each of our reaction characters.
  */
-export type ReactionCreatureMap<Value> = {
-    readonly [Type in ReactionCreatureType]: {
-        readonly [Variant in Extract<ReactionCreature, {readonly type: Type}>["variant"]]: Value;
+export type ReactionCharacterMap<Value> = {
+    readonly [Type in ReactionCharacterType]: {
+        readonly [Variant in Extract<ReactionCharacter, {readonly type: Type}>["variant"]]: Value;
     };
 };
 
 /**
- * Get a value for a reaction creature from a reaction creature map.
+ * Get a value for a reaction character from a reaction character map.
  */
-export function getValueByReactionCreature<Value>(
-    map: ReactionCreatureMap<Value>,
-    creature: ReactionCreature,
+export function getValueByReactionCharacter<Value>(
+    map: ReactionCharacterMap<Value>,
+    character: ReactionCharacter,
 ): Value {
-    return (map as any)[creature.type][creature.variant];
+    return (map as any)[character.type][character.variant];
 }
 
 /**
- * Transforms values in a `ReactionCreatureMap` from one type to another.
+ * Transforms values in a `ReactionCharacterMap` from one type to another.
  */
-export function mapReactionCreatureMap<Value, NewValue>(
-    map: ReactionCreatureMap<Value>,
+export function mapReactionCharacterMap<Value, NewValue>(
+    map: ReactionCharacterMap<Value>,
     mapper: (value: Value) => NewValue,
-): ReactionCreatureMap<NewValue> {
+): ReactionCharacterMap<NewValue> {
     return mapObjectValues(map, value1 =>
         mapObjectValues(value1, value2 => mapper(value2)),
-    ) as ReactionCreatureMap<NewValue>;
+    ) as ReactionCharacterMap<NewValue>;
 }
 
 /**
  * An exhaustive map that lists each of our reactions.
  */
-export type ReactionMap<Value> = ReactionCreatureMap<Record<ReactionEmotion, Value>>;
+export type ReactionMap<Value> = ReactionCharacterMap<Record<ReactionEmotion, Value>>;
 
 /**
  * Get a value for a reaction from a reaction map.
  */
 export function getValueByReaction<Value>(map: ReactionMap<Value>, reaction: Reaction): Value {
-    return (map as any)[reaction.creature.type][reaction.creature.variant][reaction.emotion];
+    return (map as any)[reaction.character.type][reaction.character.variant][reaction.emotion];
 }
 
 /**

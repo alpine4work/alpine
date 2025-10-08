@@ -29,7 +29,7 @@ export function AvatarDefault({size, reaction}: {size: Spacing; reaction: Reacti
                         Cat: avatarDefaultCatInnerClassName,
                         Tree: avatarDefaultTreeInnerClassName,
                         Yeti: avatarDefaultYetiInnerClassName,
-                    }[reaction.creature.type],
+                    }[reaction.character.type],
                 )}
             >
                 <ReactionIcon reaction={reaction} size={avatarDefaultIconSize} />

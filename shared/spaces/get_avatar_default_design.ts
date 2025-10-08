@@ -1,18 +1,18 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
+import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {
     Reaction,
-    ReactionCreature,
-    ReactionCreatureMap,
-    getValueByReactionCreature,
+    ReactionCharacter,
+    ReactionCharacterMap,
+    getValueByReactionCharacter,
 } from "~/shared/reactions/reaction.js";
 
 // NOTE(calebmer): I went through all of these color combinations manually and
 // asked myself "does this look nice?" Removing color combinations that I
 // thought didn't look nice.
-const backgroundColorsByReactionCreature: ReactionCreatureMap<ReadonlyArray<ThemeColor>> = {
+const backgroundColorsByReactionCharacter: ReactionCharacterMap<ReadonlyArray<ThemeColor>> = {
     Cat: {
         Grey: ["orange", "green", "cyan", "pink"],
         Pink: ["green", "cyan", "blue"],
@@ -32,21 +32,22 @@ const backgroundColorsByReactionCreature: ReactionCreatureMap<ReadonlyArray<Them
 
 export function getAvatarDefaultDesign(
     id: AccountId | SpaceId,
-    overrideReactionCreature: ReactionCreature | null,
+    overrideReactionCharacter: ReactionCharacter | null,
 ): {
     reaction: Reaction;
     backgroundColor: ThemeColor;
 } {
-    const reactionCreature = overrideReactionCreature ?? getLegacyFallbackReactionCreatureForId(id);
-    const reaction: Reaction = {creature: reactionCreature, emotion: "Happy"};
+    const reactionCharacter =
+        overrideReactionCharacter ?? getLegacyFallbackReactionCharacterForId(id);
+    const reaction: Reaction = {character: reactionCharacter, emotion: "Happy"};
 
-    const backgroundColors = getValueByReactionCreature(
-        backgroundColorsByReactionCreature,
-        reaction.creature,
+    const backgroundColors = getValueByReactionCharacter(
+        backgroundColorsByReactionCharacter,
+        reaction.character,
     );
 
     const backgroundColorIndex = new StableRandom(
-        `getDefaultAvatarDesign-${id}-${reaction.creature.type}-${reaction.creature.variant}`,
+        `getDefaultAvatarDesign-${id}-${reaction.character.type}-${reaction.character.variant}`,
     ).randomInteger("", 0, 0, backgroundColors.length);
 
     return {

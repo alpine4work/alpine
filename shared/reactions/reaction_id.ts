@@ -118,10 +118,10 @@ export const reactionIds: ReactionMap<number> = {
 export const reactionById = new Lazy<ReadonlyMap<number, Reaction>>(() => {
     const reactionById = new Map<number, Reaction>();
 
-    for (const [type, creatureMap] of Object.entries(reactionIds as any)) {
-        for (const [variant, variantMap] of Object.entries(creatureMap as any)) {
+    for (const [type, characterMap] of Object.entries(reactionIds as any)) {
+        for (const [variant, variantMap] of Object.entries(characterMap as any)) {
             for (const [emotion, id] of Object.entries(variantMap as any)) {
-                reactionById.set(id as any, {creature: {type, variant}, emotion} as any);
+                reactionById.set(id as any, {character: {type, variant}, emotion} as any);
             }
         }
     }

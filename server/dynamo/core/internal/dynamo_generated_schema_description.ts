@@ -77,7 +77,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
-                                    "reactionCreature": {
+                                    "reactionCharacter": {
                                         "valueSchema": {
                                             "type": "Nullable",
                                             "schema": {
@@ -9887,7 +9887,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             },
                                                                             "optional": true
                                                                         },
-                                                                        "reactionCreature": {
+                                                                        "reactionCharacter": {
                                                                             "valueSchema": {
                                                                                 "type": "Nullable",
                                                                                 "schema": {

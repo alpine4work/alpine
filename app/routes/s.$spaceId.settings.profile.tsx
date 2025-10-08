@@ -13,7 +13,7 @@ import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
 } from "~/client/messaging/inline_editor_toolbar.js";
-import {ReactionCreatureSelector} from "~/client/reactions/reaction_creature_selector.js";
+import {ReactionCharacterSelector} from "~/client/reactions/reaction_character_selector.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -197,7 +197,7 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                     </Box>
                     <Box marginY="-2">
-                        <ReactionCreatureSelector />
+                        <ReactionCharacterSelector />
                     </Box>
                 </Box>
             </Box>

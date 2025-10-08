@@ -1,6 +1,6 @@
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {Reaction, ReactionCreature} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
 export type ReactionEntry = {
@@ -8,7 +8,7 @@ export type ReactionEntry = {
     readonly reaction: Reaction;
 };
 
-const reactionPartyDesiredCountBetweenSameCreatures = 2;
+const reactionPartyDesiredCountBetweenSameCharacters = 2;
 
 export function layoutReactionParty(
     maxReactionEntryCount: number,
@@ -26,20 +26,20 @@ export function layoutReactionParty(
     const reactionEntries: Array<ReactionEntry> = [];
     const pendingReactionEntries: Array<ReactionEntry> = [];
 
-    const canPushReactionCreature = (creature: ReactionCreature): boolean => {
+    const canPushReactionCharacter = (character: ReactionCharacter): boolean => {
         for (
             let i = Math.max(
                 0,
-                reactionEntries.length - reactionPartyDesiredCountBetweenSameCreatures,
+                reactionEntries.length - reactionPartyDesiredCountBetweenSameCharacters,
             );
             i < reactionEntries.length;
             i++
         ) {
-            const otherCreature = reactionEntries[i]!.reaction.creature;
+            const otherCharacter = reactionEntries[i]!.reaction.character;
 
             if (
-                otherCreature.type === creature.type &&
-                otherCreature.variant === creature.variant
+                otherCharacter.type === character.type &&
+                otherCharacter.variant === character.variant
             ) {
                 return false;
             }
@@ -52,7 +52,7 @@ export function layoutReactionParty(
         for (let j = 0; j < pendingReactionEntries.length; j++) {
             const pendingReactionEntry = pendingReactionEntries[j]!;
 
-            if (canPushReactionCreature(pendingReactionEntry.reaction.creature)) {
+            if (canPushReactionCharacter(pendingReactionEntry.reaction.character)) {
                 if (reactionEntries.length >= maxReactionEntryCount) break;
                 reactionEntries.push(pendingReactionEntry);
 
@@ -69,7 +69,7 @@ export function layoutReactionParty(
 
         const reactionEntry = originalReactionEntries[i]!;
 
-        if (canPushReactionCreature(reactionEntry.reaction.creature)) {
+        if (canPushReactionCharacter(reactionEntry.reaction.character)) {
             if (reactionEntries.length >= maxReactionEntryCount) break;
             reactionEntries.push(reactionEntry);
         } else {
@@ -81,21 +81,22 @@ export function layoutReactionParty(
 
     // Finally, if there are still pending reactions and we're not at our max entry
     // count, add the pending reactions in the last position where they're not
-    // adjacent to the same creature. If that fails then we add them to the end.
+    // adjacent to the same character. If that fails then we add them to the end.
     while (reactionEntries.length < maxReactionEntryCount && pendingReactionEntries.length > 0) {
         const pendingReactionEntry = pendingReactionEntries.shift()!;
-        const {creature} = pendingReactionEntry.reaction;
+        const {character} = pendingReactionEntry.reaction;
 
         let added = false;
 
         for (let i = reactionEntries.length - 2; i >= 0; i--) {
-            const beforeCreature = reactionEntries[i]!.reaction.creature;
-            const afterCreature = reactionEntries[i + 1]!.reaction.creature;
+            const beforeCharacter = reactionEntries[i]!.reaction.character;
+            const afterCharacter = reactionEntries[i + 1]!.reaction.character;
 
             if (
-                (creature.type === beforeCreature.type &&
-                    creature.variant === beforeCreature.variant) ||
-                (creature.type === afterCreature.type && creature.variant === afterCreature.variant)
+                (character.type === beforeCharacter.type &&
+                    character.variant === beforeCharacter.variant) ||
+                (character.type === afterCharacter.type &&
+                    character.variant === afterCharacter.variant)
             ) {
                 continue;
             } else {

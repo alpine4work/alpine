@@ -1,18 +1,18 @@
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
 import {
-    ReactionCreature,
-    ReactionCreatureType,
+    ReactionCharacter,
+    ReactionCharacterType,
     ReactionEmotion,
 } from "~/shared/reactions/reaction.js";
 
 /**
- * Reaction creatures ordered for display in the UI.
+ * Reaction characters ordered for display in the UI.
  */
-export const orderedReactionCreatures: ReadonlyArray<ReactionCreature> = Object.values(
+export const orderedReactionCharacters: ReadonlyArray<ReactionCharacter> = Object.values(
     cast<{
-        readonly [Type in ReactionCreatureType]: {
-            readonly [Variant in Extract<ReactionCreature, {readonly type: Type}>["variant"]]: {
+        readonly [Type in ReactionCharacterType]: {
+            readonly [Variant in Extract<ReactionCharacter, {readonly type: Type}>["variant"]]: {
                 readonly type: Type;
                 readonly variant: Variant;
             };

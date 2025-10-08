@@ -1,6 +1,6 @@
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
-import {ReactionCreatureSchema} from "~/shared/reactions/reaction_creature_schema.js";
+import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -96,10 +96,10 @@ export const finishUploadingAccountAvatar = defineRpc({
     },
 });
 
-export const updateAccountReactionCreature = defineRpc({
-    name: "updateAccountReactionCreature",
+export const updateAccountReactionCharacter = defineRpc({
+    name: "updateAccountReactionCharacter",
     input: {
-        creature: ReactionCreatureSchema,
+        character: ReactionCharacterSchema,
     },
     output: {
         account: AccountModelWithoutSpace.schema,

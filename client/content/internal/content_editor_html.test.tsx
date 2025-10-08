@@ -395,7 +395,7 @@ const currentAccount = createTestAccountModel({
     version: 0,
     name: "Budd Deey",
     nameVersion: 0,
-    reactionCreature: null,
+    reactionCharacter: null,
     space: {
         version: 0,
         addedTime: createdTime,
@@ -409,7 +409,7 @@ const otherAccount = createTestAccountModel({
     version: 0,
     name: "Sara Smith",
     nameVersion: 0,
-    reactionCreature: null,
+    reactionCharacter: null,
     space: {
         version: 0,
         addedTime: createdTime,

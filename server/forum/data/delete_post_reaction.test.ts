@@ -14,13 +14,13 @@ test("can remove a reaction from a post", async () => {
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 
@@ -37,13 +37,13 @@ test("can’t remove a reaction from a post actor has lost access to", async () 
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 
@@ -55,7 +55,7 @@ test("can’t remove a reaction from a post actor has lost access to", async () 
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 });
@@ -70,13 +70,13 @@ test("can remove a reaction from a post where actor only has comment access", as
     await channel.access.grant(session1, session2, "Comment");
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 
@@ -95,13 +95,13 @@ test("can’t remove a reaction from a post where actor has been downgraded to v
     await channel.access.grant(session1, session2, "Comment");
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 
@@ -113,7 +113,7 @@ test("can’t remove a reaction from a post where actor has been downgraded to v
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 });

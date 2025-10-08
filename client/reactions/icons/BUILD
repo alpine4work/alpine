@@ -23,7 +23,7 @@ js_library(
     srcs = ["reaction_icon_svgs.js"],
 )
 
-CREATURES = {
+CHARACTERS = {
     "Cat": {
         "file_name": "cat",
         "variants": {
@@ -71,7 +71,7 @@ echo "export const reactionIconSvgs = {{\n{out}}};" > $@
 """.format(
         out = "".join([
             "    {}: {{\n{}    }},\n".format(
-                creature,
+                character,
                 "".join([
                     "        {}: {{\n{}        }},\n".format(
                         variant,
@@ -79,18 +79,18 @@ echo "export const reactionIconSvgs = {{\n{out}}};" > $@
                             "            {}: \\`\\\\\n$$(cat $(location {}))\\`,\n".format(
                                 emotion,
                                 "svg/reaction_icon_{}_{}_{}.svg".format(
-                                    CREATURES[creature]["file_name"],
-                                    CREATURES[creature]["variants"][variant]["file_name"],
+                                    CHARACTERS[character]["file_name"],
+                                    CHARACTERS[character]["variants"][variant]["file_name"],
                                     EMOTIONS[emotion]["file_name"],
                                 ),
                             )
                             for emotion in EMOTIONS
                         ]),
                     )
-                    for variant in CREATURES[creature]["variants"]
+                    for variant in CHARACTERS[character]["variants"]
                 ]),
             )
-            for creature in CREATURES
+            for character in CHARACTERS
         ]),
     ),
 )

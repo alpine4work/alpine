@@ -9,7 +9,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
-import {sortReactionCreaturesAroundOurCreature} from "~/client/reactions/internal/sort_reaction_creatures_around_our_creature.js";
+import {sortReactionCharactersAroundOurCharacter} from "~/client/reactions/internal/sort_reaction_characters_around_our_character.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
@@ -21,21 +21,21 @@ import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
-import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
-import {ReactionCreature} from "~/shared/reactions/reaction.js";
-import {updateAccountReactionCreature} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
+import {ReactionCharacter} from "~/shared/reactions/reaction.js";
+import {updateAccountReactionCharacter} from "~/shared/rpc/accounts_rpc_definitions.js";
 
 const marginX = "3";
 
 const iconButtonSize = "6";
 const iconButtonGap = "1";
-const mainCreatureIconSize = "12";
+const mainCharacterIconSize = "12";
 
 const width = addRemLengths(
     marginX,
     iconButtonSize,
     iconButtonGap,
-    mainCreatureIconSize,
+    mainCharacterIconSize,
     iconButtonGap,
     iconButtonSize,
     marginX,
@@ -44,38 +44,38 @@ const width = addRemLengths(
 // Make sure the entire component sums up to a width of spacing `32`.
 assert(width === spacing["32"]);
 
-export function ReactionCreatureSelector() {
+export function ReactionCharacterSelector() {
     const context = useAppContext();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const reporter = useReporter();
     const accountRegistry = useAccountRegistry();
 
     const carouselRef = useRef<HTMLDivElement>(null);
-    const ourCreatureCarouselItemRef = useRef<HTMLDivElement>(null);
+    const ourCharacterCarouselItemRef = useRef<HTMLDivElement>(null);
 
     const currentAccountData = useAccountModel(currentAccount);
 
-    const ourCreature = useMemo(
+    const ourCharacter = useMemo(
         () =>
-            currentAccountData.reactionCreature ??
-            getLegacyFallbackReactionCreatureForId(currentAccount.id),
-        [currentAccount.id, currentAccountData.reactionCreature],
+            currentAccountData.reactionCharacter ??
+            getLegacyFallbackReactionCharacterForId(currentAccount.id),
+        [currentAccount.id, currentAccountData.reactionCharacter],
     );
 
     // `useState()` instead of `useMemo()` since we want to calculate this on mount
     // then keep it the same after that.
-    const [creatures] = useState(() => sortReactionCreaturesAroundOurCreature(ourCreature));
+    const [characters] = useState(() => sortReactionCharactersAroundOurCharacter(ourCharacter));
 
-    const creatureIndex = useMemo(() => {
-        return creatures.findIndex(
-            creature =>
-                creature.type === ourCreature.type && creature.variant === ourCreature.variant,
+    const characterIndex = useMemo(() => {
+        return characters.findIndex(
+            character =>
+                character.type === ourCharacter.type && character.variant === ourCharacter.variant,
         );
-    }, [creatures, ourCreature]);
+    }, [characters, ourCharacter]);
 
-    const [pendingCreatureFromCarousel, setPendingCreatureFromCarousel] =
-        useState<ReactionCreature | null>(null);
-    const shouldShowPendingFromCarousel = useDelayLoadingIndicator(!!pendingCreatureFromCarousel);
+    const [pendingCharacterFromCarousel, setPendingCharacterFromCarousel] =
+        useState<ReactionCharacter | null>(null);
+    const shouldShowPendingFromCarousel = useDelayLoadingIndicator(!!pendingCharacterFromCarousel);
 
     return (
         <Box
@@ -91,13 +91,13 @@ export function ReactionCreatureSelector() {
                     description="Previous character"
                     pressErrorTitle="Couldn’t update your character"
                     onPress={async () => {
-                        const nextCreature =
-                            creatureIndex > 0
-                                ? creatures[creatureIndex - 1]!
-                                : creatures[creatures.length - 1]!;
+                        const nextCharacter =
+                            characterIndex > 0
+                                ? characters[characterIndex - 1]!
+                                : characters[characters.length - 1]!;
 
-                        const {account} = await updateAccountReactionCreature(context, {
-                            creature: nextCreature,
+                        const {account} = await updateAccountReactionCharacter(context, {
+                            character: nextCharacter,
                         });
 
                         flushSync(() => {
@@ -108,8 +108,8 @@ export function ReactionCreatureSelector() {
                         // So we should be getting the correct newly selected element here.
 
                         const carouselElement = assertExists(carouselRef.current);
-                        const ourCreatureCarouselItemElement = assertExists(
-                            ourCreatureCarouselItemRef.current,
+                        const ourCharacterCarouselItemElement = assertExists(
+                            ourCharacterCarouselItemRef.current,
                         );
 
                         const spacingScale = getSpacingScaleWithoutListening();
@@ -119,15 +119,15 @@ export function ReactionCreatureSelector() {
                             !isRangeContained(
                                 carouselElement.scrollLeft,
                                 carouselElement.scrollLeft + carouselElement.clientWidth,
-                                ourCreatureCarouselItemElement.offsetLeft - marginXPx,
-                                ourCreatureCarouselItemElement.offsetLeft +
-                                    ourCreatureCarouselItemElement.offsetWidth +
+                                ourCharacterCarouselItemElement.offsetLeft - marginXPx,
+                                ourCharacterCarouselItemElement.offsetLeft +
+                                    ourCharacterCarouselItemElement.offsetWidth +
                                     marginXPx,
                             )
                         ) {
                             carouselElement.scrollLeft =
-                                ourCreatureCarouselItemElement.offsetLeft +
-                                ourCreatureCarouselItemElement.offsetWidth +
+                                ourCharacterCarouselItemElement.offsetLeft +
+                                ourCharacterCarouselItemElement.offsetWidth +
                                 marginXPx -
                                 carouselElement.clientWidth;
                         }
@@ -136,21 +136,21 @@ export function ReactionCreatureSelector() {
                     <CaretLeft />
                 </IconButton>
                 <ReactionIcon
-                    reaction={{creature: ourCreature, emotion: "Happy"}}
-                    size={mainCreatureIconSize}
+                    reaction={{character: ourCharacter, emotion: "Happy"}}
+                    size={mainCharacterIconSize}
                 />
                 <IconButton
                     size="md"
                     description="Next character"
                     pressErrorTitle="Couldn’t update your character"
                     onPress={async () => {
-                        const nextCreature =
-                            creatureIndex < creatures.length - 1
-                                ? creatures[creatureIndex + 1]!
-                                : creatures[0]!;
+                        const nextCharacter =
+                            characterIndex < characters.length - 1
+                                ? characters[characterIndex + 1]!
+                                : characters[0]!;
 
-                        const {account} = await updateAccountReactionCreature(context, {
-                            creature: nextCreature,
+                        const {account} = await updateAccountReactionCharacter(context, {
+                            character: nextCharacter,
                         });
 
                         flushSync(() => {
@@ -161,8 +161,8 @@ export function ReactionCreatureSelector() {
                         // So we should be getting the correct newly selected element here.
 
                         const carouselElement = assertExists(carouselRef.current);
-                        const ourCreatureCarouselItemElement = assertExists(
-                            ourCreatureCarouselItemRef.current,
+                        const ourCharacterCarouselItemElement = assertExists(
+                            ourCharacterCarouselItemRef.current,
                         );
 
                         const spacingScale = getSpacingScaleWithoutListening();
@@ -172,14 +172,14 @@ export function ReactionCreatureSelector() {
                             !isRangeContained(
                                 carouselElement.scrollLeft,
                                 carouselElement.scrollLeft + carouselElement.clientWidth,
-                                ourCreatureCarouselItemElement.offsetLeft - marginXPx,
-                                ourCreatureCarouselItemElement.offsetLeft +
-                                    ourCreatureCarouselItemElement.offsetWidth +
+                                ourCharacterCarouselItemElement.offsetLeft - marginXPx,
+                                ourCharacterCarouselItemElement.offsetLeft +
+                                    ourCharacterCarouselItemElement.offsetWidth +
                                     marginXPx,
                             )
                         ) {
                             carouselElement.scrollLeft =
-                                ourCreatureCarouselItemElement.offsetLeft - marginXPx;
+                                ourCharacterCarouselItemElement.offsetLeft - marginXPx;
                         }
                     }}
                 >
@@ -211,40 +211,42 @@ export function ReactionCreatureSelector() {
                 />
                 <Box ref={carouselRef} data-scrollbar="false" overflowX="scroll" style={{width}}>
                     <Box paddingX={marginX} display="flex" style={{gap: 1, width: "fit-content"}}>
-                        {creatures.map(creature => {
-                            const isOurCreature =
-                                creature.type === ourCreature.type &&
-                                creature.variant === ourCreature.variant;
+                        {characters.map(character => {
+                            const isOurCharacter =
+                                character.type === ourCharacter.type &&
+                                character.variant === ourCharacter.variant;
 
-                            const isPendingCreatureFromCarousel =
-                                pendingCreatureFromCarousel !== null &&
-                                creature.type === pendingCreatureFromCarousel.type &&
-                                creature.variant === pendingCreatureFromCarousel.variant;
+                            const isPendingCharacterFromCarousel =
+                                pendingCharacterFromCarousel !== null &&
+                                character.type === pendingCharacterFromCarousel.type &&
+                                character.variant === pendingCharacterFromCarousel.variant;
 
                             return (
-                                <ReactionCreatureSelectorCarouselItem
-                                    key={`${creature.type}-${creature.variant}`}
-                                    itemRef={isOurCreature ? ourCreatureCarouselItemRef : undefined}
-                                    creature={creature}
+                                <ReactionCharacterSelectorCarouselItem
+                                    key={`${character.type}-${character.variant}`}
+                                    itemRef={
+                                        isOurCharacter ? ourCharacterCarouselItemRef : undefined
+                                    }
+                                    character={character}
                                     isActive={
-                                        pendingCreatureFromCarousel !== null
-                                            ? isPendingCreatureFromCarousel
-                                            : isOurCreature
+                                        pendingCharacterFromCarousel !== null
+                                            ? isPendingCharacterFromCarousel
+                                            : isOurCharacter
                                     }
                                     isPending={
-                                        isPendingCreatureFromCarousel &&
+                                        isPendingCharacterFromCarousel &&
                                         shouldShowPendingFromCarousel
                                     }
                                     onPress={() => {
-                                        if (isOurCreature) return;
-                                        if (pendingCreatureFromCarousel) return;
+                                        if (isOurCharacter) return;
+                                        if (pendingCharacterFromCarousel) return;
 
-                                        setPendingCreatureFromCarousel(creature);
+                                        setPendingCharacterFromCarousel(character);
 
                                         (async () => {
-                                            const {account} = await updateAccountReactionCreature(
+                                            const {account} = await updateAccountReactionCharacter(
                                                 context,
-                                                {creature},
+                                                {character},
                                             );
 
                                             accountRegistry.immediatelyUpdateAccountStoreIfExists(
@@ -252,10 +254,10 @@ export function ReactionCreatureSelector() {
                                             );
                                         })().then(
                                             () => {
-                                                setPendingCreatureFromCarousel(null);
+                                                setPendingCharacterFromCarousel(null);
                                             },
                                             error => {
-                                                setPendingCreatureFromCarousel(null);
+                                                setPendingCharacterFromCarousel(null);
 
                                                 reporter.displayError(
                                                     "Couldn’t update your character",
@@ -274,15 +276,15 @@ export function ReactionCreatureSelector() {
     );
 }
 
-function ReactionCreatureSelectorCarouselItem({
+function ReactionCharacterSelectorCarouselItem({
     itemRef,
-    creature,
+    character,
     isActive,
     isPending,
     onPress,
 }: {
     itemRef: RefObject<HTMLDivElement> | undefined;
-    creature: ReactionCreature;
+    character: ReactionCharacter;
     isActive: boolean;
     isPending: boolean;
     onPress: () => void;
@@ -309,7 +311,7 @@ function ReactionCreatureSelectorCarouselItem({
                     color={colorSchemeVars["grey-70"]}
                 />
             ) : (
-                <ReactionIcon reaction={{creature, emotion: "Happy"}} size="6" />
+                <ReactionIcon reaction={{character: character, emotion: "Happy"}} size="6" />
             )}
         </Box>
     );

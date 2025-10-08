@@ -32,7 +32,7 @@ export function getAccountAvatarDesign(accountData: AccountModelData): AccountAv
         ? {type: "Image", content: imageContent, ...designBase}
         : {
               type: "Default",
-              ...getAvatarDefaultDesign(accountData.id, accountData.reactionCreature),
+              ...getAvatarDefaultDesign(accountData.id, accountData.reactionCharacter),
               ...designBase,
           };
 }
@@ -45,7 +45,7 @@ export function getAccountFallbackDefaultAvatarDesign(
 
     return {
         type: "Default",
-        ...getAvatarDefaultDesign(accountData.id, accountData.reactionCreature),
+        ...getAvatarDefaultDesign(accountData.id, accountData.reactionCharacter),
         shouldShowRemovedAvatar,
         iconOverlayType,
     };

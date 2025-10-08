@@ -4,23 +4,23 @@ import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
-import {orderedReactionEmotions} from "~/client/reactions/internal/ordered_reaction_creatures_and_emotions.js";
-import {sortReactionCreaturesAroundOurCreature} from "~/client/reactions/internal/sort_reaction_creatures_around_our_creature.js";
-import {ReactionCreatureSelector} from "~/client/reactions/reaction_creature_selector.js";
+import {orderedReactionEmotions} from "~/client/reactions/internal/ordered_reaction_characters_and_emotions.js";
+import {sortReactionCharactersAroundOurCharacter} from "~/client/reactions/internal/sort_reaction_characters_around_our_character.js";
+import {ReactionCharacterSelector} from "~/client/reactions/reaction_character_selector.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {colorSchemeVars} from "~/client/styles/styles.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
+import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 
 const iconSize = "8";
 const iconGalleryPaddingX = "2";
 const iconGalleryPaddingY = "2";
 
-const creatureSelectorWidth = "32";
+const characterSelectorWidth = "32";
 
 const widthRem =
-    parseRemLength(creatureSelectorWidth) +
+    parseRemLength(characterSelectorWidth) +
     parseRemLength(iconSize) * orderedReactionEmotions.length +
     parseRemLength(iconGalleryPaddingX) * 2;
 
@@ -35,16 +35,16 @@ export function ReactionMegaPicker({
 
     const currentAccountData = useAccountModel(currentAccount);
 
-    const ourCreature = useMemo(
+    const ourCharacter = useMemo(
         () =>
-            currentAccountData.reactionCreature ??
-            getLegacyFallbackReactionCreatureForId(currentAccount.id),
-        [currentAccount.id, currentAccountData.reactionCreature],
+            currentAccountData.reactionCharacter ??
+            getLegacyFallbackReactionCharacterForId(currentAccount.id),
+        [currentAccount.id, currentAccountData.reactionCharacter],
     );
 
     // `useState()` instead of `useMemo()` since we want to calculate this on mount
     // then keep it the same after that.
-    const [creatures] = useState(() => sortReactionCreaturesAroundOurCreature(ourCreature));
+    const [characters] = useState(() => sortReactionCharactersAroundOurCharacter(ourCharacter));
 
     return (
         <Box
@@ -63,16 +63,16 @@ export function ReactionMegaPicker({
                 overflowY="scroll"
             >
                 <Box paddingX={iconGalleryPaddingX} paddingY={iconGalleryPaddingY}>
-                    {creatures.map(creature => (
+                    {characters.map(character => (
                         <Box
-                            key={`${creature.type}-${creature.variant}`}
+                            key={`${character.type}-${character.variant}`}
                             width="full"
                             display="flex"
                         >
                             {orderedReactionEmotions.map(emotion => (
                                 <ReactionMegaPickerGalleryIcon
                                     key={emotion}
-                                    reaction={{creature, emotion}}
+                                    reaction={{character, emotion}}
                                     onSetReaction={onSetReaction}
                                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 />
@@ -82,7 +82,7 @@ export function ReactionMegaPicker({
                 </Box>
             </Box>
             <Box
-                width={creatureSelectorWidth}
+                width={characterSelectorWidth}
                 height="full"
                 // Use box shadow for border to not change the layout.
                 style={{boxShadow: `-1px 0 0 0 ${colorSchemeVars["grey-5"]}`}}
@@ -103,7 +103,7 @@ export function ReactionMegaPicker({
                     Your character
                 </Box>
                 <Box flexGrow="1" display="flex" flexDirection="column" justifyContent="center">
-                    <ReactionCreatureSelector />
+                    <ReactionCharacterSelector />
                 </Box>
             </Box>
         </Box>

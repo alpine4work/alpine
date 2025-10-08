@@ -61,7 +61,7 @@ export function renderAvatarDefaultHtml({size, reaction}: {size: Spacing; reacti
                 Cat: avatarDefaultCatInnerClassName,
                 Tree: avatarDefaultTreeInnerClassName,
                 Yeti: avatarDefaultYetiInnerClassName,
-            }[reaction.creature.type],
+            }[reaction.character.type],
         ),
     );
 

@@ -3,8 +3,8 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     Reaction,
-    ReactionCreature,
-    ReactionCreatureType,
+    ReactionCharacter,
+    ReactionCharacterType,
     ReactionEmotion,
 } from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -22,17 +22,17 @@ const a10 = generateId<AccountId>();
 const a11 = generateId<AccountId>();
 
 const reaction = (
-    creature: ReactionCreature | ReactionCreatureType,
+    character: ReactionCharacter | ReactionCharacterType,
     emotion: ReactionEmotion = "Laugh",
 ): Reaction => ({
-    creature:
-        creature === "Tree"
+    character:
+        character === "Tree"
             ? {type: "Tree", variant: "Green"}
-            : creature === "Cat"
+            : character === "Cat"
             ? {type: "Cat", variant: "Yellow"}
-            : creature === "Yeti"
+            : character === "Yeti"
             ? {type: "Yeti", variant: "Blue"}
-            : creature,
+            : character,
     emotion,
 });
 
@@ -76,7 +76,7 @@ test("can layout three reactions", () => {
     });
 });
 
-test("spaces out reactions of the same creature", () => {
+test("spaces out reactions of the same character", () => {
     expect(
         layoutReactionParty(
             21,
@@ -102,7 +102,7 @@ test("spaces out reactions of the same creature", () => {
     });
 });
 
-test("doesn’t space out reactions of the same creature of the same type but different variants", () => {
+test("doesn’t space out reactions of the same character of the same type but different variants", () => {
     expect(
         layoutReactionParty(
             21,
@@ -131,7 +131,7 @@ test("doesn’t space out reactions of the same creature of the same type but di
     });
 });
 
-test("spaces out reactions of the same creature among many reactions", () => {
+test("spaces out reactions of the same character among many reactions", () => {
     expect(
         layoutReactionParty(
             21,
@@ -171,7 +171,7 @@ test("spaces out reactions of the same creature among many reactions", () => {
     });
 });
 
-test("if we can’t find enough space between creatures then we add to the first position where there isn’t an adjacent creature of the same type", () => {
+test("if we can’t find enough space between characters then we add to the first position where there isn’t an adjacent character of the same type", () => {
     expect(
         layoutReactionParty(
             21,
@@ -205,7 +205,7 @@ test("if we can’t find enough space between creatures then we add to the first
     });
 });
 
-test("if we can’t find enough space between creatures then and there isn’t a position without adjacent creatures then we add them to the end", () => {
+test("if we can’t find enough space between characters then and there isn’t a position without adjacent characters then we add them to the end", () => {
     expect(
         layoutReactionParty(
             21,

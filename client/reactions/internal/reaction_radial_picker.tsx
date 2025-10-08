@@ -25,7 +25,7 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
-import {getLegacyFallbackReactionCreatureForId} from "~/shared/reactions/get_legacy_fallback_reaction_creature_for_id.js";
+import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction, ReactionEmotion} from "~/shared/reactions/reaction.js";
 
 const reactionRadialPickerAnimationInitialScale = 0.25;
@@ -89,11 +89,11 @@ function ReactionRadialPicker(
 
     const currentAccountData = useAccountModel(currentAccount);
 
-    const creature = useMemo(
+    const character = useMemo(
         () =>
-            currentAccountData.reactionCreature ??
-            getLegacyFallbackReactionCreatureForId(currentAccount.id),
-        [currentAccount.id, currentAccountData.reactionCreature],
+            currentAccountData.reactionCharacter ??
+            getLegacyFallbackReactionCharacterForId(currentAccount.id),
+        [currentAccount.id, currentAccountData.reactionCharacter],
     );
 
     const circleContainerRef = useRef<HTMLDivElement>(null);
@@ -255,13 +255,13 @@ function ReactionRadialPicker(
                 const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
-                onSetReaction({creature, emotion});
+                onSetReaction({character: character, emotion});
                 onCloseWithAnimation();
             }
         }
     }, [
         activeIndex,
-        creature,
+        character,
         isMouseDownFromOverlayOpen,
         onCloseWithAnimation,
         onOpenMegaPicker,
@@ -313,7 +313,7 @@ function ReactionRadialPicker(
                                     activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
-                                onSetReaction({creature, emotion});
+                                onSetReaction({character: character, emotion});
                                 onCloseWithAnimation();
                             }
                         }
@@ -440,7 +440,7 @@ function ReactionRadialPicker(
                             // 4. This code does that.
                             const emotionIndex = index > 4 ? index - 2 : index - 1;
                             const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
-                            const reaction = {creature, emotion};
+                            const reaction = {character, emotion};
 
                             return (
                                 <Box

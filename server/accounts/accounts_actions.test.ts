@@ -14,7 +14,7 @@ import {
     getOurLastOpenedSpaceId,
     regenerateOneTimePasswordSignIn,
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
-    updateAccountReactionCreature,
+    updateAccountReactionCharacter,
     updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_actions.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -1288,23 +1288,23 @@ describe("getOurLastOpenedSpaceId()", () => {
     });
 });
 
-describe("`updateAccountReactionCreature()`", () => {
-    test("can update the reaction creature for the account", async () => {
+describe("`updateAccountReactionCharacter()`", () => {
+    test("can update the reaction character for the account", async () => {
         const account = await TestAccount.create(context);
         const session = await TestSession.create(account);
 
-        expect((await account.get()).initialData.reactionCreature).toEqual(expect.any(Object));
+        expect((await account.get()).initialData.reactionCharacter).toEqual(expect.any(Object));
 
-        await updateAccountReactionCreature(session.action(), {type: "Cat", variant: "Pink"});
+        await updateAccountReactionCharacter(session.action(), {type: "Cat", variant: "Pink"});
 
-        expect((await account.get()).initialData.reactionCreature).toEqual({
+        expect((await account.get()).initialData.reactionCharacter).toEqual({
             type: "Cat",
             variant: "Pink",
         });
 
-        await updateAccountReactionCreature(session.action(), {type: "Tree", variant: "Green"});
+        await updateAccountReactionCharacter(session.action(), {type: "Tree", variant: "Green"});
 
-        expect((await account.get()).initialData.reactionCreature).toEqual({
+        expect((await account.get()).initialData.reactionCharacter).toEqual({
             type: "Tree",
             variant: "Green",
         });

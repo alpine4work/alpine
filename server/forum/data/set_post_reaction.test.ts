@@ -16,13 +16,13 @@ test("can add a reaction to post", async () => {
     expect((await post.get()).reactions.get()).toEqual(new Map());
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 });
@@ -51,18 +51,18 @@ test("can update a reaction to post", async () => {
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Lolsob",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Lolsob"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Lolsob"}],
         ]),
     );
 });
@@ -75,7 +75,7 @@ test("can update a reaction to post to default reaction", async () => {
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
@@ -96,13 +96,13 @@ test("can update a reaction to post from default reaction", async () => {
     await setPostReaction(session2.action(), post.id, "GenericLike");
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Lolsob",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Lolsob"}],
+            [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Lolsob"}],
         ]),
     );
 });
@@ -115,25 +115,25 @@ test("multiple accounts can react to post", async () => {
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Yeti", variant: "Blue"},
+        character: {type: "Yeti", variant: "Blue"},
         emotion: "Yes",
     });
 
     await setPostReaction(session4.action(), post.id, {
-        creature: {type: "Cat", variant: "Yellow"},
+        character: {type: "Cat", variant: "Yellow"},
         emotion: "Celebrate",
     });
 
     // Use `Array.from()` to make sure we're asserting they're in the right order.
     expect(Array.from((await post.get()).reactions.get())).toEqual([
-        [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
-        [session3.account.id, {creature: {type: "Yeti", variant: "Blue"}, emotion: "Yes"}],
-        [session4.account.id, {creature: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
+        [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+        [session3.account.id, {character: {type: "Yeti", variant: "Blue"}, emotion: "Yes"}],
+        [session4.account.id, {character: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
     ]);
 });
 
@@ -145,30 +145,30 @@ test("updating a reaction preserves the account’s order in the post’s reacti
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Yeti", variant: "Blue"},
+        character: {type: "Yeti", variant: "Blue"},
         emotion: "Yes",
     });
 
     await setPostReaction(session4.action(), post.id, {
-        creature: {type: "Cat", variant: "Yellow"},
+        character: {type: "Cat", variant: "Yellow"},
         emotion: "Celebrate",
     });
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Yeti", variant: "Blue"},
+        character: {type: "Yeti", variant: "Blue"},
         emotion: "No",
     });
 
     // Use `Array.from()` to make sure we're asserting they're in the right order.
     expect(Array.from((await post.get()).reactions.get())).toEqual([
-        [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
-        [session3.account.id, {creature: {type: "Yeti", variant: "Blue"}, emotion: "No"}],
-        [session4.account.id, {creature: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
+        [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+        [session3.account.id, {character: {type: "Yeti", variant: "Blue"}, emotion: "No"}],
+        [session4.account.id, {character: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
     ]);
 });
 
@@ -180,17 +180,17 @@ test("deleting a reaction then adding a new one changes the account’s order in
     const post = await channel.createPost(session1);
 
     await setPostReaction(session2.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Yeti", variant: "Blue"},
+        character: {type: "Yeti", variant: "Blue"},
         emotion: "Yes",
     });
 
     await setPostReaction(session4.action(), post.id, {
-        creature: {type: "Cat", variant: "Yellow"},
+        character: {type: "Cat", variant: "Yellow"},
         emotion: "Celebrate",
     });
 
@@ -198,20 +198,20 @@ test("deleting a reaction then adding a new one changes the account’s order in
 
     // Use `Array.from()` to make sure we're asserting they're in the right order.
     expect(Array.from((await post.get()).reactions.get())).toEqual([
-        [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
-        [session4.account.id, {creature: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
+        [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+        [session4.account.id, {character: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
     ]);
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Yeti", variant: "Blue"},
+        character: {type: "Yeti", variant: "Blue"},
         emotion: "No",
     });
 
     // Use `Array.from()` to make sure we're asserting they're in the right order.
     expect(Array.from((await post.get()).reactions.get())).toEqual([
-        [session2.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
-        [session4.account.id, {creature: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
-        [session3.account.id, {creature: {type: "Yeti", variant: "Blue"}, emotion: "No"}],
+        [session2.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+        [session4.account.id, {character: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
+        [session3.account.id, {character: {type: "Yeti", variant: "Blue"}, emotion: "No"}],
     ]);
 });
 
@@ -226,7 +226,7 @@ test("can’t react to post actor doesn’t have access to", async () => {
 
     await expect(
         setPostReaction(session2.action(), post.id, {
-            creature: {type: "Tree", variant: "Green"},
+            character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
@@ -245,19 +245,19 @@ test("can react to post in private channel if actor has access", async () => {
 
     await expect(
         setPostReaction(session2.action(), post.id, {
-            creature: {type: "Tree", variant: "Green"},
+            character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session3.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session3.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 });
@@ -273,14 +273,14 @@ test("can’t react to post in private channel if actor has view access", async 
 
     await expect(
         setPostReaction(session2.action(), post.id, {
-            creature: {type: "Tree", variant: "Green"},
+            character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
     await expect(
         setPostReaction(session3.action(), post.id, {
-            creature: {type: "Tree", variant: "Green"},
+            character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
@@ -299,19 +299,19 @@ test("can react to post in private channel if actor has comment access", async (
 
     await expect(
         setPostReaction(session2.action(), post.id, {
-            creature: {type: "Tree", variant: "Green"},
+            character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
     await setPostReaction(session3.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session3.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session3.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 });
@@ -324,13 +324,13 @@ test("can react to own post", async () => {
     const post = await channel.createPost(session);
 
     await setPostReaction(session.action(), post.id, {
-        creature: {type: "Tree", variant: "Green"},
+        character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([
-            [session.account.id, {creature: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
+            [session.account.id, {character: {type: "Tree", variant: "Green"}, emotion: "Laugh"}],
         ]),
     );
 });

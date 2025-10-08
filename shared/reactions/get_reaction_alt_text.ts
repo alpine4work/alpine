@@ -1,16 +1,16 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Reaction, ReactionCreature, ReactionEmotion} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionCharacter, ReactionEmotion} from "~/shared/reactions/reaction.js";
 
 export function getReactionAltText(icon: Reaction): string {
     return (
-        getReactionCreatureAltText(icon.creature) + " " + getReactionEmotionAltText(icon.emotion)
+        getReactionCharacterAltText(icon.character) + " " + getReactionEmotionAltText(icon.emotion)
     );
 }
 
-function getReactionCreatureAltText(creature: ReactionCreature): string {
-    switch (creature.type) {
+function getReactionCharacterAltText(character: ReactionCharacter): string {
+    switch (character.type) {
         case "Cat": {
-            switch (creature.variant) {
+            switch (character.variant) {
                 case "Grey":
                     return "Grey cat";
                 case "Pink":
@@ -18,11 +18,11 @@ function getReactionCreatureAltText(creature: ReactionCreature): string {
                 case "Yellow":
                     return "Yellow cat";
                 default:
-                    throw exhaustive(creature);
+                    throw exhaustive(character);
             }
         }
         case "Tree": {
-            switch (creature.variant) {
+            switch (character.variant) {
                 case "Blue":
                     return "Blue tree";
                 case "Green":
@@ -30,11 +30,11 @@ function getReactionCreatureAltText(creature: ReactionCreature): string {
                 case "Pink":
                     return "Pink tree";
                 default:
-                    throw exhaustive(creature);
+                    throw exhaustive(character);
             }
         }
         case "Yeti": {
-            switch (creature.variant) {
+            switch (character.variant) {
                 case "Blue":
                     return "Blue yeti";
                 case "Brown":
@@ -42,11 +42,11 @@ function getReactionCreatureAltText(creature: ReactionCreature): string {
                 case "Olive":
                     return "Olive yeti";
                 default:
-                    throw exhaustive(creature);
+                    throw exhaustive(character);
             }
         }
         default:
-            throw exhaustive(creature);
+            throw exhaustive(character);
     }
 }
 

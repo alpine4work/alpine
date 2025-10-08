@@ -48,7 +48,7 @@ const account = createTestAccountModel({
     version: 0,
     name: "Sarah Smith",
     nameVersion: 0,
-    reactionCreature: null,
+    reactionCharacter: null,
     space: {
         version: 0,
         addedTime: new Date(),

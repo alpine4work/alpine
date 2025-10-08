@@ -1,6 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {updateAccountReactionCreature} from "~/server/accounts/accounts_actions.js";
+import {updateAccountReactionCharacter} from "~/server/accounts/accounts_actions.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
@@ -17,8 +17,8 @@ const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
 
 test.beforeAll(async () => {
     await runAllPromises([
-        updateAccountReactionCreature(context.action(session1), {type: "Cat", variant: "Yellow"}),
-        updateAccountReactionCreature(context.action(session2), {type: "Yeti", variant: "Blue"}),
+        updateAccountReactionCharacter(context.action(session1), {type: "Cat", variant: "Yellow"}),
+        updateAccountReactionCharacter(context.action(session2), {type: "Yeti", variant: "Blue"}),
     ]);
 });
 

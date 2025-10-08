@@ -1,6 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {updateAccountReactionCreature} from "~/server/accounts/accounts_actions.js";
+import {updateAccountReactionCharacter} from "~/server/accounts/accounts_actions.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -31,9 +31,9 @@ test("can comment on a document and use the comment thread sidebar", async ({
     ]);
 
     await runAllPromises([
-        updateAccountReactionCreature(session1.action(), {type: "Cat", variant: "Yellow"}),
-        updateAccountReactionCreature(session2.action(), {type: "Yeti", variant: "Blue"}),
-        updateAccountReactionCreature(session3.action(), {type: "Tree", variant: "Green"}),
+        updateAccountReactionCharacter(session1.action(), {type: "Cat", variant: "Yellow"}),
+        updateAccountReactionCharacter(session2.action(), {type: "Yeti", variant: "Blue"}),
+        updateAccountReactionCharacter(session3.action(), {type: "Tree", variant: "Green"}),
     ]);
 
     const document = await TestDocument.create(session1, {

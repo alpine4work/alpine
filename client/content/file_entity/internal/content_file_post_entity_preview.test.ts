@@ -1,7 +1,7 @@
 // To update generated snapshots run:
 //
 // ```
-// bazel run //client/content:file_entity/internal/content_file_post_entity_preview_test -- --updateSnapshot
+// bazel run //client/content/file_entity:internal/content_file_post_entity_preview_test -- --updateSnapshot
 // ```
 
 import {CalendarDate} from "@internationalized/date";
@@ -81,7 +81,7 @@ describe("renderContentFilePostEntityPreview - HTML Snapshots", () => {
     const author = createTestAccountModel({
         name: "Test Author",
         id: authorId,
-        reactionCreature: null,
+        reactionCharacter: null,
     });
 
     const basicParams = {
