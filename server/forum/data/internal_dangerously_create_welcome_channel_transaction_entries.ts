@@ -4,12 +4,10 @@ import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 /**
- * Should only be called in `createAlphaSpaceAsAdmin()`. Dangerous since we
- * create a channel item for `welcomeChannelId` without checking whether a
- * channel with that `ChannelId` already exists! `createAlphaSpaceAsAdmin()`
- * handles this but otherwise you need to be careful.
+ * Dangerous since we create a channel item for `welcomeChannelId` without checking whether a
+ * channel with that `ChannelId` already exists!
  */
-export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries(
+export function internalDangerouslyCreateWelcomeChannelTransactionEntries(
     context: ServerActionContext,
     {
         ownerAccountId,

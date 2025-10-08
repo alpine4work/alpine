@@ -14,7 +14,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_alpha_space_welcome_channel_transaction_entries.js";
+import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_welcome_channel_transaction_entries.js";
 import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_actions.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
@@ -350,7 +350,7 @@ export async function createAlphaSpaceAsAdmin(
         ownerAccountId,
         welcomeChannelId,
         createWelcomeChannelTransactionEntries:
-            internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries(context, {
+            internalDangerouslyCreateWelcomeChannelTransactionEntries(context, {
                 ownerAccountId,
                 spaceId,
                 welcomeChannelId,

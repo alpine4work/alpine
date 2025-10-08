@@ -1,30 +1,28 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+# We create a separate package for create_space since there are a few pieces
+# we want to tie together here without causing circular dependencies.
+# Typically, we should be creating subpackages using the `with_*` prefix,
+# but this is a special case.
+
 ts_project(
-    name = "test_helpers",
-    testonly = True,
+    name = "create_space",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
         "//shared/spaces/test_helpers",
     ],
     visibility = [
-        "//app/integration_tests:__subpackages__",
+        "//app:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [
-        "//server/accounts",
-        "//server/dynamo/test_helpers",
-        "//server/emails",
+        "//server/context",
         "//server/forum/data",
         "//server/spaces",
-        "//server/tokens",
-        "//shared/accounts",
-        "//shared/context",
         "//shared/error:error_core",
         "//shared/helpers",
-        "//shared/helpers:helpers_core",
         "//shared/id",
         "//shared/spaces",
-        "//shared/spaces/test_helpers",
     ],
 )

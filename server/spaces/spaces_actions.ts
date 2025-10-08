@@ -295,7 +295,7 @@ export async function getSpaceAccountForTest(
 ): Promise<SpaceAccountItem | null> {
     assert(process.env.NODE_ENV === "test");
 
-    return getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId);
+    return internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId);
 }
 
 export async function seedTestSpaces(
@@ -773,7 +773,7 @@ export async function addSpaceAccountWithoutAuthorization(
                 spaceId,
             }),
             dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
-            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
+            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             SpacesTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "Spaces",
@@ -989,7 +989,7 @@ function removeSpaceAccountWithoutAuthorization(
                 spaceId,
             }),
             dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
-            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
+            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             SpacesTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "Spaces",
@@ -1740,7 +1740,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     // needs to return true with strong consistency but if the item exists an
     // eventually consistent read will be cheaper and faster. We'll try again with
     // strong consistency if this fails.
-    const item1 = await getSpaceAccountItemIfExistsWithoutAuthorization(
+    const item1 = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
         context,
         spaceId,
         accountId,
@@ -1771,7 +1771,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     // eventual consistency then try finding the item again one last time with
     // strong consistency. Since we want to return `true` from this function with
     // strong consistency.
-    const item2 = await getSpaceAccountItemIfExistsWithoutAuthorization(
+    const item2 = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
         context,
         spaceId,
         accountId,
@@ -2194,7 +2194,7 @@ export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
     // property is immutable so if we find an item then we'll know if it's a bot or
     // not. If we can't find a space account item then we try again with strong
     // consistency.
-    const item1 = await getSpaceAccountItemIfExistsWithoutAuthorization(
+    const item1 = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
         context,
         spaceId,
         accountId,
@@ -2211,7 +2211,7 @@ export async function getSpaceAccountBotIdIfExistsWithoutAuthorization(
     // If the item wasn't present in any cache and wasn't present when we read with
     // eventual consistency then try finding the item again one last time with
     // strong consistency.
-    const item2 = await getSpaceAccountItemIfExistsWithoutAuthorization(
+    const item2 = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
         context,
         spaceId,
         accountId,
@@ -2309,7 +2309,7 @@ const SpaceAccountItemContextCache = new DynamoContextCache<
  * Does not authorize the actor has access! Which is why the function is called
  * "dangerous". You must do that yourself.
  */
-async function getSpaceAccountItemIfExistsWithoutAuthorization(
+export async function internalGetSpaceAccountItemIfExistsWithoutAuthorization(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -2539,7 +2539,7 @@ async function getAccountIfExistsWithoutAuthorization(
     // account, we may have already cached the account item.
     const [account, spaceAccountItem] = await runAllPromises([
         dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {consistency}),
-        getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+        internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
             consistency,
         }),
     ]);
@@ -2633,7 +2633,7 @@ async function getAccountWithoutAvatarIfExistsWithoutAuthorization(
         dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization(context, accountId, {
             consistency,
         }),
-        getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+        internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
             consistency,
         }),
     ]);
@@ -2855,7 +2855,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                 spaceId,
             }),
             dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
-            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
+            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             SpacesTable.getItemIfExists(context, {
                 partitionType: "Account",
                 sortRangeType: "Spaces",
@@ -2999,9 +2999,14 @@ async function validateEmailAddressForInviteInSpace(
     const accountId = await getAccountIdByEmailAddressIfExists(context, validatedEmailAddress);
 
     const spaceAccountItem = accountId
-        ? await getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
-              consistency: "Strong",
-          })
+        ? await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
+              context,
+              spaceId,
+              accountId,
+              {
+                  consistency: "Strong",
+              },
+          )
         : null;
 
     if (spaceAccountItem) {
@@ -3309,7 +3314,7 @@ export async function updateSpaceAccountRole(
                 sortRangeType: "Attributes",
                 spaceId,
             }),
-            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
+            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
             dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {
                 consistency: "Strong",
             }),
@@ -3440,12 +3445,12 @@ function moveSpaceAccountOwnerRoleWithoutAuthorization(
     return context.dynamo.retryTransaction(async context => {
         const [oldSpaceAccountItem, newSpaceAccountItem, oldOwnerAccount, newOwnerAccount] =
             await runAllPromises([
-                getSpaceAccountItemIfExistsWithoutAuthorization(
+                internalGetSpaceAccountItemIfExistsWithoutAuthorization(
                     context,
                     spaceId,
                     oldOwnerAccountId,
                 ),
-                getSpaceAccountItemIfExistsWithoutAuthorization(
+                internalGetSpaceAccountItemIfExistsWithoutAuthorization(
                     context,
                     spaceId,
                     newOwnerAccountId,
@@ -3542,7 +3547,7 @@ async function updateSpaceAccountWithInviteDecision(
 
     return context.dynamo.retryTransaction(async context => {
         const [spaceAccountItem, account, accountSpacesItem] = await runAllPromises([
-            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
                 consistency: "Strong",
             }),
             dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {
