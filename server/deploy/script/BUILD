@@ -14,6 +14,7 @@ ts_project(
         "//admin/aws:cdk_data",
         "//app:app_static_production",
         "//server/edge:wrangler",
+        "//server/agents:wrangler",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-cloudformation",
