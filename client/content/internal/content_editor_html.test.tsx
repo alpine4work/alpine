@@ -373,6 +373,11 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
         svgElement.innerHTML = "";
     }
 
+    // Clear `<img>` element contents.
+    for (const imgElement of element.querySelectorAll("img")) {
+        imgElement.removeAttribute("src");
+    }
+
     return element;
 }
 
@@ -390,6 +395,7 @@ const currentAccount = createTestAccountModel({
     version: 0,
     name: "Budd Deey",
     nameVersion: 0,
+    reactionCreature: null,
     space: {
         version: 0,
         addedTime: createdTime,
@@ -403,6 +409,7 @@ const otherAccount = createTestAccountModel({
     version: 0,
     name: "Sara Smith",
     nameVersion: 0,
+    reactionCreature: null,
     space: {
         version: 0,
         addedTime: createdTime,

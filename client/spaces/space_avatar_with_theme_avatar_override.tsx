@@ -1,7 +1,7 @@
 import {AvatarImage} from "~/client/avatar/avatar_image.js";
 import {Box} from "~/client/design/box.js";
 import {getSpaceAvatarContainerClassName} from "~/client/spaces/internal/get_space_avatar_container_class_name.js";
-import {SpaceAvatarWithInitials} from "~/client/spaces/internal/space_avatar_with_initials.js";
+import {SpaceDefaultAvatar} from "~/client/spaces/internal/space_default_avatar.js";
 import {AvatarTheme} from "~/shared/avatar/avatar_schema.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -17,6 +17,7 @@ export function SpaceAvatarWithThemeOverride({
 }) {
     const avatarContent =
         theme === "dark" ? space.avatars?.darkTheme?.content : space.avatars?.lightTheme?.content;
+
     const backgroundColor = avatarContent
         ? theme === "dark"
             ? "grey-100-const"
@@ -35,7 +36,7 @@ export function SpaceAvatarWithThemeOverride({
             {avatarContent ? (
                 <AvatarImage content={avatarContent} />
             ) : (
-                <SpaceAvatarWithInitials space={space} size={size} />
+                <SpaceDefaultAvatar space={space} size={size} />
             )}
         </Box>
     );

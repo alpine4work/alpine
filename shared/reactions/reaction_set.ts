@@ -1,6 +1,6 @@
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {Reaction, getReactionInMap} from "~/shared/reactions/reaction.js";
+import {Reaction, getValueByReaction} from "~/shared/reactions/reaction.js";
 import {reactionById, reactionIds} from "~/shared/reactions/reaction_id.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
@@ -40,7 +40,7 @@ export const ReactionSet = createSchemaLazyTransformClass<
             // conflict with our reaction icon IDs.
             view.setUint16(
                 byteOffset,
-                reactionIcon !== "GenericLike" ? getReactionInMap(reactionIds, reactionIcon) : 0,
+                reactionIcon !== "GenericLike" ? getValueByReaction(reactionIds, reactionIcon) : 0,
                 false, // Make sure we always use big-endian format
             );
             byteOffset += 2;

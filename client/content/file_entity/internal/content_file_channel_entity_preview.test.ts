@@ -8,7 +8,7 @@ import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {renderContentFileChannelEntityPreview} from "~/client/content/file_entity/internal/content_file_channel_entity_preview.js";
-import {normalizeHtmlClassNameHashesForTest} from "~/client/content/file_entity/internal/test_helpers/normalize_html_class_name_hashes_for_test.js";
+import {normalizeHtmlForFileEntityTest} from "~/client/content/file_entity/internal/test_helpers/normalize_html_for_file_entity_test.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
@@ -192,7 +192,7 @@ describe("renderContentFileChannelEntityPreview - HTML Snapshots", () => {
                             );
 
                             expect(
-                                normalizeHtmlClassNameHashesForTest(html.generateHtml()),
+                                normalizeHtmlForFileEntityTest(html.generateHtml()),
                             ).toMatchSnapshot();
                         });
                     });

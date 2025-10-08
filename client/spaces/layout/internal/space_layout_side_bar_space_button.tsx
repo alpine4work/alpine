@@ -115,12 +115,14 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                     ref={buttonRef}
                     className={sprinkles({
                         position: "relative",
+                        zIndex: "0",
                         borderRadius: spaceAvatarBorderRadius,
                     })}
                 >
                     {isPressed && (
                         <Box
                             position="absolute"
+                            zIndex="10"
                             inset="0"
                             borderRadius={spaceAvatarBorderRadius}
                             backgroundColor="grey-100-const"

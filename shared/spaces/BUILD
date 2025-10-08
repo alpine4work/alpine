@@ -4,9 +4,9 @@ ts_project(
     name = "spaces",
     visibility = ["//visibility:public"],
     deps = [
-        "//shared/design",
         "//shared/accounts",
         "//shared/avatar",
+        "//shared/design",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

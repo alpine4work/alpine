@@ -1,21 +1,23 @@
 import {Img, Text} from "@react-email/components";
 import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
 import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
+import {colors} from "~/shared/design/core/colors.js";
 import {
     Spacing,
     convertRemLengthToPx,
     parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {UnknownError} from "~/shared/error/error.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {
-    AvatarData,
-    AvatarImageData,
-    AvatarInitialsData,
-    getAvatarData,
-} from "~/shared/spaces/get_avatar_data.js";
+    AccountAvatarDesign,
+    AccountDefaultAvatarDesign,
+    AccountImageAvatarDesign,
+    getAccountAvatarDesign,
+    getAccountFallbackDefaultAvatarDesign,
+} from "~/shared/spaces/get_account_avatar_design.js";
 
 export function EmailAccountAvatar({
     accountData,
@@ -24,13 +26,17 @@ export function EmailAccountAvatar({
     accountData: AccountModelData;
     size?: Spacing;
 }) {
-    const avatarData = getAvatarData(accountData);
+    const avatarDesign = getAccountAvatarDesign(accountData);
     const avatarSize = spacing[size];
+
     const containerStyle = {
         width: convertRemLengthToPx(avatarSize, "large"),
         height: convertRemLengthToPx(avatarSize, "large"),
         borderRadius: "50%",
-        backgroundColor: avatarData.backgroundColor,
+        backgroundColor:
+            avatarDesign.type === "Default"
+                ? colors[`${avatarDesign.backgroundColor}-20`]
+                : undefined,
         overflow: "hidden",
         textAlign: "center",
     } as const;
@@ -38,7 +44,7 @@ export function EmailAccountAvatar({
     return (
         <div style={containerStyle}>
             <EmailAccountAvatarInner
-                avatarData={avatarData}
+                avatarDesign={avatarDesign}
                 size={size}
                 accountData={accountData}
             />
@@ -46,11 +52,11 @@ export function EmailAccountAvatar({
     );
 }
 function EmailAccountAvatarInner({
-    avatarData,
+    avatarDesign,
     size,
     accountData,
 }: {
-    avatarData: AvatarData;
+    avatarDesign: AccountAvatarDesign;
     size: Spacing;
     accountData: AccountModelData;
 }) {
@@ -63,10 +69,10 @@ function EmailAccountAvatarInner({
     const scaledFontSizeRem = fontSizeRem / 2.5;
     const scaledFontSizePx = convertRemLengthToPx(`${scaledFontSizeRem}rem`, "large");
 
-    const initialString = `${firstInitial}${lastInitial ?? ""}`;
+    const initials = `${firstInitial}${lastInitial ?? ""}`;
 
-    switch (avatarData.type) {
-        case "Image":
+    switch (avatarDesign.type) {
+        case "Image": {
             // This places a fallback EmailAccountAvatarWithInitials underneath the image in the
             // case the image can't be resolved.There will still be a broken image icon if the email
             // client stylesheet adds one, but the fallback makes it look less broken.
@@ -74,8 +80,8 @@ function EmailAccountAvatarInner({
                 <>
                     <div style={{maxHeight: "0"}}>
                         <EmailAccountAvatarWithInitials
-                            avatarData={avatarData}
-                            content={initialString}
+                            avatarDesign={getAccountFallbackDefaultAvatarDesign(accountData)}
+                            initials={initials}
                             fontSize={scaledFontSizePx}
                             height={height}
                             width={width}
@@ -85,36 +91,38 @@ function EmailAccountAvatarInner({
                         <EmailAccountAvatarWithImage
                             height={height}
                             width={width}
-                            avatarData={avatarData}
+                            avatarDesign={avatarDesign}
                         />
                     </div>
                 </>
             );
-        case "Initials":
+        }
+        case "Default": {
             return (
                 <EmailAccountAvatarWithInitials
-                    avatarData={avatarData}
-                    content={initialString}
+                    avatarDesign={avatarDesign}
+                    initials={initials}
                     fontSize={scaledFontSizePx}
                     height={height}
                     width={width}
                 />
             );
+        }
         default:
-            throw new UnknownError(`Unknown avatar data type: ${(avatarData as any).type}`);
+            throw exhaustive(avatarDesign);
     }
 }
 
 function EmailAccountAvatarWithImage({
     width,
     height,
-    avatarData,
+    avatarDesign,
 }: {
     width: number;
     height: number;
-    avatarData: AvatarImageData;
+    avatarDesign: AccountImageAvatarDesign;
 }) {
-    const imageUrl = `data:${avatarContentType};base64,${encodeBase64(avatarData.content)}`;
+    const imageUrl = `data:${avatarContentType};base64,${encodeBase64(avatarDesign.content)}`;
     return (
         <div
             style={{
@@ -143,17 +151,17 @@ function EmailAccountAvatarWithImage({
     );
 }
 function EmailAccountAvatarWithInitials({
-    avatarData,
+    avatarDesign,
     height,
     width,
     fontSize,
-    content,
+    initials,
 }: {
-    avatarData: AvatarInitialsData | AvatarImageData;
+    avatarDesign: AccountDefaultAvatarDesign;
     height: number;
     width: number;
     fontSize: number;
-    content: string;
+    initials: string;
 }) {
     return (
         <div
@@ -168,11 +176,11 @@ function EmailAccountAvatarWithInitials({
                     marginBottom: "0",
                     fontStyle: "normal",
                     fontSize: `${fontSize}px`,
-                    color: avatarData.textColor,
+                    color: colors[`${avatarDesign.backgroundColor}-80`],
                     lineHeight: `${height}px`,
                 }}
             >
-                {content}
+                {initials}
             </Text>
         </div>
     );

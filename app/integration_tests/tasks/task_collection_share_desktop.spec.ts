@@ -18,7 +18,7 @@ import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const {context, services} = createTestServices();
 
-const mentionText = "SS\u00A0\u00A0\u202FSara";
+const mentionText = "\u00A0\u00A0\u202FSara";
 
 test("can toggle task collection sharing on/off with switch", async ({
     browser,

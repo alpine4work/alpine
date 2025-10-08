@@ -1,24 +1,20 @@
-import {useMemo} from "react";
-import {
-    accountAvatarClassName,
-    accountAvatarInitialsClassName,
-} from "~/client/accounts/account_avatar_html.js";
+import {accountAvatarClassName} from "~/client/accounts/account_avatar_html.js";
 import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {AvatarIconOverlay} from "~/client/accounts/internal/avatar_icon_overlay.js";
+import {AvatarDefault} from "~/client/avatar/avatar_default.js";
 import {AvatarImage} from "~/client/avatar/avatar_image.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/styles/styles.js";
-import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
+import {colors} from "~/shared/design/core/colors.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {
-    AvatarData,
-    AvatarImageData,
-    AvatarInitialsData,
-    getAvatarData,
-} from "~/shared/spaces/get_avatar_data.js";
+    AccountAvatarDesign,
+    AccountImageAvatarDesign,
+    getAccountAvatarDesign,
+} from "~/shared/spaces/get_account_avatar_design.js";
 
 // This component is rendered in hot paths (like `<TaskRowView>`) avoid using
 // `<Box>` until we implement a transform that automatically inlines `<Box>`.
@@ -50,7 +46,7 @@ export function AccountAvatar({
     const spacingScale = useSpacingScale();
 
     const avatarPx = convertRemLengthToPx(size, spacingScale);
-    const avatarData = getAvatarData(accountData);
+    const avatarDesign = getAccountAvatarDesign(accountData);
 
     return (
         <span
@@ -60,15 +56,17 @@ export function AccountAvatar({
                 height: spacing[size],
                 borderRadius: borderRadius["full"],
                 backgroundColor:
-                    avatarData.type === "Initials" ? avatarData.backgroundColor : undefined,
+                    avatarDesign.type === "Default"
+                        ? colors[`${avatarDesign.backgroundColor}-20`]
+                        : undefined,
                 boxShadow:
                     backgroundBorderWidth !== undefined
                         ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
                         : undefined,
             }}
         >
-            <AccountAvatarInner accountData={accountData} size={size} avatarData={avatarData} />
-            {avatarData.shouldShowRemovedAvatar && (
+            <AccountAvatarDesignView size={size} avatarDesign={avatarDesign} />
+            {avatarDesign.shouldShowRemovedAvatar && (
                 <span
                     style={{
                         position: "absolute",
@@ -82,66 +80,35 @@ export function AccountAvatar({
                     }}
                 />
             )}
-            {avatarData.iconOverlayType && (
+            {avatarDesign.iconOverlayType && (
                 <AvatarIconOverlay
                     avatarPixelSize={avatarPx}
-                    iconType={avatarData.iconOverlayType}
+                    iconType={avatarDesign.iconOverlayType}
                 />
             )}
         </span>
     );
 }
 
-function AccountAvatarInner({
-    accountData,
+function AccountAvatarDesignView({
     size,
-    avatarData,
+    avatarDesign,
 }: {
-    accountData: AccountModelData;
     size: Spacing;
-    avatarData: AvatarData;
+    avatarDesign: AccountAvatarDesign;
 }) {
-    switch (avatarData.type) {
-        case "Image":
-            return <AccountAvatarWithImage avatarData={avatarData} />;
-        case "Initials":
-            return (
-                <DefaultAccountAvatar account={accountData} size={size} avatarData={avatarData} />
-            );
+    switch (avatarDesign.type) {
+        case "Image": {
+            return <AccountImageAvatarDesignView avatarDesign={avatarDesign} />;
+        }
+        case "Default": {
+            return <AvatarDefault size={size} reaction={avatarDesign.reaction} />;
+        }
         default:
-            throw exhaustive(avatarData);
+            throw exhaustive(avatarDesign);
     }
 }
 
-function DefaultAccountAvatar({
-    account,
-    size,
-    avatarData,
-}: {
-    account: AccountModelData;
-    size: Spacing;
-    avatarData: AvatarInitialsData;
-}) {
-    const {firstInitial, lastInitial} = useMemo(() => getAccountInitials(account), [account]);
-    const initialsText = useMemo(
-        () => `${firstInitial}${lastInitial ?? ""}`,
-        [firstInitial, lastInitial],
-    );
-
-    return (
-        <span
-            className={accountAvatarInitialsClassName}
-            style={{
-                transform: `scale(${parseInt(size, 10) / 8})`,
-                color: avatarData.textColor,
-            }}
-            aria-hidden="true"
-        >
-            {initialsText.toUpperCase()}
-        </span>
-    );
-}
-
-function AccountAvatarWithImage({avatarData}: {avatarData: AvatarImageData}) {
-    return <AvatarImage content={avatarData.content} borderRadius="full" />;
+function AccountImageAvatarDesignView({avatarDesign}: {avatarDesign: AccountImageAvatarDesign}) {
+    return <AvatarImage content={avatarDesign.content} borderRadius="full" />;
 }

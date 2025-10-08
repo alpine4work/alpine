@@ -295,7 +295,7 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
         >
             <IconButton
                 size="lg"
-                variant="accent"
+                variant="image"
                 description="Account"
                 // The notification bell does not have a tooltip. It opens up an inbox preview
                 // on hover. It's weird if the buttons around it have tooltips.

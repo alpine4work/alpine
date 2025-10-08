@@ -5,7 +5,7 @@
 // ```
 
 import {renderContentFileTaskCollectionEntityPreview} from "~/client/content/file_entity/internal/content_file_task_collection_entity_preview.js";
-import {normalizeHtmlClassNameHashesForTest} from "~/client/content/file_entity/internal/test_helpers/normalize_html_class_name_hashes_for_test.js";
+import {normalizeHtmlForFileEntityTest} from "~/client/content/file_entity/internal/test_helpers/normalize_html_for_file_entity_test.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
@@ -127,7 +127,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
                             );
 
                             expect(
-                                normalizeHtmlClassNameHashesForTest(html.generateHtml()),
+                                normalizeHtmlForFileEntityTest(html.generateHtml()),
                             ).toMatchSnapshot();
                         });
                     });
@@ -164,7 +164,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
                     spacingScale: "medium",
                 });
 
-                expect(normalizeHtmlClassNameHashesForTest(html.generateHtml())).toMatchSnapshot();
+                expect(normalizeHtmlForFileEntityTest(html.generateHtml())).toMatchSnapshot();
             });
         });
     });

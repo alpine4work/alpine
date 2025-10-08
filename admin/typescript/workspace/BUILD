@@ -51,7 +51,6 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//admin/dynamo",
     "//admin/eslint",
     "//app/integration_tests:integration_tests_lib",
-    "//client/content/file_entity/internal/test_helpers",
     # Can't use `//native/mobile/ios:app` since then we need to traverse
     # `swift_library()` and `ios_application()` which we can't do on our Linux CI
     # server since Swift isn't installed.

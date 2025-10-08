@@ -5,7 +5,7 @@ import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
-import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
+import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
 import {ReactionMegaPicker} from "~/client/reactions/internal/reaction_mega_picker.js";
 import {
     ReactionRadialPicker,

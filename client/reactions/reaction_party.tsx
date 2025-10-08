@@ -8,12 +8,12 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
 import {reactionIconSvgs} from "~/client/reactions/icons/reaction_icon_svgs.js";
 import {
     ReactionEntry,
     layoutReactionParty,
 } from "~/client/reactions/internal/layout_reaction_party.js";
-import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
@@ -31,7 +31,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {getReactionInMap, mapReactionMap} from "~/shared/reactions/reaction.js";
+import {getValueByReaction, mapReactionMap} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -311,7 +311,7 @@ function renderReactionPartySvg({
 
     for (let index = 0; index < firstRowReactionEntries.length; index++) {
         const {reaction} = firstRowReactionEntries[index]!;
-        const iconSvg = getReactionInMap(reactionIconUnwrappedSvgs, reaction).get();
+        const iconSvg = getValueByReaction(reactionIconUnwrappedSvgs, reaction).get();
 
         let iconTranslateY: number | undefined;
 
@@ -342,7 +342,7 @@ function renderReactionPartySvg({
 
     for (let index = 0; index < secondRowReactionEntries.length; index++) {
         const {reaction} = secondRowReactionEntries[index]!;
-        const iconSvg = getReactionInMap(reactionIconUnwrappedSvgs, reaction).get();
+        const iconSvg = getValueByReaction(reactionIconUnwrappedSvgs, reaction).get();
 
         let iconTranslateY: number | undefined;
 

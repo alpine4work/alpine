@@ -1,5 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {updateAccountReactionCreature} from "~/server/accounts/accounts_actions.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -23,10 +24,16 @@ test("can comment on a document and use the comment thread sidebar", async ({
     assert(viewport);
 
     const space = await TestSpace.create(context);
-    const [session1, session2] = await runAllPromises([
+    const [session1, session2, session3] = await runAllPromises([
         space.createSession({name: "Logan Roy"}),
         space.createSession({name: "Siobahn Roy"}),
         space.createSession({name: "Kendall Roy"}),
+    ]);
+
+    await runAllPromises([
+        updateAccountReactionCreature(session1.action(), {type: "Cat", variant: "Yellow"}),
+        updateAccountReactionCreature(session2.action(), {type: "Yeti", variant: "Blue"}),
+        updateAccountReactionCreature(session3.action(), {type: "Tree", variant: "Green"}),
     ]);
 
     const document = await TestDocument.create(session1, {
@@ -120,10 +127,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("1"),
@@ -132,10 +143,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("1"),
@@ -172,10 +187,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("1"),
@@ -184,10 +203,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("1"),
@@ -220,10 +243,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("2"),
@@ -232,10 +259,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("2"),
@@ -268,10 +299,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("2"),
@@ -280,10 +315,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeHidden();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("2"),
@@ -317,10 +356,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeVisible();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),
@@ -329,10 +372,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeVisible();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),
@@ -367,10 +414,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeVisible();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),
@@ -379,10 +430,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeVisible();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),
@@ -411,10 +466,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page1
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeVisible();
         await expect(
             page1.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),
@@ -423,10 +482,14 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("LR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Yellow cat"),
         ).toBeVisible();
         await expect(
-            page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("SR"),
+            page2
+                .getByTestId(/DocumentContentEditorCommentThreadSideDecoration/)
+                .getByAltText("Blue yeti"),
         ).toBeVisible();
         await expect(
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),

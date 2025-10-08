@@ -9,6 +9,10 @@ ts_project(
     ],
     deps = [
         ":icon_svgs",
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
+        "//client/styles",
+        "//shared/design",
         "//shared/helpers",
         "//shared/reactions",
     ],

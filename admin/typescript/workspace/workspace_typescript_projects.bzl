@@ -33,7 +33,6 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/chat:chat",
     "//client/content:content",
     "//client/content/file_entity:file_entity",
-    "//client/content/file_entity/internal/test_helpers:test_helpers",
     "//client/content/state:state",
     "//client/context:context",
     "//client/design:design",

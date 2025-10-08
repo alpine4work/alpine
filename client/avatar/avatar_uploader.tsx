@@ -1,3 +1,4 @@
+import {getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import {SpinnerGap} from "phosphor-react";
 import {useRef, useState} from "react";
 import {usePress} from "react-aria";
@@ -10,6 +11,7 @@ import {maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js"
 import {BorderRadius} from "~/shared/design/core/border_radius.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function AvatarUploader({
     borderRadius,
@@ -27,7 +29,21 @@ export function AvatarUploader({
     const shouldShowLoadingIndicator = useDelayLoadingIndicator(isUploading);
 
     const triggerFileInput = () => {
-        fileInputRef.current?.click();
+        const fileInputElement = assertExists(fileInputRef.current);
+
+        const interactionModality = getInteractionModality();
+
+        // If the user presses "cancel" to close the file input, Chrome moves focus to
+        // the last focused element. So make sure to focus the file input before
+        // `click()`ing so Chrome considers the file input as the last focused element.
+        fileInputElement.focus();
+
+        fileInputElement.click();
+
+        // Calling `click()` will change `interactionModality` to `virtual` which will
+        // render a focus ring. Make sure we reset to the same interaction modality
+        // that was used before the `click()` call.
+        setInteractionModality(interactionModality);
     };
 
     const {isPressed, pressProps} = usePress({
@@ -39,15 +55,25 @@ export function AvatarUploader({
     };
 
     return (
-        <FocusRing>
-            <Box tabIndex={0} borderRadius={borderRadius}>
+        <FocusRing isVisibleWhenFocusWithin>
+            <Box position="relative" borderRadius={borderRadius}>
                 <input
                     type="file"
                     accept="image/*"
                     ref={fileInputRef}
-                    style={{display: "none"}}
+                    style={{
+                        // Hide the input so it's not visible but it still exists in the DOM. This is
+                        // the element that will receive focus for the avatar uploader.
+                        position: "fixed",
+                        width: 0,
+                        height: 0,
+                        margin: 0,
+                        padding: 0,
+                        border: 0,
+                        opacity: 0,
+                        top: 0,
+                    }}
                     disabled={isUploading}
-                    aria-hidden="true"
                     aria-label="Upload avatar"
                     autoComplete="off"
                     onChange={event => {

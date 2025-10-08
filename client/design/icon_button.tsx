@@ -53,7 +53,8 @@ export type IconButtonVariant =
     | "quiet-elevation-20"
     | "quiet-darken"
     | "neutral"
-    | "outline";
+    | "outline"
+    | "image";
 
 export type IconButtonSize = "xl" | "lg" | "base" | "md" | "sm" | "xs";
 
@@ -507,6 +508,18 @@ function IconButton(
                 ? {
                       backgroundColor: isPressed ? "grey-10" : undefined,
                       color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "image": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: undefined,
+                      color: "grey-70",
                   }
                 : {
                       backgroundColor: undefined,

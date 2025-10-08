@@ -1,41 +1,60 @@
-import {getAvatarThemeColors} from "~/shared/design/core/avatar_theme_colors.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {AccountModelData, AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
+import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
 
-type AvatarDataBase = {
+type AccountAvatarDesignBase = {
     shouldShowRemovedAvatar: boolean;
     iconOverlayType: "bot" | "ghost" | null;
 };
-export type AvatarImageData = AvatarDataBase & {
+
+export type AccountImageAvatarDesign = AccountAvatarDesignBase & {
     type: "Image";
     content: Uint8Array;
-    textColor: string;
-    backgroundColor: string;
 };
-export type AvatarInitialsData = AvatarDataBase & {
-    type: "Initials";
-    textColor: string;
-    backgroundColor: string;
-};
-export type AvatarData = AvatarImageData | AvatarInitialsData;
 
-export function getAvatarData(accountData: AccountModelData): AvatarData {
+export type AccountDefaultAvatarDesign = AccountAvatarDesignBase & {
+    type: "Default";
+    reaction: Reaction;
+    backgroundColor: ThemeColor;
+};
+
+export type AccountAvatarDesign = AccountImageAvatarDesign | AccountDefaultAvatarDesign;
+
+export function getAccountAvatarDesign(accountData: AccountModelData): AccountAvatarDesign {
     const imageContent = getImageContent(accountData);
     const shouldShowRemovedAvatar = wasAccountRemoved(accountData.space.state);
-    const iconOverlayType = getAvatarIconOverlayType(accountData, shouldShowRemovedAvatar);
+    const iconOverlayType = getAccountAvatarIconOverlayType(accountData, shouldShowRemovedAvatar);
 
-    const avatarDataBase = {shouldShowRemovedAvatar, iconOverlayType} as const;
+    const designBase = {shouldShowRemovedAvatar, iconOverlayType} as const;
 
     return imageContent
-        ? {
-              type: "Image",
-              content: imageContent,
-              ...getAvatarThemeColors(accountData.id),
-              ...avatarDataBase,
-          }
-        : {type: "Initials", ...getAvatarThemeColors(accountData.id), ...avatarDataBase};
+        ? {type: "Image", content: imageContent, ...designBase}
+        : {
+              type: "Default",
+              ...getAvatarDefaultDesign(accountData.id, accountData.reactionCreature),
+              ...designBase,
+          };
 }
 
-function getAvatarIconOverlayType(accountData: AccountModelData, shouldShowRemovedAvatar: boolean) {
+export function getAccountFallbackDefaultAvatarDesign(
+    accountData: AccountModelData,
+): AccountDefaultAvatarDesign {
+    const shouldShowRemovedAvatar = wasAccountRemoved(accountData.space.state);
+    const iconOverlayType = getAccountAvatarIconOverlayType(accountData, shouldShowRemovedAvatar);
+
+    return {
+        type: "Default",
+        ...getAvatarDefaultDesign(accountData.id, accountData.reactionCreature),
+        shouldShowRemovedAvatar,
+        iconOverlayType,
+    };
+}
+
+function getAccountAvatarIconOverlayType(
+    accountData: AccountModelData,
+    shouldShowRemovedAvatar: boolean,
+) {
     // If the account is a bot, we should ALWAYS show the bot icon, even if the bot account was
     // removed from the space.
     if (accountData.botId) {

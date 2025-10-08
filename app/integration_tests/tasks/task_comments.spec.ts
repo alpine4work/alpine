@@ -106,8 +106,7 @@ test("expanding task from peek opens task detail view", async ({page, context: b
     await page.getByRole("menuitem", {name: "Task view"}).click();
 
     await expect(page.getByTestId("PeekStack")).toBeVisible();
-    // eslint-disable-next-line string-quotes
-    await page.locator('button:right-of(:text("CreatorisT1me"))').first().click();
+    await page.getByRole("button", {name: "Add"}).nth(1).click();
 
     await page
         .getByTestId("PeekStack")

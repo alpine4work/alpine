@@ -12,7 +12,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 
 const {context, services} = createTestServices();
 
-const mentionText = "SS\u00A0\u00A0\u202FSara";
+const mentionText = "\u00A0\u00A0\u202FSara";
 
 test("can toggle document sharing on/off with switch", async ({
     browser,

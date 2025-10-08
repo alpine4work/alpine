@@ -1,11 +1,7 @@
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {ReactionCreature, ReactionCreatureType} from "~/shared/reactions/reaction.js";
+import {ReactionCreature, ReactionCreatureMap} from "~/shared/reactions/reaction.js";
 
-export const reactionCreatureIds: {
-    readonly [Type in ReactionCreatureType]: Readonly<
-        Record<Extract<ReactionCreature, {readonly type: Type}>["variant"], number>
-    >;
-} = {
+export const reactionCreatureIds: ReactionCreatureMap<number> = {
     Cat: {
         Grey: 1,
         Pink: 2,

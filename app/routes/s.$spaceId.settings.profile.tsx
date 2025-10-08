@@ -13,6 +13,7 @@ import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
 } from "~/client/messaging/inline_editor_toolbar.js";
+import {ReactionCreatureSelector} from "~/client/reactions/reaction_creature_selector.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -185,6 +186,19 @@ export default function SpaceProfileSettingsRoute() {
                     <AvatarUploader onUploadAvatar={handleUploadAvatar} borderRadius="full">
                         <AccountAvatar account={account} size="12" />
                     </AvatarUploader>
+                </Box>
+                <Box display="flex" gap="6" alignItems="flex-start" justifyContent="space-between">
+                    <Box>
+                        <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
+                            Character
+                        </Box>
+                        <Box paddingTop="1" fontSize="75" color="grey-60" userSelect="text">
+                            Your personal character, used for likes
+                        </Box>
+                    </Box>
+                    <Box marginY="-2">
+                        <ReactionCreatureSelector />
+                    </Box>
                 </Box>
             </Box>
             {shouldShowConfirmSaveNameDialog && (

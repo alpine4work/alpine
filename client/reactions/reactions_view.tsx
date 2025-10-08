@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
 import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
-import {ReactionIcon} from "~/client/reactions/internal/reaction_icon.js";
+import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {AccountId} from "~/shared/id/types/id_types.js";

@@ -2838,13 +2838,16 @@ exports[`account long mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #fbcf88"
+              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #c4e79a"
             >
               <span
                 aria-hidden="true"
-                style="transform: scale(0.875); color: #782216"
+                style="transform: scale(0.2916666666666667)"
               >
-                SS
+                <img
+                  alt="Olive yeti who’s happy"
+                  draggable="false"
+                />
               </span>
             </span>
           </span>
@@ -2899,13 +2902,16 @@ exports[`account short mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #fbcf88"
+              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #c4e79a"
             >
               <span
                 aria-hidden="true"
-                style="transform: scale(0.875); color: #782216"
+                style="transform: scale(0.2916666666666667)"
               >
-                SS
+                <img
+                  alt="Olive yeti who’s happy"
+                  draggable="false"
+                />
               </span>
             </span>
           </span>
@@ -4824,7 +4830,6 @@ exports[`file float (left direction) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -4874,7 +4879,6 @@ exports[`file float (right direction) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -4924,7 +4928,6 @@ exports[`file row (one file) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -5081,7 +5084,6 @@ exports[`file row (one file, audio type) 1`] = `
       </div>
       <img
         aria-hidden="true"
-        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
       />
     </div>
   </div>
@@ -5128,7 +5130,6 @@ exports[`file row (one file, channel entity) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
       />
     </div>
   </div>
@@ -5176,7 +5177,6 @@ exports[`file row (one file, image type) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -5226,7 +5226,6 @@ exports[`file row (one file, null reference) 1`] = `
       <div>
         <img
           aria-hidden="true"
-          src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
         />
       </div>
     </div>
@@ -5274,7 +5273,6 @@ exports[`file row (one file, video type) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
       <div>
@@ -5391,7 +5389,6 @@ exports[`file row (one file, video type) 1`] = `
       </div>
       <img
         aria-hidden="true"
-        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
       />
     </div>
   </div>
@@ -5444,7 +5441,6 @@ exports[`file row (three files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -5459,7 +5455,6 @@ exports[`file row (three files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -5474,7 +5469,6 @@ exports[`file row (three files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -5539,7 +5533,6 @@ exports[`file row (two files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -5554,7 +5547,6 @@ exports[`file row (two files) 1`] = `
       </span>
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -7122,7 +7114,6 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
                       style="max-width: 600px; max-height: 600px"
                     />
                   </div>
@@ -7154,7 +7145,6 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
                       style="max-width: 600px; max-height: 600px"
                     />
                   </div>
@@ -7178,7 +7168,6 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
                       style="max-width: 600px; max-height: 600px"
                     />
                   </div>
@@ -7321,7 +7310,6 @@ exports[`table with fileRowTable (one file) 1`] = `
                     </span>
                     <img
                       aria-hidden="true"
-                      src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
                       style="max-width: 600px; max-height: 600px"
                     />
                   </div>
@@ -8238,7 +8226,6 @@ exports[`table(2x2) with fileRowTable (null reference) 1`] = `
                     <div>
                       <img
                         aria-hidden="true"
-                        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
                       />
                     </div>
                   </div>

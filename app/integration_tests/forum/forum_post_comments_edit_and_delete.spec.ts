@@ -1,11 +1,13 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {updateAccountReactionCreature} from "~/server/accounts/accounts_actions.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {createPostComment} from "~/server/forum/data/post_messaging.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
@@ -13,8 +15,15 @@ const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 const session2 = createTestSession(context, space, {name: "Siobahn Roy"});
 
+test.beforeAll(async () => {
+    await runAllPromises([
+        updateAccountReactionCreature(context.action(session1), {type: "Cat", variant: "Yellow"}),
+        updateAccountReactionCreature(context.action(session2), {type: "Yeti", variant: "Blue"}),
+    ]);
+});
+
 function getAvatarInPileByInitials(page: Page, initials: string) {
-    return page.getByTestId(/PostContentViewFooter/).getByText(initials);
+    return page.getByTestId(/PostContentViewFooter/).getByAltText(initials);
 }
 
 test("can edit a post comment", async ({page, context: browserContext, isMobile}) => {
@@ -65,7 +74,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeVisible();
 
     await expect(page.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page, "LR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page, "Yellow cat")).toBeVisible();
 
     await expect(page.getByLabel("Comment", {exact: true})).toBeFocused();
     if (!isMobile) {
@@ -92,7 +101,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeHidden();
 
     await expect(page.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page, "LR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page, "Yellow cat")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
 });
@@ -207,7 +216,7 @@ test("can see a post comment edited in realtime", async ({
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
 
@@ -236,7 +245,7 @@ test("can see a post comment edited in realtime", async ({
     }
 
     await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeVisible();
 
@@ -296,7 +305,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
     await deleteTestId(`MessageView:${post.id}:${comment.index}`);
 
     await expect(page.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page, "LR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page, "Yellow cat")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
     await expect(page.getByText("Deleted comment")).toBeVisible();
 });
@@ -356,7 +365,7 @@ test("can see a post comment deleted in realtime", async ({
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
 
     await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
     await expect(page1.getByText("Deleted comment")).toBeHidden();
 
@@ -368,12 +377,12 @@ test("can see a post comment deleted in realtime", async ({
     await deleteTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
     await expect(page2.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page2, "SR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page2, "Blue yeti")).toBeVisible();
     await expect(page2.getByText("Test post comment content 1")).toBeHidden();
     await expect(page2.getByText("Deleted comment")).toBeVisible();
 
     await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
+    await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Deleted comment")).toBeVisible();
 
