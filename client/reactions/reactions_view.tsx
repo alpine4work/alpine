@@ -32,7 +32,7 @@ export function ReactionsView({
 
     return (
         <SpaceRouteScrollView
-            title={`${entityStartOfSentenceNoun} likes`}
+            title={`${entityStartOfSentenceNoun} reactions`}
             titleJustifyContent="center"
             desktopMaxWidth={contentStyles.contentMaxWidth}
         >
@@ -54,7 +54,7 @@ export function ReactionsView({
                             boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                         }}
                     >
-                        This {entityNoun} doesn’t have any likes yet
+                        This {entityNoun} doesn’t have any reactions yet
                     </Box>
                 ) : (
                     Array.from(reactions.get(), ([accountId, reaction]) => {

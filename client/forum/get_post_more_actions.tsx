@@ -34,8 +34,8 @@ export function getPostMoreActions({
         ],
         [
             {
-                label: "See likes",
-                pressErrorTitle: "Couldn’t open likes",
+                label: "See reactions",
+                pressErrorTitle: "Couldn’t open reactions",
                 onPress: async () => {
                     await navigate(`/s/${post.spaceId}/posts/${post.id}/reactions`);
                 },

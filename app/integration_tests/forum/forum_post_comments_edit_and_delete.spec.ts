@@ -73,7 +73,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await editTestId(`MessageView:${post.id}:${comment.index}`);
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeVisible();
 
-    await expect(page.getByText("1 comment")).toBeVisible();
+    await expect(page.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page, "Yellow cat")).toBeVisible();
 
     await expect(page.getByLabel("Comment", {exact: true})).toBeFocused();
@@ -100,7 +100,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     }
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeHidden();
 
-    await expect(page.getByText("1 comment")).toBeVisible();
+    await expect(page.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page, "Yellow cat")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
@@ -215,7 +215,7 @@ test("can see a post comment edited in realtime", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
     await expect(page1.getByText("Test post comment content 2")).toBeHidden();
@@ -244,7 +244,7 @@ test("can see a post comment edited in realtime", async ({
         await expect(page2.getByRole("button", {name: "Save"})).toBeHidden();
     }
 
-    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeVisible();
@@ -304,7 +304,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
 
     await deleteTestId(`MessageView:${post.id}:${comment.index}`);
 
-    await expect(page.getByText("1 comment")).toBeVisible();
+    await expect(page.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page, "Yellow cat")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
     await expect(page.getByText("Deleted comment")).toBeVisible();
@@ -364,7 +364,7 @@ test("can see a post comment deleted in realtime", async ({
 
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
 
-    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
     await expect(page1.getByText("Deleted comment")).toBeHidden();
@@ -376,12 +376,12 @@ test("can see a post comment deleted in realtime", async ({
 
     await deleteTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
-    await expect(page2.getByText("1 comment")).toBeVisible();
+    await expect(page2.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page2, "Blue yeti")).toBeVisible();
     await expect(page2.getByText("Test post comment content 1")).toBeHidden();
     await expect(page2.getByText("Deleted comment")).toBeVisible();
 
-    await expect(page1.getByText("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Deleted comment")).toBeVisible();

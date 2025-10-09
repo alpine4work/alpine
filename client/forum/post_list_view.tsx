@@ -1003,6 +1003,24 @@ function PostListView(
         },
     });
 
+    const focusPostCommentInputIfCommentsOpenRef = useRef<PostId | null>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (focusPostCommentInputIfCommentsOpenRef.current === null) return;
+
+        const postId = focusPostCommentInputIfCommentsOpenRef.current;
+
+        const post = posts.getPostByIdIfExists(postId);
+        if (post === null) return;
+
+        if (post.postCommentsState === "Closed") return;
+
+        // Great! The post's comments are open. Let's focus the comment input now.
+        focusPostCommentInputIfCommentsOpenRef.current = null;
+
+        inputRefByPostId.get(postId).current?.focus();
+    }, [posts, inputRefByPostId]);
+
     const idBase = useId();
 
     const sideBarLeftSpacer = useMemo(() => {
@@ -1213,9 +1231,14 @@ function PostListView(
                                                 : null
                                         }
                                         idBase={idBase}
-                                        onTogglePostComments={() =>
-                                            onTogglePostComments(item.post.id)
-                                        }
+                                        onTogglePostComments={() => {
+                                            if (item.postCommentsState === "Closed") {
+                                                focusPostCommentInputIfCommentsOpenRef.current =
+                                                    item.post.id;
+                                            }
+
+                                            onTogglePostComments(item.post.id);
+                                        }}
                                         onLoadInitialPostComments={() =>
                                             loadInitialPostComments(item)
                                         }

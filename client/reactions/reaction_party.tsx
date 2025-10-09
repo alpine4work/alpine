@@ -26,8 +26,10 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
@@ -247,6 +249,21 @@ function ReactionPartyTooltipContent({
             const reactionsMap = reactions.get();
 
             return computeStore(get => {
+                // If there's only one reaction, use the full name of the account.
+                if (reactionsMap.size === 1) {
+                    if (reactionsMap.has(currentAccount.id)) {
+                        return "You";
+                    }
+
+                    const accountId = assertExists(iterableFirst(reactionsMap.keys()));
+
+                    const account =
+                        allAccounts.find(account => account.id === accountId) ??
+                        AccountModel.getUnknown();
+
+                    return get(accountRegistry.getAccountStore(account)).name;
+                }
+
                 const maxAccountNameCount = 4;
 
                 const accountNames = Array.from(
@@ -266,7 +283,7 @@ function ReactionPartyTooltipContent({
                 );
 
                 if (reactionsMap.has(currentAccount.id)) {
-                    accountNames.unshift("you");
+                    accountNames.unshift("You");
                 }
 
                 // Use the unknown account name for any accounts we didn't find in
@@ -284,7 +301,7 @@ function ReactionPartyTooltipContent({
                     );
                 }
 
-                return `Liked by ${joinPrettyConjunctionList(accountNames)}`;
+                return joinPrettyConjunctionList(accountNames);
             });
         }, [accountRegistry, allAccounts, currentAccount.id, locale, reactions]),
     );
@@ -377,7 +394,7 @@ function renderReactionPartySvg({
 
     svg += `\
 <filter id="${idBase}-filter">
-<feMorphology operator="dilate" radius="8" result="morphology" />
+<feMorphology operator="dilate" radius="12" result="morphology" />
 <feFlood flood-color="${colors["grey-100"]}" flood-opacity="0.31" result="flood" />
 <feComposite in="flood" in2="morphology" operator="in" />
 </filter>

@@ -165,7 +165,7 @@ export function ReactionButton({
                 }
             >
                 <span style={{fontVariantNumeric: "tabular-nums"}}>
-                    <PrettyNumber number={reactions.get().size} label="like" />
+                    <PrettyNumber number={reactions.get().size} />
                 </span>
             </Button>
         </OverlayTriggerButton>

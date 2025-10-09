@@ -30,11 +30,11 @@ test("can create posts", async ({page, context: browserContext, isMobile}) => {
     await page.getByLabel("New post").type("Test post content 1");
     await page.getByLabel("New post").blur();
     await expect(page.getByLabel("New post")).toHaveText("Test post content 1");
-    await expect(page.getByText("0 comments")).toBeHidden();
+    await expect(page.getByLabel("0 comments")).toBeHidden();
     await expect(newPostLocator.getByRole("button", {name: "Post"})).toBeEnabled();
     await newPostLocator.getByRole("button", {name: "Post"}).click();
     await expect(page.getByTestId("PeekStack")).toBeHidden();
-    await expect(page.getByText("0 comments")).toBeVisible();
+    await expect(page.getByLabel("0 comments")).toBeVisible();
     await expect(page.getByText("Test post content 1")).toBeVisible();
 
     if (!isMobile) {
@@ -79,7 +79,7 @@ test("can create multiline formatted posts", async ({page, context: browserConte
     await newPostLocator.getByRole("button", {name: "Post"}).click();
     await expect(page.getByTestId("PeekStack")).toBeHidden();
 
-    await expect(page.getByText("0 comments")).toBeVisible();
+    await expect(page.getByLabel("0 comments")).toBeVisible();
     await expect(page.getByRole("heading", {name: "Test heading"})).toBeVisible();
 });
 

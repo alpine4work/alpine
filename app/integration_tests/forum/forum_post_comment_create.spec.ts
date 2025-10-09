@@ -143,10 +143,10 @@ test("comments are always open at a direct post url", async ({page, context: bro
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
     await expect(page.getByText("Test post comment content 3")).toBeVisible();
 
-    await expect(page.getByText("3 comments")).toBeVisible();
+    await expect(page.getByLabel("3 comments")).toBeVisible();
     await expect(page.getByRole("button", {name: "3 comments"})).toBeHidden();
 
-    await page.getByText("3 comments").click();
+    await page.getByLabel("3 comments").click();
 
     await expect(page.getByText("Test post content 1")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
@@ -173,8 +173,8 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
 
     await expect(getAvatarInPileByInitials(page, "Blue yeti")).toBeHidden();
-    await expect(page.getByText("0 comments")).toBeVisible();
-    await expect(page.getByText("1 comment")).toBeHidden();
+    await expect(page.getByLabel("0 comments")).toBeVisible();
+    await expect(page.getByLabel("1 comment")).toBeHidden();
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
     await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
@@ -187,16 +187,16 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
         await tapSendComment(page);
     }
     await expect(getAvatarInPileByInitials(page, "Blue yeti")).toBeVisible();
-    await expect(page.getByText("0 comments")).toBeHidden();
-    await expect(page.getByText("1 comment")).toBeVisible();
+    await expect(page.getByLabel("0 comments")).toBeHidden();
+    await expect(page.getByLabel("1 comment")).toBeVisible();
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText("");
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
 
     await expect(getAvatarInPileByInitials(page, "Blue yeti")).toBeVisible();
-    await expect(page.getByText("1 comment")).toBeVisible();
-    await expect(page.getByText("2 comments")).toBeHidden();
+    await expect(page.getByLabel("1 comment")).toBeVisible();
+    await expect(page.getByLabel("2 comments")).toBeHidden();
     await page.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 2",
@@ -207,8 +207,8 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
         await tapSendComment(page);
     }
     await expect(getAvatarInPileByInitials(page, "Blue yeti")).toBeVisible();
-    await expect(page.getByText("1 comment")).toBeHidden();
-    await expect(page.getByText("2 comments")).toBeVisible();
+    await expect(page.getByLabel("1 comment")).toBeHidden();
+    await expect(page.getByLabel("2 comments")).toBeVisible();
 
     await expect(page.getByRole("textbox", {name: "New comment"})).toHaveText("");
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
@@ -233,8 +233,8 @@ test("can see comments appear in realtime", async ({
     await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await expect(page1.getByText("0 comments")).toBeVisible();
-    await expect(page1.getByText("1 comment")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeVisible();
+    await expect(page1.getByLabel("1 comment")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -258,9 +258,9 @@ test("can see comments appear in realtime", async ({
         await tapSendComment(page2);
     }
 
-    await expect(page1.getByText("0 comments")).toBeHidden();
-    await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(page1.getByText("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeHidden();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -284,9 +284,9 @@ test("can see comments appear in realtime", async ({
         await tapSendComment(page3);
     }
 
-    await expect(page1.getByText("1 comment")).toBeHidden();
-    await expect(page1.getByText("2 comments")).toBeVisible();
-    await expect(page1.getByText("3 comments")).toBeHidden();
+    await expect(page1.getByLabel("1 comment")).toBeHidden();
+    await expect(page1.getByLabel("2 comments")).toBeVisible();
+    await expect(page1.getByLabel("3 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeVisible();
@@ -306,9 +306,9 @@ test("can see comments appear in realtime", async ({
         await tapSendComment(page2);
     }
 
-    await expect(page1.getByText("2 comments")).toBeHidden();
-    await expect(page1.getByText("3 comments")).toBeVisible();
-    await expect(page1.getByText("4 comments")).toBeHidden();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("3 comments")).toBeVisible();
+    await expect(page1.getByLabel("4 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeVisible();
@@ -328,9 +328,9 @@ test("can see comments appear in realtime", async ({
         await tapSendComment(page1);
     }
 
-    await expect(page1.getByText("3 comments")).toBeHidden();
-    await expect(page1.getByText("4 comments")).toBeVisible();
-    await expect(page1.getByText("5 comments")).toBeHidden();
+    await expect(page1.getByLabel("3 comments")).toBeHidden();
+    await expect(page1.getByLabel("4 comments")).toBeVisible();
+    await expect(page1.getByLabel("5 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeVisible();
@@ -365,8 +365,8 @@ test("can see new comments when opening post comments", async ({
 
     await page1.getByRole("button", {name: "0 comments"}).click();
 
-    await expect(page1.getByText("0 comments")).toBeVisible();
-    await expect(page1.getByText("1 comment")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeVisible();
+    await expect(page1.getByLabel("1 comment")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -390,9 +390,9 @@ test("can see new comments when opening post comments", async ({
         await tapSendComment(page2);
     }
 
-    await expect(page1.getByText("0 comments")).toBeHidden();
-    await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(page1.getByText("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeHidden();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -407,9 +407,9 @@ test("can see new comments when opening post comments", async ({
         await page1.getByRole("button", {name: "Go back"}).click();
     }
 
-    await expect(page1.getByText("0 comments")).toBeHidden();
-    await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(page1.getByText("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeHidden();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -433,9 +433,9 @@ test("can see new comments when opening post comments", async ({
         await tapSendComment(page3);
     }
 
-    await expect(page1.getByText("0 comments")).toBeHidden();
-    await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(page1.getByText("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeHidden();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -454,9 +454,9 @@ test("can see new comments when opening post comments", async ({
         await tapSendComment(page2);
     }
 
-    await expect(page1.getByText("0 comments")).toBeHidden();
-    await expect(page1.getByText("1 comment")).toBeVisible();
-    await expect(page1.getByText("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("0 comments")).toBeHidden();
+    await expect(page1.getByLabel("1 comment")).toBeVisible();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeHidden();
@@ -467,9 +467,9 @@ test("can see new comments when opening post comments", async ({
 
     await page1.getByRole("button", {name: "1 comment"}).click();
 
-    await expect(page1.getByText("2 comments")).toBeHidden();
-    await expect(page1.getByText("3 comments")).toBeVisible();
-    await expect(page1.getByText("4 comments")).toBeHidden();
+    await expect(page1.getByLabel("2 comments")).toBeHidden();
+    await expect(page1.getByLabel("3 comments")).toBeVisible();
+    await expect(page1.getByLabel("4 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeVisible();
@@ -489,9 +489,9 @@ test("can see new comments when opening post comments", async ({
         await tapSendComment(page1);
     }
 
-    await expect(page1.getByText("3 comments")).toBeHidden();
-    await expect(page1.getByText("4 comments")).toBeVisible();
-    await expect(page1.getByText("5 comments")).toBeHidden();
+    await expect(page1.getByLabel("3 comments")).toBeHidden();
+    await expect(page1.getByLabel("4 comments")).toBeVisible();
+    await expect(page1.getByLabel("5 comments")).toBeHidden();
     await expect(getAvatarInPileByInitials(page1, "Yellow cat")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Blue yeti")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "Green tree")).toBeVisible();

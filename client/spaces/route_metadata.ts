@@ -84,7 +84,7 @@ const metadataByRouteId: Record<
         errorTitle: "Couldn’t open post",
     },
     "routes/s.$spaceId.posts.$postId.reactions": {
-        errorTitle: "Couldn’t open post likes",
+        errorTitle: "Couldn’t open post reactions",
     },
     "routes/s.$spaceId.posts.new.$draftId": {
         errorTitle: "Couldn’t create post",

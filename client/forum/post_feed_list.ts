@@ -108,6 +108,7 @@ export class PostFeedList implements PostListInterface {
 
     public getPostByIdIfExists(postId: PostId): {
         post: PostModel;
+        postCommentsState: PostCommentsState;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         getPostCommentIndex: (postCommentIndex: number) => number;
@@ -135,6 +136,7 @@ export class PostFeedList implements PostListInterface {
 
         return {
             post: node.post,
+            postCommentsState: node.postCommentsState,
             postComments: node.postComments,
             postContentItemIndex,
             getPostCommentIndex,

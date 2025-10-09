@@ -126,6 +126,7 @@ export interface PostListInterface {
      */
     getPostByIdIfExists(postId: PostId): {
         post: PostModel;
+        postCommentsState: PostCommentsState;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         /**
@@ -231,6 +232,7 @@ export class PostListWithHeader implements PostListInterface {
 
     public getPostByIdIfExists(postId: PostId): {
         post: PostModel;
+        postCommentsState: PostCommentsState;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         getPostCommentIndex: (postCommentIndex: number) => number;
@@ -238,10 +240,12 @@ export class PostListWithHeader implements PostListInterface {
         const postResult = this._posts.getPostByIdIfExists(postId);
         if (!postResult) return null;
 
-        const {post, postComments, postContentItemIndex, getPostCommentIndex} = postResult;
+        const {post, postCommentsState, postComments, postContentItemIndex, getPostCommentIndex} =
+            postResult;
 
         return {
             post,
+            postCommentsState,
             postComments,
             postContentItemIndex: postContentItemIndex + 1,
             getPostCommentIndex: postCommentIndex => getPostCommentIndex(postCommentIndex) + 1,
@@ -292,6 +296,7 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 
     public getPostById(postId: PostId): {
         post: PostModel;
+        postCommentsState: PostCommentsState;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         getPostCommentIndex: (postCommentIndex: number) => number;
@@ -303,6 +308,7 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 
     public getPostByIdIfExists(postId: PostId): {
         post: PostModel;
+        postCommentsState: PostCommentsState;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
         getPostCommentIndex: (postCommentIndex: number) => number;
@@ -330,6 +336,7 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 
         return {
             post: node.post,
+            postCommentsState: node.postCommentsState,
             postComments: node.postComments,
             postContentItemIndex,
             getPostCommentIndex,

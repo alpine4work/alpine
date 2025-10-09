@@ -30,7 +30,7 @@ import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {ReactionButton} from "~/client/reactions/reaction_button.js";
 import {ReactionParty} from "~/client/reactions/reaction_party.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
@@ -80,6 +80,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {AccountId, FileId, PostId} from "~/shared/id/types/id_types.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
@@ -408,6 +409,7 @@ function PostContentViewFooter({
     ) => void;
 }) {
     const context = useAppContext();
+    const {locale} = useClientInfo();
     const platform = usePlatform();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const routeLayout = useRouteLayout();
@@ -416,8 +418,15 @@ function PostContentViewFooter({
 
     const [isNavigatePending, setIsNavigatePending] = useState(false);
 
-    const reactionButtonAreaWidth = "4.5rem";
-    const commentButtonAndAvatarsAreaWidth = platform !== "mobile" ? "14rem" : "11rem";
+    const reactionButtonAreaWidth = "2.5rem";
+    const commentButtonAndAvatarsAreaWidth = platform !== "mobile" ? "10rem" : "7rem";
+
+    const commentCount = postComments.getMessageCountIncludingOptimisticMessages();
+
+    const commentButtonAriaLabel = useMemo(
+        () => printPrettyNumber(locale, commentCount, "comment"),
+        [locale, commentCount],
+    );
 
     return (
         <Box
@@ -510,17 +519,22 @@ function PostContentViewFooter({
             >
                 <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
                 {postCommentsState === "AlwaysOpen" ? (
-                    <Box paddingX="1.5" color="grey-50" display="flex" alignItems="center" gap="1">
+                    <Box
+                        aria-label={commentButtonAriaLabel}
+                        paddingX="1.5"
+                        color="grey-50"
+                        display="flex"
+                        alignItems="center"
+                        gap="1"
+                    >
                         <ChatCircleDots size={spacing[postContentViewFooterButtonIconSize]} />
                         <span style={{lineHeight: 1}}>
-                            <PrettyNumber
-                                number={postComments.getMessageCountIncludingOptimisticMessages()}
-                                label="comment"
-                            />
+                            <PrettyNumber number={commentCount} />
                         </span>
                     </Box>
                 ) : (
                     <Button
+                        aria-label={commentButtonAriaLabel}
                         variant="quietest"
                         height={postContentViewFooterButtonHeight}
                         paddingX="1.5"
@@ -622,10 +636,7 @@ function PostContentViewFooter({
                             await postCommentsPromise;
                         }}
                     >
-                        <PrettyNumber
-                            number={postComments.getMessageCountIncludingOptimisticMessages()}
-                            label="comment"
-                        />
+                        <PrettyNumber number={commentCount} />
                     </Button>
                 )}
             </Box>

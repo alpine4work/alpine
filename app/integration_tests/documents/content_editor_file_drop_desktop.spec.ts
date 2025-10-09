@@ -264,9 +264,9 @@ const testCases: Record<
                 await services.signIn(browserContext, session);
                 await page.goto(`/s/${space.id}/channels/${channel.id}`);
 
-                await page.getByText("0 comments").nth(1).click();
+                await page.getByLabel("0 comments").nth(1).click();
                 await expect(page.getByLabel("New comment")).toHaveCount(1);
-                await page.getByText("0 comments").nth(0).click();
+                await page.getByLabel("0 comments").nth(0).click();
                 await expect(page.getByLabel("New comment")).toHaveCount(2);
 
                 return {
