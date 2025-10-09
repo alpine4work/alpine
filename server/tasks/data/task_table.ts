@@ -7662,16 +7662,18 @@ export async function getTaskCollectionSearchResultIfPossible(
     return {ok: true, value: createTaskCollectionModelSearchResultFromItem(collectionItem)};
 }
 
-export async function internalCreateTasksForCurrentUser(
+export async function internalDangerouslyCreateTasksForAccountWithoutAuthorization(
     context: ServerSessionActionContext,
     {
         actionTime,
         timeZone,
         spaceId,
+        accountId,
     }: {
         actionTime: HybridLogicalTime;
         timeZone: TimeZone;
         spaceId: SpaceId;
+        accountId: AccountId;
     },
     taskData: Array<{
         taskId?: TaskId;
@@ -7682,7 +7684,6 @@ export async function internalCreateTasksForCurrentUser(
         assignUser?: boolean;
     }>,
 ) {
-    const accountId = context.actor.getAccountId();
     const transactionEntries: Array<DynamoTransactionEntry> = [];
     const actions: Array<TaskAction> = [];
 

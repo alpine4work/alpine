@@ -6,7 +6,6 @@ import {
     createAccountWithEmailAddressTransactionEntries,
     dangerouslyGetAccountIfExistsWithoutAuthorization,
     dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization,
-    getAccountByIdAsAdmin,
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
@@ -82,7 +81,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {
     AccountModel,
@@ -415,53 +414,6 @@ export async function seedTestBotAccounts(
 
         throw error;
     }
-}
-
-/**
- * To implement `createAlphaSpaceAsAdmin()` we need to update `SpacesTable`
- * and `ForumRealtimeTable`. However, `server/spaces` doesn't have access to
- * `ForumRealtimeTable`. So we implement `createAlphaSpaceAsAdmin()` in
- * `server/alpha` and export this function which implements the `SpacesTable`
- * updates we need.
- */
-export async function internalCreateAlphaSpaceAsAdmin(
-    context: ServerActionContext,
-    {
-        name,
-        spaceId,
-        createdTime,
-        ownerAccountId,
-        welcomeChannelId,
-        createWelcomeChannelTransactionEntries,
-    }: {
-        spaceId: SpaceId;
-        createdTime: Date;
-        name: string;
-        ownerAccountId: AccountId;
-        welcomeChannelId: ChannelId;
-        createWelcomeChannelTransactionEntries: Array<DynamoTransactionEntry>;
-    },
-): Promise<void> {
-    // Make sure the account exists before adding it to a space...
-    await getAccountByIdAsAdmin(context, ownerAccountId);
-
-    await DynamoTableSchema.executeTransaction(context, [
-        SpacesTable.transactionCreateItem({
-            partitionType: "Space",
-            sortRangeType: "Attributes",
-            spaceId,
-            name,
-            createdTime,
-            alphaAccessDefaultChannelId: welcomeChannelId,
-        }),
-        ...createWelcomeChannelTransactionEntries,
-    ]);
-
-    await addSpaceAccountWithoutAuthorization(context, {
-        spaceId,
-        accountId: ownerAccountId,
-        role: "Owner",
-    });
 }
 
 /**
@@ -3155,6 +3107,23 @@ export async function expensivelyGetAllSpaceAccounts(
 
     const {accounts} = await spaceAccountsCache.getData(context, spaceId);
     return accounts;
+}
+
+/**
+ * Get the `SpaceId`s for the provided `AccountId`.
+ */
+export async function internalGetAccountSpaceIdsWithoutAuthorization(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    accountId: AccountId,
+): Promise<ReadonlySet<SpaceId>> {
+    const spacesItem = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Spaces",
+        accountId,
+    });
+
+    const spaceIds: ReadonlySet<SpaceId> = spacesItem?.spaceIds ?? new Set();
+    return spaceIds;
 }
 
 /**

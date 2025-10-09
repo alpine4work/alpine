@@ -20,6 +20,7 @@ ts_project(
         "//server/forum/data",
         "//server/search/data/table",
         "//server/spaces",
+        "//server/spaces/create_space",
         "//shared/alpha",
         "//shared/context",
         "//shared/error",

@@ -1,7 +1,10 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {expensivelyGetChannelsInSpaceForTest} from "~/server/forum/data/expensively_get_channels_in_space_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
-import {createSpace} from "~/server/spaces/create_space/create_space.js";
+import {
+    createSpaceForCurrentAccount,
+    internalDangerouslyCreateSpaceForAccountAsAdmin,
+} from "~/server/spaces/create_space/create_space.js";
 import {
     getOurAccountSpaceIds,
     internalGetSpaceAccountItemIfExistsWithoutAuthorization,
@@ -16,23 +19,18 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 const context = createTestContext({
     forumInjection,
     spacesInjection,
-    tasksInjection: {internalGetUpdateOurAccountNameTaskTransactionEntries: () => []},
 });
 
-describe("createSpace()", () => {
-    const clock = new HybridLogicalClock(unsynchronizedSystemClock);
-    const timeZone = defaultTimeZone;
-
+describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
     describe("successful space creation", () => {
         test("creates space with owner as member", async () => {
             const existingSpace = await TestSpace.create(context);
-            const session = await existingSpace.createSession();
+            const session = await existingSpace.createSession({hasInternalAccess: true});
             const spaceName = "Test Space";
 
-            const space = await createSpace(session.action(), {
+            const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: spaceName,
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
@@ -47,13 +45,12 @@ describe("createSpace()", () => {
 
         test("creates space and adds to our account IDs", async () => {
             const existingSpace = await TestSpace.create(context);
-            const session = await existingSpace.createSession();
+            const session = await existingSpace.createSession({hasInternalAccess: true});
             const spaceName = "Test Space";
 
-            const space = await createSpace(session.action(), {
+            const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: spaceName,
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
@@ -63,17 +60,15 @@ describe("createSpace()", () => {
 
         test("creates space with unique generated ID", async () => {
             const existingSpace = await TestSpace.create(context);
-            const session = await existingSpace.createSession();
+            const session = await existingSpace.createSession({hasInternalAccess: true});
 
-            const space1 = await createSpace(session.action(), {
+            const space1 = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "Space 1",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
-            const space2 = await createSpace(session.action(), {
+            const space2 = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "Space 2",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             expect(space1.spaceId).not.toBe(space2.spaceId);
@@ -83,12 +78,11 @@ describe("createSpace()", () => {
 
         test("creates Welcome channel in the new space", async () => {
             const existingSpace = await TestSpace.create(context);
-            const session = await existingSpace.createSession();
+            const session = await existingSpace.createSession({hasInternalAccess: true});
 
-            const space = await createSpace(session.action(), {
+            const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "Test Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             // Get the channels in the new space and verify Welcome channel exists
@@ -125,25 +119,30 @@ describe("createSpace()", () => {
         spaceNameTestCases.forEach(([description, spaceName, givenExpectedName]) => {
             test(`accepts ${description}`, async () => {
                 const existingSpace = await TestSpace.create(context);
-                const session = await existingSpace.createSession();
+                const session = await existingSpace.createSession({hasInternalAccess: true});
 
                 const expectedName = givenExpectedName || spaceName;
-                const space = await createSpace(session.action(), {
-                    name: spaceName,
-                    actionTime: clock.now(),
-                    timeZone,
-                });
+                const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(
+                    session.action(),
+                    {
+                        name: spaceName,
+                        ownerAccountId: session.account.id,
+                    },
+                );
                 expect(space.name).toBe(expectedName);
             });
         });
 
         test("rejects name longer than 50 characters", async () => {
             const existingSpace = await TestSpace.create(context);
-            const session = await existingSpace.createSession();
+            const session = await existingSpace.createSession({hasInternalAccess: true});
             const longName = "A".repeat(51);
 
             await expect(
-                createSpace(session.action(), {name: longName, actionTime: clock.now(), timeZone}),
+                internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+                    name: longName,
+                    ownerAccountId: session.account.id,
+                }),
             ).rejects.toThrow(
                 new InvalidArgumentError("Space name cannot be more than 50 characters"),
             );
@@ -153,22 +152,19 @@ describe("createSpace()", () => {
     describe("multiple spaces per account", () => {
         test("allows account to create multiple spaces", async () => {
             const existingSpace = await TestSpace.create(context);
-            const session = await existingSpace.createSession();
+            const session = await existingSpace.createSession({hasInternalAccess: true});
 
-            await createSpace(session.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "First Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
-            await createSpace(session.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "Second Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
-            await createSpace(session.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "Third Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
@@ -178,18 +174,16 @@ describe("createSpace()", () => {
         test("maintains separate ownership for different accounts", async () => {
             const space1 = await TestSpace.create(context);
             const space2 = await TestSpace.create(context);
-            const session1 = await space1.createSession();
-            const session2 = await space2.createSession();
+            const session1 = await space1.createSession({hasInternalAccess: true});
+            const session2 = await space2.createSession({hasInternalAccess: true});
 
-            await createSpace(session1.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session1.action(), {
                 name: "Session 1 Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session1.account.id,
             });
-            await createSpace(session2.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session2.action(), {
                 name: "Session 2 Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session2.account.id,
             });
 
             const {spaceIds: spaceIds1} = await getOurAccountSpaceIds(session1.action());
@@ -207,12 +201,11 @@ describe("createSpace()", () => {
     describe("admin role detection", () => {
         test("allows account with admin role to create new space", async () => {
             const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Admin"});
+            const session = await space.createSession({role: "Admin", hasInternalAccess: true});
 
-            await createSpace(session.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "New Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
@@ -221,12 +214,11 @@ describe("createSpace()", () => {
 
         test("allows account with no existing admin roles to create space", async () => {
             const space = await TestSpace.create(context);
-            const session = await space.createSession({role: "Member"});
+            const session = await space.createSession({role: "Member", hasInternalAccess: true});
 
-            await createSpace(session.action(), {
+            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
                 name: "New Space",
-                actionTime: clock.now(),
-                timeZone,
+                ownerAccountId: session.account.id,
             });
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
@@ -234,5 +226,34 @@ describe("createSpace()", () => {
         });
 
         // TODO(#onboarding): Add tests for onboarding tasks when implemented.
+    });
+});
+
+describe("createSpaceForCurrentAccount()", () => {
+    test("creates space for current account", async () => {
+        const existingSpace = await TestSpace.create(context);
+        const session = await existingSpace.createSession();
+        const spaceName = "Current Account Space";
+        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+
+        const space = await createSpaceForCurrentAccount(session.action(), {
+            name: spaceName,
+            actionTime: clock.now(),
+            timeZone: defaultTimeZone,
+        });
+
+        expect(space.name).toBe(spaceName);
+
+        const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
+            session.action(),
+            space.spaceId,
+            session.account.id,
+        );
+        expect(spaceAccount).toBeDefined();
+        expect(spaceAccount!.role).toBe("Owner");
+
+        const {spaceIds} = await getOurAccountSpaceIds(session.action());
+        expect(spaceIds.size).toBe(2); // Existing space + new space
+        expect(spaceIds.has(space.spaceId)).toBe(true);
     });
 });

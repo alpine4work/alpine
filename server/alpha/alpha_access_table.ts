@@ -14,8 +14,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_welcome_channel_transaction_entries.js";
-import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_actions.js";
+import {internalDangerouslyCreateSpaceForAccountAsAdmin} from "~/server/spaces/create_space/create_space.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     AlphaAccessRequestDecisionSchema,
@@ -330,7 +329,7 @@ export async function saveAlphaConfiguration(
  * creation.
  */
 export async function createAlphaSpaceAsAdmin(
-    context: ServerActionContext,
+    context: ServerSessionActionContext,
     {name, ownerAccountId}: {name: string; ownerAccountId: AccountId},
 ): Promise<{
     spaceId: SpaceId;
@@ -343,19 +342,11 @@ export async function createAlphaSpaceAsAdmin(
     const welcomeChannelId = generateId<ChannelId>();
     const createdTime = new Date();
 
-    await internalCreateAlphaSpaceAsAdmin(context, {
+    await internalDangerouslyCreateSpaceForAccountAsAdmin(context, {
         name,
-        spaceId,
-        createdTime,
         ownerAccountId,
+        spaceId,
         welcomeChannelId,
-        createWelcomeChannelTransactionEntries:
-            internalDangerouslyCreateWelcomeChannelTransactionEntries(context, {
-                ownerAccountId,
-                spaceId,
-                welcomeChannelId,
-                createdTime,
-            }),
     });
 
     return {

@@ -144,6 +144,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/search/data/index:index",
     "//server/search/data/table:table",
     "//server/spaces:spaces",
+    "//server/spaces/create_space:create_space",
     "//server/spaces/test_helpers:test_helpers",
     "//server/spell_check:spell_check",
     "//server/tasks/data:data",

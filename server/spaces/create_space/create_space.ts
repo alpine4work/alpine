@@ -1,31 +1,30 @@
+import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_welcome_channel_transaction_entries.js";
 import {internalCreateSpaceTransactionEntries} from "~/server/spaces/internal_create_space_transaction_entries.js";
 import {
     addSpaceAccountWithoutAuthorization,
-    getOurAccountSpaceIds,
+    internalGetAccountSpaceIdsWithoutAuthorization,
     internalGetSpaceAccountItemIfExistsWithoutAuthorization,
 } from "~/server/spaces/spaces_actions.js";
-import {internalCreateTasksForCurrentUser} from "~/server/tasks/data/task_table.js";
+import {internalDangerouslyCreateTasksForAccountWithoutAuthorization} from "~/server/tasks/data/task_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
-/**
- * Creates a space and adds the current user as the `Owner` of the space.
- * This creates all resources associated with a new account, including:
- *
- * - A Welcome channel
- */
-export async function createSpace(
+export async function createSpaceForCurrentAccount(
     context: ServerSessionActionContext,
     {
-        name: originalName,
+        name,
         actionTime,
         timeZone,
     }: {
@@ -34,17 +33,76 @@ export async function createSpace(
         timeZone: TimeZone;
     },
 ) {
+    const accountId = context.actor.getAccountId();
+
+    return createSpace(context, {
+        name,
+        ownerAccountId: accountId,
+        actionTime,
+        timeZone,
+    });
+}
+
+export async function internalDangerouslyCreateSpaceForAccountAsAdmin(
+    context: ServerSessionActionContext,
+    {
+        name,
+        ownerAccountId,
+        spaceId,
+        welcomeChannelId,
+    }: {
+        name: string;
+        ownerAccountId: AccountId;
+        spaceId?: SpaceId;
+        welcomeChannelId?: ChannelId;
+    },
+) {
+    await authorizeInternalAccess(context);
+    return createSpace(context, {
+        name,
+        ownerAccountId,
+        actionTime: new HybridLogicalClock(unsynchronizedSystemClock).now(),
+        timeZone: defaultTimeZone,
+        spaceId,
+        welcomeChannelId,
+    });
+}
+
+/**
+ * Creates a space and adds the current user as the `Owner` of the space.
+ * This creates all resources associated with a new account, including:
+ *
+ * - A Welcome channel
+ */
+async function createSpace(
+    context: ServerSessionActionContext,
+    {
+        name: originalName,
+        ownerAccountId,
+        actionTime,
+        timeZone,
+        spaceId: givenSpaceId,
+        welcomeChannelId: givenWelcomeChannelId,
+    }: {
+        name: string;
+        ownerAccountId: AccountId;
+        actionTime: HybridLogicalTime;
+        timeZone: TimeZone;
+        spaceId?: SpaceId;
+        welcomeChannelId?: ChannelId;
+    },
+) {
     const name = originalName.trim().replace(/\s+/g, " ");
     if (name.length > 50) {
         throw new InvalidArgumentError("Space name cannot be more than 50 characters");
     }
 
-    const ownerAccountId = context.actor.getAccountId();
-    const spaceId = generateId<SpaceId>();
-    const welcomeChannelId = generateId<ChannelId>();
+    const currentAccountId = context.actor.getAccountId();
+    const spaceId = givenSpaceId || generateId<SpaceId>();
+    const welcomeChannelId = givenWelcomeChannelId || generateId<ChannelId>();
     const createdTime = new Date();
 
-    const {spaceIds} = await getOurAccountSpaceIds(context);
+    const spaceIds = await internalGetAccountSpaceIdsWithoutAuthorization(context, ownerAccountId);
     const spaces = await runAllPromises(
         spaceIds
             .values()
@@ -94,15 +152,17 @@ export async function createSpace(
 
     // If the user is not an admin in any space, we assume they're
     // a beginner user and create some starter tasks for them.
-    if (!hasAdminRoleInAnySpace) {
+    // We also only create tasks if the current user is the one creating
+    // this space.
+    if (!hasAdminRoleInAnySpace && currentAccountId === ownerAccountId) {
         const spaceSetupTaskId = generateId<TaskId>();
-
-        await internalCreateTasksForCurrentUser(
+        await internalDangerouslyCreateTasksForAccountWithoutAuthorization(
             context,
             {
                 spaceId,
                 actionTime,
                 timeZone,
+                accountId: ownerAccountId,
             },
             [
                 {

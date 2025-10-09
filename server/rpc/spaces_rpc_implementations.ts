@@ -59,7 +59,8 @@ export default implementRpcs(definitions, {
 
     createAlphaSpaceAsAdmin: {
         visibility: ["AppClient"],
-        execute: (context, input) => {
+        execute: (unauthenticatedContext, input) => {
+            const context = unauthenticatedContext.actor.authorizeSession();
             return createAlphaSpaceAsAdmin(context, input);
         },
     },
