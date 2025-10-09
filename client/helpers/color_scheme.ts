@@ -1,8 +1,6 @@
 import {useEffect, useState} from "react";
-import {flushSync} from "react-dom";
 import {colorSchemeEventEmitter} from "~/client/helpers/internal/color_scheme_event_emitter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export type ColorScheme = "light" | "dark";
@@ -16,26 +14,12 @@ export function getColorSchemeWithoutListeningIfBrowser(): ColorScheme | null {
     return document.documentElement.getAttribute("data-color") === "dark" ? "dark" : "light";
 }
 
-const colorSchemeListeners = new Set<(colorScheme: ColorScheme) => void>();
-
 export function setColorScheme(colorScheme: ColorScheme) {
     assert(typeof document !== "undefined", "Can not set color scheme on the server");
 
     document.documentElement.setAttribute("data-color", colorScheme);
     localStorage.setItem("colorScheme", colorScheme);
-
-    // Make sure React re-renders synchronously when the color scheme changes. That
-    // way we don't get UI tearing where non-React code has new colors (thanks to
-    // CSS) but React code has old colors.
-    flushSync(() => {
-        for (const listener of colorSchemeListeners) {
-            try {
-                listener(colorScheme);
-            } catch (error) {
-                scheduleUncaughtError(error);
-            }
-        }
-    });
+    colorSchemeEventEmitter.emit(colorScheme);
 }
 
 export function subscribeToColorSchemeChange(listener: (colorScheme: ColorScheme) => void) {
@@ -73,9 +57,9 @@ export function useColorScheme(): ColorScheme | null {
     useEffect(() => {
         setColorScheme(getColorSchemeWithoutListeningIfBrowser());
 
-        colorSchemeListeners.add(setColorScheme);
+        const unsubscribe = subscribeToColorSchemeChange(setColorScheme);
         return () => {
-            colorSchemeListeners.delete(setColorScheme);
+            unsubscribe();
         };
     }, []);
 

@@ -25,7 +25,7 @@ export function ColorSchemeManager() {
     useEffect(() => {
         const darkColorSchemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-        const update = () => {
+        const updateMediaQuery = () => {
             const colorSchemeString = localStorage.getItem("colorScheme");
 
             const isDarkColorScheme =
@@ -41,9 +41,9 @@ export function ColorSchemeManager() {
             }
         };
 
-        darkColorSchemeMediaQuery.addEventListener("change", update);
+        darkColorSchemeMediaQuery.addEventListener("change", updateMediaQuery);
         return () => {
-            darkColorSchemeMediaQuery.removeEventListener("change", update);
+            darkColorSchemeMediaQuery.removeEventListener("change", updateMediaQuery);
         };
     }, []);
 
