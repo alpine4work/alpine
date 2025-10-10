@@ -6,33 +6,18 @@ import {getCreateSpaceTransactionEntries} from "~/server/spaces/internal/get_cre
 import {
     addSpaceAccountWithoutAuthorization,
     createSpaceModelFromItem,
-    internalGetAccountSpaceIdsWithoutAuthorization,
-    internalGetSpaceAccountItemIfExistsWithoutAuthorization,
 } from "~/server/spaces/spaces_actions.js";
-import {internalDangerouslyCreateTasksForAccountWithoutAuthorization} from "~/server/tasks/data/task_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {
-    HybridLogicalClock,
-    HybridLogicalTime,
-} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
-import {hasSpaceRole} from "~/shared/spaces/space_model.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function createSpace(
     context: ServerSessionActionContext,
     {
         name,
-        actionTime,
-        timeZone,
     }: {
         name: string;
-        actionTime: HybridLogicalTime;
-        timeZone: TimeZone;
     },
 ) {
     const accountId = context.actor.getAccountId();
@@ -40,8 +25,6 @@ export async function createSpace(
     return actuallyCreateSpace(context, {
         name,
         ownerAccountId: accountId,
-        actionTime,
-        timeZone,
     });
 }
 
@@ -63,8 +46,6 @@ export async function internalDangerouslyCreateSpaceForAccountAsAdmin(
     return actuallyCreateSpace(context, {
         name,
         ownerAccountId,
-        actionTime: new HybridLogicalClock(unsynchronizedSystemClock).now(),
-        timeZone: defaultTimeZone,
         spaceId,
         welcomeChannelId,
     });
@@ -82,15 +63,11 @@ async function actuallyCreateSpace(
     {
         name: originalName,
         ownerAccountId,
-        actionTime,
-        timeZone,
         spaceId: givenSpaceId,
         welcomeChannelId: givenWelcomeChannelId,
     }: {
         name: string;
         ownerAccountId: AccountId;
-        actionTime: HybridLogicalTime;
-        timeZone: TimeZone;
         spaceId?: SpaceId;
         welcomeChannelId?: ChannelId;
     },
@@ -102,27 +79,9 @@ async function actuallyCreateSpace(
         });
     }
 
-    const currentAccountId = context.actor.getAccountId();
     const spaceId = givenSpaceId || generateId<SpaceId>();
     const welcomeChannelId = givenWelcomeChannelId || generateId<ChannelId>();
     const createdTime = new Date();
-
-    const spaceIds = await internalGetAccountSpaceIdsWithoutAuthorization(context, ownerAccountId);
-    const spaces = await runAllPromises(
-        spaceIds
-            .values()
-            .map(spaceId =>
-                internalGetSpaceAccountItemIfExistsWithoutAuthorization(
-                    context,
-                    spaceId,
-                    ownerAccountId,
-                ),
-            ),
-    );
-
-    const hasAdminRoleInAnySpace = spaces.some(space =>
-        space ? hasSpaceRole(space.role, "Admin") : false,
-    );
 
     const createWelcomeChannelTransactionEntries =
         internalDangerouslyCreateWelcomeChannelTransactionEntries(context, {
@@ -154,54 +113,6 @@ async function actuallyCreateSpace(
         accountId: ownerAccountId,
         role: "Owner",
     });
-
-    // If the user is not an admin in any space, we assume they're
-    // a beginner user and create some starter tasks for them.
-    // We also only create tasks if the current user is the one creating
-    // this space.
-    if (!hasAdminRoleInAnySpace && currentAccountId === ownerAccountId) {
-        const spaceSetupTaskId = generateId<TaskId>();
-        await internalDangerouslyCreateTasksForAccountWithoutAuthorization(
-            context,
-            {
-                spaceId,
-                actionTime,
-                timeZone,
-                accountId: ownerAccountId,
-            },
-            [
-                {
-                    title: "View your tasks",
-                    active: true,
-                },
-                {
-                    title: "Upload your profile picture",
-                    active: false,
-                    notes: "1. Click the avatar on the bottom left\n2. Click ‘Settings’\n3. Update your avatar",
-                },
-                {
-                    title: "Set up your space",
-                    active: false,
-                    taskId: spaceSetupTaskId,
-                    notes: "Check out the subtasks below to get your space ready for your team!",
-                },
-                {
-                    title: "Upload your space logo",
-                    active: false,
-                    parentTaskId: spaceSetupTaskId,
-                    assignUser: false,
-                    notes: "1. Click the space logo on the top left\n2. Click ‘Settings’\n3. Update your logo",
-                },
-                {
-                    title: "Invite team members",
-                    active: false,
-                    parentTaskId: spaceSetupTaskId,
-                    assignUser: false,
-                    notes: "1. Click the space logo on the top left\n2. Click ‘People’\n3. Click ‘Invite’",
-                },
-            ],
-        );
-    }
 
     return createSpaceModelFromItem({
         ...space,

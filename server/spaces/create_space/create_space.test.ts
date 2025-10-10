@@ -12,9 +12,6 @@ import {
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 const context = createTestContext({
     forumInjection,
@@ -221,8 +218,6 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
             expect(spaceIds.size).toBe(2); // Original space + new space
         });
-
-        // TODO(#onboarding): Add tests for onboarding tasks when implemented.
     });
 });
 
@@ -231,12 +226,9 @@ describe("createSpaceForCurrentAccount()", () => {
         const existingSpace = await TestSpace.create(context);
         const session = await existingSpace.createSession();
         const spaceName = "Current Account Space";
-        const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
         const space = await createSpace(session.action(), {
             name: spaceName,
-            actionTime: clock.now(),
-            timeZone: defaultTimeZone,
         });
 
         expect(space.name).toBe(spaceName);
