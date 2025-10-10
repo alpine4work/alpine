@@ -1,4 +1,4 @@
-import {ArrowsLeftRight, Gear, Users} from "phosphor-react";
+import {ArrowsLeftRight, Gear, Plus, Users} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -73,7 +73,8 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                         size: "lg",
                         actions: async () => {
                             const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
-                            return otherSpaces.map(
+
+                            const actions = otherSpaces.map(
                                 ({space: otherSpace, inbox}): MenuAction => ({
                                     isSelected: otherSpace.id === space.id,
                                     label: otherSpace.name,
@@ -104,6 +105,36 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                     },
                                 }),
                             );
+
+                            actions.push({
+                                label: "Create space",
+                                labelFontSize: "100",
+                                labelFontStyle: "semi-bold",
+                                icon: (
+                                    <Box paddingY="0.5">
+                                        <Box
+                                            position="relative"
+                                            // Picked so we get the same margin horizontally and vertically between the
+                                            // icon and hover/press background edge.
+                                            width="8"
+                                            height="8"
+                                            display="flex"
+                                            alignItems="center"
+                                            justifyContent="center"
+                                            borderRadius={spaceAvatarBorderRadius}
+                                            backgroundColor="grey-10"
+                                        >
+                                            <Plus />
+                                        </Box>
+                                    </Box>
+                                ),
+                                pressErrorTitle: "Couldn’t create space",
+                                onPress: async () => {
+                                    await rootNavigate(`/create-space`);
+                                },
+                            });
+
+                            return actions;
                         },
                     },
                 ],

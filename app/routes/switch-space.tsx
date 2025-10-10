@@ -1,3 +1,5 @@
+import {redirect} from "@remix-run/router";
+import {Plus} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
@@ -8,6 +10,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
+import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -34,6 +37,10 @@ export async function loader({context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
+
+    if (otherSpaces.length === 0) {
+        return redirect(`/create-space`);
+    }
 
     return jsonWithSchema(LoaderSchema, {otherSpaces});
 }
@@ -97,6 +104,37 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                         }}
                     />
                 ))}
+                <MobileSettingsRow
+                    icon={
+                        <Box
+                            // Picked so we get the same margin horizontally and vertically between the
+                            // `<SpaceAvatar>` and hover/press background edge.
+                            paddingY="2"
+                        >
+                            <Box
+                                position="relative"
+                                width="8"
+                                height="8"
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                borderRadius={spaceAvatarBorderRadius}
+                                backgroundColor="grey-10"
+                            >
+                                <Plus />
+                            </Box>
+                        </Box>
+                    }
+                    label={
+                        <Box fontSize="100" fontStyle="truncate-semi-bold">
+                            Create space
+                        </Box>
+                    }
+                    pressErrorTitle="Couldn’t create space"
+                    onPress={async () => {
+                        await rootNavigate(`/create-space`);
+                    }}
+                />
             </Box>
         </SpaceRouteScrollView>
     );

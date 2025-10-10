@@ -2,7 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {expensivelyGetChannelsInSpaceForTest} from "~/server/forum/data/expensively_get_channels_in_space_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {
-    createSpaceForCurrentAccount,
+    createSpace,
     internalDangerouslyCreateSpaceForAccountAsAdmin,
 } from "~/server/spaces/create_space/create_space.js";
 import {
@@ -35,7 +35,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
 
             const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
                 session.action(),
-                space.spaceId,
+                space.id,
                 session.account.id,
             );
 
@@ -55,7 +55,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
 
             const {spaceIds} = await getOurAccountSpaceIds(session.action());
             expect(spaceIds.size).toBe(2); // Existing space + new space
-            expect(spaceIds.has(space.spaceId)).toBe(true);
+            expect(spaceIds.has(space.id)).toBe(true);
         });
 
         test("creates space with unique generated ID", async () => {
@@ -71,9 +71,9 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
                 ownerAccountId: session.account.id,
             });
 
-            expect(space1.spaceId).not.toBe(space2.spaceId);
-            expect(space1.spaceId).not.toBe(existingSpace.id);
-            expect(space2.spaceId).not.toBe(existingSpace.id);
+            expect(space1.id).not.toBe(space2.id);
+            expect(space1.id).not.toBe(existingSpace.id);
+            expect(space2.id).not.toBe(existingSpace.id);
         });
 
         test("creates Welcome channel in the new space", async () => {
@@ -86,10 +86,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             });
 
             // Get the channels in the new space and verify Welcome channel exists
-            const channels = await expensivelyGetChannelsInSpaceForTest(
-                session.action(),
-                space.spaceId,
-            );
+            const channels = await expensivelyGetChannelsInSpaceForTest(session.action(), space.id);
 
             expect(channels).toBeDefined();
             expect(channels?.length).toBeGreaterThan(0);
@@ -98,7 +95,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const welcomeChannel = channels?.find(channel => channel.name === "Welcome");
             expect(welcomeChannel).toBeDefined();
             expect(welcomeChannel?.name).toBe("Welcome");
-            expect(welcomeChannel?.spaceId).toBe(space.spaceId);
+            expect(welcomeChannel?.spaceId).toBe(space.id);
         });
     });
 
@@ -236,7 +233,7 @@ describe("createSpaceForCurrentAccount()", () => {
         const spaceName = "Current Account Space";
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-        const space = await createSpaceForCurrentAccount(session.action(), {
+        const space = await createSpace(session.action(), {
             name: spaceName,
             actionTime: clock.now(),
             timeZone: defaultTimeZone,
@@ -246,7 +243,7 @@ describe("createSpaceForCurrentAccount()", () => {
 
         const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
             session.action(),
-            space.spaceId,
+            space.id,
             session.account.id,
         );
         expect(spaceAccount).toBeDefined();
@@ -254,6 +251,6 @@ describe("createSpaceForCurrentAccount()", () => {
 
         const {spaceIds} = await getOurAccountSpaceIds(session.action());
         expect(spaceIds.size).toBe(2); // Existing space + new space
-        expect(spaceIds.has(space.spaceId)).toBe(true);
+        expect(spaceIds.has(space.id)).toBe(true);
     });
 });

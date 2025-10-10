@@ -186,7 +186,7 @@ function createAvatarModelFromItem(
     };
 }
 
-function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
+export function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
     return new SpaceModel({
         id: spaceItem.spaceId,
         version: spaceItem.updateLockVersion ?? 0,

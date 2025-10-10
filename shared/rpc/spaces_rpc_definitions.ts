@@ -4,6 +4,8 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {AccountId, AvatarId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceAccountSettingsSchema} from "~/shared/spaces/space_account_settings.js";
@@ -142,6 +144,18 @@ export const finishUploadingSpaceAvatar = defineRpc({
         avatarContent: Schema.bytes,
         avatarId: Schema.id<AvatarId>(),
         avatarTheme: AvatarThemeSchema,
+    },
+    output: {
+        space: SpaceModel.schema(),
+    },
+});
+
+export const createSpace = defineRpc({
+    name: "createSpace",
+    input: {
+        name: Schema.string,
+        actionTime: HybridLogicalTimeSchema,
+        timeZone: TimeZoneSchema,
     },
     output: {
         space: SpaceModel.schema(),

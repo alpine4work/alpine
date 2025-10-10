@@ -2,6 +2,7 @@ import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/notifications_actions.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_actions.js";
+import {createSpace} from "~/server/spaces/create_space/create_space.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {
     acceptSpaceAccountInvite,
@@ -219,6 +220,14 @@ export default implementRpcs(definitions, {
         visibility: ["EdgeService"],
         execute: async (context, input) => {
             const space = await finishUploadingSpaceAvatar(context.actor.authorizeSession(), input);
+            return {space};
+        },
+    },
+
+    createSpace: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const space = await createSpace(context.actor.authorizeSession(), input);
             return {space};
         },
     },

@@ -5,11 +5,13 @@ import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/serve
 import {internalCreateSpaceTransactionEntries} from "~/server/spaces/internal_create_space_transaction_entries.js";
 import {
     addSpaceAccountWithoutAuthorization,
+    createSpaceModelFromItem,
     internalGetAccountSpaceIdsWithoutAuthorization,
     internalGetSpaceAccountItemIfExistsWithoutAuthorization,
 } from "~/server/spaces/spaces_actions.js";
 import {internalDangerouslyCreateTasksForAccountWithoutAuthorization} from "~/server/tasks/data/task_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalClock,
@@ -21,7 +23,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
-export async function createSpaceForCurrentAccount(
+export async function createSpace(
     context: ServerSessionActionContext,
     {
         name,
@@ -35,7 +37,7 @@ export async function createSpaceForCurrentAccount(
 ) {
     const accountId = context.actor.getAccountId();
 
-    return createSpace(context, {
+    return actuallyCreateSpace(context, {
         name,
         ownerAccountId: accountId,
         actionTime,
@@ -58,7 +60,7 @@ export async function internalDangerouslyCreateSpaceForAccountAsAdmin(
     },
 ) {
     await authorizeInternalAccess(context);
-    return createSpace(context, {
+    return actuallyCreateSpace(context, {
         name,
         ownerAccountId,
         actionTime: new HybridLogicalClock(unsynchronizedSystemClock).now(),
@@ -69,12 +71,13 @@ export async function internalDangerouslyCreateSpaceForAccountAsAdmin(
 }
 
 /**
- * Creates a space and adds the current user as the `Owner` of the space.
+ * Creates a space and adds the given user as the `Owner` of the space.
  * This creates all resources associated with a new account, including:
  *
  * - A Welcome channel
+ * - Starter tasks for the user
  */
-async function createSpace(
+async function actuallyCreateSpace(
     context: ServerSessionActionContext,
     {
         name: originalName,
@@ -94,7 +97,9 @@ async function createSpace(
 ) {
     const name = originalName.trim().replace(/\s+/g, " ");
     if (name.length > 50) {
-        throw new InvalidArgumentError("Space name cannot be more than 50 characters");
+        throw new InvalidArgumentError("Space name cannot be more than 50 characters", {
+            displayMessage: errorDisplayMessage`The space name cannot be more than 50 characters`,
+        });
     }
 
     const currentAccountId = context.actor.getAccountId();
@@ -198,5 +203,12 @@ async function createSpace(
         );
     }
 
-    return space;
+    return createSpaceModelFromItem({
+        ...space,
+        // No need to fetch the avatars, we know they're null on a new space.
+        avatars: {
+            lightTheme: null,
+            darkTheme: null,
+        },
+    });
 }
