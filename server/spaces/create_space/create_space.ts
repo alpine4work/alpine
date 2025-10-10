@@ -2,7 +2,7 @@ import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_welcome_channel_transaction_entries.js";
-import {internalCreateSpaceTransactionEntries} from "~/server/spaces/internal_create_space_transaction_entries.js";
+import {getCreateSpaceTransactionEntries} from "~/server/spaces/internal/get_create_space_transaction_entries.js";
 import {
     addSpaceAccountWithoutAuthorization,
     createSpaceModelFromItem,
@@ -133,7 +133,7 @@ async function actuallyCreateSpace(
         });
 
     const {newItem: space, transactionEntries: createSpaceTransactionEntries} =
-        internalCreateSpaceTransactionEntries({
+        getCreateSpaceTransactionEntries({
             spaceId,
             name,
             createdTime,

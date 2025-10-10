@@ -1,7 +1,7 @@
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-export const internalCreateSpaceTransactionEntries = ({
+export const getCreateSpaceTransactionEntries = ({
     spaceId,
     name,
     createdTime,
