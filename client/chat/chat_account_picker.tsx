@@ -34,7 +34,6 @@ import {
     backgroundColorVar,
     colorSchemeVars,
     fontSizes,
-    greyElevated2ClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
     spinAnimationClassName,
@@ -42,6 +41,7 @@ import {
 } from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

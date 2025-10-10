@@ -9,7 +9,7 @@ import {
     linkClassName,
     tableWrapperClassName,
     titleClassName,
-} from "~/shared/content/content_styles.js";
+} from "~/shared/design/core/constant_class_names.js";
 
 export const slideClassName = style({
     pointerEvents: "none",

@@ -12,12 +12,13 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {
     TaskAssigneeInputItem,
     nullTaskAssigneeInputLabel,
 } from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

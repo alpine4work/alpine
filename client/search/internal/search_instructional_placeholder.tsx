@@ -12,7 +12,7 @@ import {
     listItemClassName,
     listItemIndentationVar,
     unorderedListItemClassName,
-} from "~/shared/content/content_styles.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 
 export function SearchInstructionalPlaceholder() {

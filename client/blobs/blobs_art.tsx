@@ -11,7 +11,7 @@ import {useOverlayPortalElement} from "~/client/design/overlay_helpers.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {peekStackOverlayBorderRadius} from "~/client/styles/peek_shared_styles.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
-import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
+import {blobsArtGradientClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     safe,
     safeFlatObjectString,

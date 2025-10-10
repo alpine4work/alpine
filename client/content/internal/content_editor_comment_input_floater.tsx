@@ -68,13 +68,13 @@ import {
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
-    greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     pointerEventsNoneNotInheritedClassName,
     spaceLayoutStyles,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     addRemLengths,
     convertRemLengthToPx,

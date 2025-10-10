@@ -116,7 +116,7 @@ import {
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
-import {paragraphClassName} from "~/shared/content/content_styles.js";
+import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {

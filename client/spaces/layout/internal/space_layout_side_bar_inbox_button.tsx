@@ -23,8 +23,9 @@ import {
 } from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_overlay.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
-import {greyElevated1ClassName, overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
+import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
+import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {

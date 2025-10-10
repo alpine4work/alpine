@@ -36,7 +36,6 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
     fontSizes,
-    greyElevated2ClassName,
     pointerEventsNoneNotInheritedClassName,
     spinAnimationClassName,
     sprinkles,
@@ -45,6 +44,7 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

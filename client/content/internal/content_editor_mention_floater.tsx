@@ -61,12 +61,12 @@ import {searchEntityViewTitleLineHeightPx} from "~/client/styles/search_shared_s
 import {
     colorSchemeVars,
     contentStyles,
-    greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";

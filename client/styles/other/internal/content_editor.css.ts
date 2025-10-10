@@ -11,7 +11,7 @@ import {
     fileClassName,
     highlightClassNameByColor,
     linkClassName,
-} from "~/shared/content/content_styles.js";
+} from "~/shared/design/core/constant_class_names.js";
 
 // The CSS for setting `min-height: 100%` here is pretty annoying. We set
 // `docClassName` to `min-height: 100%` and `containerClassName` to

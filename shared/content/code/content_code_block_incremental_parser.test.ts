@@ -12,7 +12,7 @@ import {
     setMockedHighlightTreeForTest,
 } from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import * as contentClassNameByName from "~/shared/content/content_styles.js";
+import * as contentClassNameByName from "~/shared/design/core/constant_class_names.js";
 import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,

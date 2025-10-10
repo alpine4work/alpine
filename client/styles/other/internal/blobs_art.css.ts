@@ -1,5 +1,5 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
+import {blobsArtGradientClassName} from "~/shared/design/core/constant_class_names.js";
 
 export const containerClassName = style({
     zIndex: -50,

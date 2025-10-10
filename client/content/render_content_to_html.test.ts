@@ -6,7 +6,7 @@ import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {renderContentToHtmlStoreForTest} from "~/client/content/render_content_to_html.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import * as contentClassNameByName from "~/shared/content/content_styles.js";
+import * as contentClassNameByName from "~/shared/design/core/constant_class_names.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";

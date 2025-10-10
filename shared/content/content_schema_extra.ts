@@ -10,7 +10,7 @@ import {
     headingLevel1ClassName,
     headingLevel2ClassName,
     headingLevel3ClassName,
-} from "~/shared/content/content_styles.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {FileIdOrFileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";

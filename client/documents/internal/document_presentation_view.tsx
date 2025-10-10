@@ -7,7 +7,7 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {scrollbarStyles} from "~/client/styles/styles.js";
-import {linkClassName} from "~/shared/content/content_styles.js";
+import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

@@ -38,12 +38,12 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
     colorSchemeVars,
-    greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";

@@ -32,7 +32,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
+import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

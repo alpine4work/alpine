@@ -23,13 +23,13 @@ import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_con
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {
     tableWrapper2ClassName,
     tableWrapper3ClassName,
     tableWrapperClassName,
-} from "~/shared/content/content_styles.js";
-import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";

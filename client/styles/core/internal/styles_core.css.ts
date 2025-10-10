@@ -4,6 +4,9 @@
 // have a `~/client/styles/styles_core.d.ts` file that re-exports this file for
 // TypeScript.
 
+import "~/client/styles/core/internal/helpers/register_constant_class_names.js";
+
+// eslint-disable-next-line sort-imports-by-source
 import "~/client/styles/core/internal/global_1_reset.css.js";
 import "~/client/styles/core/internal/global_2_defaults.css.js";
 

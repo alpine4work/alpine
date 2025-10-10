@@ -33,6 +33,8 @@ import {
     extrapolateHighlightRawColorWithoutBounds,
 } from "~/client/styles/other/internal/helpers/extrapolate_highlight_color.js";
 import {navigationBarHeight} from "~/client/styles/other/internal/navigation_bar.css.js";
+import {borderRadius} from "~/shared/design/core/border_radius.js";
+import {colors} from "~/shared/design/core/colors.js";
 import {
     boldClassName,
     checkListItemCheckedClassName,
@@ -66,9 +68,7 @@ import {
     tableWrapperClassName,
     titleClassName,
     unorderedListItemClassName,
-} from "~/shared/content/content_styles.js";
-import {borderRadius} from "~/shared/design/core/border_radius.js";
-import {colors} from "~/shared/design/core/colors.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";

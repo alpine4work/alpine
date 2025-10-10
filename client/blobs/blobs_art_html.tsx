@@ -4,7 +4,7 @@ import {
     getBlobsCanvasId,
 } from "~/client/blobs/helpers/blobs_settings.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
-import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
+import {blobsArtGradientClassName} from "~/shared/design/core/constant_class_names.js";
 import {HtmlElementGenerator, HtmlScriptGenerator} from "~/shared/helpers/html/html_generator.js";
 import {
     safe,

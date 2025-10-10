@@ -42,6 +42,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/feed:feed",
     "//client/forum:forum",
     "//client/helpers:helpers",
+    "//client/helpers/gl:gl",
     "//client/icons:icons",
     "//client/inbox:inbox",
     "//client/messaging:messaging",

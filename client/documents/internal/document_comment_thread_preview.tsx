@@ -17,7 +17,7 @@ import {
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
+import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";

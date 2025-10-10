@@ -4,8 +4,8 @@ import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/ha
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";

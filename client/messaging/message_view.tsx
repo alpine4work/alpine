@@ -94,8 +94,8 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {linkClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,

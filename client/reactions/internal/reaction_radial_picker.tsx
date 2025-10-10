@@ -20,7 +20,8 @@ import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
-import {colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
+import {colorSchemeVars} from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     addRemLengths,
     convertRemLengthToPx,

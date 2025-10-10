@@ -168,14 +168,14 @@ import {
     emptyContentReferences,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {
     commentClassName,
     fileClassName,
     linkClassName,
     paragraphClassName,
-} from "~/shared/content/content_styles.js";
-import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";

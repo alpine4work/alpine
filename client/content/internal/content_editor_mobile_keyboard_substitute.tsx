@@ -69,14 +69,15 @@ import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {buttonStyles, colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
+import {buttonStyles, colorSchemeVars} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {
     codeClassName,
+    greyElevated2ClassName,
     italicClassName,
     linkClassName,
     strikeClassName,
-} from "~/shared/content/content_styles.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";

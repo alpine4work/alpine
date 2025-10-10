@@ -2,10 +2,12 @@ import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
 import {
     CssVarFunction,
     darkColorSchemeSelector,
-    greyElevated1ClassName,
-    greyElevated2ClassName,
 } from "~/client/styles/core/internal/color_scheme.css.js";
 import {colors} from "~/shared/design/core/colors.js";
+import {
+    greyElevated1ClassName,
+    greyElevated2ClassName,
+} from "~/shared/design/core/constant_class_names.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 /**

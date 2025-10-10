@@ -14,12 +14,13 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {
     ContentCodeBlockLanguage,
     contentCodeBlockLanguages,
 } from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";

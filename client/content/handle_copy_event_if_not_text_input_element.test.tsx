@@ -10,7 +10,7 @@ import {
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {paragraphClassName} from "~/shared/content/content_styles.js";
+import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

@@ -25,7 +25,8 @@ import {
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {greyElevated2ClassName, toastStyles} from "~/client/styles/styles.js";
+import {toastStyles} from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";

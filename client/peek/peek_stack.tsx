@@ -80,11 +80,11 @@ import {
     peekStackOverlayBorderRadius,
 } from "~/client/styles/peek_shared_styles.js";
 import {
-    greyElevated1ClassName,
     spaceLayoutStyles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
+import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     addRemLengths,
     convertRemLengthToPx,

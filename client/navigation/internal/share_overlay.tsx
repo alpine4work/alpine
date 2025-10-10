@@ -33,12 +33,7 @@ import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    backgroundColorVar,
-    greyElevated1ClassName,
-    pulseAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {backgroundColorVar, pulseAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     AccessLevel,
     AccessPolicy,
@@ -49,6 +44,7 @@ import {
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     RemLength,
     Spacing,

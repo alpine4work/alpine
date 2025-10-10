@@ -38,7 +38,6 @@ import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_cont
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    greyElevated2ClassName,
     inputPlaceholderStyles,
     spinAnimationClassName,
     sprinkles,
@@ -67,6 +66,7 @@ import {
 import {TaskCollectionComboBoxListBox} from "~/client/tasks/internal/task_collection_combo_box_list_box.js";
 import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_search_state.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

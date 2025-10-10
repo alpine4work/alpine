@@ -23,13 +23,10 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {
-    greyElevated2ClassName,
-    overlayFadeOutAnimationDurationMs,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {overlayFadeOutAnimationDurationMs, sprinkles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";

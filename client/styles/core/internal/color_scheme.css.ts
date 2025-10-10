@@ -1,6 +1,10 @@
 import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
 import {colors} from "~/shared/design/core/colors.js";
 import {
+    greyElevated1ClassName,
+    greyElevated2ClassName,
+} from "~/shared/design/core/constant_class_names.js";
+import {
     approximateOpacityForShiftingGreyColor,
     getColorForShiftingGreyColor,
 } from "~/shared/design/core/helpers/get_color_for_shifting_grey_color.js";
@@ -367,16 +371,6 @@ export const accentThemeBackgroundColor: {light: ColorSchemeVar; dark: ColorSche
 
 export const accentThemeForegroundColor: ColorSchemeVar = "grey-0-const";
 
-/**
- * When you put this class on an element then all children will use "elevated"
- * colors. This has no effect in light mode but in dark mode elevated colors are
- * slightly lighter. Since we can't use shadows in dark mode to simulate depth we
- * instead give surfaces that are "higher up" a lighter background. We use this
- * for peeks since peeks contain arbitrary content we need to implement
- * these lighter backgrounds at the color system level.
- */
-export const greyElevated1ClassName = style({});
-
 globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
     vars: {
         [colorSchemeVars["grey-0"]]: colors["grey-100-elevated-1"],
@@ -385,17 +379,6 @@ globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
         [colorSchemeVars["grey-10"]]: colors["grey-80-elevated-1"],
         [colorSchemeVars["grey-20"]]: colors["grey-70-elevated-1"],
     },
-});
-
-/**
- * When you put this class on an element then all children will use "elevated"
- * colors. This has no effect in light mode but in dark mode elevated colors are
- * slightly lighter. Since we can't use shadows in dark mode to simulate depth we
- * instead give surfaces that are "higher up" a lighter background. We use this
- * for hovering overlays.
- */
-export const greyElevated2ClassName = style({
-    vars: {},
 });
 
 globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {

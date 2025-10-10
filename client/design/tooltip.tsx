@@ -31,13 +31,13 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
 import {
-    greyElevated2ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

@@ -5,7 +5,7 @@ import {mergeProps, usePress} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {linkClassName} from "~/shared/content/content_styles.js";
+import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 

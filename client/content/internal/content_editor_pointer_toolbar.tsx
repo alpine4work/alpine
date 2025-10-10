@@ -61,7 +61,6 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {
-    greyElevated2ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
@@ -70,7 +69,7 @@ import {
 } from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {linkClassName} from "~/shared/content/content_styles.js";
+import {greyElevated2ClassName, linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

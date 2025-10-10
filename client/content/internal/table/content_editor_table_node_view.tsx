@@ -62,15 +62,15 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {
     fileClassName,
     fileRowLikeClassName,
     tableWrapper2ClassName,
     tableWrapper3ClassName,
     tableWrapperClassName,
-} from "~/shared/content/content_styles.js";
-import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
-import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";

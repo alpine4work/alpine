@@ -23,12 +23,8 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {noop} from "~/shared/helpers/control/noop.js";

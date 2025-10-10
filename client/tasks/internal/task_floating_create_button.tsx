@@ -5,10 +5,8 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {usePeekContext} from "~/client/remix/peek_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    greyElevated2ClassName,
-    pointerEventsNoneNotInheritedClassName,
-} from "~/client/styles/styles.js";
+import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     TaskQueryFilter,

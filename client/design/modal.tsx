@@ -20,7 +20,8 @@ import {
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {Sprinkles, greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
+import {Sprinkles, modalStyles, sprinkles} from "~/client/styles/styles.js";
+import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

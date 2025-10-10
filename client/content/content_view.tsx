@@ -69,14 +69,14 @@ import {
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {
     codeBlockWrapperClassName,
     fileClassName,
     linkClassName,
     paragraphClassName,
-} from "~/shared/content/content_styles.js";
-import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";

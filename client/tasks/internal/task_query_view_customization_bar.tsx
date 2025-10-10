@@ -18,7 +18,6 @@ import {
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {greyElevated2ClassName} from "~/client/styles/styles.js";
 import {taskQueryFilterEditorDesktopHeight} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
@@ -26,6 +25,7 @@ import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add
 import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQueryReferencesForUrlGrantFilterEditor} from "~/client/tasks/internal/task_query_references_for_url_grant_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";

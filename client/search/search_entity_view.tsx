@@ -30,10 +30,10 @@ import {
     Sprinkles,
     backgroundColorVar,
     colorSchemeVars,
-    greyElevated2ClassName,
     searchStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";

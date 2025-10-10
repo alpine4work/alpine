@@ -5275,7 +5275,9 @@ exports[`file row (one file, video type) 1`] = `
         aria-hidden="true"
         style="max-width: 600px; max-height: 600px"
       />
-      <div>
+      <div
+        class="greyElevated2"
+      >
         <div>
           <svg
             viewBox="0 0 256 256"

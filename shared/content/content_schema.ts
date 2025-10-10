@@ -17,6 +17,7 @@ import {
     isContentCodeBlockLanguageId,
 } from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
+import {contentTableProsemirrorSchemaSpec} from "~/shared/content/table/content_table_schema.js";
 import {
     boldClassName,
     codeBlockClassName,
@@ -34,8 +35,7 @@ import {
     quoteBlockClassName,
     strikeClassName,
     unorderedListItemClassName,
-} from "~/shared/content/content_styles.js";
-import {contentTableProsemirrorSchemaSpec} from "~/shared/content/table/content_table_schema.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";

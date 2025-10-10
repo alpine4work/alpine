@@ -31,12 +31,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

@@ -11,10 +11,11 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskPriorityInputItem} from "~/client/tasks/internal/task_priority_input.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 

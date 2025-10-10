@@ -27,13 +27,14 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {newTaskCollectionNamePlaceholder} from "~/client/styles/tasks_shared_styles.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";

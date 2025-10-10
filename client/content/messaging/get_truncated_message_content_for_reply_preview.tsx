@@ -3,13 +3,13 @@ import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
 import {printContentSingleLineTextSnippetPreservingMarksForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
     boldClassName,
     codeClassName,
     italicClassName,
     strikeClassName,
-} from "~/shared/content/content_styles.js";
-import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {Store} from "~/shared/store/store.js";

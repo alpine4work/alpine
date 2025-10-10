@@ -39,7 +39,6 @@ import {
     contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
     contentStyles,
-    greyElevated2ClassName,
     pulseAnimationClassName,
     spinAnimationClassName,
     sprinkles,
@@ -51,7 +50,8 @@ import {
     codeBlockLineContentClassName,
     codeBlockWrapper2ClassName,
     fileClassName,
-} from "~/shared/content/content_styles.js";
+    greyElevated2ClassName,
+} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";

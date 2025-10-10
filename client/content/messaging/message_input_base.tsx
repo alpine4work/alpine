@@ -103,9 +103,9 @@ import {
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {trimContentEnd} from "~/shared/content/trim_content.js";
+import {fileClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     Spacing,
     addRemLengths,

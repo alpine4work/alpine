@@ -14,8 +14,8 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
-    greyElevated2ClassName,
 } from "~/client/styles/styles.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";

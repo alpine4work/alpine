@@ -1,6 +1,5 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
-import {unstable_NormalPriority, unstable_runWithPriority} from "scheduler";
 import {
     formatCssLinearGradient,
     generateEasedGradient,
@@ -25,8 +24,12 @@ import {
     GlTextureInternalFormat,
     GlVertexAttribType,
 } from "~/client/helpers/gl/gl_types.js";
-import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
-import {colors} from "~/shared/design/core/colors.js";
+import {Color as ColorVar, colors} from "~/shared/design/core/colors.js";
+import {
+    blobsArtGradientClassName,
+    greyElevated1ClassName,
+    greyElevated2ClassName,
+} from "~/shared/design/core/constant_class_names.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -256,11 +259,37 @@ export function drawBlobFactoryToCanvas(
             canvas.parentElement?.getElementsByClassName(blobsArtGradientClassName)?.[0],
         );
 
+        // Find parent with elevation class
+        let backgroundColor = colors[settings.backgroundColor];
+        let parent = canvas.parentElement;
+
+        const elevated1Color = colors.hasOwnProperty(`${settings.backgroundColor}-elevated-1`)
+            ? colors[`${settings.backgroundColor}-elevated-1` as ColorVar]
+            : null;
+        const elevated2Color = colors.hasOwnProperty(`${settings.backgroundColor}-elevated-2`)
+            ? colors[`${settings.backgroundColor}-elevated-2` as ColorVar]
+            : null;
+
+        if (elevated1Color || elevated2Color) {
+            // We only need to check for elevated colors if they exist in the color map.
+            while (parent) {
+                if (parent.classList.contains(greyElevated1ClassName) && elevated1Color) {
+                    backgroundColor = elevated1Color;
+                    break;
+                } else if (parent.classList.contains(greyElevated2ClassName) && elevated2Color) {
+                    backgroundColor = elevated2Color;
+                    break;
+                }
+
+                parent = parent.parentElement;
+            }
+        }
+
         const gradientBackground = formatCssLinearGradient(
             "to bottom",
             generateEasedGradient(
-                new Color(colors[settings.backgroundColor]).alpha(0).toString(),
-                colors[settings.backgroundColor],
+                new Color(backgroundColor).alpha(0).toString(),
+                backgroundColor,
                 easeInOutSin,
                 10,
             ),
@@ -270,7 +299,7 @@ export function drawBlobFactoryToCanvas(
     };
 
     if (willDraw.defer) {
-        unstable_runWithPriority(unstable_NormalPriority, actuallyDraw);
+        setTimeout(actuallyDraw, 0);
     } else {
         actuallyDraw();
     }

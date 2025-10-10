@@ -22,7 +22,7 @@ import {
     listItemClassName,
     paragraphClassName,
     unorderedListItemClassName,
-} from "~/shared/content/content_styles.js";
+} from "~/shared/design/core/constant_class_names.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {FeedWelcomeEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

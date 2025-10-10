@@ -62,12 +62,6 @@ import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_cont
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
-    fileClassName,
-    tableWrapper2ClassName,
-    tableWrapper3ClassName,
-    tableWrapperClassName,
-} from "~/shared/content/content_styles.js";
-import {
     ContentTableCellSelection,
     normalizeContentTableCellSelection,
 } from "~/shared/content/table/content_table_cell_selection.js";
@@ -76,6 +70,12 @@ import {
     inSameContentTable,
     pointsAtContentTableCell,
 } from "~/shared/content/table/content_table_shared_util.js";
+import {
+    fileClassName,
+    tableWrapper2ClassName,
+    tableWrapper3ClassName,
+    tableWrapperClassName,
+} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

@@ -11,7 +11,8 @@ ts_project(
         "//:node_modules/@types/d3-interpolate",
         "//:node_modules/color",
         "//:node_modules/d3-interpolate",
-        "//client/helpers",
+        "//client/helpers/gl",
         "//shared/design",
+        "//shared/helpers",
     ],
 )

@@ -14,7 +14,10 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
+import {
+    fileFloatLeftClassName,
+    fileFloatRightClassName,
+} from "~/shared/design/core/constant_class_names.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";

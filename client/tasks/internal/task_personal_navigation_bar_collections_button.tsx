@@ -11,12 +11,7 @@ import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskCollectionComboBoxItem,
@@ -25,6 +20,7 @@ import {
 import {TaskCollectionComboBoxListBox} from "~/client/tasks/internal/task_collection_combo_box_list_box.js";
 import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_search_state.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
+import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
