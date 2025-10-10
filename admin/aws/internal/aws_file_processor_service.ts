@@ -547,7 +547,8 @@ function getResizeAvatarLambda(
         // if it's not able to complete the resize operation.
         timeout: Duration.seconds(30),
         secret,
-        provisionedConcurrentExecutions: 2,
+        // TODO(#launch) When we're ready to launch, we should set this to 2
+        provisionedConcurrentExecutions: 1,
     });
 
     // Needs access in order to fetch the session
@@ -756,7 +757,8 @@ function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSq
                 memorySize: 4096, // 4GB RAM (~2 vCPUs)
                 queue: sqs.getFileProcessorLightJobQueue(),
                 timeout: Duration.millis(fileProcessorTimeoutMs),
-                provisionedConcurrentExecutions: 2,
+                // TODO(#launch) When we're ready to launch, we should set this to 2
+                provisionedConcurrentExecutions: 1,
             } as const;
         }
         case "Heavy": {
@@ -765,7 +767,8 @@ function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSq
                 memorySize: 10240, // 10GB RAM (~6 vCPUs)
                 queue: sqs.getFileProcessorHeavyJobQueue(),
                 timeout: Duration.millis(fileProcessorTimeoutMs),
-                provisionedConcurrentExecutions: 1,
+                // TODO(#launch) When we're ready to launch, we should set this to 1
+                provisionedConcurrentExecutions: 0,
             } as const;
         }
     }
