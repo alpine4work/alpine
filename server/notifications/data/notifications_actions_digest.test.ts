@@ -1,10 +1,30 @@
 import {fromDate, parseDateTime, toZoned} from "@internationalized/date";
+import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import * as EmailContextModule from "~/server/emails/noop_email_context_module.js";
+import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
+import {
+    InboxTable,
+    internalInitialInboxGeneration,
+} from "~/server/notifications/data/internal/notifications_realtime_table.js";
+import {
+    archiveInboxEntry,
+    processNotificationEvent,
+} from "~/server/notifications/data/notifications_actions.js";
 import {
     computeDigestNotificationsNextScheduledDateTime,
+    getNotificationDigestContent,
     isInboxEligibleForDigestNotification,
-} from "~/server/notifications/data/notifications_actions.js";
+    sendNotificationDigestForInbox,
+} from "~/server/notifications/data/notifications_actions_digest.js";
+import {createNotificationsScenario} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {DigestNotificationsSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
@@ -777,5 +797,520 @@ describe("computeDigestNotificationsNextScheduledDateTime", () => {
             expect(result).not.toBeNull();
             expect(result!.toISOString()).toBe(expectedTime.toAbsoluteString());
         });
+    });
+});
+
+describe("sendNotificationDigestForInbox", () => {
+    beforeEach(async () => {
+        import.meta.jest.clearAllMocks();
+    });
+
+    test("should send email when all conditions are met", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).toHaveBeenCalledTimes(1);
+    });
+
+    test("should not send email when digestNotificationsLastSentTime is after sendTime", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-16T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    test("should not send email when digestNotificationsOptedOutTime is set", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: new Date("2024-01-01T12:00:00Z"),
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    test("should not send email when digestNotificationsSchedule is empty", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set([]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    test("should not send email when sendTime does not match expected scheduled digest time", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    test("should not send email when account is not a member of the space", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        await space.removeAccount(session.account);
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    test("should update inbox item even when not sending email", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: new Date("2024-01-01T12:00:00Z"),
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        const updatedItem = await InboxTable.getItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+        });
+
+        expect(sendMock).not.toHaveBeenCalled();
+        expect(updatedItem.digestNotificationsLastSentTime).toEqual(sendTime);
+    });
+
+    test("should set digestNotificationsNextScheduledDateTime to null when updating inbox item", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: new Date("2024-01-01T12:00:00Z"),
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        const updatedItem = await InboxTable.getItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+        });
+        expect(updatedItem.digestNotificationsNextScheduledDateTime).toBeNull();
+    });
+
+    test("should throw when account is a bot", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const sendTime = new Date("2024-01-15T13:00:00Z");
+
+        await expect(
+            sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+                accountId: bot.id,
+                spaceId: space.id,
+            }),
+        ).rejects.toThrow(permissionDeniedBotError());
+    });
+
+    test("should throw when system actor is not a member of the space", async () => {
+        const space = await TestSpace.create(context);
+        const space2 = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: internalInitialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await expect(
+            sendNotificationDigestForInbox(context.systemAction(space2.id), sendTime, {
+                accountId: session.account.id,
+                spaceId: space.id,
+            }),
+        ).rejects.toThrow();
+    });
+});
+
+describe("getNotificationDigestContent", () => {
+    context.setProcessJob(async (context, job, jobStartTime, span) => {
+        if (job.type === "NotificationEvent") {
+            await processNotificationEvent(context, job.event, span);
+        }
+    });
+    test("should get inbox entries", async () => {
+        const scenario = await createNotificationsScenario(context);
+
+        const chat = await TestChat.get(scenario.session1, scenario.session2, scenario.session3);
+        await chat.sendMessage(scenario.session2, "message1");
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const content = await getNotificationDigestContent(
+            context.systemAction(scenario.space.id),
+            {
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+            },
+        );
+        const expectedContent = {
+            digestEntries: [
+                {
+                    brandIconType: "Chat",
+                    firstAccount: {
+                        avatar: null,
+                        botId: undefined,
+                        id: scenario.session3.account.id,
+                        name: scenario.session3.account.initialName,
+                        nameVersion: 0,
+                        space: {
+                            addedTime: expect.any(Date),
+                            role: "Member",
+                            state: {type: "Active"},
+                            version: 1,
+                        },
+                        version: 0,
+                        reactionCharacter: expect.any(Object),
+                    },
+                    loudNotificationCount: 1,
+                    preview: "Test: message1",
+                    secondAccount: {
+                        avatar: null,
+                        botId: undefined,
+                        id: scenario.session2.account.id,
+                        name: scenario.session2.account.initialName,
+
+                        nameVersion: 0,
+                        space: {
+                            addedTime: expect.any(Date),
+                            role: "Member",
+                            state: {type: "Active"},
+                            version: 1,
+                        },
+                        version: 0,
+                        reactionCharacter: expect.any(Object),
+                    },
+                    summary: [
+                        {
+                            name: parseAccountNameAssumingWesternNameOrder(
+                                scenario.session3.account.initialName,
+                            ).givenName,
+                            type: "Account",
+                        },
+                        " sent you",
+                        " and ",
+                        {
+                            name: parseAccountNameAssumingWesternNameOrder(
+                                scenario.session2.account.initialName,
+                            ).givenName,
+                            type: "Account",
+                        },
+                        " a message",
+                    ],
+                    time: expect.any(Date),
+                    url: expect.any(URL),
+                },
+            ],
+            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            remainingEntryCount: 0,
+        };
+        expect(content).toEqual(expectedContent);
+    });
+
+    test("should skip archived inbox entries", async () => {
+        const scenario = await createNotificationsScenario(context);
+        const chat = await TestChat.get(scenario.session1, scenario.session2);
+        await chat.sendMessage(scenario.session2, "message1");
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await archiveInboxEntry(
+            context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+            {
+                spaceId: scenario.space.id,
+                key: {type: "Chat", chatId: chat.id},
+            },
+        );
+
+        const content = await getNotificationDigestContent(
+            context.systemAction(scenario.space.id),
+            {
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+            },
+        );
+
+        const expectedContent = {
+            digestEntries: [],
+            inboxUrl: new URL(`/s/${scenario.space.id}/inbox`, context.constants.edgeServiceUrl),
+            remainingEntryCount: 0,
+        };
+        expect(content).toEqual(expectedContent);
+    });
+
+    test("should throw if bot account", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+
+        await expect(
+            getNotificationDigestContent(context.systemAction(space.id), {
+                spaceId: space.id,
+                accountId: bot.id,
+            }),
+        ).rejects.toThrow(permissionDeniedBotError());
+    });
+
+    test("should throw if account is not a member of the space", async () => {
+        const space = await TestSpace.create(context);
+        const account = await TestAccount.create(context);
+
+        await expect(
+            getNotificationDigestContent(context.systemAction(space.id), {
+                spaceId: space.id,
+                accountId: account.id,
+            }),
+        ).rejects.toThrow();
     });
 });

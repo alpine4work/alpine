@@ -16,6 +16,8 @@ import {AccountId, AvatarId} from "~/shared/id/types/id_types.js";
 
 type NonEmptyArray<Value> = [Value, ...Array<Value>];
 
+const emailPreviewBaseUrl = "http://localhost:3000";
+
 const emailTemplatePreviews: {
     [K in keyof EmailTemplates]: NonEmptyArray<{
         title: string;
@@ -28,7 +30,7 @@ const emailTemplatePreviews: {
             props: {
                 emailAddress: "anthony.mose@company.com",
                 code: "123456",
-                baseUrl: "http://localhost:3000",
+                baseUrl: emailPreviewBaseUrl,
             },
         },
         {
@@ -36,7 +38,7 @@ const emailTemplatePreviews: {
             props: {
                 emailAddress: "anthony.mose@company.com",
                 code: "123456",
-                baseUrl: "http://localhost:3000",
+                baseUrl: emailPreviewBaseUrl,
                 shouldDangerouslyIncludeCodeInSubject: true,
             },
         },
@@ -45,7 +47,7 @@ const emailTemplatePreviews: {
         {
             title: "Space invite",
             props: {
-                spaceUrl: "localhost:3000/spaces/invite/1234567890abcdef",
+                spaceUrl: `${emailPreviewBaseUrl}/spaces/invite/1234567890abcdef`,
                 spaceName: "Test Space",
             },
         },
@@ -57,19 +59,21 @@ const emailTemplatePreviews: {
                 locale: defaultLocale,
                 localizedDigestTime: parseAbsolute("2025-08-22T12:00:00Z", defaultTimeZone),
                 spaceName: "Test Space",
-                baseUrl: "http://localhost:3000",
-                unsubscribeUrl: "/notifications/opt-out?token=1234567890",
+                baseUrl: emailPreviewBaseUrl,
+                unsubscribeUrl: new URL(
+                    `/s/1234567890/notifications/unsubscribe?accountId=1234567890&emailType=digest`,
+                    emailPreviewBaseUrl,
+                ),
                 digestContent: {
-                    inboxUrl: "/s/1234567890/inbox",
+                    inboxUrl: new URL(`/s/1234567890/inbox?selected=3`, emailPreviewBaseUrl),
                     remainingEntryCount: 10,
                     digestEntries: [
                         {
-                            id: "3",
-                            title: [{type: "Account", name: "Bob"}, " sent you a message"],
-                            summary: "Bob: Did you see Alice’s photos? They’re amazing!",
+                            summary: [{type: "Account", name: "Bob"}, " sent you a message"],
+                            preview: "Bob: Did you see Alice’s photos? They’re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
-                            url: "/s/1234/inbox?selected=3",
+                            url: new URL(`/s/1234/inbox?selected=3`, emailPreviewBaseUrl),
                             loudNotificationCount: 1,
                             firstAccount: {
                                 id: "1" as AccountId,
@@ -91,15 +95,14 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            id: "5",
-                            title: [
+                            summary: [
                                 "New comment thread on “My Important Document” by ",
                                 {type: "Account", name: "Caominhe"},
                             ],
-                            summary: "Caominhe: Good thinking! 👍",
+                            preview: "Caominhe: Good thinking! 👍",
                             brandIconType: "Document",
                             time: new Date("2025-08-21T11:11Z"),
-                            url: "/s/1234/inbox?selected=5",
+                            url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
                             loudNotificationCount: 100,
                             firstAccount: {
                                 id: "1" as AccountId,
@@ -135,13 +138,12 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            id: "1",
-                            title: ["New post in General by ", {type: "Account", name: "Alice"}],
-                            summary:
+                            summary: ["New post in General by ", {type: "Account", name: "Alice"}],
+                            preview:
                                 "Alice: Hey! I just got back from Colorado and have some photos to share.",
                             brandIconType: "Post",
                             time: new Date("2025-08-22T08:11Z"),
-                            url: "/s/1234/inbox?selected=1",
+                            url: new URL(`/s/1234/inbox?selected=1`, emailPreviewBaseUrl),
                             loudNotificationCount: 10,
                             firstAccount: {
                                 id: "2" as AccountId,
@@ -159,12 +161,11 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            id: "5",
-                            title: ["Your post in Weekly Recap has new comments"],
-                            summary: "Bob: OMG! 🤩 I’m so excited for this feature!",
+                            summary: ["Your post in Weekly Recap has new comments"],
+                            preview: "Bob: OMG! 🤩 I’m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
-                            url: "/s/1234/inbox?selected=5",
+                            url: new URL(`/s/1234/inbox?selected=5`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             firstAccount: {
                                 id: "1" as AccountId,
@@ -205,16 +206,15 @@ const emailTemplatePreviews: {
                         },
 
                         {
-                            id: "2",
-                            title: [
+                            summary: [
                                 "New post in Product & Design by ",
                                 {type: "Account", name: "Felicia"},
                             ],
-                            summary:
+                            preview:
                                 "Felicia: I’m working on the new design for diagrams and need some feedback. Please take a look!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T22:36:11Z"),
-                            url: "/s/1234/inbox?selected=2",
+                            url: new URL(`/s/1234/inbox?selected=2`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             firstAccount: {
                                 id: "4" as AccountId,
@@ -232,12 +232,11 @@ const emailTemplatePreviews: {
                             },
                         },
                         {
-                            id: "4",
-                            title: ["Your post in General has new comments"],
-                            summary: "Kenji: Wow! I love that idea!",
+                            summary: ["Your post in General has new comments"],
+                            preview: "Kenji: Wow! I love that idea!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T10:42:11Z"),
-                            url: "/s/1234/inbox?selected=4",
+                            url: new URL(`/s/1234/inbox?selected=4`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             firstAccount: {
                                 id: "5" as AccountId,
@@ -260,15 +259,14 @@ const emailTemplatePreviews: {
                         },
 
                         {
-                            id: "6",
-                            title: [
+                            summary: [
                                 {type: "Account", name: "Kenji"},
                                 " mentioned you in a comment on their task",
                             ],
-                            summary: "Want to pair on this one together?",
+                            preview: "Want to pair on this one together?",
                             brandIconType: "Task",
                             time: new Date("2025-08-20T22:36:11Z"),
-                            url: "/s/1234/inbox?selected=6",
+                            url: new URL(`/s/1234/inbox?selected=6`, emailPreviewBaseUrl),
                             loudNotificationCount: 0,
                             firstAccount: {
                                 id: "5" as AccountId,

@@ -1,7 +1,9 @@
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {NonTransactionalEmailType} from "~/server/emails/email_type.js";
 import {RenderedEmail} from "~/server/emails/internal/templates/email_templates.js";
 import {DataLossError} from "~/shared/error/error.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Renders emails, but creates a trace on send instead of sending the email. Throws an error
@@ -24,6 +26,25 @@ export class TraceOnlyEmailContextModule extends EmailContextModuleBase {
                 },
             });
         });
+    }
+
+    public async getSignedUnsubscribeUrlForAppService({
+        accountId,
+        spaceId,
+        emailType,
+        baseUrl,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+        baseUrl: string;
+    }): Promise<URL> {
+        return this._serializeUnsubscribeUrl({accountId, spaceId, emailType, baseUrl});
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected async _verifySignedUnsubscribeUrl(_url: URL): Promise<void> {
+        // No-op
     }
 
     public fork() {

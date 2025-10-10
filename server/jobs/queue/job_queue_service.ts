@@ -305,7 +305,7 @@ export async function run({
         scheduler: schedulerContextModule,
         email:
             process.env.NODE_ENV === "production"
-                ? new SesEmailContextModule()
+                ? new SesEmailContextModule(tokenAgent)
                 : new TraceOnlyEmailContextModule(),
         botWebhook: new BotWebhookContextModule(tokenAgent),
     });

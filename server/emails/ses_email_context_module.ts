@@ -1,18 +1,50 @@
 import {SESClient, SESServiceException, SendEmailCommand} from "@aws-sdk/client-ses";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {NonTransactionalEmailType} from "~/server/emails/email_type.js";
 import {RenderedEmail} from "~/server/emails/internal/templates/email_templates.js";
-import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {InternalError, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Send an email with AWS SES. Used in production to send emails.
  */
 export class SesEmailContextModule extends EmailContextModuleBase {
     private readonly _client: SESClient;
+    private readonly _tokenAgent: TokenAgent;
 
-    constructor() {
+    constructor(tokenAgent: TokenAgent) {
         super();
+        this._tokenAgent = tokenAgent;
         this._client = new SESClient({region: "us-east-1"});
+    }
+
+    public async getSignedUnsubscribeUrlForAppService({
+        accountId,
+        spaceId,
+        emailType,
+        baseUrl,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+        baseUrl: string;
+    }): Promise<URL> {
+        return this._tokenAgent.privateSide.dangerouslySignUrl(
+            "AppService",
+            this._serializeUnsubscribeUrl({accountId, spaceId, emailType, baseUrl}),
+            // Unsubscribe URLs are valid for 30 days
+            {expirationMinutes: 60 * 24 * 30},
+        );
+    }
+
+    protected async _verifySignedUnsubscribeUrl(url: URL): Promise<void> {
+        try {
+            await this._tokenAgent.publicSide.verifyUrl(url);
+        } catch {
+            throw new InvalidArgumentError("Invalid or expired email unsubscribe link");
+        }
     }
 
     protected _send(
@@ -61,6 +93,6 @@ export class SesEmailContextModule extends EmailContextModuleBase {
     }
 
     public fork() {
-        return new SesEmailContextModule();
+        return new SesEmailContextModule(this._tokenAgent);
     }
 }

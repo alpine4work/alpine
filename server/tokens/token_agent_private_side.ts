@@ -130,7 +130,7 @@ export class TokenAgentPrivateSide {
      * `search` part of the URL.
      *
      * Uses HS256 as the signing algorithm. Unlike RS256 (used by
-     * `dangerouslySignShortLivedUrl()`) HS256 is a symmetric signing algorithm.
+     * `dangerouslySignUrl()`) HS256 is a symmetric signing algorithm.
      * This means all instances of `TokenAgent` across all our services have the
      * same HS256 secret key. To learn more about these two algorithms read "[RS256
      * vs HS256: What's The Difference?][1]". If an attacker gets access to
@@ -158,7 +158,7 @@ export class TokenAgentPrivateSide {
      * [1]: https://auth0.com/blog/rs256-vs-hs256-whats-the-difference/
      * [2]: https://datatracker.ietf.org/doc/html/rfc7797#section-4.2
      */
-    public async dangerouslySignShortLivedUrl(
+    public async dangerouslySignUrl(
         audience: TokenServiceName | Array<TokenServiceName>,
         originalUrl: URL,
         {

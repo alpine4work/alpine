@@ -1,5 +1,9 @@
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {
+    NonTransactionalEmailType,
+    isNonTransactionalEmailType,
+} from "~/server/emails/email_type.js";
+import {
     FromEmailAddressAlias,
     getFormattedFromEmailAddress,
 } from "~/server/emails/from_email_address.js";
@@ -12,6 +16,9 @@ import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Context module for sending an email.
@@ -105,6 +112,74 @@ export abstract class EmailContextModuleBase<
     ): Promise<void> {
         await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
     }
+
+    protected _serializeUnsubscribeUrl({
+        accountId,
+        spaceId,
+        emailType,
+        baseUrl,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+        baseUrl: string;
+    }): URL {
+        return new URL(
+            `${baseUrl}/s/${spaceId}/notifications/unsubscribe?accountId=${accountId}&emailType=${emailType}`,
+        );
+    }
+
+    protected _deserializeUnsubscribeUrl(url: URL): {
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+    } {
+        const spaceId = url.pathname.split("/")[1];
+        const accountId = url.searchParams.get("accountId");
+        const emailType = url.searchParams.get("emailType");
+
+        assert(
+            accountId &&
+                spaceId &&
+                emailType &&
+                isId<AccountId>(accountId) &&
+                isId<SpaceId>(spaceId) &&
+                isNonTransactionalEmailType(emailType),
+            "Invalid unsubscribe URL",
+        );
+        return {
+            accountId: accountId,
+            spaceId: spaceId,
+            emailType: emailType,
+        };
+    }
+
+    public async getPartsFromSignedUnsubscribeUrl(url: URL): Promise<{
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+    }> {
+        await this._verifySignedUnsubscribeUrl(url);
+        const {accountId, spaceId, emailType} = this._deserializeUnsubscribeUrl(url);
+        return {accountId, spaceId, emailType};
+    }
+
+    /**
+     * Get a signed URL to unsubscribe from an email segment intended to be used by AppService.
+     */
+    public abstract getSignedUnsubscribeUrlForAppService({
+        accountId,
+        spaceId,
+        emailType,
+        baseUrl,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+        baseUrl: string;
+    }): Promise<URL>;
+
+    protected abstract _verifySignedUnsubscribeUrl(url: URL): Promise<void>;
 
     protected abstract _send(
         fromEmailAddress: string,

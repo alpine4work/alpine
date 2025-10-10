@@ -288,10 +288,12 @@ function getHandleSpanName(messageBody: JobQueueMessageBody) {
         case "AddFeedCandidateEntry":
         case "AddFeedAccountCandidateEntry":
         case "CallBotWebhook":
+        case "EnqueueScheduledNotificationDigests":
         case "RetryUnprocessedTaskActionTransactions":
         case "SendShareNotification":
         case "ScheduleDeploy":
         case "SendEmail":
+        case "SendNotificationDigest":
         case "Test": {
             throw new InternalError(`Job ${messageBody.job.type} is not supported`);
         }

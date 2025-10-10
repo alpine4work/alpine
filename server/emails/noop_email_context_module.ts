@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {NonTransactionalEmailType} from "~/server/emails/email_type.js";
 import {FromEmailAddressAlias} from "~/server/emails/from_email_address.js";
 import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/templates/email_templates.js";
 import {DataLossError} from "~/shared/error/error.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * No-ops all email rendering and sending.
@@ -46,6 +48,24 @@ export class NoopEmailContextModule extends EmailContextModuleBase {
     ): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
+    }
+
+    public async getSignedUnsubscribeUrlForAppService({
+        accountId,
+        spaceId,
+        emailType,
+        baseUrl,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+        emailType: NonTransactionalEmailType;
+        baseUrl: string;
+    }): Promise<URL> {
+        return this._serializeUnsubscribeUrl({accountId, spaceId, emailType, baseUrl});
+    }
+
+    protected async _verifySignedUnsubscribeUrl(_url: URL): Promise<void> {
+        // No-op
     }
 
     public fork() {

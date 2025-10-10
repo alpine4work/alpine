@@ -185,15 +185,15 @@ describe("renderReactEmailTemplate", () => {
                 localizedDigestTime: parseAbsolute("2025-08-22T12:00:00Z", defaultTimeZone),
                 spaceName: "Test Space",
                 baseUrl: "http://localhost:3000",
-                unsubscribeUrl: "notifications/opt-out?token=1234567890",
+                unsubscribeUrl:
+                    "notifications/s/1234567890/notifications/unsubscribe?token=1234567890",
                 digestContent: {
                     inboxUrl: "/s/1234567890/inbox",
                     remainingEntryCount: 10,
                     digestEntries: [
                         {
-                            id: "3",
-                            title: [{type: "Account", name: "Bob"}, " sent you a message"],
-                            summary: "Bob: Did you see Alice’s photos? They’re amazing!",
+                            summary: [{type: "Account", name: "Bob"}, " sent you a message"],
+                            preview: "Bob: Did you see Alice’s photos? They’re amazing!",
                             brandIconType: "Chat",
                             time: new Date("2025-08-21T08:42:11Z"),
                             url: "/s/1234/inbox?selected=3",
@@ -217,12 +217,11 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            id: "5",
-                            title: [
+                            summary: [
                                 "New comment thread on “My Important Document” by ",
                                 {type: "Account", name: "Caominhe"},
                             ],
-                            summary: "Caominhe: Good thinking! 👍",
+                            preview: "Caominhe: Good thinking! 👍",
                             brandIconType: "Document",
                             time: new Date("2025-08-21T11:11Z"),
                             url: "/s/1234/inbox?selected=5",
@@ -259,9 +258,8 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            id: "1",
-                            title: ["New post in General by ", {type: "Account", name: "Alice"}],
-                            summary:
+                            summary: ["New post in General by ", {type: "Account", name: "Alice"}],
+                            preview:
                                 "Alice: Hey! I just got back from Colorado and have some photos to share.",
                             brandIconType: "Post",
                             time: new Date("2025-08-22T08:11Z"),
@@ -282,9 +280,8 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            id: "5",
-                            title: ["Your post in Weekly Recap has new comments"],
-                            summary: "Bob: OMG! 🤩 I’m so excited for this feature!",
+                            summary: ["Your post in Weekly Recap has new comments"],
+                            preview: "Bob: OMG! 🤩 I’m so excited for this feature!",
                             brandIconType: "Post",
                             time: new Date("2025-08-21T17:11Z"),
                             url: "/s/1234/inbox?selected=5",
@@ -326,12 +323,11 @@ describe("renderReactEmailTemplate", () => {
                         },
 
                         {
-                            id: "2",
-                            title: [
+                            summary: [
                                 "New post in Product & Design by ",
                                 {type: "Account", name: "Felicia"},
                             ],
-                            summary:
+                            preview:
                                 "Felicia: I’m working on the new design for diagrams and need some feedback. Please take a look!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T22:36:11Z"),
@@ -352,9 +348,8 @@ describe("renderReactEmailTemplate", () => {
                             },
                         },
                         {
-                            id: "4",
-                            title: ["Your post in General has new comments"],
-                            summary: "Kenji: Wow! I love that idea!",
+                            summary: ["Your post in General has new comments"],
+                            preview: "Kenji: Wow! I love that idea!",
                             brandIconType: "Post",
                             time: new Date("2025-08-20T10:42:11Z"),
                             url: "/s/1234/inbox?selected=4",

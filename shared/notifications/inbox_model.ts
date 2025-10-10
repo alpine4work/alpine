@@ -1,6 +1,7 @@
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     AccountId,
@@ -108,6 +109,19 @@ export function getInboxEntryPath(
     routeLayout: RouteLayout,
 ): string {
     return getInboxEntryKeyPath(model.spaceId, model.getKey(), routeLayout);
+}
+
+/**
+ * Gets the path for an inbox entry and base64 encodes it to hide the fact that it's a URL.
+ * Intended for use in search params, such as the `selected` search param (e.g. https://alpine.inc/s/1234/inbox?selected=<encoded entry path>).
+ */
+export function getEncodedInboxEntryPath(
+    model: InboxEntryModelInterface,
+    routeLayout: RouteLayout,
+): string {
+    const entryPath = getInboxEntryPath(model, routeLayout);
+    const textEncoder = new TextEncoder();
+    return encodeBase64(textEncoder.encode(entryPath.replace(/^(\/s\/[^/]+\/)/, "")), "Rfc4648Url");
 }
 
 interface InboxEntryModelInterface {

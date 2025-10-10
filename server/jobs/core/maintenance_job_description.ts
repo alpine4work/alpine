@@ -56,4 +56,8 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
             title: Schema.string,
         }),
     }),
+
+    EnqueueScheduledNotificationDigests: Schema.object({
+        type: Schema.value("EnqueueScheduledNotificationDigests"),
+    }),
 });

@@ -41,11 +41,14 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
+import {
+    InboxEntryModel,
+    getEncodedInboxEntryPath,
+    getInboxEntryPath,
+} from "~/shared/notifications/inbox_model.js";
 
 const spaceLayoutSideBarInboxOverlayHeaderHeight: Spacing = "9";
 
@@ -201,19 +204,9 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                 // Optimization: Since we know the first inbox entry we can include it in the
                 // URL so our backend can load data it in parallel.
                 const firstItem = entriesRef.current?.getFirstItemIfExists();
-                const firstItemPath = firstItem ? getInboxEntryPath(firstItem.model, "wide") : null;
-                if (firstItemPath) {
-                    // base64 encode the initial path to hide the fact that it's a URL.
-                    const textEncoder = new TextEncoder();
-
-                    const selectedSearchParam = encodeBase64(
-                        textEncoder.encode(firstItemPath.replace(/^(\/s\/[^/]+\/)/, "")),
-                        "Rfc4648Url",
-                    );
-
-                    searchParams.set("selected", selectedSearchParam);
+                if (firstItem) {
+                    searchParams.set("selected", getEncodedInboxEntryPath(firstItem.model, "wide"));
                 }
-
                 await rootNavigate(
                     `/s/${space.id}/inbox${
                         searchParams.size > 0 ? `?${searchParams.toString()}` : ""

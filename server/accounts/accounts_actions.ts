@@ -265,6 +265,13 @@ export async function createAccountForTest(
         reactionCharacter: pickRandomReactionCharacterForAccount(),
     });
 
+    await AccountsTable.createItem(context, {
+        partitionType: "Account",
+        sortRangeType: "Settings",
+        accountId: id,
+        observedTimeZone,
+    });
+
     return {createdTime};
 }
 

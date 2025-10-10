@@ -23,16 +23,15 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 
 export type DigestNotificationContent = {
-    inboxUrl: string;
+    inboxUrl: URL;
     digestEntries: Array<DigestEntry>;
     remainingEntryCount: number;
 };
 
 export type DigestEntry = {
-    id: string;
-    url: string;
-    title: Array<string | {type: "Account"; name: string}>;
-    summary: string;
+    url: URL;
+    summary: Array<string | {type: "Account"; name: string}>;
+    preview: string | null;
     brandIconType: string;
     time: Date;
     loudNotificationCount: number;
@@ -52,7 +51,7 @@ export function NotificationDigestEmailTemplate({
     locale: Locale;
     localizedDigestTime: ZonedDateTime;
     spaceName: string;
-    unsubscribeUrl: string;
+    unsubscribeUrl: URL;
     digestContent: DigestNotificationContent;
 }) {
     const parsedEntries = digestContent.digestEntries.map(entry => {
@@ -147,7 +146,7 @@ export function NotificationDigestEmailTemplate({
             </Section>
             <Section style={{marginBottom: convertRemLengthToPx(spacing["2"], "medium")}}>
                 {parsedEntries.map((entry, index) => (
-                    <React.Fragment key={entry.id}>
+                    <React.Fragment key={entry.url.toString()}>
                         {index === 0 && <Hr />}
 
                         <Row
@@ -175,7 +174,7 @@ export function NotificationDigestEmailTemplate({
                                 >
                                     {entry.dateString}
                                 </EmailText>
-                                <EmailLink color="grey-100" href={`${baseUrl}${entry.url}`}>
+                                <EmailLink color="grey-100" href={`${entry.url.toString()}`}>
                                     <Row>
                                         <EmailText
                                             fontSize="200"
@@ -191,7 +190,7 @@ export function NotificationDigestEmailTemplate({
                                                 ),
                                             }}
                                         >
-                                            {entry.title.map((item, index) => {
+                                            {entry.summary.map((item, index) => {
                                                 if (typeof item === "string") {
                                                     return <Fragment key={index}> {item}</Fragment>;
                                                 } else {
@@ -223,7 +222,7 @@ export function NotificationDigestEmailTemplate({
                                                 marginTop: 0,
                                             }}
                                         >
-                                            {entry.summary}
+                                            {entry.preview}
                                         </EmailText>
                                     </Row>
                                 </EmailLink>
@@ -243,9 +242,13 @@ export function NotificationDigestEmailTemplate({
                             >
                                 <EmailLink
                                     color={`${defaultThemeColor}-60`}
-                                    href={`${baseUrl}${digestContent.inboxUrl}`}
+                                    href={`${digestContent.inboxUrl.toString()}`}
                                 >
-                                    See {digestContent.remainingEntryCount} more updates in Alpine…
+                                    See{" "}
+                                    {digestContent.remainingEntryCount > 50
+                                        ? "50+"
+                                        : digestContent.remainingEntryCount}{" "}
+                                    more updates in Alpine…
                                 </EmailLink>
                             </EmailText>
                         </Row>
@@ -256,7 +259,7 @@ export function NotificationDigestEmailTemplate({
             <EmailFooter>
                 You’re receiving this email because you’re a member of {spaceName}.{" "}
                 <EmailLink
-                    href={`${baseUrl}${unsubscribeUrl}`}
+                    href={`${unsubscribeUrl.toString()}`}
                     style={{textDecoration: "underline", color: "inherit"}}
                 >
                     Unsubscribe

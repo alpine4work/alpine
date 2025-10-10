@@ -2,7 +2,7 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {differenceInHours} from "date-fns/differenceInHours";
 import {AnimationPlaybackControls, animate} from "motion";
 import {Check, DotsThree, IconContext} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
@@ -13,10 +13,10 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
-import {
-    getInboxEntryDisplay,
-    renderInboxEntryDisplaySummary,
-} from "~/client/inbox/internal/inbox_entry_display.js";
+import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
+import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
+import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
+import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -30,6 +30,7 @@ import {
     colorSchemeVars,
     contentStyles,
     overlayFadeOutAnimationDurationMs,
+    sprinkles,
 } from "~/client/styles/styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
@@ -40,6 +41,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export const inboxEntryWidth = "96";
@@ -432,7 +434,7 @@ export function InboxEntryView({
     }, [canPrimaryInputHover, events, filter]);
 
     const entryDisplay = useMemo(
-        () => getInboxEntryDisplay({entry, locale, currentAccount}),
+        () => getInboxEntryDisplayContent({entry, locale, currentAccount}),
         [currentAccount, entry, locale],
     );
 
@@ -724,7 +726,7 @@ export function InboxEntryView({
                                         size: spacing["4"],
                                     }}
                                 >
-                                    {entryDisplay.brandIcon}
+                                    {getPrimaryBrandIconByType(entryDisplay.brandIconType)}
                                 </IconContext.Provider>
                             </Box>
                             {entry.loudNotificationCount > 0 && (
@@ -738,9 +740,14 @@ export function InboxEntryView({
                     </Box>
                     <Box paddingY="4" flexGrow="1" fontSize="75" overflow="hidden">
                         <Box>
-                            {useMemo(
-                                () => renderInboxEntryDisplaySummary(entryDisplay.summary),
-                                [entryDisplay.summary],
+                            {entryDisplay.summary.map((summaryItem, i) =>
+                                typeof summaryItem === "string" ? (
+                                    summaryItem
+                                ) : (
+                                    <span key={i} className={sprinkles({fontStyle: "bold"})}>
+                                        <AccountShortName account={summaryItem} />
+                                    </span>
+                                ),
                             )}
                         </Box>
                         <Box
@@ -913,4 +920,26 @@ export function InboxEntryView({
             </Box>
         </Box>
     );
+}
+
+function getPrimaryBrandIconByType(
+    brandIconType: "Chat" | "Task" | "Document" | "Post",
+): ReactNode {
+    switch (brandIconType) {
+        case "Chat":
+            return <ChatBrandIcon />;
+        case "Task":
+            return <TaskBrandIcon />;
+        case "Document":
+            return (
+                // Scooch document icon right a little to balance it visually with other icons.
+                // Given the document icon has a vertical orientation vs horizontal
+                // orientation.
+                <Box position="relative" style={{right: "-0.0625rem"}}>
+                    <DocumentBrandIcon />
+                </Box>
+            );
+        case "Post":
+            return <PostBrandIcon />;
+    }
 }

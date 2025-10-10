@@ -87,7 +87,7 @@ export class HoneycombTracerClient {
                         // Detect `?sig=` URL search params and redact them before sending events to
                         // Honeycomb. `?sig=` parameters would allow a developer to look at any users
                         // files without their permission just by looking at logs. The value of `?sig=`
-                        // is a detached JWS (see `dangerouslySignShortLivedUrl()`). So look for any
+                        // is a detached JWS (see `dangerouslySignUrl()`). So look for any
                         // base64 characters or `.`.
                         //
                         // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon

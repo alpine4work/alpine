@@ -50,7 +50,7 @@ export class FilesContextModule extends FilesContextModuleBase {
         spaceId: SpaceId,
         fileId: FileId,
     ): Promise<URL> {
-        return this._tokenAgent.privateSide.dangerouslySignShortLivedUrl(
+        return this._tokenAgent.privateSide.dangerouslySignUrl(
             "EdgeService",
             new URL(`${this._edgeServiceUrl}/files/${spaceId}/${fileId}`),
             // Expire the signed URL after one full day, 24 hours.

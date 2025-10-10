@@ -145,6 +145,17 @@ const CallBotWebhookJobDescriptionSchema = Schema.object({
     event: Schema.unknown<ApiBotWebhookEvent>(),
 });
 
+export type SendNotificationDigestJobDescription = SchemaType<
+    typeof SendNotificationDigestJobDescriptionSchema
+>;
+
+const SendNotificationDigestJobDescriptionSchema = Schema.object({
+    type: Schema.value("SendNotificationDigest"),
+    spaceId: Schema.id<SpaceId>(),
+    accountId: Schema.id<AccountId>(),
+    sendTime: Schema.date,
+});
+
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -158,4 +169,5 @@ export const JobDescriptionSchema = Schema.union({
     AddFeedCandidateEntry: AddFeedCandidateEntryJobDescriptionSchema,
     AddFeedAccountCandidateEntry: AddFeedAccountCandidateEntryJobDescriptionSchema,
     CallBotWebhook: CallBotWebhookJobDescriptionSchema,
+    SendNotificationDigest: SendNotificationDigestJobDescriptionSchema,
 });

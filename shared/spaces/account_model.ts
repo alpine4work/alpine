@@ -24,6 +24,7 @@ type AccountModelDataState<T extends SpaceAccountStateType> = AccountModelData &
 export type AccountModelDataWithRemovedState = AccountModelDataState<"Removed">;
 export type AccountModelDataWithActiveState = AccountModelDataState<"Active">;
 export type AccountModelDataWithInvitePendingState = AccountModelDataState<"InvitePending">;
+export type AccountModelDataWithoutAvatar = Omit<AccountModelData, "avatar">;
 
 export const AccountModelDataSpaceStateSchema = Schema.union(SpaceAccountStateSchemas);
 

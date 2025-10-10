@@ -1,4 +1,3 @@
-import {ZonedDateTime, fromDate, minDate, parseTime} from "@internationalized/date";
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_actions.js";
@@ -31,10 +30,7 @@ import {
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {
-    DynamoGeneralRealtimeTableSchema,
-    DynamoGeneralRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {authorizePostAccessIfPossible} from "~/server/forum/data/authorize_post_access.js";
@@ -55,21 +51,19 @@ import {
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
 import {
-    ScheduleDateTime,
-    assertScheduleDateTime,
-} from "~/server/notifications/core/schedule_date_time.js";
-import {
+    InboxAttributesItem,
     InboxEntriesIndex,
+    InboxEntryItem,
+    InboxEntryItemKey,
     InboxTable,
     NotificationDigestEntriesIndex,
-    internalInboxEntryItemTypes,
     internalInitialInboxGeneration,
 } from "~/server/notifications/data/internal/notifications_realtime_table.js";
+import {computeDigestNotificationsNextScheduledDateTimeIfEligible} from "~/server/notifications/data/notifications_actions_digest.js";
 import {
     authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     getAccount,
-    getOurAccountSpaceIds,
     getRegisteredAccountDevices,
     getSpaceAccountBotIdIfExists,
     impersonateAccountAsSystemContext,
@@ -108,9 +102,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -122,8 +114,6 @@ import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {
     generateChronologicalId,
     getDecodedChronologicalIdTime,
@@ -150,30 +140,9 @@ import {
     getInboxEntryKeyPath,
 } from "~/shared/notifications/inbox_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
-import {
-    DigestNotificationsScheduleSchema,
-    defaultDigestNotificationSchedule,
-} from "~/shared/notifications/notifications_schedule_schema.js";
+import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
-import {SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
-
-type InboxAttributesItem = MergeObjectIntersection<
-    InboxTableTypes["Item"] & {
-        readonly partitionType: "Account";
-        readonly sortRangeType: "InboxAttributes";
-    }
->;
-
-type InboxEntryItem = MergeObjectIntersection<
-    InboxTableTypes["Item"] & (typeof internalInboxEntryItemTypes)[number]
->;
-
-type InboxEntryItemKey = MergeObjectIntersection<
-    InboxTableTypes["ItemKey"] & (typeof internalInboxEntryItemTypes)[number]
->;
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
@@ -186,190 +155,6 @@ export function getInboxEntriesIndexForTest() {
 export function getNotificationDigestEntriesIndexForTest() {
     assert(process.env.NODE_ENV === "test");
     return NotificationDigestEntriesIndex;
-}
-
-/**
- * Determines if an inbox is potentially eligible to receive a digest notification.
- */
-export async function isInboxEligibleForDigestNotification(
-    context: ServerActionContext,
-    {
-        spaceId,
-        accountId,
-        entryCount,
-        lastEntryUpdatedTime,
-        digestNotificationsOptedOutTime,
-        digestNotificationsSchedule,
-        digestNotificationsLastSentTime,
-    }: PartialBy<
-        Pick<
-            InboxAttributesItem,
-            | "spaceId"
-            | "accountId"
-            | "entryCount"
-            | "lastEntryUpdatedTime"
-            | "digestNotificationsOptedOutTime"
-            | "digestNotificationsLastSentTime"
-            | "digestNotificationsSchedule"
-        >,
-        "digestNotificationsSchedule"
-    >,
-) {
-    if (digestNotificationsOptedOutTime) {
-        return false;
-    }
-    if (!digestNotificationsSchedule || digestNotificationsSchedule.size === 0) {
-        return false;
-    }
-    // If this inbox has no unarchived entries, it should not receive a digest
-    if (entryCount === 0) {
-        return false;
-    }
-    if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
-        return false;
-    }
-    // If we've already sent a digest notification since the latest entry update, they've already received
-    // a digest from this inbox so we don't need to send another one. This allows us to ensure stale
-    // retries don't cause us to send out of date digests. Uses a 50ms uncertainty window to account
-    // for clock skew.
-    if (
-        digestNotificationsLastSentTime &&
-        lastEntryUpdatedTime &&
-        isDateDefinitelyLessThanWithUncertaintyWindow(
-            lastEntryUpdatedTime,
-            digestNotificationsLastSentTime,
-            50,
-        )
-    ) {
-        return false;
-    }
-    return true;
-}
-
-/**
- * Computes the next date and time when we should send a digest notification to an account.
- *
- * To determine when an account's next digest should be sent, we look for the closest future
- * time within their schedule from the perspective of the account's current local time.
- * Scheduled times that are earlier than the current local time are treated as tomorrow
- * (e.g. at 15:00 local, a schedule time of 08:00 is treated as 08:00 local tomorrow).
- *
- * Optionally, you can provide a `lagTimeInMinutes` which acts as if the current time is ahead by
- * that amount. This is useful if you'd like to ensure you don't receive a schedule time that is
- * too close to the current time and could cause downstream systems to receive a time that has
- * already passed.
- */
-export function computeDigestNotificationsNextScheduledDateTime(
-    currentTime: Date,
-    timeZone: TimeZone | null,
-    digestNotificationsSchedule: SchemaType<typeof DigestNotificationsScheduleSchema>,
-    options: {lagTimeInMinutes: number} = {lagTimeInMinutes: 0},
-): ScheduleDateTime | null {
-    // If we receive no time zone, use our default so the user will still get digests, even if
-    // they are at the wrong time(s). The default is 'America/New_York', so digests will be at
-    // least roughly correct for most US users.
-    const actualTimeZone = timeZone ?? defaultTimeZone;
-
-    const currentAccountDateTime = fromDate(currentTime, actualTimeZone);
-
-    const adjustedCurrentTime = options.lagTimeInMinutes
-        ? currentAccountDateTime.add({minutes: options.lagTimeInMinutes})
-        : currentAccountDateTime;
-
-    let closestZonedDateTime: ZonedDateTime | null = null;
-    for (const scheduledHour of digestNotificationsSchedule) {
-        const time = parseTime(scheduledHour);
-        const scheduledDateTime = adjustedCurrentTime.set({
-            hour: time.hour,
-            minute: time.minute,
-            second: 0,
-            millisecond: 0,
-        });
-        if (scheduledDateTime.compare(adjustedCurrentTime) >= 0) {
-            closestZonedDateTime ??= scheduledDateTime;
-            closestZonedDateTime = minDate(closestZonedDateTime, scheduledDateTime);
-        } else {
-            const nextDayScheduledDateTime = scheduledDateTime.add({days: 1});
-            closestZonedDateTime ??= nextDayScheduledDateTime;
-            closestZonedDateTime = minDate(closestZonedDateTime, nextDayScheduledDateTime);
-        }
-    }
-
-    return closestZonedDateTime ? assertScheduleDateTime(closestZonedDateTime.toDate()) : null;
-}
-
-/**
- * Computes the next date and time when we should send a digest notification to an account or
- * returns null if they are not eligible to receive one.
- *
- * See `computeDigestNotificationsNextScheduledDateTime` for the time computation logic and
- * `isInboxEligibleForDigestNotification` for the eligibility logic.
- */
-export async function computeDigestNotificationsNextScheduledDateTimeIfEligible(
-    context: ServerActionContext,
-    {
-        currentTime,
-        timeZone,
-        inboxItem,
-        options = {lagTimeInMinutes: 0},
-    }: {
-        currentTime: Date;
-        timeZone: TimeZone | null;
-        inboxItem: InboxAttributesItem;
-        options: {lagTimeInMinutes: number};
-    },
-): Promise<ScheduleDateTime | null> {
-    return (await isInboxEligibleForDigestNotification(context, inboxItem))
-        ? computeDigestNotificationsNextScheduledDateTime(
-              currentTime,
-              timeZone,
-              inboxItem.digestNotificationsSchedule,
-              options,
-          )
-        : null;
-}
-
-export async function notifyInboxOfTimeZoneChange(
-    context: ServerSessionActionContext,
-    newTimeZone: TimeZone,
-) {
-    const spaceIds = await getOurAccountSpaceIds(context);
-    const inboxItems = await getOurAccountInboxItems(context, spaceIds.spaceIds, {
-        consistency: "Strong",
-    });
-    const currentTime = new Date();
-
-    await runAllPromises(
-        inboxItems.map(async inboxItem => {
-            const newScheduledDigest =
-                await computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
-                    currentTime,
-                    timeZone: newTimeZone,
-                    inboxItem,
-                    options: {lagTimeInMinutes: 60},
-                });
-
-            if (newScheduledDigest !== inboxItem.digestNotificationsNextScheduledDateTime) {
-                await InboxTable.updateItem(
-                    context,
-                    {
-                        partitionType: "Account",
-                        sortRangeType: "InboxAttributes",
-                        spaceId: inboxItem.spaceId,
-                        accountId: inboxItem.accountId,
-                    },
-                    item => {
-                        assert(item, "Can’t update time zone for inbox that no longer exists");
-                        return {
-                            ...item,
-                            digestNotificationsNextScheduledDateTime: newScheduledDigest,
-                        };
-                    },
-                    {initialItem: inboxItem},
-                );
-            }
-        }),
-    );
 }
 
 /**

@@ -13,6 +13,7 @@ export const jobQueueNameByType = {
     ProcessFileHeavy: "FileProcessorHeavy",
     ProcessFileLight: "FileProcessorLight",
     SendShareNotification: "Default",
+    SendNotificationDigest: "Default",
     AddFeedCandidateEntry: "Default",
     AddFeedAccountCandidateEntry: "Default",
     CallBotWebhook: "Default",

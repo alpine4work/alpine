@@ -676,7 +676,7 @@ test("document collaboration service can sign short lived tokens for app service
 });
 
 test("app service can sign short lived URLs for app service", async () => {
-    const url = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedUrl(
+    const url = await appServiceTokenAgent.privateSide.dangerouslySignUrl(
         "AppService",
         new URL("https://cyberworlds.dev/test/files/123?foo=bar"),
     );
@@ -724,7 +724,7 @@ test("app service can sign short lived URLs for app service", async () => {
 });
 
 test("app service can sign short lived URLs for edge service", async () => {
-    const url = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedUrl(
+    const url = await appServiceTokenAgent.privateSide.dangerouslySignUrl(
         "EdgeService",
         new URL("https://cyberworlds.dev/test/files/123?foo=bar"),
     );
@@ -772,7 +772,7 @@ test("app service can sign short lived URLs for edge service", async () => {
 });
 
 test("app service can sign short lived URLs for app service and edge service", async () => {
-    const url = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedUrl(
+    const url = await appServiceTokenAgent.privateSide.dangerouslySignUrl(
         ["EdgeService", "AppService"],
         new URL("https://cyberworlds.dev/test/files/123?foo=bar"),
     );
@@ -824,7 +824,7 @@ test("app service can sign short lived URLs for app service and edge service", a
 });
 
 test("app service can sign short lived URLs for edge service that actually expire", async () => {
-    const url = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedUrl(
+    const url = await appServiceTokenAgent.privateSide.dangerouslySignUrl(
         "EdgeService",
         new URL("https://cyberworlds.dev/test/files/123?foo=bar"),
         {currentTimeForTest: new Date(Date.now() - 1000 * 60 * 5)},
@@ -877,7 +877,7 @@ test("app service can sign short lived URLs for edge service that actually expir
 });
 
 test("can verify short lived signed URLs for a different domain", async () => {
-    const url = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedUrl(
+    const url = await appServiceTokenAgent.privateSide.dangerouslySignUrl(
         "EdgeService",
         new URL("https://cyberworlds.dev/test/files/123?foo=bar"),
     );

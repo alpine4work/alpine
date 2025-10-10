@@ -13,10 +13,7 @@ import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_opt
 import {useStore} from "~/client/helpers/use_store.js";
 import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
-import {
-    getInboxEntryDisplay,
-    printInboxEntryDisplaySummaryWithoutInteractivityStore,
-} from "~/client/inbox/internal/inbox_entry_display.js";
+import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
 import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
@@ -34,6 +31,7 @@ import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js"
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
@@ -144,14 +142,14 @@ export function InboxBannerOutletContainer({
     );
 
     const entryDisplay = useMemo(
-        () => getInboxEntryDisplay({entry: entry.model, locale, currentAccount}),
+        () => getInboxEntryDisplayContent({entry: entry.model, locale, currentAccount}),
         [currentAccount, entry.model, locale],
     );
 
     const entryDisplaySummaryText = useStore(
         useMemo(
             () =>
-                printInboxEntryDisplaySummaryWithoutInteractivityStore(
+                printInboxEntryDisplayContentSummaryWithoutInteractivityStore(
                     accountRegistry,
                     entryDisplay.summary,
                 ),

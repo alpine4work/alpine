@@ -7,7 +7,10 @@ import {printContentSingleLineTextSnippetForServer} from "~/server/content/print
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {
+    DynamoGeneralRealtimeTableSchema,
+    DynamoGeneralRealtimeTableSchemaGetTypes,
+} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {dangerouslyGetPostAuthorWithoutAuthorization} from "~/server/forum/data/dangerously_get_post_author_without_authorization.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
@@ -26,6 +29,7 @@ import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -52,6 +56,23 @@ import {
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+
+export type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
+
+export type InboxAttributesItem = MergeObjectIntersection<
+    InboxTableTypes["Item"] & {
+        readonly partitionType: "Account";
+        readonly sortRangeType: "InboxAttributes";
+    }
+>;
+
+export type InboxEntryItem = MergeObjectIntersection<
+    InboxTableTypes["Item"] & (typeof internalInboxEntryItemTypes)[number]
+>;
+
+export type InboxEntryItemKey = MergeObjectIntersection<
+    InboxTableTypes["ItemKey"] & (typeof internalInboxEntryItemTypes)[number]
+>;
 
 /**
  * The initial generation of a new inbox.

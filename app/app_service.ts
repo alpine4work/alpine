@@ -263,7 +263,7 @@ async function createAppService({
         }),
         email:
             process.env.NODE_ENV === "production"
-                ? new SesEmailContextModule()
+                ? new SesEmailContextModule(tokenAgent)
                 : new TraceOnlyEmailContextModule(),
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,

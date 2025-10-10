@@ -1,13 +1,3 @@
-import {ReactNode} from "react";
-import {AccountRegistry} from "~/client/accounts/account_registry.js";
-import {AccountShortName} from "~/client/accounts/account_short_name.js";
-import {Box} from "~/client/design/box.js";
-import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
-import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
-import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
-import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
-import {sprinkles} from "~/client/styles/styles.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -23,9 +13,11 @@ import {
     InboxTaskEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
-import {computeStore} from "~/shared/store/compute_store.js";
-import {Store} from "~/shared/store/store.js";
+import {
+    AccountModel,
+    AccountModelData,
+    AccountModelDataWithoutAvatar,
+} from "~/shared/spaces/account_model.js";
 
 /**
  * We create display objects for `InboxEntryModel`s which contains the shared
@@ -170,84 +162,38 @@ import {Store} from "~/shared/store/store.js";
  * majority of inbox entry brand icons include the comment symbol it makes it
  * harder to differentiate inbox entries.
  */
-export type InboxEntryDisplay = {
+export type InboxEntryDisplayContent = {
     readonly time: Date;
-    readonly brandIcon: ReactNode;
+    readonly brandIconType: "Chat" | "Task" | "Document" | "Post";
     readonly firstAccount: AccountModel;
     readonly secondAccount: AccountModel | null;
     readonly latestMessage: {
         readonly author: AccountModel;
         readonly contentTextSnippet: string;
     } | null;
-    readonly summary: InboxEntryDisplaySummary;
+    readonly summary: InboxEntryDisplayContentSummary;
 };
 
 /**
  * The summary text of an inbox entry with some rich text or interactive
  * elements. Can be rendered to non-interactive plain text as well if needed.
  */
-export type InboxEntryDisplaySummary = ReadonlyArray<InboxEntryDisplaySummaryItem>;
+export type InboxEntryDisplayContentSummary = ReadonlyArray<InboxEntryDisplayContentSummaryItem>;
 
-export type InboxEntryDisplaySummaryItem =
+export type InboxEntryDisplayContentSummaryItem =
     | string
     // Rendered in bold with `<AccountShortName>`
     | AccountModel;
 
-/**
- * Render `InboxEntryDisplaySummary` to interactive React DOM nodes.
- */
-export function renderInboxEntryDisplaySummary(summary: InboxEntryDisplaySummary): ReactNode {
-    const boldClassName = sprinkles({
-        fontStyle: "bold",
-    });
-
-    return summary.map((summaryItem, i) => {
-        if (typeof summaryItem === "string") {
-            return summaryItem;
-        } else {
-            return (
-                <span key={i} className={boldClassName}>
-                    <AccountShortName account={summaryItem} />
-                </span>
-            );
-        }
-    });
-}
-
-/**
- * Print `InboxEntryDisplaySummary` to a plain text string without any
- * interactivity or embellishment (e.g. account names are not in bold).
- */
-export function printInboxEntryDisplaySummaryWithoutInteractivityStore(
-    accountRegistry: AccountRegistry,
-    summary: InboxEntryDisplaySummary,
-): Store<string> {
-    return computeStore(get => {
-        let text = "";
-
-        for (const summaryItem of summary) {
-            if (typeof summaryItem === "string") {
-                text += summaryItem;
-            } else {
-                text += getAccountShortNameWithoutFullNameTooltip(
-                    get(accountRegistry.getAccountStore(summaryItem)),
-                );
-            }
-        }
-
-        return text;
-    });
-}
-
-export function getInboxEntryDisplay({
+export function getInboxEntryDisplayContent({
     entry,
     locale,
     currentAccount,
 }: {
     entry: InboxEntryModel;
     locale: Locale;
-    currentAccount: AccountModel | null;
-}): InboxEntryDisplay {
+    currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
+}): InboxEntryDisplayContent {
     switch (entry.type) {
         case "Chat":
             return getInboxChatEntryDisplay({entry, locale, currentAccount});
@@ -273,14 +219,14 @@ function getInboxChatEntryDisplay({
 }: {
     entry: InboxChatEntryModel;
     locale: Locale;
-    currentAccount: AccountModel | null;
-}): InboxEntryDisplay {
+    currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
+}): InboxEntryDisplayContent {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
     const secondAccount =
         entry.latestMessage.author.id !== firstAccount.id ? entry.latestMessage.author : null;
 
-    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+    const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     if (entry.latestMessage.clerical?.type === "ShareNotification") {
         // If this was a clerical share notification then override the
@@ -353,7 +299,7 @@ function getInboxChatEntryDisplay({
 
     return {
         time: entry.latestMessage.createdTime,
-        brandIcon: <ChatBrandIcon />,
+        brandIconType: "Chat",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.latestMessage,
@@ -366,8 +312,8 @@ function getInboxPostCommentsEntryDisplay({
     currentAccount,
 }: {
     entry: InboxPostCommentsEntryModel;
-    currentAccount: AccountModel | null;
-}): InboxEntryDisplay {
+    currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
+}): InboxEntryDisplayContent {
     const firstAccount: AccountModel =
         entry.postAuthor.id !== currentAccount?.id
             ? entry.postAuthor
@@ -378,7 +324,7 @@ function getInboxPostCommentsEntryDisplay({
             ? entry.latestComment?.author ?? null
             : null;
 
-    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+    const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     if (entry.postContentTextSnippetIfMentioned !== null) {
         summary.push(entry.postAuthor);
@@ -422,7 +368,7 @@ function getInboxPostCommentsEntryDisplay({
 
     return {
         time: entry.latestComment?.createdTime ?? entry.postCreatedTime,
-        brandIcon: <PostBrandIcon />,
+        brandIconType: "Post",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage:
@@ -442,13 +388,13 @@ function getInboxChannelPostsEntryDisplay({
 }: {
     entry: InboxChannelPostsEntryModel;
     locale: Locale;
-}): InboxEntryDisplay {
+}): InboxEntryDisplayContent {
     const firstAccount: AccountModel = entry.otherPostAuthor ?? entry.latestPost.author;
 
     const secondAccount: AccountModel | null =
         entry.latestPost.author.id !== firstAccount.id ? entry.latestPost.author : null;
 
-    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+    const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     summary.push(printPrettySmallNumberSummary(entry.postCount, "new post"));
     summary.push(
@@ -471,7 +417,7 @@ function getInboxChannelPostsEntryDisplay({
 
     return {
         time: entry.latestPost.createdTime,
-        brandIcon: <PostBrandIcon />,
+        brandIconType: "Post",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.latestPost,
@@ -484,8 +430,8 @@ function getInboxDocumentCommentThreadEntryDisplay({
     currentAccount,
 }: {
     entry: InboxDocumentCommentThreadEntryModel;
-    currentAccount: AccountModel | null;
-}): InboxEntryDisplay {
+    currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
+}): InboxEntryDisplayContent {
     const firstAccount: AccountModel =
         entry.firstCommentAuthor.id !== currentAccount?.id
             ? entry.firstCommentAuthor
@@ -500,7 +446,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
         ? "a private document"
         : `“${truncateDocumentTitleForNotification(entry.document.document.getTitle())}”`;
 
-    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+    const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     if (entry.latestComment.isStickyMention) {
         summary.push(entry.latestComment.author);
@@ -529,14 +475,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
 
     return {
         time: entry.latestComment.createdTime,
-        brandIcon: (
-            // Scooch document icon right a little to balance it visually with other icons.
-            // Given the document icon has a vertical orientation vs horizontal
-            // orientation.
-            <Box position="relative" style={{right: "-0.0625rem"}}>
-                <DocumentBrandIcon />
-            </Box>
-        ),
+        brandIconType: "Document",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.latestComment,
@@ -550,7 +489,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
 }: {
     entry: InboxDocumentNewCommentThreadsEntryModel;
     locale: Locale;
-}): InboxEntryDisplay {
+}): InboxEntryDisplayContent {
     const firstAccount: AccountModel = entry.otherCommentThreadAuthor ?? entry.firstComment.author;
 
     const secondAccount: AccountModel | null =
@@ -560,7 +499,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
         ? "a private document"
         : `“${truncateDocumentTitleForNotification(entry.document.document.getTitle())}”`;
 
-    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+    const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     summary.push(printPrettySmallNumberSummary(entry.commentThreadCount, "new comment thread"));
     summary.push(` on ${documentTitle} by `);
@@ -581,14 +520,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
 
     return {
         time: entry.firstComment.createdTime,
-        brandIcon: (
-            // Scooch document icon right a little to balance it visually with other icons.
-            // Given the document icon has a vertical orientation vs horizontal
-            // orientation.
-            <Box position="relative" style={{right: "-0.0625rem"}}>
-                <DocumentBrandIcon />
-            </Box>
-        ),
+        brandIconType: "Document",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.firstComment,
@@ -601,8 +533,8 @@ function getInboxTaskEntryDisplay({
     currentAccount,
 }: {
     entry: InboxTaskEntryModel;
-    currentAccount: AccountModel | null;
-}): InboxEntryDisplay {
+    currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
+}): InboxEntryDisplayContent {
     const firstAccount =
         entry.otherCommentAuthor ??
         entry.latestComment?.author ??
@@ -613,7 +545,7 @@ function getInboxTaskEntryDisplay({
             ? entry.latestComment?.author ?? null
             : null;
 
-    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+    const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
     if (entry.latestComment?.isStickyMention) {
         summary.push(entry.latestComment.author);
@@ -652,7 +584,7 @@ function getInboxTaskEntryDisplay({
 
     return {
         time: entry.latestComment.createdTime,
-        brandIcon: <TaskBrandIcon />,
+        brandIconType: "Task",
         firstAccount,
         secondAccount,
         latestMessage: entry.latestComment,
