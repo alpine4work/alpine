@@ -6,6 +6,7 @@ import {
     trackSelectionWithinSharedContentEditor,
 } from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -64,7 +65,13 @@ let nextSelectionTrackerKey = 1;
 function wrapWithPunctuation(
     // eslint-disable-next-line string-quotes
     punctuation: "(" | "{" | "[" | '"' | "'",
-    {withoutAutoBalancing = false}: {withoutAutoBalancing?: boolean} = {},
+    {
+        withoutAutoBalancing = false,
+        ignoredPreviousCharacters,
+    }: {
+        withoutAutoBalancing?: boolean;
+        ignoredPreviousCharacters?: Array<string>;
+    } = {},
 ): Command {
     return (state, dispatch) => {
         const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
@@ -91,6 +98,18 @@ function wrapWithPunctuation(
 
         if ($from.pos === $to.pos) {
             if (withoutAutoBalancing) return false;
+
+            // Check if there's an ignored character immediately before the punctuation
+            if (
+                ignoredPreviousCharacters &&
+                ignoredPreviousCharacters.length > 0 &&
+                $from.pos > 0
+            ) {
+                const previousChar = state.doc.textBetween($from.pos - 1, $from.pos);
+                if (ignoredPreviousCharacters.includes(previousChar)) {
+                    return false;
+                }
+            }
 
             // If the user doesn't have text selected, always create a matching bracket.
             // This is useful in code where there are many brackets but also in regular
@@ -176,30 +195,32 @@ function skipClosingPunctuation(punctuation: "(" | "{" | "[" | '"' | "'"): Comma
  * using `sharedContentEditorTrackSelectionWithinPlugin()`.
  */
 export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>) {
-    keys.set("(", wrapWithPunctuation("("));
-    keys.set("[", wrapWithPunctuation("["));
-    keys.set("{", wrapWithPunctuation("{"));
+    /* eslint-disable string-quotes */
+    if (!isMobileWebKit) {
+        // Allow :( to turn into sad emoji
+        keys.set("(", wrapWithPunctuation("(", {ignoredPreviousCharacters: [":"]}));
+        keys.set("[", wrapWithPunctuation("["));
+        keys.set("{", wrapWithPunctuation("{"));
+
+        // You open and close quotes with the same character. Chain the commands
+        // together.
+        keys.set('"', chainCommands(skipClosingPunctuation('"'), wrapWithPunctuation('"')));
+
+        keys.set(
+            "'",
+            wrapWithPunctuation("'", {
+                // Don't auto balance single quotes since they're often used in contractions.
+                // We may want to auto balance single quotes in code (if you have a single
+                // quoted string) but it's tough since we don't want contractions in
+                // comments to be auto balanced.
+                withoutAutoBalancing: true,
+            }),
+        );
+    }
 
     keys.set(")", skipClosingPunctuation("("));
     keys.set("]", skipClosingPunctuation("["));
     keys.set("}", skipClosingPunctuation("{"));
-
-    /* eslint-disable string-quotes */
-
-    // You open and close quotes with the same character. Chain the commands
-    // together.
-    keys.set('"', chainCommands(skipClosingPunctuation('"'), wrapWithPunctuation('"')));
-
-    keys.set(
-        "'",
-        wrapWithPunctuation("'", {
-            // Don't auto balance single quotes since they're often used in contractions.
-            // We may want to auto balance single quotes in code (if you have a single
-            // quoted string) but it's tough since we don't want contractions in
-            // comments to be auto balanced.
-            withoutAutoBalancing: true,
-        }),
-    );
 
     /* eslint-enable string-quotes */
 
