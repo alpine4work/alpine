@@ -174,7 +174,7 @@ export function NotificationDigestEmailTemplate({
                                 >
                                     {entry.dateString}
                                 </EmailText>
-                                <EmailLink color="grey-100" href={`${entry.url.toString()}`}>
+                                <EmailLink color="grey-100" href={entry.url.toString()}>
                                     <Row>
                                         <EmailText
                                             fontSize="200"
@@ -259,7 +259,7 @@ export function NotificationDigestEmailTemplate({
             <EmailFooter>
                 You’re receiving this email because you’re a member of {spaceName}.{" "}
                 <EmailLink
-                    href={`${unsubscribeUrl.toString()}`}
+                    href={unsubscribeUrl.toString()}
                     style={{textDecoration: "underline", color: "inherit"}}
                 >
                     Unsubscribe

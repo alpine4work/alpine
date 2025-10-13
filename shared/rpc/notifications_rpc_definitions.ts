@@ -109,3 +109,11 @@ export const getInboxChannelPostsEntryPosts = defineRpc({
         ),
     },
 });
+
+export const unsubscribeFromEmailNotificationWithUrl = defineRpc({
+    name: "unsubscribeFromEmailNotificationWithUrl",
+    input: {
+        signedUrl: Schema.string,
+    },
+    output: {},
+});

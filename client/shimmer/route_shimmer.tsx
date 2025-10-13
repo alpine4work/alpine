@@ -221,6 +221,7 @@ const shimmerOptionsByRouteId: Record<
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
     },
+    "routes/s.$spaceId.notifications.unsubscribe": false,
     "routes/s.$spaceId.posts.$postId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: PostRouteShimmer,

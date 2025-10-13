@@ -24,6 +24,7 @@ export type AppSpaceRouteId =
     | "routes/s.$spaceId.more.switch-space"
     | "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration"
     | "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration"
+    | "routes/s.$spaceId.notifications.unsubscribe"
     | "routes/s.$spaceId.posts.$postId._index"
     | "routes/s.$spaceId.posts.$postId.reactions"
     | "routes/s.$spaceId.posts.new.$draftId"

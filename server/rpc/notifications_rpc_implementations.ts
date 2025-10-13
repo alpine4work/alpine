@@ -7,6 +7,7 @@ import {
     getInboxEntry,
     observeInbox,
     unarchiveInboxEntry,
+    unsubscribeFromEmailNotificationWithUrl,
 } from "~/server/notifications/data/notifications_actions.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/notifications_rpc_definitions.js";
@@ -81,6 +82,14 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             return getInboxChannelPostsEntryPosts(context.actor.authorizeSession(), input);
+        },
+    },
+
+    unsubscribeFromEmailNotificationWithUrl: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await unsubscribeFromEmailNotificationWithUrl(context, input);
+            return {};
         },
     },
 });

@@ -32,6 +32,7 @@ import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {authorizePostAccessIfPossible} from "~/server/forum/data/authorize_post_access.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
@@ -91,7 +92,7 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -3186,4 +3187,63 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         commentThreads,
         initialCommentsByCommentThreadId,
     };
+}
+
+/**
+ * Unsubscribe a space account from an email notification using a signed URL.
+ * Will throw an InvalidArgumentError if the signed URL is invalid or expired.
+ */
+export async function unsubscribeFromEmailNotificationWithUrl(
+    context: Context<ServerActionContextModules & {email: EmailContextModuleBase}>,
+    {
+        signedUrl,
+    }: {
+        signedUrl: string;
+    },
+) {
+    let urlParts;
+    try {
+        const url = new URL(signedUrl);
+        urlParts = await context.email.getPartsFromSignedUnsubscribeUrl(url);
+    } catch (error) {
+        throw new InvalidArgumentError("Invalid unsubscribe URL", {cause: error});
+    }
+
+    const currentTime = new Date();
+
+    switch (urlParts.emailType) {
+        case "NotificationDigest": {
+            const inboxItem = await InboxTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
+                spaceId: urlParts.spaceId,
+                accountId: urlParts.accountId,
+            });
+
+            // If their inbox was deleted or the account doesn't have an inbox for this space, they
+            // won't receive notifications anyway, so there's nothing to unsubscribe from.
+            if (!inboxItem) return;
+
+            await InboxTable.updateItem(
+                context,
+                {
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
+                    spaceId: urlParts.spaceId,
+                    accountId: urlParts.accountId,
+                },
+                item => {
+                    if (item.digestNotificationsOptedOutTime !== null) return item;
+                    return {
+                        ...item,
+                        digestNotificationsOptedOutTime: currentTime,
+                    };
+                },
+                {initialItem: inboxItem},
+            );
+            break;
+        }
+        default:
+            throw exhaustive(urlParts.emailType);
+    }
 }

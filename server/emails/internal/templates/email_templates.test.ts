@@ -185,8 +185,7 @@ describe("renderReactEmailTemplate", () => {
                 localizedDigestTime: parseAbsolute("2025-08-22T12:00:00Z", defaultTimeZone),
                 spaceName: "Test Space",
                 baseUrl: "http://localhost:3000",
-                unsubscribeUrl:
-                    "notifications/s/1234567890/notifications/unsubscribe?token=1234567890",
+                unsubscribeUrl: expect.any(URL),
                 digestContent: {
                     inboxUrl: "/s/1234567890/inbox",
                     remainingEntryCount: 10,

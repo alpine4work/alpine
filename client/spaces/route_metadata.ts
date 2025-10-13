@@ -64,6 +64,7 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.invite.reject-and-mark-as-spam": {
         errorTitle: "Couldn’t reject invite",
+        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.more._index": {
         errorTitle: "Couldn’t open menu",
@@ -79,6 +80,10 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration": {
         errorTitle: "Couldn’t open notification",
+    },
+    "routes/s.$spaceId.notifications.unsubscribe": {
+        errorTitle: "Couldn’t unsubscribe from email notification",
+        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.posts.$postId._index": {
         errorTitle: "Couldn’t open post",
