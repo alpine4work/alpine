@@ -1,3 +1,4 @@
+import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintSchema} from "~/shared/spell_check/spell_check_schema.js";
@@ -19,3 +20,12 @@ export class SpellCheckIgnoredLintModel extends Model(
         });
     }
 }
+
+const DynamoGeneralRealtimeSpellCheckIgnoredEventSchema = createDynamoGeneralRealtimeEventSchema(
+    SpellCheckIgnoredLintModel.schema(),
+);
+
+export const SpellCheckIgnoredLintRealtimeTransactionSchema = Schema.object({
+    readTime: Schema.date,
+    eventTransaction: Schema.array(DynamoGeneralRealtimeSpellCheckIgnoredEventSchema),
+});

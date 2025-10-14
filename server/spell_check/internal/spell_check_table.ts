@@ -1,9 +1,22 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {TokenServiceName} from "~/server/tokens/token_service_name.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {SpellCheckEntityId} from "~/shared/spell_check/spell_check_entity_id.js";
-import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
+import {
+    SpellCheckEntityId,
+    parseSpellCheckEntityId,
+} from "~/shared/spell_check/spell_check_entity_id.js";
+import {
+    SpellCheckIgnoredLintModel,
+    SpellCheckIgnoredLintRealtimeTransactionSchema,
+} from "~/shared/spell_check/spell_check_model.js";
 import {SpellCheckIgnoredLintSchema} from "~/shared/spell_check/spell_check_schema.js";
 
 export async function createSpellCheckIgnoredLintModelFromItem(
@@ -55,6 +68,63 @@ export const SpellCheckTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    // TODO: implement
-    broadcastEventTransaction: async () => {},
+    broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+        const eventTransactionBySpellCheckEntityId = new Map<
+            SpellCheckEntityId,
+            Array<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>
+        >();
+
+        await runAllPromises(
+            mapIterable(eventTransaction, async ({itemKey, getEvent}) => {
+                const event = await getEvent(context);
+
+                getOrSetDefaultMapValue(
+                    eventTransactionBySpellCheckEntityId,
+                    itemKey.spellCheckEntityId,
+                    () => [],
+                ).push(event);
+            }),
+        );
+
+        await runAllPromises(
+            Array.from(
+                eventTransactionBySpellCheckEntityId,
+                async ([spellCheckEntityId, eventTransaction]) => {
+                    const parsedSpellCheckEntityId = parseSpellCheckEntityId(spellCheckEntityId);
+                    const type = parsedSpellCheckEntityId.type;
+                    let serviceName: TokenServiceName | null = null;
+                    let url: `/api/durable-objects/${string}` | null = null;
+                    let route: `/api/durable-objects/${string}` | null = null;
+
+                    switch (type) {
+                        case "Document": {
+                            serviceName = "DocumentCollaborationService";
+                            url = `/api/durable-objects/documents/${parsedSpellCheckEntityId.documentId}/broadcast-spell-check-realtime-event-transaction`;
+                            route =
+                                "/api/durable-objects/documents/:documentId/broadcast-spell-check-realtime-event-transaction";
+                            break;
+                        }
+                        case "Task": {
+                            serviceName = "TaskNotesCollaborationService";
+                            // TODO(#ignore-lints) create new endpoint
+                            url = `/api/durable-objects/task-notes/${parsedSpellCheckEntityId.taskId}`;
+                            route = "/api/durable-objects/task-notes/:taskId";
+                            break;
+                        }
+                        default:
+                            exhaustive(type);
+                    }
+
+                    await context.edge.broadcastToDurableObject(assertExists(url), {
+                        serviceName: assertExists(serviceName),
+                        route: assertExists(route),
+                        body: SpellCheckIgnoredLintRealtimeTransactionSchema.serialize({
+                            readTime,
+                            eventTransaction,
+                        }),
+                    });
+                },
+            ),
+        );
+    },
 });

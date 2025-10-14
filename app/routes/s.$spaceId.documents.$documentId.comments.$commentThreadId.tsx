@@ -23,6 +23,7 @@ import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/document
 import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getSpellCheckIgnoredLints} from "~/server/spell_check/get_spell_check_ignored_lints.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {
@@ -30,12 +31,16 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    createDynamoGeneralRealtimeItemSchema,
+    createDynamoGeneralRealtimeQuerySchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
@@ -43,6 +48,9 @@ const LoaderSchema = Schema.object({
     initialComments: Schema.array(DocumentCommentModel.schema()),
     initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
+        SpellCheckIgnoredLintModel.schema(),
+    ),
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
@@ -60,22 +68,26 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const platform = getInitialAppRenderPlatform(clientInfo);
     const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
-    const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
-        await runAllPromises([
-            getDocumentAndCommentThreadsWithInitialComments(context, {
-                documentId,
-                commentThreadIds: [commentThreadId],
-                commentLimit: getInitialLoadMessageCount(clientInfo),
-                commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[platform][spacingScale],
-            }),
-            url.searchParams.get("inbox") === "show"
-                ? getInboxEntry(context, {
-                      spaceId,
-                      key: {type: "DocumentCommentThread", documentId, commentThreadId},
-                  })
-                : null,
-        ]);
+    const [
+        {document, commentThreads, initialCommentsByCommentThreadId},
+        inboxEntry,
+        spellCheckIgnoredLints,
+    ] = await runAllPromises([
+        getDocumentAndCommentThreadsWithInitialComments(context, {
+            documentId,
+            commentThreadIds: [commentThreadId],
+            commentLimit: getInitialLoadMessageCount(clientInfo),
+            commentThreadCountAgainstLimit:
+                documentCommentThreadCountAgainstLimit[platform][spacingScale],
+        }),
+        url.searchParams.get("inbox") === "show"
+            ? getInboxEntry(context, {
+                  spaceId,
+                  key: {type: "DocumentCommentThread", documentId, commentThreadId},
+              })
+            : null,
+        getSpellCheckIgnoredLints(context, `Document:${documentId}`),
+    ]);
 
     const commentThread = assertExists(commentThreads[0]);
 
@@ -89,6 +101,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
         inboxEntry,
+        spellCheckIgnoredLints,
     });
 }
 
@@ -118,6 +131,7 @@ export default function DocumentCommentThreadRoute() {
         initialComments,
         initialOtherReferencedComments,
         inboxEntry,
+        spellCheckIgnoredLints,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {
@@ -126,7 +140,11 @@ export default function DocumentCommentThreadRoute() {
         procedures,
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId,
-    } = useDocumentContentEditorWebSocket(initialDocument);
+    } = useDocumentContentEditorWebSocket({
+        documentId: initialDocument.id,
+        initialDocument,
+        initialSpellCheckIgnoredLints: spellCheckIgnoredLints,
+    });
 
     // Spending time with a document comment thread contributes affinity points
     // back to the document. Since the comment thread is discussing the document,

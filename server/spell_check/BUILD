@@ -4,9 +4,9 @@ ts_project(
     name = "spell_check",
     test_deps = [
         "//server/access/test_helpers",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
-        "//server/spaces/add_account",
     ],
     visibility = [
         "//admin/crawl:__pkg__",

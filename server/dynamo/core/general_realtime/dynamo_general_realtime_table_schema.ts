@@ -2128,6 +2128,109 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Create an empty realtime query result. Useful for initializing a query
+     * result when you *absolutely* know you do not have any data.
+     *
+     * Does not perform any database operations. Be careful when using this!
+     * Realtime can get stuck if there's actual data in the query and you use this.
+     */
+    public realtimeQueryIfYouAreCertainThePartitionIsEmpty<
+        const PartitionKey extends Types["PartitionKey"],
+        const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+    >({
+        partitionKey,
+        startSortKey,
+        endSortKey,
+        paginate = {type: "FromStart"},
+    }: {
+        partitionKey: PartitionKey;
+        startSortKey?: StartSortKey;
+        endSortKey?: EndSortKey;
+        paginate?:
+            | {
+                  type: "FromStart";
+                  afterItemKey?: DynamoItemKey | null;
+              }
+            | {
+                  type: "FromEnd";
+                  beforeItemKey?: DynamoItemKey | null;
+              };
+    }): DynamoGeneralRealtimeQueryResult<
+        ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
+    > {
+        if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
+            throw new InternalError(
+                `Realtime queries are disabled (partition type: \`${partitionKey.partitionType}\`)`,
+            );
+        }
+
+        // We backfill realtime updates to `readTime` so it should be before the data
+        // is read from the database to avoid missing realtime updates.
+        const readTime = new Date();
+
+        const paginateItemKeyString =
+            paginate.type === "FromStart" ? paginate.afterItemKey : paginate.beforeItemKey;
+
+        const paginateItemKey = paginateItemKeyString
+            ? this._table.deserializeOpaqueItemKey(paginateItemKeyString)
+            : undefined;
+
+        // Make sure the partition key part of `paginateItemKey` is the same as our
+        // `partitionKey`.
+        if (paginateItemKey) {
+            if (paginateItemKey.partitionType !== partitionKey.partitionType) {
+                throw new InvalidArgumentError(
+                    quote`Pagination item key (partition type: ${paginateItemKey.partitionType}) must have the same partition type as query partition key (partition type: ${partitionKey.partitionType})`,
+                );
+            }
+
+            const partitionKeyAttributes = this._table.getPartitionKeyAttributes(
+                partitionKey.partitionType,
+            );
+
+            for (const [attributeName, attributeSchema] of Object.entries(partitionKeyAttributes)) {
+                if (
+                    attributeSchema.serialize(paginateItemKey[attributeName]) !==
+                    attributeSchema.serialize(partitionKey[attributeName])
+                ) {
+                    throw new InvalidArgumentError(
+                        quote`Partition item key must have the same value for attribute ${attributeName} as query partition key`,
+                    );
+                }
+            }
+        }
+
+        const startItemKey = startSortKey
+            ? this._table.serializeOpaqueItemKey({...startSortKey, ...partitionKey})
+            : null;
+
+        const endItemKey = endSortKey
+            ? this._table.serializeOpaqueItemKey({...endSortKey, ...partitionKey})
+            : null;
+
+        return {
+            readTime,
+            partitionKey: this._table.serializeOpaqueItemPartitionKey(partitionKey),
+            startItemKey,
+            endItemKey,
+            pageInfo:
+                paginate.type === "FromStart"
+                    ? {
+                          type: "FromStart",
+                          afterItemKey: paginate.afterItemKey ?? null,
+                          hasNextPage: false,
+                      }
+                    : {
+                          type: "FromEnd",
+                          beforeItemKey: paginate.beforeItemKey ?? null,
+                          hasPreviousPage: false,
+                      },
+            items: [],
+        };
+    }
+
+    /**
      * Query a range of items from the table. Highly efficient as DynamoDB
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.

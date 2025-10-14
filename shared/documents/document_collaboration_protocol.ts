@@ -7,6 +7,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
@@ -21,6 +22,7 @@ import {
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
@@ -374,6 +376,14 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             type: Schema.value("Comments"),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
             event: Schema.union(createMessagingRealtimeEventSchemas(DocumentCommentModel.schema())),
+        }),
+
+        SpellCheckRealtimeEventTransaction: Schema.object({
+            type: Schema.value("SpellCheckRealtimeEventTransaction"),
+            readTime: Schema.date,
+            eventTransaction: Schema.array(
+                createDynamoGeneralRealtimeEventSchema(SpellCheckIgnoredLintModel.schema()),
+            ),
         }),
     },
 });

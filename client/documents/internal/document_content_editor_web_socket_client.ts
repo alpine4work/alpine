@@ -20,6 +20,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {isTransientError} from "~/shared/error/is_transient_error_code.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -30,6 +31,7 @@ import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {SchemaType} from "~/shared/schema/schema.js";
+import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
@@ -454,6 +456,9 @@ export class DocumentContentEditorWebSocketClient {
                     }
                     break;
                 }
+                case "SpellCheckRealtimeEventTransaction": {
+                    break;
+                }
                 default:
                     throw exhaustive(event);
             }
@@ -714,6 +719,19 @@ export class DocumentContentEditorWebSocketClient {
                 if (commentThread) {
                     subscriber({type: "PersistedContent", updatedCommentThread: commentThread});
                 }
+            }
+        });
+    }
+
+    public subscribeToSpellCheckIgnoredLints(
+        subscriber: (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>;
+        }) => void,
+    ) {
+        return this._client.subscribeToEvents(event => {
+            if (event.type === "SpellCheckRealtimeEventTransaction") {
+                subscriber({eventTransaction: event.eventTransaction, readTime: event.readTime});
             }
         });
     }

@@ -4,6 +4,7 @@ ts_project(
     name = "spell_check",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

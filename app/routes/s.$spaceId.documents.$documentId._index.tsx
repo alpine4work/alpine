@@ -23,6 +23,10 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
+import {
+    createEmptySpellCheckIgnoredLintsForNewEntity,
+    getSpellCheckIgnoredLints,
+} from "~/server/spell_check/get_spell_check_ignored_lints.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
@@ -31,11 +35,18 @@ import {
     DocumentModel,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
+import {
+    DynamoGeneralRealtimeQueryResult,
+    createDynamoGeneralRealtimeQuerySchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -46,10 +57,9 @@ const LoaderSchema = Schema.object({
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     }).nullable(),
     isFavorite: Schema.boolean,
-    // TODO(#ignored-lints)
-    // spellCheckIgnoredLints: Schema.array(
-    //     createDynamoGeneralRealtimeItemSchema(SpellCheckIgnoredLintModel.schema()),
-    // ),
+    spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
+        SpellCheckIgnoredLintModel.schema(),
+    ),
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
@@ -62,26 +72,38 @@ export async function loader({params, context: unauthenticatedContext, request}:
         .nullable()
         .deserialize(url.searchParams.get("comments"));
 
-    const [document, commentThreadResult, isFavorite] = await runAllPromises([
-        getDocumentWithOptionalCommentsIfExists(context, documentId),
-        commentThreadId
-            ? getDocumentCommentThreadAndInitialComments(context, {
-                  documentId,
-                  commentThreadId,
-                  limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-              })
-            : null,
-        isSearchFavoriteEntity(context, {
-            spaceId,
-            entityId: `Document:${documentId}`,
-        }),
-        // TODO(#ignored-lints)
-        // getSpellCheckIgnoredLints(context, `Document:${documentId}`),
-    ]);
+    const [document, commentThreadResult, isFavorite, spellCheckIgnoredLintsResult] =
+        await runAllPromises([
+            getDocumentWithOptionalCommentsIfExists(context, documentId),
+            commentThreadId
+                ? getDocumentCommentThreadAndInitialComments(context, {
+                      documentId,
+                      commentThreadId,
+                      limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                  })
+                : null,
+            isSearchFavoriteEntity(context, {
+                spaceId,
+                entityId: `Document:${documentId}`,
+            }),
+            captureResultPromise(getSpellCheckIgnoredLints(context, `Document:${documentId}`)),
+        ]);
 
-    // Must have the `create` search param to load a document that doesn't exist.
-    if (!document && url.searchParams.get("create") !== "") {
-        throw createDocumentNotFoundError(documentId);
+    let spellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
+
+    if (!document) {
+        // Must have the `create` search param to load a document that doesn't exist.
+        if (url.searchParams.get("create") !== "") {
+            throw createDocumentNotFoundError(documentId);
+        }
+
+        // We don't have a document yet, so we can't fetch spell check ignored lints.
+        spellCheckIgnoredLints = createEmptySpellCheckIgnoredLintsForNewEntity(
+            `Document:${documentId}`,
+        );
+    } else {
+        // We have a document and successfully loaded the spell check ignored lints.
+        spellCheckIgnoredLints = unwrapResult(spellCheckIgnoredLintsResult);
     }
 
     const propagateEventData: TracerEventData = {
@@ -90,7 +112,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {document, commentThreadResult, isFavorite},
+        {document, commentThreadResult, isFavorite, spellCheckIgnoredLints},
         {propagateEventData},
     );
 }
@@ -142,7 +164,7 @@ export default function DocumentRoute() {
         document: initialDocument,
         commentThreadResult: initialCommentThreadResult,
         isFavorite: initialIsFavorite,
-        // TODO(#ignored-lints)
+        spellCheckIgnoredLints: initialSpellCheckIgnoredLints,
     } = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -208,6 +230,7 @@ export default function DocumentRoute() {
             initialCommentThreadResult={initialCommentThreadResult}
             initialIsFavorite={initialIsFavorite}
             initialScroll={initialScroll}
+            initialSpellCheckIgnoredLints={initialSpellCheckIgnoredLints}
             shouldInitiallyFocus={shouldInitiallyFocus}
             onCreate={() => setIsCreating(false)}
             onContentChange={content => {

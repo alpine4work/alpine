@@ -31,6 +31,7 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.j
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {createContentCommentThreadMetaKey} from "~/client/content/state/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -137,6 +138,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
+import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -158,6 +160,8 @@ import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
+import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -215,6 +219,7 @@ export function DocumentContentEditor({
     documentId,
     initialDocument,
     initialCommentThreadResult,
+    initialSpellCheckIgnoredLints,
     initialIsFavorite,
     initialScroll,
     shouldInitiallyFocus,
@@ -230,6 +235,7 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
+    initialSpellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
     initialIsFavorite: boolean;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
@@ -255,6 +261,7 @@ export function DocumentContentEditor({
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
     const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+    const context = useAppContext();
 
     const {
         spaceId,
@@ -273,7 +280,11 @@ export function DocumentContentEditor({
         subscribeToCommentThreadEvents,
         unpersistedResolutionStateByCommentThreadId,
         ensureCreateDocument,
-    } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
+        handleEventForSpellCheckIgnoredLint,
+    } = useDocumentContentEditorWebSocket(
+        {documentId, initialDocument, initialSpellCheckIgnoredLints},
+        {onCreate},
+    );
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
@@ -805,6 +816,7 @@ export function DocumentContentEditor({
             sidebarState.mobileState.onAnimationFinishedRef.current
         ) {
             const onAnimationFinished = sidebarState.mobileState.onAnimationFinishedRef.current;
+
             // eslint-disable-next-line react-compiler/react-compiler
             sidebarState.mobileState.onAnimationFinishedRef.current = null;
             onAnimationFinished();
@@ -1801,7 +1813,17 @@ export function DocumentContentEditor({
                                 }}
                                 onSelectionLeave={onClearOurPresenceState}
                                 onSelectionEnter={onUnclearOurPresenceState}
-                                spellCheckEntityId={`Document:${documentId}`}
+                                // TODO(#spell-check): Load and pass in actual ignored lints
+                                spellCheckIgnoredLints={[]}
+                                onSpellCheckIgnoreLint={async ({key, kind}) => {
+                                    const event = await createSpellCheckIgnoredLint(context, {
+                                        entityId: `Document:${documentId}`,
+                                        key,
+                                        kind,
+                                    });
+
+                                    handleEventForSpellCheckIgnoredLint(event);
+                                }}
                             />
                         </GlobalKeyDownEvent>
                         {

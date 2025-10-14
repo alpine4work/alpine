@@ -37,6 +37,7 @@ import {
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentStepCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -86,6 +87,7 @@ import {
     getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
@@ -116,6 +118,13 @@ export type DocumentCollaborationEventStub =
           readonly type: "Comments";
           readonly commentThreadId: DocumentCommentThreadId;
           readonly event: MessagingRealtimeEventStub;
+      }
+    | {
+          readonly type: "SpellCheckRealtimeEventTransaction";
+          readonly readTime: Date;
+          readonly eventTransaction: ReadonlyArray<
+              DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>
+          >;
       };
 
 export class DocumentCollaborationConnection {
@@ -815,6 +824,7 @@ export class DocumentCollaborationConnection {
             }
             case "PersistedContent":
             case "UpdateOtherPresenceState":
+            case "SpellCheckRealtimeEventTransaction":
             case "Error": {
                 return eventStub;
             }

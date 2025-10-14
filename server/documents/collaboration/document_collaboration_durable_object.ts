@@ -32,11 +32,13 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 
 type DocumentCollaborationDurableObjectRoute =
     | "Main"
     | "WithoutComments"
     | "NotFound"
+    | "BroadcastSpellCheckRealtimeEventTransaction"
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId};
@@ -257,6 +259,13 @@ class DocumentCollaborationDurableObject {
             }
         }
 
+        if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
+            return [
+                "/broadcast-spell-check-realtime-event-transaction",
+                "BroadcastSpellCheckRealtimeEventTransaction",
+            ];
+        }
+
         return ["/*", "NotFound"];
     }
 
@@ -282,6 +291,19 @@ class DocumentCollaborationDurableObject {
                     context.actor.authorizeSession(),
                     request,
                 );
+            }
+            case "BroadcastSpellCheckRealtimeEventTransaction": {
+                const {eventTransaction, readTime} =
+                    SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
+                        await request.json(),
+                    );
+
+                this._webSocketServer.sendEventToAll(context, {
+                    type: "SpellCheckRealtimeEventTransaction",
+                    readTime,
+                    eventTransaction,
+                });
+                return new Response();
             }
             default: {
                 switch (route.type) {
@@ -437,8 +459,10 @@ function stripDocumentCollaborationEventComments(
                 error: event.error,
             };
         }
-        case "Comments": {
-            // Never send comment realtime events to view-only clients.
+        // Never send comment realtime events to view-only clients.
+        case "Comments":
+        // We don't show lints on view-only clients
+        case "SpellCheckRealtimeEventTransaction": {
             return null;
         }
         default:
