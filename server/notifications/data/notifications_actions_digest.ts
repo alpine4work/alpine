@@ -246,7 +246,7 @@ export async function sendScheduledDigestsForTime(
     // Round to the next hour to match index partition keys
     const nextHour = fromDate(digestTime, "UTC")
         .add({hours: 1})
-        .set({minute: 0, second: 0})
+        .set({minute: 0, second: 0, millisecond: 0})
         .toDate();
     const result = NotificationDigestEntriesIndex.query(context, {
         partitionKey: {digestNotificationsNextScheduledDateTime: assertScheduleDateTime(nextHour)},
