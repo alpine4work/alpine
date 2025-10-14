@@ -152,6 +152,7 @@ export default function SettingsLayout() {
                 withoutDisappearingTitle
             >
                 <Box width="full" paddingX={screenPaddingX}>
+                    <Spacer space="3" />
                     <Outlet />
                 </Box>
             </SpaceRouteScrollView>

@@ -192,7 +192,7 @@ const loudNotificationInboxGenerationIncrement = 1;
  */
 const unarchivedInboxEntryGenerationIncrement = 1;
 
-function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttributesItem {
+export function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttributesItem {
     return {
         partitionType: "Account",
         sortRangeType: "InboxAttributes",

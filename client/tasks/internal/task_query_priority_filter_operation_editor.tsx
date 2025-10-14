@@ -1,7 +1,7 @@
 import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {Checkbox} from "~/client/design/checkbox.js";
+import {CheckboxIcon} from "~/client/design/checkbox_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -103,7 +103,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <Checkbox isChecked={filter.operation.priorities.has(null)} />
+                                <CheckboxIcon isChecked={filter.operation.priorities.has(null)} />
                                 <TaskPriorityIcon
                                     priority={null}
                                     size="4"
@@ -126,7 +126,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <Checkbox isChecked={filter.operation.priorities.has("Low")} />
+                                <CheckboxIcon isChecked={filter.operation.priorities.has("Low")} />
                                 <TaskPriorityIcon
                                     priority="Low"
                                     size="4"
@@ -149,7 +149,9 @@ export function TaskQueryPriorityFilterOperationEditor({
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <Checkbox isChecked={filter.operation.priorities.has("Medium")} />
+                                <CheckboxIcon
+                                    isChecked={filter.operation.priorities.has("Medium")}
+                                />
                                 <TaskPriorityIcon
                                     priority="Medium"
                                     size="4"
@@ -172,7 +174,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <Checkbox isChecked={filter.operation.priorities.has("High")} />
+                                <CheckboxIcon isChecked={filter.operation.priorities.has("High")} />
                                 <TaskPriorityIcon
                                     priority="High"
                                     size="4"
@@ -195,7 +197,9 @@ export function TaskQueryPriorityFilterOperationEditor({
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <Checkbox isChecked={filter.operation.priorities.has("Urgent")} />
+                                <CheckboxIcon
+                                    isChecked={filter.operation.priorities.has("Urgent")}
+                                />
                                 <TaskPriorityIcon
                                     priority="Urgent"
                                     size="4"

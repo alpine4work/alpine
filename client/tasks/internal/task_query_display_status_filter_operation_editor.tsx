@@ -1,7 +1,7 @@
 import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {Checkbox} from "~/client/design/checkbox.js";
+import {CheckboxIcon} from "~/client/design/checkbox_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
@@ -110,7 +110,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                 alignItems="center"
                                 gap="1.5"
                             >
-                                <Checkbox
+                                <CheckboxIcon
                                     isChecked={
                                         filter.operation.displayStatuses.has("OpenInactive") &&
                                         filter.operation.displayStatuses.has("OpenActive")
@@ -153,7 +153,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                 alignItems="center"
                                 gap="1.5"
                             >
-                                <Checkbox
+                                <CheckboxIcon
                                     isChecked={filter.operation.displayStatuses.has("OpenInactive")}
                                 />
                                 <TaskDisplayStatusCircle displayStatus="OpenInactive" size="4" />
@@ -205,7 +205,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                 alignItems="center"
                                 gap="1.5"
                             >
-                                <Checkbox
+                                <CheckboxIcon
                                     isChecked={filter.operation.displayStatuses.has("OpenActive")}
                                 />
                                 <TaskDisplayStatusCircle displayStatus="OpenActive" size="4" />
@@ -251,7 +251,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                         withCustomLayout: true,
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
-                                <Checkbox
+                                <CheckboxIcon
                                     isChecked={filter.operation.displayStatuses.has("Closed")}
                                 />
                                 <TaskDisplayStatusCircle displayStatus="Closed" size="4" />

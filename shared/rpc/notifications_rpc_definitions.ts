@@ -5,7 +5,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     InboxEntryKeySchema,
     InboxEntryModelSchema,
@@ -114,6 +114,24 @@ export const unsubscribeFromEmailNotificationWithUrl = defineRpc({
     name: "unsubscribeFromEmailNotificationWithUrl",
     input: {
         signedUrl: Schema.string,
+    },
+    output: {},
+});
+
+export const unsubscribeFromDigestNotificationsEmail = defineRpc({
+    name: "unsubscribeFromDigestNotificationsEmail",
+    input: {
+        accountId: Schema.id<AccountId>(),
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {},
+});
+
+export const subscribeToDigestNotificationsEmail = defineRpc({
+    name: "subscribeToDigestNotificationsEmail",
+    input: {
+        accountId: Schema.id<AccountId>(),
+        spaceId: Schema.id<SpaceId>(),
     },
     output: {},
 });

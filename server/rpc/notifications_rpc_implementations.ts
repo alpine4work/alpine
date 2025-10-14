@@ -9,6 +9,10 @@ import {
     unarchiveInboxEntry,
     unsubscribeFromEmailNotificationWithUrl,
 } from "~/server/notifications/data/notifications_actions.js";
+import {
+    subscribeToDigestNotificationsEmail,
+    unsubscribeFromDigestNotificationsEmail,
+} from "~/server/notifications/data/notifications_actions_digest.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/notifications_rpc_definitions.js";
 
@@ -89,6 +93,22 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await unsubscribeFromEmailNotificationWithUrl(context, input);
+            return {};
+        },
+    },
+
+    unsubscribeFromDigestNotificationsEmail: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await unsubscribeFromDigestNotificationsEmail(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    subscribeToDigestNotificationsEmail: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await subscribeToDigestNotificationsEmail(context.actor.authorizeSession(), input);
             return {};
         },
     },

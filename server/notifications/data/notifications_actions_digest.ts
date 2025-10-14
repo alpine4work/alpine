@@ -18,7 +18,10 @@ import {
     InboxTable,
     NotificationDigestEntriesIndex,
 } from "~/server/notifications/data/internal/notifications_realtime_table.js";
-import {getOurAccountInboxItems} from "~/server/notifications/data/notifications_actions.js";
+import {
+    getInitialInboxItem,
+    getOurAccountInboxItems,
+} from "~/server/notifications/data/notifications_actions.js";
 import {
     authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
@@ -436,4 +439,74 @@ export async function getNotificationDigestContent(
     };
 
     return digestContent;
+}
+
+export async function unsubscribeFromDigestNotificationsEmail(
+    context: ServerSessionActionContext,
+    {
+        accountId,
+        spaceId,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+    },
+) {
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
+
+    const currentTime = new Date();
+
+    await InboxTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId,
+            accountId,
+        },
+        item => {
+            item ??= getInitialInboxItem(spaceId, accountId);
+            if (item.digestNotificationsOptedOutTime !== null) return item;
+            return {
+                ...item,
+                digestNotificationsOptedOutTime: currentTime,
+            };
+        },
+    );
+}
+
+export async function subscribeToDigestNotificationsEmail(
+    context: ServerSessionActionContext,
+    {
+        accountId,
+        spaceId,
+    }: {
+        accountId: AccountId;
+        spaceId: SpaceId;
+    },
+) {
+    await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        authorizeNotBotSpaceAccount(context, spaceId, accountId),
+    ]);
+
+    await InboxTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId,
+            accountId,
+        },
+        item => {
+            item ??= getInitialInboxItem(spaceId, accountId);
+            if (item.digestNotificationsOptedOutTime === null) return item;
+            return {
+                ...item,
+                digestNotificationsOptedOutTime: null,
+            };
+        },
+    );
 }

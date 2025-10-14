@@ -12,7 +12,7 @@ import {
 } from "react-aria";
 import {ComboBoxState, Item, ListState, useListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
-import {Checkbox} from "~/client/design/checkbox.js";
+import {CheckboxIcon} from "~/client/design/checkbox_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
     OverlayTriggerButton,
@@ -475,7 +475,7 @@ function TaskQueryFilterEditorMultiSelectListBoxOption({
                     display="flex"
                     alignItems="center"
                 >
-                    <Checkbox isChecked={isSelected} />
+                    <CheckboxIcon isChecked={isSelected} />
                 </Box>
                 {item.rendered}
             </li>

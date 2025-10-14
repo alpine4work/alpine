@@ -11,7 +11,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {usePress} from "react-aria";
 import {flushSync} from "react-dom";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
@@ -51,7 +50,6 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentReferences,
@@ -447,13 +445,6 @@ function DocumentPresentationInstructionalConfirmationModal({
 
     const hasPresentShortcut: boolean = editorState.getDoc().attrs.hasPresentShortcut;
 
-    const {isPressed: isShortcutTogglePressed, pressProps: shortcutTogglePressProps} = usePress({
-        onPress: () => {
-            const editor = assertExists(editorRef.current);
-            editor.setHasPresentShortcut(!hasPresentShortcut);
-        },
-    });
-
     return (
         <ModalWithButtons
             ref={modalRef}
@@ -471,26 +462,16 @@ function DocumentPresentationInstructionalConfirmationModal({
             // Dismissing a modal by clicking the background should also feel natural.
             withoutCloseButton={true}
             additionalButtons={
-                <Box
-                    {...shortcutTogglePressProps}
+                <Checkbox
                     color="grey-60"
-                    // Enough touch slop space (see `use_touch_slop.ts`)
-                    height="6"
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
+                    isChecked={hasPresentShortcut}
+                    onChange={hasPresentShortcut => {
+                        const editor = assertExists(editorRef.current);
+                        editor.setHasPresentShortcut(hasPresentShortcut);
+                    }}
                 >
-                    <Checkbox isChecked={hasPresentShortcut} isPressed={isShortcutTogglePressed} />
-                    <Box
-                        position="relative"
-                        style={{
-                            // Optically align text with checkbox.
-                            top: `${0.5 / remPxBySpacingScale.medium}rem`,
-                        }}
-                    >
-                        Add shortcut
-                    </Box>
-                </Box>
+                    Add shortcut
+                </Checkbox>
             }
         >
             <Box userSelect="text">

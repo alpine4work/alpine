@@ -327,7 +327,7 @@ export default function SpacePeopleSettingsRoute() {
                         >
                             <AccountAvatar account={account} size="8" />
                             <Box
-                                fontStyle="semi-bold"
+                                fontStyle="truncate-semi-bold"
                                 fontSize="100"
                                 userSelect="text"
                                 data-testid={
