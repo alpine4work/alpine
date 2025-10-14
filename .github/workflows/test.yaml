@@ -9,6 +9,10 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v3
 
+            - name: Check for SKIP CI
+              if: github.ref != 'refs/heads/main'
+              uses: ./.github/actions/check-skip-ci
+
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
 
@@ -33,6 +37,10 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
+
+            - name: Check for SKIP CI
+              if: github.ref != 'refs/heads/main'
+              uses: ./.github/actions/check-skip-ci
 
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache

@@ -1,0 +1,31 @@
+name: "Skip CI Check"
+description:
+    "Checks PR title for [SKIP CI] tag and fails if found, allowing workflows to be skipped"
+
+runs:
+    using: "composite"
+    steps:
+        - name: Check PR title for [SKIP CI]
+          shell: bash
+          env:
+              GITHUB_TOKEN: ${{ github.token }}
+          run: |
+              # Get the PR number from the branch
+              PR_NUMBER=$(gh pr view --json number --jq '.number' 2>/dev/null || echo "")
+              if [ -z "$PR_NUMBER" ]; then
+                echo "No PR found for this branch, continuing..."
+                exit 0
+              fi
+
+              # Get the PR title
+              PR_TITLE=$(gh pr view $PR_NUMBER --json title --jq '.title')
+              echo "PR Title: $PR_TITLE"
+
+              # Check if the title starts with [SKIP CI]
+              if [[ "$PR_TITLE" == \[SKIP\ CI\]* ]]; then
+                echo "PR title starts with [SKIP CI], failing the job to skip CI"
+                exit 1
+              else
+                echo "PR title does not contain [SKIP CI], continuing with CI"
+                exit 0
+              fi
