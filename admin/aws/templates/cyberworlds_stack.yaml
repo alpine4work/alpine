@@ -837,6 +837,23 @@ Resources:
                           Fn::GetAtt:
                               - SqsJobQueue62388F96
                               - Arn
+                    - Action:
+                          - sqs:GetQueueAttributes
+                          - sqs:GetQueueUrl
+                          - sqs:SendMessage
+                      Condition:
+                          ArnEquals:
+                              aws:SourceArn:
+                                  Fn::GetAtt:
+                                      - CronJobsEnqueueScheduledNotificationDigestsRule0C35C20A
+                                      - Arn
+                      Effect: Allow
+                      Principal:
+                          Service: events.amazonaws.com
+                      Resource:
+                          Fn::GetAtt:
+                              - SqsJobQueue62388F96
+                              - Arn
                 Version: 2012-10-17
             Queues:
                 - Ref: SqsJobQueue62388F96
@@ -1010,6 +1027,22 @@ Resources:
                       InputTemplate: '{"type":"Maintenance","sendTime":"<aws.events.event.ingestion-time>","delaySeconds":0,"job":{"type":"RetryUnprocessedTaskActionTransactions"},"tracerContext":null}'
         Metadata:
             aws:cdk:path: CyberworldsStack/CronJobs/RetryUnprocessedTaskActionTransactionsRule/Resource
+    CronJobsEnqueueScheduledNotificationDigestsRule0C35C20A:
+        Type: AWS::Events::Rule
+        Properties:
+            ScheduleExpression: rate(1 hour)
+            State: ENABLED
+            Targets:
+                - Arn:
+                      Fn::GetAtt:
+                          - SqsJobQueue62388F96
+                          - Arn
+                  Id: Target0
+                  InputTransformer:
+                      InputPathsMap: {}
+                      InputTemplate: '{"type":"Maintenance","sendTime":"<aws.events.event.ingestion-time>","delaySeconds":0,"job":{"type":"EnqueueScheduledNotificationDigests"},"tracerContext":null}'
+        Metadata:
+            aws:cdk:path: CyberworldsStack/CronJobs/EnqueueScheduledNotificationDigestsRule/Resource
     AccountsTable81C15AE5:
         Type: AWS::DynamoDB::Table
         Properties:

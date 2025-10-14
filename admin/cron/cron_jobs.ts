@@ -47,6 +47,12 @@ export const cronJobs: ReadonlyArray<CronJob> = [
         rate: {type: "Minutes", minutes: 3},
         job: {type: "RetryUnprocessedTaskActionTransactions"},
     },
+
+    {
+        name: "EnqueueScheduledNotificationDigests",
+        rate: {type: "Hours", hours: 1},
+        job: {type: "EnqueueScheduledNotificationDigests"},
+    },
 ];
 
 const cronJobNames = new Set<string>();
