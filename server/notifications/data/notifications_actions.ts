@@ -1,7 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_actions.js";
-import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_timezone_actions.js";
+import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
     FileChatAuthorizer,

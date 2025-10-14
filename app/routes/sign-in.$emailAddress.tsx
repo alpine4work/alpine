@@ -22,8 +22,8 @@ import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/style
 import {
     appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,
-    getOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_actions.js";
+import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -124,7 +124,9 @@ export async function action({request, context, params}: LoaderArgs) {
                 const defaultSpaceId = await getOurLastOpenedSpaceId(
                     await sessionContext.actor.authenticate(),
                 );
-                url.searchParams.set("spaceId", defaultSpaceId);
+                if (defaultSpaceId) {
+                    url.searchParams.set("spaceId", defaultSpaceId);
+                }
             }
 
             url.searchParams.set(

@@ -1,5 +1,5 @@
 import {ZonedDateTime, fromDate, minDate, parseTime} from "@internationalized/date";
-import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_timezone_actions.js";
+import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {
     ServerActionContext,
     ServerActionContextModules,

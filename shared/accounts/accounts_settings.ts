@@ -1,6 +1,6 @@
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const AccountsSettingsSchema = Schema.object({
     /**
@@ -19,3 +19,5 @@ export const AccountsSettingsSchema = Schema.object({
      */
     observedTimeZone: TimeZoneSchema.nullable().default(null),
 });
+
+export type AccountsSettings = SchemaType<typeof AccountsSettingsSchema>;

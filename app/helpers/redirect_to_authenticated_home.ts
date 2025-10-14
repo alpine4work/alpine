@@ -1,5 +1,5 @@
 import {redirect} from "@remix-run/router";
-import {getOurLastOpenedSpaceId} from "~/server/accounts/accounts_actions.js";
+import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

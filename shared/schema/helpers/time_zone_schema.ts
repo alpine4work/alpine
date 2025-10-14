@@ -6,7 +6,6 @@ export const TimeZoneSchema = Schema.string.transform<TimeZone>({
     deserialize: timeZone => {
         if (!isTimeZone(timeZone))
             throw new SchemaDeserializationError("Expected string to be a valid time zone");
-
         return timeZone;
     },
 });

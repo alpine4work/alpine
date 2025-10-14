@@ -5,8 +5,11 @@ import {
     updateAccountAvatar,
     updateAccountReactionCharacter,
     updateOurAccountName,
-    updateOurLastOpenedSpaceId,
 } from "~/server/accounts/accounts_actions.js";
+import {
+    updateOurAccountObservedTimeZone,
+    updateOurLastOpenedSpaceId,
+} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_actions.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -78,6 +81,17 @@ export default implementRpcs(definitions, {
                 input.lastOpenedSpaceId,
             );
 
+            return {};
+        },
+    },
+
+    updateOurAccountObservedTimeZone: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await updateOurAccountObservedTimeZone(
+                context.actor.authorizeSession(),
+                input.timeZone,
+            );
             return {};
         },
     },

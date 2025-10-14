@@ -97,6 +97,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TimeZone, isTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -108,6 +109,7 @@ import {
     getAccountByIdAsAdmin,
     registerOurAccountAppleDeviceToken,
     updateOurAccountName,
+    updateOurAccountObservedTimeZone,
     updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {createAlphaSpaceAsAdmin} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -439,10 +441,29 @@ export default function SpaceLayoutRoute() {
         if (lastOpenedSpaceIdRef.current === spaceId) return;
         lastOpenedSpaceIdRef.current = spaceId;
 
+        // Only update lastOpenedSpaceId if the account has access to the space
+        if (loaderData.type !== "WithAccess") return;
+
         void updateOurLastOpenedSpaceId(context, {
             lastOpenedSpaceId: spaceId,
         });
-    }, [spaceId, context]);
+    }, [spaceId, context, loaderData.type]);
+
+    const observedTimeZoneRef = useRef<TimeZone | null>(null);
+    useEffect(() => {
+        if (observedTimeZoneRef.current === clientInfo.timeZone) return;
+        observedTimeZoneRef.current = clientInfo.timeZone;
+        const account =
+            loaderData.type === "WithAccess"
+                ? loaderData.currentAccount
+                : loaderData.currentAccountWithoutSpace;
+        if (!account) return;
+
+        // Never update an account's timezone to null or undefined, it's better if it has an old value than a null value
+        if (!clientInfo.timeZone || !isTimeZone(clientInfo.timeZone)) return;
+
+        void updateOurAccountObservedTimeZone(context, {timeZone: clientInfo.timeZone});
+    }, [clientInfo.timeZone, context, loaderData]);
 
     const accountRegistry = useAccountRegistryForSpaceId(spaceId);
 

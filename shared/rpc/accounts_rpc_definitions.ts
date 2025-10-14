@@ -3,6 +3,7 @@ import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -53,6 +54,14 @@ export const updateOurLastOpenedSpaceId = defineRpc({
     name: "updateOurLastOpenedSpaceId",
     input: {
         lastOpenedSpaceId: Schema.id<SpaceId>(),
+    },
+    output: {},
+});
+
+export const updateOurAccountObservedTimeZone = defineRpc({
+    name: "updateOurAccountObservedTimeZone",
+    input: {
+        timeZone: TimeZoneSchema,
     },
     output: {},
 });
