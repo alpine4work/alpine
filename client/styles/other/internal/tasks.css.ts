@@ -136,7 +136,6 @@ globalStyle(":root", {
 export const rowNumberClassName = style({
     selectors: {
         "&::before": {
-            counterIncrement: rowNumberCounterName,
             content: `counter(${rowNumberCounterName})`,
             position: "absolute",
             left: 0,

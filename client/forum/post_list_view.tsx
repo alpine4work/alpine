@@ -1309,6 +1309,136 @@ function PostListView(
                         item.postCommentIndex ===
                         item.postComments.getMessageCountIncludingOptimisticMessages() - 1;
 
+                    const renderItem = (disableExpensiveFeaturesDuringScroll: boolean) => {
+                        const messageNode =
+                            item.type === "LoadedPostComment" ||
+                            item.type === "OptimisticPostComment" ? (
+                                <MessageView
+                                    messageNoun="comment"
+                                    message={item.postComment}
+                                    fileAttachmentTarget={fileAttachmentTargetByPostId.get(
+                                        item.post.id,
+                                    )}
+                                    isFirstMessage={item.postCommentIndex === 0}
+                                    isLastMessage={isLastComment}
+                                    previousMessage={previousComment}
+                                    nextMessage={nextComment}
+                                    messages={item.postComments}
+                                    messageEditing={messageEditing}
+                                    shouldHighlightRef={
+                                        highlightPostComment?.postId === item.post.id &&
+                                        highlightPostComment.postCommentIndex ===
+                                            item.postCommentIndex
+                                            ? highlightPostComment.shouldHighlightRef
+                                            : null
+                                    }
+                                    onJumpToMessage={handleJumpToPostComment}
+                                    onReplyToMessage={() => {
+                                        if (item.postComment.isOptimistic) return;
+                                        const postCommentIndex = item.postComment.index;
+
+                                        setReplyingToPostCommentIndexByPostId(
+                                            replyingToPostCommentIndexByPostId => {
+                                                const newReplyingToPostCommentIndexByPostId =
+                                                    new Map(replyingToPostCommentIndexByPostId);
+                                                newReplyingToPostCommentIndexByPostId.set(
+                                                    item.post.id,
+                                                    postCommentIndex,
+                                                );
+                                                return newReplyingToPostCommentIndexByPostId;
+                                            },
+                                        );
+                                    }}
+                                    onDeleteMessage={async () => {
+                                        const procedures = proceduresByPostIdRef.current.get(
+                                            item.post.id,
+                                        );
+                                        if (!procedures)
+                                            throw new InternalError(
+                                                "Post comment input isn’t mounted",
+                                            );
+
+                                        await procedures.deleteComment({
+                                            commentIndex: item.postCommentIndex,
+                                        });
+                                    }}
+                                    disableExpensiveFeaturesDuringScroll={
+                                        disableExpensiveFeaturesDuringScroll
+                                    }
+                                    getMessageUrl={messageIndex => {
+                                        return new URL(
+                                            `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
+                                            window.location.href,
+                                        );
+                                    }}
+                                    roomDisplayedCreatedTime={item.post.createdTime}
+                                    // You shouldn't be able to edit, delete, or reply to comments if you don't
+                                    // have `Comment` access on the post.
+                                    //
+                                    // Use the `accessPolicy` from `header` if applicable. Because we update
+                                    // the `channel` in `header` in realtime. Whereas the `channel` preview
+                                    // in the `PostModel` might not update in realtime.
+                                    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel={
+                                        header?.type === "Channel" &&
+                                        header.channel.id === item.post.channel.id
+                                            ? header.channel.accessPolicy
+                                            : item.post.channel.accessPolicy
+                                    }
+                                />
+                            ) : (
+                                <MessageListMessageShimmer
+                                    randomSeed={item.post.id}
+                                    index={item.postCommentIndex}
+                                    previousMessage={previousComment}
+                                    nextMessage={nextComment}
+                                    messages={item.postComments}
+                                />
+                            );
+
+                        return (
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                })}
+                            >
+                                {sideBarLeftSpacer}
+                                <div
+                                    className={sprinkles({
+                                        position: "relative",
+                                        zIndex: "0",
+                                        width: "full",
+                                        maxWidth: contentStyles.contentMaxWidth,
+                                    })}
+                                    style={{
+                                        flex: postViewFlex,
+                                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                        // have `min-width: auto` which extends with content.
+                                        // https://stackoverflow.com/a/66689926/1568890
+                                        minWidth: 0,
+                                    }}
+                                >
+                                    {item.postCommentIndex === 0 && (
+                                        <Spacer space={postContentViewCommentMargin} />
+                                    )}
+                                    {messageNode}
+                                    {isPostView &&
+                                        // -2 instead of -1 since when `isPostView` is true we don't
+                                        // actually render the final comment input item in `posts`.
+                                        index === posts.getItemCount() - 2 && (
+                                            <div
+                                                style={{
+                                                    height: messagingViewMarginBottom,
+                                                }}
+                                            />
+                                        )}
+                                </div>
+                                {asideSpacer}
+                                {sideBarRightSpacer}
+                            </div>
+                        );
+                    };
+
                     return {
                         key:
                             item.type === "LoadedPostComment"
@@ -1328,133 +1458,8 @@ function PostListView(
                             : [],
                         withManualLayout: true,
                         render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
-                            disableExpensiveFeaturesDuringScroll => {
-                                const messageNode =
-                                    item.type === "LoadedPostComment" ||
-                                    item.type === "OptimisticPostComment" ? (
-                                        <MessageView
-                                            messageNoun="comment"
-                                            message={item.postComment}
-                                            fileAttachmentTarget={fileAttachmentTargetByPostId.get(
-                                                item.post.id,
-                                            )}
-                                            isFirstMessage={item.postCommentIndex === 0}
-                                            isLastMessage={isLastComment}
-                                            previousMessage={previousComment}
-                                            nextMessage={nextComment}
-                                            messages={item.postComments}
-                                            messageEditing={messageEditing}
-                                            shouldHighlightRef={
-                                                highlightPostComment?.postId === item.post.id &&
-                                                highlightPostComment.postCommentIndex ===
-                                                    item.postCommentIndex
-                                                    ? highlightPostComment.shouldHighlightRef
-                                                    : null
-                                            }
-                                            onJumpToMessage={handleJumpToPostComment}
-                                            onReplyToMessage={() => {
-                                                if (item.postComment.isOptimistic) return;
-                                                const postCommentIndex = item.postComment.index;
-
-                                                setReplyingToPostCommentIndexByPostId(
-                                                    replyingToPostCommentIndexByPostId => {
-                                                        const newReplyingToPostCommentIndexByPostId =
-                                                            new Map(
-                                                                replyingToPostCommentIndexByPostId,
-                                                            );
-                                                        newReplyingToPostCommentIndexByPostId.set(
-                                                            item.post.id,
-                                                            postCommentIndex,
-                                                        );
-                                                        return newReplyingToPostCommentIndexByPostId;
-                                                    },
-                                                );
-                                            }}
-                                            onDeleteMessage={async () => {
-                                                const procedures =
-                                                    proceduresByPostIdRef.current.get(item.post.id);
-                                                if (!procedures)
-                                                    throw new InternalError(
-                                                        "Post comment input isn’t mounted",
-                                                    );
-
-                                                await procedures.deleteComment({
-                                                    commentIndex: item.postCommentIndex,
-                                                });
-                                            }}
-                                            disableExpensiveFeaturesDuringScroll={
-                                                disableExpensiveFeaturesDuringScroll
-                                            }
-                                            getMessageUrl={messageIndex => {
-                                                return new URL(
-                                                    `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
-                                                    window.location.href,
-                                                );
-                                            }}
-                                            roomDisplayedCreatedTime={item.post.createdTime}
-                                            // You shouldn't be able to edit, delete, or reply to comments if you don't
-                                            // have `Comment` access on the post.
-                                            //
-                                            // Use the `accessPolicy` from `header` if applicable. Because we update
-                                            // the `channel` in `header` in realtime. Whereas the `channel` preview
-                                            // in the `PostModel` might not update in realtime.
-                                            readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel={
-                                                header?.type === "Channel" &&
-                                                header.channel.id === item.post.channel.id
-                                                    ? header.channel.accessPolicy
-                                                    : item.post.channel.accessPolicy
-                                            }
-                                        />
-                                    ) : (
-                                        <MessageListMessageShimmer
-                                            randomSeed={item.post.id}
-                                            index={item.postCommentIndex}
-                                            previousMessage={previousComment}
-                                            nextMessage={nextComment}
-                                            messages={item.postComments}
-                                        />
-                                    );
-
-                                return (
-                                    <div
-                                        className={sprinkles({
-                                            display: "flex",
-                                            justifyContent: "center",
-                                        })}
-                                    >
-                                        {sideBarLeftSpacer}
-                                        <div
-                                            className={sprinkles({
-                                                position: "relative",
-                                                zIndex: "0",
-                                                width: "full",
-                                                maxWidth: contentStyles.contentMaxWidth,
-                                            })}
-                                            style={{
-                                                flex: postViewFlex,
-                                                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                                // have `min-width: auto` which extends with content.
-                                                // https://stackoverflow.com/a/66689926/1568890
-                                                minWidth: 0,
-                                            }}
-                                        >
-                                            {item.postCommentIndex === 0 && (
-                                                <Spacer space={postContentViewCommentMargin} />
-                                            )}
-                                            {messageNode}
-                                            {isPostView &&
-                                                // -2 instead of -1 since when `isPostView` is true we don't
-                                                // actually render the final comment input item in `posts`.
-                                                index === posts.getItemCount() - 2 && (
-                                                    <div
-                                                        style={{height: messagingViewMarginBottom}}
-                                                    />
-                                                )}
-                                        </div>
-                                        {asideSpacer}
-                                        {sideBarRightSpacer}
-                                    </div>
-                                );
+                            {
+                                render: renderItem,
                             },
                         ),
                     };

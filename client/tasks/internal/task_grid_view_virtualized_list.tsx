@@ -2665,6 +2665,59 @@ export function useTaskGridViewVirtualizedListBase({
                 // not manually sorted.
                 if (hasBottomGhostTask) {
                     if (relativeItemIndex === 0) {
+                        const renderItem = (disableExpensiveFeaturesDuringScroll: boolean) => (
+                            <TaskRowViewMemo
+                                capabilities={capabilities}
+                                maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
+                                stateKey={stateKey}
+                                store={store}
+                                rootQuery={rootQuery}
+                                isRootQueryManuallySorted={isRootQueryManuallySorted}
+                                affinityManager={affinityManager}
+                                query={rootQuery}
+                                gridKey={bottomGhostTaskId}
+                                cursor={null}
+                                ghostTaskId={bottomGhostTaskId}
+                                parents={emptyArray}
+                                rowMaxWidth={rowMaxWidth}
+                                // Don't disable expensive features while auto-scrolling during drag since one
+                                // of the expensive features this flag disables is droppable zones. The user
+                                // still needs to be able to reach droppable zones during a drag auto-scroll.
+                                disableExpensiveFeaturesDuringScroll={
+                                    !isDragging && disableExpensiveFeaturesDuringScroll
+                                }
+                                isFirstRow={stateItemCount === 0}
+                                withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
+                                // The ghost row is not a task in the query so always report as false.
+                                isFirstTaskInQuery={false}
+                                nextIndentation={0}
+                                titlePlaceholder={
+                                    !capabilities.isReadOnly
+                                        ? taskGhostRowPlaceholder ?? "Add a task…"
+                                        : undefined
+                                }
+                                viewRef={viewRef}
+                                events={events}
+                                taskRowByGridKeyRef={taskRowByGridKeyRef}
+                                onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
+                                getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
+                                duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
+                                toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                                setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
+                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
+                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef
+                                }
+                                // If there are no task rows, the padding just makes our ghost row placeholder
+                                // look misaligned. So remove it.
+                                withoutPaddingLeft={
+                                    !capabilities.hasColumns && stateItemCount === 0
+                                }
+                                withPaddingBottom={itemIndex === itemCount - 1}
+                                hasNextGridView={hasNextGridView}
+                                mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
+                            />
+                        );
+
                         return {
                             // We want to use the same key and component as a regular task so we can turn a
                             // ghost task into a regular task without losing focus.
@@ -2672,64 +2725,13 @@ export function useTaskGridViewVirtualizedListBase({
                             minHeight: spacing[taskRowViewMinHeight],
                             withManualLayout: true,
                             render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
-                                disableExpensiveFeaturesDuringScroll => (
-                                    <TaskRowViewMemo
-                                        capabilities={capabilities}
-                                        maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
-                                        stateKey={stateKey}
-                                        store={store}
-                                        rootQuery={rootQuery}
-                                        isRootQueryManuallySorted={isRootQueryManuallySorted}
-                                        affinityManager={affinityManager}
-                                        query={rootQuery}
-                                        gridKey={bottomGhostTaskId}
-                                        cursor={null}
-                                        ghostTaskId={bottomGhostTaskId}
-                                        parents={emptyArray}
-                                        rowMaxWidth={rowMaxWidth}
-                                        // Don't disable expensive features while auto-scrolling during drag since one
-                                        // of the expensive features this flag disables is droppable zones. The user
-                                        // still needs to be able to reach droppable zones during a drag auto-scroll.
-                                        disableExpensiveFeaturesDuringScroll={
-                                            !isDragging && disableExpensiveFeaturesDuringScroll
-                                        }
-                                        isFirstRow={stateItemCount === 0}
-                                        withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
-                                        // The ghost row is not a task in the query so always report as false.
-                                        isFirstTaskInQuery={false}
-                                        nextIndentation={0}
-                                        titlePlaceholder={
-                                            !capabilities.isReadOnly
-                                                ? taskGhostRowPlaceholder ?? "Add a task…"
-                                                : undefined
-                                        }
-                                        viewRef={viewRef}
-                                        events={events}
-                                        taskRowByGridKeyRef={taskRowByGridKeyRef}
-                                        onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
-                                        getAreChildTasksExpandedStore={
-                                            getAreChildTasksExpandedStore
-                                        }
-                                        duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
-                                        toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                                        setTaskDeleteConfirmationState={
-                                            setTaskDeleteConfirmationState
-                                        }
-                                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                                            onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                                        }
-                                        // If there are no task rows, the padding just makes our ghost row placeholder
-                                        // look misaligned. So remove it.
-                                        withoutPaddingLeft={
-                                            !capabilities.hasColumns && stateItemCount === 0
-                                        }
-                                        withPaddingBottom={itemIndex === itemCount - 1}
-                                        hasNextGridView={hasNextGridView}
-                                        mobileKeyboardToolbarPortalRef={
-                                            mobileKeyboardToolbarPortalRef
-                                        }
-                                    />
-                                ),
+                                {
+                                    render: renderItem,
+                                    containerStyle: {
+                                        // Make sure our rows here increment the row number counter.
+                                        counterIncrement: tasksStyles.rowNumberCounterName,
+                                    },
+                                },
                             ),
                         };
                     }
@@ -2766,59 +2768,66 @@ export function useTaskGridViewVirtualizedListBase({
             if (item.type === "Task") {
                 const gridKey = getTaskGridViewTaskKey(item);
 
+                const renderItem = (disableExpensiveFeaturesDuringScroll: boolean) => (
+                    <TaskRowViewMemo
+                        capabilities={capabilities}
+                        maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
+                        stateKey={stateKey}
+                        store={store}
+                        // If we have a task item then that must mean we have a query.
+                        rootQuery={rootQuery}
+                        isRootQueryManuallySorted={isRootQueryManuallySorted}
+                        affinityManager={affinityManager}
+                        query={item.query}
+                        gridKey={gridKey}
+                        cursor={item.cursor}
+                        parents={item.parents}
+                        rowMaxWidth={rowMaxWidth}
+                        // Don't disable expensive features while auto-scrolling during drag since one
+                        // of the expensive features this flag disables is droppable zones. The user
+                        // still needs to be able to reach droppable zones during a drag auto-scroll.
+                        disableExpensiveFeaturesDuringScroll={
+                            !isDragging && disableExpensiveFeaturesDuringScroll
+                        }
+                        isFirstRow={itemIndex - itemCountBeforeState === 0}
+                        withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
+                        isFirstTaskInQuery={item.isFirstTaskInQuery}
+                        nextIndentation={
+                            itemIndex + 1 < itemCountBeforeState + stateItemCount
+                                ? // This doesn't mess up the `state.getItem(n + 1)` optimization since
+                                  // repeatedly calling `state.getItem(n)` preserves the internal iterator.
+                                  state.getItem(itemIndex - itemCountBeforeState + 1).parents.length
+                                : 0
+                        }
+                        viewRef={viewRef}
+                        events={events}
+                        taskRowByGridKeyRef={taskRowByGridKeyRef}
+                        onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
+                        getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
+                        toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                        duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
+                        setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
+                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
+                            onTaskDeleteConfirmationModalDialogClosedCallbacksRef
+                        }
+                        withPaddingBottom={itemIndex === itemCount - 1}
+                        hasNextGridView={hasNextGridView}
+                        mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
+                    />
+                );
+
                 return {
                     key: `Task:${gridKey}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     withManualLayout: true,
                     render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
-                        disableExpensiveFeaturesDuringScroll => (
-                            <TaskRowViewMemo
-                                capabilities={capabilities}
-                                maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
-                                stateKey={stateKey}
-                                store={store}
-                                // If we have a task item then that must mean we have a query.
-                                rootQuery={rootQuery}
-                                isRootQueryManuallySorted={isRootQueryManuallySorted}
-                                affinityManager={affinityManager}
-                                query={item.query}
-                                gridKey={gridKey}
-                                cursor={item.cursor}
-                                parents={item.parents}
-                                rowMaxWidth={rowMaxWidth}
-                                // Don't disable expensive features while auto-scrolling during drag since one
-                                // of the expensive features this flag disables is droppable zones. The user
-                                // still needs to be able to reach droppable zones during a drag auto-scroll.
-                                disableExpensiveFeaturesDuringScroll={
-                                    !isDragging && disableExpensiveFeaturesDuringScroll
-                                }
-                                isFirstRow={itemIndex - itemCountBeforeState === 0}
-                                withoutBorderTopIfFirstRow={withoutBorderTopIfFirstRow}
-                                isFirstTaskInQuery={item.isFirstTaskInQuery}
-                                nextIndentation={
-                                    itemIndex + 1 < itemCountBeforeState + stateItemCount
-                                        ? // This doesn't mess up the `state.getItem(n + 1)` optimization since
-                                          // repeatedly calling `state.getItem(n)` preserves the internal iterator.
-                                          state.getItem(itemIndex - itemCountBeforeState + 1)
-                                              .parents.length
-                                        : 0
-                                }
-                                viewRef={viewRef}
-                                events={events}
-                                taskRowByGridKeyRef={taskRowByGridKeyRef}
-                                onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
-                                getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
-                                toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                                duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
-                                setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
-                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                                }
-                                withPaddingBottom={itemIndex === itemCount - 1}
-                                hasNextGridView={hasNextGridView}
-                                mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
-                            />
-                        ),
+                        {
+                            render: renderItem,
+                            containerStyle: {
+                                // Make sure our rows here increment the row number counter.
+                                counterIncrement: tasksStyles.rowNumberCounterName,
+                            },
+                        },
                     ),
                 };
             } else {

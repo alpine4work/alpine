@@ -1,14 +1,20 @@
 import {ReactElement, Ref, useMemo, useState} from "react";
 import {VirtualizedScrollViewStateRenderItemProps} from "~/client/virtualized/virtualized_scroll_view_state.js";
 
+type VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScrollRenderProps = {
+    render: (disableExpensiveFeaturesDuringScroll: boolean) => ReactElement;
+    containerStyle?: React.CSSProperties;
+};
+
 /**
  * Helper for rendering items in a `<VirtualizedScrollView>` that have some
  * expensive features disabled while scrolling to improve scroll performance.
  * Should be used with `withManualLayout`.
  */
-export function renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
-    render: (disableExpensiveFeaturesDuringScroll: boolean) => ReactElement,
-): (
+export function renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll({
+    render,
+    containerStyle,
+}: VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScrollRenderProps): (
     props: VirtualizedScrollViewStateRenderItemProps & {
         ref: Ref<HTMLDivElement>;
         shouldRenderWithRelativePositioning: boolean;
@@ -20,6 +26,7 @@ export function renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuri
         <VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll
             props={props}
             render={render}
+            containerStyle={containerStyle}
         />
     );
 }
@@ -28,13 +35,13 @@ export function renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuri
 function VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll({
     props: {ref, offset, minHeight, zIndex, shouldRenderWithRelativePositioning, isScrolling},
     render,
-}: {
+    containerStyle,
+}: VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScrollRenderProps & {
     props: VirtualizedScrollViewStateRenderItemProps & {
         ref: Ref<HTMLDivElement>;
         shouldRenderWithRelativePositioning: boolean;
         isScrolling: boolean;
     };
-    render: (disableExpensiveFeaturesDuringScroll: boolean) => ReactElement;
 }) {
     const [_disableExpensiveFeaturesDuringScroll, setDisableExpensiveFeaturesDuringScroll] =
         useState(isScrolling);
@@ -64,6 +71,7 @@ function VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll({
                           left: 0,
                           right: 0,
                       }),
+                ...containerStyle,
             }}
         >
             {element}
