@@ -18,6 +18,7 @@ import {
     getNotificationDigestContent,
     isInboxEligibleForDigestNotification,
     sendNotificationDigestForInbox,
+    sendScheduledDigestsForTime,
 } from "~/server/notifications/data/notifications_actions_digest.js";
 import {createNotificationsScenario} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
@@ -29,7 +30,18 @@ import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {DigestNotificationsSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
-const context = createTestContext();
+const sendNotificationDigestMock = import.meta.jest.fn();
+
+const context = createTestContext({
+    processJob: async (context, job, jobStartTime, span) => {
+        if (job.type === "NotificationEvent") {
+            await processNotificationEvent(context, job.event, span);
+        }
+        if (job.type === "SendNotificationDigest") {
+            sendNotificationDigestMock();
+        }
+    },
+});
 
 // NOTE(rmtobin): Watch out for the if statement ordering in `isInboxEligibleForDigestNotification`,
 // since a bug with an earlier if statement could cause all later ones to fail, or cause misleading test results.
@@ -1174,11 +1186,6 @@ describe("sendNotificationDigestForInbox", () => {
 });
 
 describe("getNotificationDigestContent", () => {
-    context.setProcessJob(async (context, job, jobStartTime, span) => {
-        if (job.type === "NotificationEvent") {
-            await processNotificationEvent(context, job.event, span);
-        }
-    });
     test("should get inbox entries", async () => {
         const scenario = await createNotificationsScenario(context);
 
@@ -1312,5 +1319,95 @@ describe("getNotificationDigestContent", () => {
                 accountId: account.id,
             }),
         ).rejects.toThrow();
+    });
+});
+
+describe("sendScheduledDigestsForTime", () => {
+    beforeEach(() => {
+        sendNotificationDigestMock.mockReset();
+    });
+    test("should send digests for the given digestTime that is already rounded to the nearest hour", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: 1,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: null,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+        });
+        const sendTime = new Date("2025-10-15T20:15:00.000Z");
+        await sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime);
+        expect(sendNotificationDigestMock).toHaveBeenCalled();
+    });
+
+    test("should send digests for a digestTime with non-zero seconds or milliseconds", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: 1,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: null,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+        });
+        const sendTime = new Date("2025-10-15T20:01:02.123Z");
+        await sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime);
+        expect(sendNotificationDigestMock).toHaveBeenCalled();
+    });
+
+    test("should throw if digestTime is not a valid date", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: session.account.id,
+            generation: 1,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2025-10-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: null,
+            digestNotificationsNextScheduledDateTime: new Date("2025-10-15T21:00:00.000Z") as any,
+        });
+        const sendTime = new Date("invalid");
+        await expect(
+            sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime),
+        ).rejects.toThrow();
+        expect(sendNotificationDigestMock).not.toHaveBeenCalled();
+    });
+
+    // TODO(rmtobin, 10/14/25): This test fails because the inboxes created earlier in this suite leak into this test.
+    // We need to have a utility to reset the database between tests, which will fix this test.
+    // eslint-disable-next-line jest/no-disabled-tests
+    test.skip("should do nothing if there are no scheduled digests", async () => {
+        const sendTime = new Date("2025-10-15T20:00:00.000Z");
+        await expect(
+            sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime),
+        ).resolves.toBeUndefined();
+        expect(sendNotificationDigestMock).not.toHaveBeenCalled();
     });
 });
