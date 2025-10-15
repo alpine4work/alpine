@@ -363,7 +363,7 @@ export class AwsGithubRunners extends Construct {
             // time, the earlier error is because Docker has run out of space on the
             // machine for images. We've been able to fix this by increase the storage size
             // of our deploy runner.
-            storageSize: Size.gibibytes(40),
+            storageSize: Size.gibibytes(100),
 
             // Do not use spot pricing for deploy GitHub runners. If a deploy is
             // interrupted production may be left in a bad state. (e.g. We interrupt during
