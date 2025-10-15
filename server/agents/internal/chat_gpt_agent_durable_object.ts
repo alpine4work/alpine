@@ -6,37 +6,34 @@ import {
     AgentWebhookRequest,
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {
-    ApiClient,
     completeApiMessageStream,
     createApiMessage,
-    getApiMessagesFromEnd,
-    getApiMessagesFromStart,
     putApiMessageStreamPart,
 } from "~/server/agents/internal/api_client.js";
 import {
     chatGptReadLinkTool,
     getChatGptInstructions,
 } from "~/server/agents/internal/chat_gpt_instructions.js";
+import {
+    ChatGptAgentConversationItemCollection,
+    ChatGptAgentConversationStateStore,
+} from "~/server/agents/internal/conversation_state/chat_gpt_agent_conversation_state.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
-import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
+import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
+import {initializeMessagesInAgentConversation} from "~/server/agents/internal/messages/initialize_messages_in_agent_conversation.js";
+import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
+import {printAgentMessagesLog} from "~/server/agents/internal/messages/print_agent_messages_log.js";
 import {
     AgentConversationLink,
     getAgentContentLinkReference,
     printAgentContentToMarkdownTree,
     putAgentContentLinkReference,
 } from "~/server/agents/internal/print_agent_content_to_markdown.js";
-import {
-    AgentMessage,
-    printAgentMessagesLog,
-} from "~/server/agents/internal/print_agent_messages_log.js";
+import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {parseApiContentMentionInlineElementTargetPath} from "~/shared/api/parse_api_path.js";
 import {
-    ApiMessageRoomPathObject,
-    parseApiContentMentionInlineElementTargetPath,
-} from "~/shared/api/parse_api_path.js";
-import {
-    ApiChat,
     ApiContent,
     ApiContentMentionInlineElementTargetPath,
     ApiMessage,
@@ -61,24 +58,7 @@ import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
-
-/**
- * How many messages to load from the API at once.
- */
-const apiMessagesLimit = 30;
-
-/**
- * The initial token limit for messages to include in context. This is based on
- * 750 words which is about the average length of a Wikipedia article. Then we
- * use the [rule of thumb that 1 token is 3/4 of a word][1] so a Wikipedia
- * article's worth of context is about 1000 tokens. Then we multiply by 1.5 since
- * 1000 felt like too little context from basic local testing.
- *
- * [1]: https://platform.openai.com/tokenizer
- */
-const agentContextManagerInitializeLimitTokenCount = 1500;
 
 type ChatGptAgentRoute = "NotFound";
 
@@ -109,61 +89,18 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
     }
 }
 
-const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChat>("a0");
-
-type ChatGptAgentConversationState = {
-    readonly lastOrderKey: OrderKey | null;
-    readonly lastMessageIndex: number | null;
-};
-
-const ChatGptAgentConversationStateCollection = new DurableObjectStorageCollection<
-    "",
-    ChatGptAgentConversationState
->("a1");
-
-type ChatGptAgentConversationItem = {
-    readonly item:
-        | OpenAi.Responses.ResponseInputItem.Message
-        | OpenAi.Responses.ResponseInputItem.FunctionCallOutput
-        | OpenAi.Responses.ResponseOutputItem;
-};
-
-const ChatGptAgentConversationItemCollection = new DurableObjectStorageCollection<
-    OrderKey,
-    ChatGptAgentConversationItem
->("a2");
-
-class ChatGptAgentConversationStateStore {
-    private _state: ChatGptAgentConversationState;
-
-    private constructor(state: ChatGptAgentConversationState) {
-        this._state = state;
-    }
-
-    public static async new(transaction: DurableObjectTransaction) {
-        const state = (await ChatGptAgentConversationStateCollection.get(transaction, "")) ?? {
-            lastMessageIndex: null,
-            lastOrderKey: null,
-        };
-
-        return new ChatGptAgentConversationStateStore(state);
-    }
-
-    public get() {
-        return this._state;
-    }
-
-    public async set(
-        transaction: DurableObjectTransaction,
-        stateUpdate: Partial<ChatGptAgentConversationState>,
-    ) {
-        this._state = {
-            ...this._state,
-            ...stateUpdate,
-        };
-
-        await ChatGptAgentConversationStateCollection.put(transaction, "", this._state);
-    }
+async function insertAgentMessagesIntoChatGptAgentConversationItemCollection(
+    transaction: DurableObjectTransaction,
+    orderKey: OrderKey,
+    messages: Array<AgentMessage>,
+) {
+    await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+        item: {
+            type: "message",
+            role: "user",
+            content: [{type: "input_text", text: printAgentMessagesLog(messages).trimEnd()}],
+        },
+    });
 }
 
 async function requestChatGptAgent(
@@ -171,7 +108,7 @@ async function requestChatGptAgent(
     request: AgentWebhookRequest,
 ): Promise<void> {
     // Check if the agent should respond before continuing.
-    if (!(await shouldChatGptAgentRespond(tracer, request))) return;
+    if (!(await shouldAgentRespondToRequest(tracer, request))) return;
 
     // Make sure we have the latest messages from the messaging room in
     // conversation history.
@@ -183,35 +120,6 @@ async function requestChatGptAgent(
     await createChatGptAgentMessage(tracer, request);
 }
 
-async function shouldChatGptAgentRespond(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-): Promise<boolean> {
-    // Always respond if mentioned.
-    if (request.event.wasMentioned) return true;
-
-    // If this isn't a chat, the agent only responds if mentioned.
-    if (request.room.type !== "Chat") return false;
-
-    const {chatId} = request.room;
-
-    const chat = await ApiChatCollection.getOrPutDefault(request.storage, chatId, async () => {
-        const {
-            data: {chat},
-        } = await request.apiClient.GET(tracer, "/chats/{id}", {
-            params: {path: {id: chatId}},
-        });
-        return chat;
-    });
-
-    // If this is a 1:1 chat between the agent and another user, then the agent
-    // will always respond.
-    return (
-        chat.members.length === 2 &&
-        chat.members.some(member => member.account.id === request.accountId)
-    );
-}
-
 async function ensureMessagesInChatGptAgentConversation(
     tracer: TracerBase,
     request: AgentWebhookRequest,
@@ -221,11 +129,12 @@ async function ensureMessagesInChatGptAgentConversation(
 
         await initializeInChatGptAgentConversationIfNeeded(tracer, transaction, request, state);
 
-        await loadNewMessagesInChatGptAgentConversation(
+        await loadNewMessagesInAgentConversation(
             tracer,
             transaction,
             request,
             state,
+            insertAgentMessagesIntoChatGptAgentConversationItemCollection,
             request.event.index,
         );
     });
@@ -251,7 +160,13 @@ async function initializeInChatGptAgentConversationIfNeeded(
 
     await initializeInstructionsInChatGptAgentConversation(tracer, transaction, request, state);
 
-    await initializeMessagesInChatGptAgentConversation(tracer, transaction, request, state);
+    await initializeMessagesInAgentConversation(
+        tracer,
+        transaction,
+        request,
+        state,
+        insertAgentMessagesIntoChatGptAgentConversationItemCollection,
+    );
 
     assert(state.get().lastMessageIndex !== null);
 }
@@ -287,179 +202,6 @@ async function initializeInstructionsInChatGptAgentConversation(
 
     await state.set(transaction, {
         lastOrderKey: orderKey,
-    });
-}
-
-async function initializeMessagesInChatGptAgentConversation(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    state: ChatGptAgentConversationStateStore,
-): Promise<void> {
-    assert(state.get().lastMessageIndex === null);
-
-    const messages = await getAgentMessagesFromEndUntilLimitTokenCount(
-        tracer,
-        transaction,
-        request.apiClient,
-        request.spaceId,
-        request.room,
-        {
-            startingIndex: request.event.index,
-            limitTokenCount: agentContextManagerInitializeLimitTokenCount,
-        },
-    );
-
-    const orderKey = generateOrderKeyBetween(state.get().lastOrderKey, null);
-
-    await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
-        item: {
-            type: "message",
-            role: "user",
-            content: [{type: "input_text", text: printAgentMessagesLog(messages).trimEnd()}],
-        },
-    });
-
-    await state.set(transaction, {
-        lastOrderKey: orderKey,
-        lastMessageIndex: request.event.index,
-    });
-}
-
-async function getAgentMessagesFromEndUntilLimitTokenCount(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    apiClient: ApiClient,
-    spaceId: SpaceId,
-    roomPathObject: ApiMessageRoomPathObject,
-    {startingIndex, limitTokenCount}: {startingIndex: number; limitTokenCount: number},
-): Promise<Array<AgentMessage>> {
-    let cursor: number | null = startingIndex + 1;
-    let totalTokenCount = 0;
-    const messages: Array<AgentMessage> = [];
-
-    // Load messages until we reach our token limit.
-    while (cursor !== null && totalTokenCount < limitTokenCount) {
-        const {
-            data: {nextCursor, messages: currentMessages},
-        } = await getApiMessagesFromEnd(tracer, apiClient, roomPathObject, {
-            limit: apiMessagesLimit,
-            cursor,
-        });
-
-        cursor = nextCursor;
-
-        for (let i = currentMessages.length - 1; i >= 0; i--) {
-            const currentMessage = currentMessages[i]!;
-            if (currentMessage.payload.type === "Deleted") continue;
-
-            const message = await AgentMessage.new(transaction, {
-                spaceId,
-                index: currentMessage.index,
-                author: currentMessage.author,
-                createdTime: currentMessage.createdTime,
-                payload: currentMessage.payload,
-            });
-
-            const tokenCount = message.getTokenCount();
-
-            // If this message would put us over our token limit then DO NOT add the
-            // message and instead return the messages we have.
-            //
-            // Unless we've filled less than half of our token limit. In this case we must
-            // be adding a single message with MORE tokens than half of our token limit.
-            // Include the full message. The maximum message size is 400kb. If we assume 1
-            // character per bytes that's 400k characters which is approximately 100k
-            // tokens using the [one-token-is-about-four-characters rule of thumb][1].
-            // GPT-5's context window is 400k tokens so a max length message would consume
-            // a quarter of the context window which is not ideal but still fine.
-            //
-            // [1]: https://platform.openai.com/tokenizer
-            if (
-                totalTokenCount > limitTokenCount / 2 &&
-                totalTokenCount + tokenCount > limitTokenCount
-            ) {
-                // Agent messages are added in reverse order. So reverse them back to get the
-                // correct order.
-                messages.reverse();
-
-                return messages;
-            } else {
-                totalTokenCount += tokenCount;
-
-                messages.push(message);
-            }
-        }
-    }
-
-    // Agent messages are added in reverse order. So reverse them back to get the
-    // correct order.
-    messages.reverse();
-
-    return messages;
-}
-
-async function loadNewMessagesInChatGptAgentConversation(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    // We don't want to use `request.event.index` in this function. So omit it from
-    // the type.
-    request: Omit<AgentWebhookRequest, "event">,
-    state: ChatGptAgentConversationStateStore,
-    newMessageIndex: number,
-): Promise<void> {
-    const initialCursor = state.get().lastMessageIndex;
-    if (initialCursor === null) return;
-
-    // There are no new messages to load!
-    if (newMessageIndex <= initialCursor) return;
-
-    let cursor = initialCursor;
-    const messages: Array<AgentMessage> = [];
-
-    outer: while (newMessageIndex > cursor) {
-        const {
-            data: {nextCursor, messages: currentMessages},
-        } = await getApiMessagesFromStart(tracer, request.apiClient, request.room, {
-            limit: Math.min(apiMessagesLimit, newMessageIndex - cursor),
-            cursor,
-        });
-
-        for (const currentMessage of currentMessages) {
-            // Ignore messages after the index we're looking for.
-            if (currentMessage.index > newMessageIndex) break outer;
-
-            // Ignore deleted messages.
-            if (currentMessage.payload.type === "Deleted") continue;
-
-            const message = await AgentMessage.new(transaction, {
-                spaceId: request.spaceId,
-                index: currentMessage.index,
-                author: currentMessage.author,
-                createdTime: currentMessage.createdTime,
-                payload: currentMessage.payload,
-            });
-
-            messages.push(message);
-        }
-
-        if (nextCursor === null) break;
-        cursor = nextCursor;
-    }
-
-    const orderKey = generateOrderKeyBetween(state.get().lastOrderKey, null);
-
-    await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
-        item: {
-            type: "message",
-            role: "user",
-            content: [{type: "input_text", text: printAgentMessagesLog(messages).trimEnd()}],
-        },
-    });
-
-    await state.set(transaction, {
-        lastOrderKey: orderKey,
-        lastMessageIndex: newMessageIndex,
     });
 }
 
@@ -525,7 +267,7 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         pushText: text => {
             content.pushText(text);
 
-            // We throttle updates to once every 200ms instead of once every token
+            // We throttle updates to once every 100ms instead of once every token
             // OpenAI sends us.
             if (updateTimeout === null) {
                 updateTimeout = createTimeout(() => {
@@ -588,11 +330,12 @@ function createChatGptAgentEmptyStreamMessage(
         // and set `lastMessageIndex` to the new message's index. Make sure if there
         // were any messages added while we were generating our response that we add
         // them to the conversation so they're not missed.
-        await loadNewMessagesInChatGptAgentConversation(
+        await loadNewMessagesInAgentConversation(
             tracer,
             transaction,
             request,
             state,
+            insertAgentMessagesIntoChatGptAgentConversationItemCollection,
             message.index - 1,
         );
 

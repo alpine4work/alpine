@@ -2,11 +2,9 @@
 
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
+import {printAgentMessagesLog} from "~/server/agents/internal/messages/print_agent_messages_log.js";
 import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
-import {
-    AgentMessage,
-    printAgentMessagesLog,
-} from "~/server/agents/internal/print_agent_messages_log.js";
 import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
