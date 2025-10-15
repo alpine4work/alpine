@@ -13,7 +13,6 @@ import {
     DocumentContentEditorWebSocketClient,
     DocumentContentEditorWebSocketClientProcedures,
 } from "~/client/documents/internal/document_content_editor_web_socket_client.js";
-import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
@@ -43,10 +42,7 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
-import {
-    DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeQueryResult,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -63,10 +59,6 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
-import {
-    backfillSpellCheckIgnoredLints,
-    getSpellCheckIgnoredLints,
-} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {nullStore} from "~/shared/store/const_store.js";
@@ -99,6 +91,15 @@ export type SubscribeToCommentThreadEventsFunction = Memo<
     ) => () => void
 >;
 
+export type SubscribeToSpellCheckIgnoredLintEventsFunction = Memo<
+    (
+        subscriber: (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>;
+        }) => void,
+    ) => () => void
+>;
+
 /**
  * Setup a WebSocket connection to the document collaboration service.
  *
@@ -109,7 +110,6 @@ export function useDocumentContentEditorWebSocket(
     input: {
         documentId: DocumentId;
         initialDocument: DocumentModel | null;
-        initialSpellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
     },
     {onCreate}: {onCreate?: () => void} = {},
 ): {
@@ -143,15 +143,11 @@ export function useDocumentContentEditorWebSocket(
     toggleShouldConnect: Memo<() => void>;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
+    subscribeToSpellCheckIgnoredLintEvents: SubscribeToSpellCheckIgnoredLintEventsFunction;
     ensureCreateDocument: () => Promise<void>;
-    spellCheckIgnoredLints: ReadonlyArray<{key: string; kind: string}>;
-    handleEventForSpellCheckIgnoredLint: (event: {
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>;
-    }) => void;
 } {
     const {currentAccount, space} = useSpaceContext();
-    const {initialDocument, documentId, initialSpellCheckIgnoredLints} = input;
+    const {initialDocument, documentId} = input;
 
     assert(
         !initialDocument ||
@@ -515,55 +511,6 @@ export function useDocumentContentEditorWebSocket(
         }, [documentId, persistedTitle, searchEntityRegistry, state.persistedVersion]);
     }
 
-    const {query: spellCheckIgnoredLintsQuery, handleEvent: handleEventForSpellCheckIgnoredLint} =
-        useDynamoGeneralRealtimeQuery(initialSpellCheckIgnoredLints, {
-            isConnected: webSocketState?.isConnected ?? false,
-            subscribeToEvents: useCallback(
-                subscriber => {
-                    if (clientState.type === "NotExists") return () => {};
-
-                    return clientState.client.subscribeToSpellCheckIgnoredLints(subscriber);
-                },
-                [clientState],
-            ),
-            backfillQuery: useCallback(
-                async ({readTime}) => {
-                    const {result} = await backfillSpellCheckIgnoredLints(context, {
-                        entityId: `Document:${documentId}`,
-                        readTime,
-                    });
-                    return result;
-                },
-                [context, documentId],
-            ),
-            reloadQuery: useCallback(async () => {
-                const result = await getSpellCheckIgnoredLints(context, {
-                    entityId: `Document:${documentId}`,
-                });
-                return result.spellCheckIgnoredLints;
-            }, [context, documentId]),
-        });
-
-    const spellCheckIgnoredLints: ReadonlyArray<{key: string; kind: string}> = useMemo(() => {
-        const newSpellCheckIgnoredLints: Array<{key: string; kind: string}> = [];
-
-        for (
-            let i = 0;
-            i < spellCheckIgnoredLintsQuery.getItemCountWithoutLoadingIndicator();
-            i++
-        ) {
-            const item = spellCheckIgnoredLintsQuery.getItem(i);
-            if (item.type !== "Loaded") continue;
-
-            newSpellCheckIgnoredLints.push({
-                key: item.item.model.key,
-                kind: item.item.model.kind,
-            });
-        }
-
-        return newSpellCheckIgnoredLints;
-    }, [spellCheckIgnoredLintsQuery]);
-
     return {
         spaceId: space.id,
         isConnected: webSocketState?.isConnected ?? false,
@@ -642,8 +589,13 @@ export function useDocumentContentEditorWebSocket(
             },
             [clientState],
         ),
+        subscribeToSpellCheckIgnoredLintEvents: useCallback(
+            subscriber => {
+                if (clientState.type === "NotExists") return () => {};
+                return clientState.client.subscribeToSpellCheckIgnoredLints(subscriber);
+            },
+            [clientState],
+        ),
         ensureCreateDocument,
-        spellCheckIgnoredLints,
-        handleEventForSpellCheckIgnoredLint,
     };
 }

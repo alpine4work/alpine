@@ -44,10 +44,7 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {
-    createDynamoGeneralRealtimeItemSchema,
-    createDynamoGeneralRealtimeQuerySchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -56,7 +53,6 @@ import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -71,9 +67,6 @@ const LoaderSchema = Schema.object({
         }),
     ),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
-    spellCheckIgnoredLints: createDynamoGeneralRealtimeQuerySchema(
-        SpellCheckIgnoredLintModel.schema(),
-    ),
 });
 
 export async function loader({params, request, context: unauthenticatedContext}: LoaderArgs) {
@@ -104,27 +97,24 @@ export async function loader({params, request, context: unauthenticatedContext}:
     const platform = getInitialAppRenderPlatform(clientInfo);
     const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
-    const [
-        {document, commentThreads, initialCommentsByCommentThreadId},
-        inboxEntry,
-        spellCheckIgnoredLints,
-    ] = await runAllPromises([
-        getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
-            spaceId,
-            documentId,
-            bucketGeneration,
-            commentLimit: getInitialLoadMessageCount(clientInfo),
-            commentThreadCountAgainstLimit:
-                documentCommentThreadCountAgainstLimit[platform][spacingScale],
-        }),
-        url.searchParams.get("inbox") === "show"
-            ? getInboxEntry(context, {
-                  spaceId,
-                  key: {type: "DocumentNewCommentThreads", documentId, bucketGeneration},
-              })
-            : null,
-        getSpellCheckIgnoredLints(context, `Document:${documentId}`),
-    ]);
+    const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
+        await runAllPromises([
+            getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
+                spaceId,
+                documentId,
+                bucketGeneration,
+                commentLimit: getInitialLoadMessageCount(clientInfo),
+                commentThreadCountAgainstLimit:
+                    documentCommentThreadCountAgainstLimit[platform][spacingScale],
+            }),
+            url.searchParams.get("inbox") === "show"
+                ? getInboxEntry(context, {
+                      spaceId,
+                      key: {type: "DocumentNewCommentThreads", documentId, bucketGeneration},
+                  })
+                : null,
+            getSpellCheckIgnoredLints(context, `Document:${documentId}`),
+        ]);
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -140,7 +130,6 @@ export async function loader({params, request, context: unauthenticatedContext}:
             commentThreads,
             initialCommentsByCommentThreadId,
             inboxEntry,
-            spellCheckIgnoredLints,
         },
         {propagateEventData},
     );
@@ -175,7 +164,6 @@ function DocumentNewCommentThreadsRouteInner() {
         commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
         inboxEntry,
-        spellCheckIgnoredLints,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {
@@ -187,7 +175,6 @@ function DocumentNewCommentThreadsRouteInner() {
     } = useDocumentContentEditorWebSocket({
         documentId: initialDocument.id,
         initialDocument,
-        initialSpellCheckIgnoredLints: spellCheckIgnoredLints,
     });
 
     // Spending time with document comment threads contributes affinity points

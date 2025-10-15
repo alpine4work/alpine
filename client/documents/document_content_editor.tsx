@@ -65,6 +65,7 @@ import {
     DocumentPresentationControllerRef,
 } from "~/client/documents/internal/document_presentation_controller.js";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections.js";
+import {useDocumentContentEditorSpellCheckIgnoredLints} from "~/client/documents/internal/use_document_content_editor_spell_check_ignored_lints.js";
 import {
     SubscribeToCommentThreadEventsFunction,
     useDocumentContentEditorWebSocket,
@@ -278,18 +279,22 @@ export function DocumentContentEditor({
         toggleShouldConnect,
         procedures,
         subscribeToCommentThreadEvents,
+        subscribeToSpellCheckIgnoredLintEvents,
         unpersistedResolutionStateByCommentThreadId,
         ensureCreateDocument,
-        handleEventForSpellCheckIgnoredLint,
-    } = useDocumentContentEditorWebSocket(
-        {documentId, initialDocument, initialSpellCheckIgnoredLints},
-        {onCreate},
-    );
+    } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
         otherPresenceStateByConnectionId,
         rememberedSteps,
+    });
+
+    const {handleEventForSpellCheckIgnoredLint} = useDocumentContentEditorSpellCheckIgnoredLints({
+        documentId,
+        initialSpellCheckIgnoredLints,
+        isConnected,
+        subscribeToSpellCheckIgnoredLintEvents,
     });
 
     useDevConsoleTool(
