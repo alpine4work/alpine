@@ -332,6 +332,10 @@ const TracerEventDataSchema = {
     notifications: {
         eventType: IdentifierStringSchema,
         eventId: Schema.id(),
+        emailDigest: {
+            ineligibleReason: Schema.string,
+            sendTime: DateStringSchema,
+        },
     },
     tasks: {
         actions: Schema.string,

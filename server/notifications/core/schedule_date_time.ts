@@ -8,7 +8,7 @@ import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
  * A representation of a scheduled date and time that is a subtype of the JavaScript `Date` object.
  * This means all `ScheduleDateTime`s are valid `Date` objects, but not all `Date` objects are valid `ScheduleDateTime`s.
  *
- * It adds enforcement that the time is truncated to the nearest minute and uses `@internationalized/date`
+ * It adds enforcement that the time is truncated to the nearest hour and uses `@internationalized/date`
  * to perform actions on the date while zoned in UTC. However, since it still
  * uses the native `Date` object, once it has been returned, it is time zone naive.
  *
@@ -25,8 +25,8 @@ export function isScheduleDateTime(date: Date): date is ScheduleDateTime {
 /**
  * Assert that a `Date` object is a valid `ScheduleDateTime`.
  */
-export function assertScheduleDateTime(date: Date): ScheduleDateTime {
-    assert(isScheduleDateTime(date));
+export function assertScheduleDateTime(date: Date, message?: string): ScheduleDateTime {
+    assert(isScheduleDateTime(date), message);
     return date;
 }
 
@@ -34,7 +34,7 @@ export function assertScheduleDateTime(date: Date): ScheduleDateTime {
  * Serialize a JavaScript `Date` object to a `ScheduleDateTime`.
  */
 export function serializeScheduleDateTime(date: Date): ScheduleDateTime {
-    const parsedDate = fromDate(date, "UTC").set({second: 0, millisecond: 0});
+    const parsedDate = fromDate(date, "UTC").set({minute: 0, second: 0, millisecond: 0});
     return assertScheduleDateTime(parsedDate.toDate());
 }
 
@@ -63,8 +63,11 @@ export function isScheduleDateTimeString(string: string): string is ScheduleDate
     return true;
 }
 
-export function assertScheduleDateTimeString(string: string): ScheduleDateTimeString {
-    assert(isScheduleDateTimeString(string));
+export function assertScheduleDateTimeString(
+    string: string,
+    message?: string,
+): ScheduleDateTimeString {
+    assert(isScheduleDateTimeString(string), message);
     return string;
 }
 
@@ -94,4 +97,4 @@ export const ScheduleDateTimeSchema = Schema.date.transform<ScheduleDateTime>({
 });
 
 // Matches the format "YYYY-MM-DDTHH:mm:00.000Z" where seconds and milliseconds are zero
-const ScheduleDateTimeMatcher = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/;
+const ScheduleDateTimeMatcher = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00\.000Z$/;

@@ -11,6 +11,8 @@ import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     ScheduleDateTime,
     assertScheduleDateTime,
+    serializeScheduleDateTime,
+    serializeScheduleDateTimeString,
 } from "~/server/notifications/core/schedule_date_time.js";
 import {
     InboxAttributesItem,
@@ -73,35 +75,75 @@ export async function isInboxEligibleForDigestNotification(
         "digestNotificationsSchedule"
     >,
 ) {
-    if (digestNotificationsOptedOutTime) {
-        return false;
-    }
-    if (!digestNotificationsSchedule || digestNotificationsSchedule.size === 0) {
-        return false;
-    }
-    // If this inbox has no unarchived entries, it should not receive a digest
-    if (entryCount === 0) {
-        return false;
-    }
-    if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
-        return false;
-    }
-    // If we've already sent a digest notification since the latest entry update, they've already received
-    // a digest from this inbox so we don't need to send another one. This allows us to ensure stale
-    // retries don't cause us to send out of date digests. Uses a 50ms uncertainty window to account
-    // for clock skew.
-    if (
-        digestNotificationsLastSentTime &&
-        lastEntryUpdatedTime &&
-        isDateDefinitelyLessThanWithUncertaintyWindow(
-            lastEntryUpdatedTime,
-            digestNotificationsLastSentTime,
-            50,
-        )
-    ) {
-        return false;
-    }
-    return true;
+    return context.tracer.withSpan(
+        "Check if inbox is eligible for digest notification",
+        async (context, span) => {
+            if (digestNotificationsOptedOutTime) {
+                span.addData({
+                    notifications: {
+                        emailDigest: {
+                            ineligibleReason: "unsubscribed",
+                        },
+                    },
+                });
+                return false;
+            }
+            if (!digestNotificationsSchedule || digestNotificationsSchedule.size === 0) {
+                span.addData({
+                    notifications: {
+                        emailDigest: {
+                            ineligibleReason: "no schedule",
+                        },
+                    },
+                });
+                return false;
+            }
+            // If this inbox has no unarchived entries, it should not receive a digest
+            if (entryCount === 0) {
+                span.addData({
+                    notifications: {
+                        emailDigest: {
+                            ineligibleReason: "no unarchived entries",
+                        },
+                    },
+                });
+                return false;
+            }
+            if (!(await isAccountMemberOfSpace(context, spaceId, accountId))) {
+                span.addData({
+                    notifications: {
+                        emailDigest: {
+                            ineligibleReason: "not a member of space",
+                        },
+                    },
+                });
+                return false;
+            }
+            // If we've already sent a digest notification since the latest entry update, they've already received
+            // a digest from this inbox so we don't need to send another one. This allows us to ensure stale
+            // retries don't cause us to send out of date digests. Uses a 50ms uncertainty window to account
+            // for clock skew.
+            if (
+                digestNotificationsLastSentTime &&
+                lastEntryUpdatedTime &&
+                isDateDefinitelyLessThanWithUncertaintyWindow(
+                    lastEntryUpdatedTime,
+                    digestNotificationsLastSentTime,
+                    50,
+                )
+            ) {
+                span.addData({
+                    notifications: {
+                        emailDigest: {
+                            ineligibleReason: "already sent digest since last entry update",
+                        },
+                    },
+                });
+                return false;
+            }
+            return true;
+        },
+    );
 }
 
 /**
@@ -243,23 +285,36 @@ export async function sendScheduledDigestsForTime(
     context: Context<{jobs: JobsContextModule} & Omit<ServerActionContextModules, "actor">>,
     digestTime: Date,
 ) {
-    // Round to the next hour to match index partition keys
-    const nextHour = fromDate(digestTime, "UTC")
-        .add({hours: 1})
-        .set({minute: 0, second: 0, millisecond: 0})
-        .toDate();
-    const result = NotificationDigestEntriesIndex.query(context, {
-        partitionKey: {digestNotificationsNextScheduledDateTime: assertScheduleDateTime(nextHour)},
-        limit: "All",
-    });
-    await parallelMapAsyncIterableToArray(result, async item => {
-        await context.jobs.sendAndWait({
-            type: "SendNotificationDigest",
-            accountId: item.accountId,
-            spaceId: item.spaceId,
-            sendTime: digestTime,
-        });
-    });
+    return context.tracer.withSpan(
+        "Send scheduled notification digests for time",
+        async (context, span) => {
+            // Round to the next hour to match index partition keys.
+            const sendTime = serializeScheduleDateTime(
+                fromDate(digestTime, "UTC").add({hours: 1}).toDate(),
+            );
+            span.addData({
+                notifications: {
+                    emailDigest: {
+                        sendTime: serializeScheduleDateTimeString(sendTime),
+                    },
+                },
+            });
+            const result = NotificationDigestEntriesIndex.query(context, {
+                partitionKey: {
+                    digestNotificationsNextScheduledDateTime: sendTime,
+                },
+                limit: "All",
+            });
+            await parallelMapAsyncIterableToArray(result, async item => {
+                await context.jobs.sendAndWait({
+                    type: "SendNotificationDigest",
+                    accountId: item.accountId,
+                    spaceId: item.spaceId,
+                    sendTime,
+                });
+            });
+        },
+    );
 }
 
 // Verify time is still a valid time for this inbox's schedule just in case their schedule has
@@ -289,6 +344,7 @@ export async function sendNotificationDigestForInbox(
     sendTime: Date,
     {accountId, spaceId}: {accountId: AccountId; spaceId: SpaceId},
 ) {
+    assertScheduleDateTime(sendTime, "sendTime must be a valid ScheduleDateTime");
     await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
         authorizeNotBotSpaceAccount(context, spaceId, accountId),

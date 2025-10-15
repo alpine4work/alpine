@@ -992,6 +992,14 @@ export type TracerEventData = {
 
         /** The ID of the notification we are processing. */
         readonly eventId?: NotificationEventId;
+
+        readonly emailDigest?: {
+            /** The reason an account was ineligible for a digest notification. Will be null if the account is eligible. */
+            readonly ineligibleReason?: string;
+
+            /** The time a digest notification is supposed to be sent. */
+            readonly sendTime?: DateString;
+        };
     };
 
     /** Information regarding the task product surface. */
