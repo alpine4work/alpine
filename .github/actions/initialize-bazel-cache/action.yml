@@ -1,5 +1,5 @@
-name: "Bazel Cache"
-description: "Restores the Bazel Cache, or creates it if it doesn't exist"
+name: "Initialize Bazel cache"
+description: "Sets up the Bazel repository cache and remote cache"
 
 runs:
     using: "composite"

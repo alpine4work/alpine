@@ -1,11 +1,11 @@
-name: "Skip CI Check"
+name: "Check for “[SKIP CI]”"
 description:
-    "Checks PR title for [SKIP CI] tag and fails if found, allowing workflows to be skipped"
+    "Checks PR title for “[SKIP CI]” tag and fails if found, allowing workflows to be skipped"
 
 runs:
     using: "composite"
     steps:
-        - name: Check PR title for [SKIP CI]
+        - name: Check PR title for “[SKIP CI]”
           shell: bash
           env:
               GITHUB_TOKEN: ${{ github.token }}

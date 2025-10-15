@@ -9,7 +9,7 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v3
 
-            - name: Check for SKIP CI
+            - name: Check for “[SKIP CI]”
               if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
 
@@ -23,6 +23,21 @@ jobs:
             - name: Unit tests
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-playwright,-macos --nofetch
+
+            # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
+            # and outputs for all tests that passed leaving only the logs and outputs for
+            # tests that failed.
+            - if: failure()
+              name: Prepare Bazel test logs
+              run: admin/bazel/prepare_bazel_testlogs_failure_artifact.sh
+
+            - if: failure()
+              name: Upload Bazel test logs
+              uses: actions/upload-artifact@v4
+              with:
+                  name: bazel_unit_testlogs
+                  path: bazel-testlogs
+                  retention-days: 7
 
     integration-tests:
         name: Integration tests (${{ matrix.category }})
@@ -38,7 +53,7 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v3
 
-            - name: Check for SKIP CI
+            - name: Check for “[SKIP CI]”
               if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
 
@@ -73,7 +88,7 @@ jobs:
               name: Upload Bazel test logs
               uses: actions/upload-artifact@v4
               with:
-                  name: bazel_testlogs
+                  name: bazel_${{ matrix.category }}_integration_testlogs
                   path: bazel-testlogs
                   retention-days: 7
 
