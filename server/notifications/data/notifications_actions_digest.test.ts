@@ -114,6 +114,20 @@ describe("isInboxEligibleForDigestNotification", () => {
         expect(result).toBe(false);
     });
 
+    test("should return false when lastEntryUpdatedTime null", async () => {
+        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+            entryCount: 1,
+            digestNotificationsOptedOutTime: null,
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-05T00:00:00Z"),
+            lastEntryUpdatedTime: null,
+            spaceId,
+            accountId,
+        });
+
+        expect(result).toBe(false);
+    });
+
     test("should return true when digestNotificationsLastSentTime is null", async () => {
         const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
             entryCount: 1,
