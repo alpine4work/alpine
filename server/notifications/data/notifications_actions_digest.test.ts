@@ -1342,6 +1342,10 @@ describe("sendScheduledDigestsForTime", () => {
     beforeEach(() => {
         sendNotificationDigestMock.mockReset();
     });
+
+    afterEach(async () => {
+        await context.resetDynamoLocal();
+    });
     test("should send digests for the given digestTime that is already rounded to the nearest hour", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -1458,10 +1462,7 @@ describe("sendScheduledDigestsForTime", () => {
         expect(sendMock).not.toHaveBeenCalled();
     });
 
-    // TODO(rmtobin, 10/14/25): This test fails because the inboxes created earlier in this suite leak into this test.
-    // We need to have a utility to reset the database between tests, which will fix this test.
-    // eslint-disable-next-line jest/no-disabled-tests
-    test.skip("should do nothing if there are no scheduled digests", async () => {
+    test("should do nothing if there are no scheduled digests", async () => {
         const sendTime = new Date("2025-10-15T20:00:00.000Z");
         await expect(
             sendScheduledDigestsForTime(context.unknownAnonymousAction(), sendTime),

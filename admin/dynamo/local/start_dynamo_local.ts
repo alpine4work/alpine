@@ -21,6 +21,7 @@ const dynamoLocalJarPath = joinPath(runfilesPath, "dynamo_local/DynamoDBLocal.ja
 
 export type DynamoLocal = {
     readonly port: number;
+    readonly logsPath: string;
     stop(): Promise<void>;
 };
 
@@ -75,6 +76,7 @@ export async function startDynamoLocal({
     await waitForHttpServer(port);
 
     return {
+        logsPath,
         port,
         stop: async () => {
             try {

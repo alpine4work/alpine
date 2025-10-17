@@ -243,6 +243,18 @@ export type DynamoTableSchemaTypesBase = Replace<
     {QueryKeyMap: any}
 >;
 
+// Used specifically for testing to allow us to re-check if tables exist in a local DynamoDB instance.
+// As long as this value stays the same, we only check if a table exists (and create it if not) the
+// first time a call is made to a DynamoTableSchema instance; any subsequent calls skip the check.
+// You probably don't need to increment this value manually if you are resetting the local DynamoDB
+// instance as `resetDynamoLocal()` will increment it for you.
+let localDynamoTableSchemaGeneration = 1;
+
+export function incrementLocalDynamoTableSchemaGenerationForTest() {
+    assert(import.meta.jest, "Can only increment local table generation in tests");
+    localDynamoTableSchemaGeneration++;
+}
+
 /**
  * Abstraction over DynamoDB tables for defining the type of data that resides
  * within. Features of this abstraction:
@@ -646,6 +658,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     private _ensureLocalTablePromise: Promise<void> | null = null;
+    private _ensureLocalTableGeneration: number = 0;
 
     private async _getClient(
         context: DynamoContext,
@@ -673,8 +686,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // parallel, we only try to create the table once.
         if (process.env.NODE_ENV !== "production") {
             const internalClient = client.getInternalClient();
+
             if (internalClient.isLocal()) {
-                if (!this._ensureLocalTablePromise) {
+                if (
+                    !this._ensureLocalTablePromise ||
+                    this._ensureLocalTableGeneration !== localDynamoTableSchemaGeneration
+                ) {
+                    this._ensureLocalTableGeneration = localDynamoTableSchemaGeneration;
                     this._ensureLocalTablePromise = this._ensureLocalTable(context);
                 }
                 await this._ensureLocalTablePromise;
@@ -708,32 +726,39 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const client = getDynamoClient(context);
 
-        const ensureLocalCachePath = joinPath(
-            assertExists(
-                client.ensureLocalCachePath,
-                "Must have `ensureLocalCachePath` when running DynamoDB locally",
-            ),
-            `${this._name}.txt`,
-        );
+        // We skip checking the cache in tests since we actually want to recheck if the table exists
+        // if dynamo has been restarted.
+        const shouldUseCache = !import.meta.jest;
 
-        const ensureLocalCacheHash = murmurhash
-            .v3(JSON.stringify([description.name, description.indexes.length]))
-            .toString(16)
-            .padStart(8, "0");
+        let ensureLocalCacheHash: string;
+        let ensureLocalCachePath: string;
 
-        // We've previously ensured this table! Don't do so again until
-        // `ensureLocalCacheHash` updates. We've found `DescribeTable` can take a
-        // second or more when running DynamoDB locally! So avoiding `DescribeTable`
-        // speeds up our development environment.
-        try {
-            if ((await fs.readFile(ensureLocalCachePath, "utf8")).trim() === ensureLocalCacheHash) {
-                return;
-            }
-        } catch (error) {
-            if (isObject(error) && error.code === "ENOENT") {
-                // If the file doesn't exist, that's ok ensure the table...
-            } else {
-                throw error;
+        if (shouldUseCache) {
+            ensureLocalCachePath = joinPath(
+                assertExists(
+                    client.ensureLocalCachePath,
+                    "Must have `ensureLocalCachePath` when running DynamoDB locally",
+                ),
+                `${this._name}.txt`,
+            );
+
+            ensureLocalCacheHash = murmurhash
+                .v3(JSON.stringify([description.name, description.indexes.length]))
+                .toString(16)
+                .padStart(8, "0");
+            try {
+                if (
+                    (await fs.readFile(ensureLocalCachePath, "utf8")).trim() ===
+                    ensureLocalCacheHash
+                ) {
+                    return;
+                }
+            } catch (error) {
+                if (isObject(error) && error.code === "ENOENT") {
+                    // If the file doesn't exist, that's ok ensure the table...
+                } else {
+                    throw error;
+                }
             }
         }
 
@@ -938,9 +963,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     }
                 }
             });
-
-            await fs.mkdir(dirname(ensureLocalCachePath), {recursive: true});
-            await fs.writeFile(ensureLocalCachePath, ensureLocalCacheHash);
+            if (ensureLocalCachePath && ensureLocalCacheHash) {
+                await fs.mkdir(dirname(ensureLocalCachePath), {recursive: true});
+                await fs.writeFile(ensureLocalCachePath, ensureLocalCacheHash);
+            }
         });
     }
 

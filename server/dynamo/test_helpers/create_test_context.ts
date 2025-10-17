@@ -43,6 +43,7 @@ import {
 } from "~/server/context/server_process_context.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {incrementLocalDynamoTableSchemaGenerationForTest} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
@@ -161,6 +162,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     getSqsLocalFileProcessorLightJobQueueUrl(): string;
     getSqsLocalFileProcessorHeavyJobQueueUrl(): string;
     restartSqsLocal(): Promise<void>;
+    resetDynamoLocal(): Promise<void>;
 
     /**
      * An action with an authenticated session.
@@ -442,6 +444,45 @@ export function createTestContext(
         });
     };
 
+    const resetDynamoLocal = async () => {
+        assert(dynamoLocal, "DynamoDB local must have been started before");
+
+        if (shouldStartOpensearch) {
+            throw new InternalError(
+                "Resetting DynamoDB in tests while OpenSearch is also running (`shouldStartOpensearch: true`) is dangerous " +
+                    "because while DynamoDB’s data is reset, data in OpenSearch remains which may cause unexpected issues.",
+            );
+        }
+
+        if (shouldSendJobsToSqs) {
+            throw new InternalError(
+                "Resetting DynamoDB in tests while SQS is also running (`shouldSendJobsToSqs: true`) is dangerous " +
+                    "because while DynamoDB’s data is reset, messages in SQS remain which may cause unexpected issues.",
+            );
+        }
+
+        const currentDynamoLocal = dynamoLocal;
+        dynamoLocal = null;
+        await currentDynamoLocal.stop();
+        incrementLocalDynamoTableSchemaGenerationForTest();
+
+        const counterMatch = currentDynamoLocal.logsPath.match(/-([0-9]+)$/);
+        let counter = Math.max(2, parseInt(counterMatch?.[1] ?? "1", 10) + 1);
+        while (await fs.pathExists(`${currentDynamoLocal.logsPath}-${counter}`)) {
+            counter++;
+        }
+
+        dynamoLocal = await startDynamoLocal({
+            withInMemoryData: true,
+            port: currentDynamoLocal.port,
+            logsPath: `${
+                counterMatch
+                    ? currentDynamoLocal.logsPath.slice(0, -counterMatch[0].length)
+                    : currentDynamoLocal.logsPath
+            }-${counter}`,
+        });
+    };
+
     const escalateToSystemContext = <Value>(
         context: Context<{
             tracer: TracerContextModule;
@@ -643,6 +684,7 @@ export function createTestContext(
         getSqsLocalFileProcessorLightJobQueueUrl,
         getSqsLocalFileProcessorHeavyJobQueueUrl,
         restartSqsLocal,
+        resetDynamoLocal,
         action: createSessionContext,
         systemAction: createSystemContext,
         anonymousAction: createAnonymousContext,
