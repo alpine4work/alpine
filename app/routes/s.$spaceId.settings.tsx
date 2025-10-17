@@ -20,12 +20,10 @@ import {
 } from "~/client/styles/space_settings_shared_styles.js";
 import {colorSchemeVars} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
 import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
-import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 
 type SettingsRoute = keyof typeof titleBySettingsRoute;
 
@@ -117,17 +115,12 @@ export default function SettingsLayout() {
 
     const location = useLocation();
     const navigation = useNavigation();
-    const {space} = useSpaceContextAndRequireSpaceAccess();
     const isMobile = platform === "mobile";
 
     const currentPathname = location.pathname;
     const nextPathname = (navigation.location ?? location)?.pathname;
 
     const currentRoute = parseSettingsRouteFromPathname(currentPathname);
-
-    if (!hasSpaceSettingsFeature(space.id)) {
-        throw new UnimplementedError("Space settings is not available");
-    }
 
     // First check if we're actually trying to parse a settings route
     // If this isn't a settings route at all (e.g., navigating to /home),

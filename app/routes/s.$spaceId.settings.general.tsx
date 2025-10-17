@@ -1,5 +1,4 @@
 import {useId, useRef, useState} from "react";
-import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -16,28 +15,12 @@ import {SpaceAvatarWithThemeOverride} from "~/client/spaces/space_avatar_with_th
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
-import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-
-const LoaderSchema = Schema.object({});
-
-export async function loader({params}: LoaderArgs) {
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-
-    if (!hasSpaceSettingsFeature(spaceId)) {
-        throw new UnimplementedError("Space settings is not available");
-    }
-
-    return jsonWithSchema(LoaderSchema, {});
-}
 
 export default function SpaceGeneralSettingsRoute() {
     const context = useAppContext();

@@ -19,7 +19,6 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
@@ -35,7 +34,6 @@ import {
     AccountModelDataWithInvitePendingState,
     AccountModelDataWithRemovedState,
 } from "~/shared/spaces/account_model.js";
-import {hasSpaceSettingsFeature} from "~/shared/spaces/has_space_settings_feature.js";
 import {SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -45,10 +43,6 @@ const LoaderSchema = Schema.object({
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-
-    if (!hasSpaceSettingsFeature(spaceId)) {
-        throw new UnimplementedError("Space settings is not available");
-    }
 
     const allAccounts = await expensivelyGetAllSpaceAccounts(
         await context.actor.authenticate(),
@@ -139,7 +133,6 @@ export default function SpacePeopleSettingsRoute() {
                 ownerAccount = account;
             }
         }
-        assert(ownerAccount, "Missing owner account");
 
         activeAccounts.sort((account1, account2) => {
             return compareAsc(account1.space.addedTime, account2.space.addedTime);
@@ -224,7 +217,7 @@ export default function SpacePeopleSettingsRoute() {
 
     const handleRemoveAccount = async (accountData: AccountModelData) => {
         // Can't remove the owner
-        assert(accountData.id !== ownerAccount.id, "Can’t remove owner");
+        assert(!ownerAccount || accountData.id !== ownerAccount.id, "Can’t remove owner");
         // Only owner and admins can remove members
         assert(hasAdminAccess, "Only the space owner and admins can remove members");
 
