@@ -1,6 +1,6 @@
 import {Text} from "@react-email/components";
 import {ReactNode} from "react";
-import {Color} from "~/shared/design/core/colors.js";
+import {Color, colors} from "~/shared/design/core/colors.js";
 import {FontSize, createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -41,6 +41,7 @@ export function EmailText({
                 fontWeight: emailFontStyles[fontStyle].fontWeight,
                 marginBottom: convertRemLengthToPx(cast<RemLength>("0.75rem"), "small"),
                 marginTop: "0px",
+                color: color ? colors[color] : colors["grey-100"],
                 ...style,
             }}
         >

@@ -1,6 +1,6 @@
 import {Link, LinkProps} from "@react-email/components";
 import {ReactNode} from "react";
-import {Color} from "~/shared/design/core/colors.js";
+import {Color, colors} from "~/shared/design/core/colors.js";
 
 export function EmailLink({
     children,
@@ -15,7 +15,7 @@ export function EmailLink({
     return (
         <Link
             className={color ? `email-link ${color}` : "email-link"}
-            style={{color: "inherit", ...style}}
+            style={{color: color ? colors[color] : colors["indigo-60"], ...style}}
             {...rest}
         >
             {children}

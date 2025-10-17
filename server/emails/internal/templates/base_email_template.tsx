@@ -5,6 +5,13 @@ import {colors} from "~/shared/design/core/colors.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 
+// NOTE: There's lots of weirdness here that doesn't follow normal CSS/HTML practices because email clients
+// behave in strange ways. Style blocks are broken up so we can ensure we're under 8192 characters per block,
+// otherwise Gmail will ignore the block. They're ordered from the most important to the least as Gmail will
+// stop applying styles after a given block if it encounters something it doesn't like.
+// Email clients like to apply their own styles, so there's lots of !important to force our styles.
+// .match-background and .match-background-border are classes to use for applying cutouts to content that can
+// handle dark mode. Good luck.
 export function BaseEmailTemplate({
     children,
     globalStyles,
@@ -23,7 +30,7 @@ export function BaseEmailTemplate({
         ([shade, color]) => `&.${shade} { color: ${color} !important; }`,
     );
 
-    const brandLogoIconSize = spacing["48"];
+    const brandLogoIconSize = spacing["32"];
     const brandLogoIconAspectRatio = 719 / 227;
     const brandLogoIconWidth = parseFloat(brandLogoIconSize);
     const brandLogoIconHeight = brandLogoIconWidth / brandLogoIconAspectRatio;
@@ -53,14 +60,6 @@ export function BaseEmailTemplate({
                                 spacing["2"],
                                 "medium",
                             )} !important;
-                        }
-                        a[data-id*="react-email-button"] {
-                            background-color: ${colors["grey-0"]};
-                            color: ${colors["grey-100"]};
-                        }
-                        [data-id*="react-email-heading"],
-                        [data-id*="react-email-text"] {
-                            color: ${colors["grey-100"]};
                         }
                         .match-background {
                             background-color: ${colors["grey-0"]} !important;
@@ -107,19 +106,11 @@ export function BaseEmailTemplate({
                         });
                             }
                             h1, h2, h3, h4, h5, h6, p, a {
-                                color: ${colors["grey-0"]};
+                                color: ${colors["grey-0"]} !important;
                                 ${darkColorsCssClasses.join("\n")}
                             }
                             hr {
                                 border-color: ${colors["grey-90"]} !important;
-                            }
-                            a[data-id*="react-email-button"] {
-                                background-color: ${colors["grey-100"]};
-                                color: ${colors["grey-0"]};
-                            }
-                            [data-id*="react-email-heading"],
-                            [data-id*="react-email-text"] {
-                                color: ${colors["grey-0"]};
                             }
                             #logo-wordmark {
                                 background-image: url('${baseUrl}/icons/logo_wordmark_dark.png') !important;

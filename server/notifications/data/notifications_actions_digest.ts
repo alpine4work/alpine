@@ -399,7 +399,7 @@ export async function sendNotificationDigestForInbox(
                 ]);
 
             await context.email.send({
-                fromEmailAddressAlias: "Notifications",
+                fromEmailAddressAlias: "Inbox",
                 toEmailAddress: emailAddress,
                 templateName: "NotificationDigest",
                 templateProps: {

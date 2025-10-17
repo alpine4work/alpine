@@ -33,10 +33,6 @@ export function EmailAccountAvatar({
         width: convertRemLengthToPx(avatarSize, "large"),
         height: convertRemLengthToPx(avatarSize, "large"),
         borderRadius: "50%",
-        backgroundColor:
-            avatarDesign.type === "Default"
-                ? colors[`${avatarDesign.backgroundColor}-20`]
-                : undefined,
         overflow: "hidden",
         textAlign: "center",
     } as const;
@@ -66,7 +62,7 @@ function EmailAccountAvatarInner({
     const {firstInitial, lastInitial} = getAccountInitials(accountData);
     const fontSize = spacing[size];
     const fontSizeRem = parseRemLength(fontSize);
-    const scaledFontSizeRem = fontSizeRem / 2.5;
+    const scaledFontSizeRem = fontSizeRem / 2.75;
     const scaledFontSizePx = convertRemLengthToPx(`${scaledFontSizeRem}rem`, "large");
 
     const initials = `${firstInitial}${lastInitial ?? ""}`;
@@ -168,6 +164,7 @@ function EmailAccountAvatarWithInitials({
             style={{
                 height: `${height}px`,
                 width: `${width}px`,
+                backgroundColor: colors[`${avatarDesign.backgroundColor}-20`],
             }}
         >
             <Text
@@ -176,7 +173,7 @@ function EmailAccountAvatarWithInitials({
                     marginBottom: "0",
                     fontStyle: "normal",
                     fontSize: `${fontSize}px`,
-                    color: colors[`${avatarDesign.backgroundColor}-80`],
+                    color: `${colors[`${avatarDesign.backgroundColor}-80`]} !important`,
                     lineHeight: `${height}px`,
                 }}
             >

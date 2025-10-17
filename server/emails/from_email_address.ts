@@ -38,9 +38,9 @@ export const FromEmailAddressAlias = {
         displayName: "Alpine",
         address: "invitation@alpine.inc",
     },
-    Notifications: {
+    Inbox: {
         displayName: "Alpine",
-        address: "notifications@alpine.inc",
+        address: "inbox@alpine.inc",
     },
 } as const satisfies Record<string, FromEmailAddress>;
 

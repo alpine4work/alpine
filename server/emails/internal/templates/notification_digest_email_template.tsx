@@ -1,5 +1,5 @@
 import {ZonedDateTime, fromDate, isSameDay, toCalendarDate} from "@internationalized/date";
-import {Column, Container, Hr, Img, Row, Section} from "@react-email/components";
+import {Column, Container, Hr, Row, Section} from "@react-email/components";
 import React, {Fragment} from "react";
 import {EmailAccountAvatar} from "~/server/emails/internal/components/email_account_avatar.js";
 import {EmailLink} from "~/server/emails/internal/components/email_link.js";
@@ -260,7 +260,8 @@ export function NotificationDigestEmailTemplate({
                 You’re receiving this email because you’re a member of {spaceName}.{" "}
                 <EmailLink
                     href={unsubscribeUrl.toString()}
-                    style={{textDecoration: "underline", color: "inherit"}}
+                    color="grey-50"
+                    style={{textDecoration: "underline"}}
                 >
                     Unsubscribe
                 </EmailLink>
@@ -289,14 +290,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                     }}
-                >
-                    <Img
-                        src={`${baseUrl}/icons/post_brand_icon_light.png`}
-                        alt=""
-                        aria-hidden="true"
-                        style={{display: "none !important"}}
-                    />
-                </div>
+                ></div>
             );
         case "Chat":
             return (
@@ -313,14 +307,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                     }}
-                >
-                    <Img
-                        src={`${baseUrl}/icons/chat_brand_icon_light.png`}
-                        alt=""
-                        aria-hidden="true"
-                        style={{display: "none !important"}}
-                    />
-                </div>
+                ></div>
             );
         case "Document":
             return (
@@ -337,14 +324,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                     }}
-                >
-                    <Img
-                        src={`${baseUrl}/icons/document_brand_icon_light.png`}
-                        alt=""
-                        aria-hidden="true"
-                        style={{display: "none !important"}}
-                    />
-                </div>
+                ></div>
             );
         case "Task":
             return (
@@ -361,14 +341,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                     }}
-                >
-                    <Img
-                        src={`${baseUrl}/icons/task_brand_icon_light.png`}
-                        alt=""
-                        aria-hidden="true"
-                        style={{display: "none !important"}}
-                    />
-                </div>
+                ></div>
             );
         default:
             return null;
