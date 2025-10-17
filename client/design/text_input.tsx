@@ -104,6 +104,11 @@ export type TextInputProps = {
      * `<FocusRing>` for more information.
      */
     isFocusRingVisible?: boolean;
+
+    /**
+     * The maximum number of characters allowed in the input.
+     */
+    maxLength?: number;
 };
 
 /**
@@ -169,6 +174,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         fontSize = "75",
         fontStyle = "normal",
         isFocusRingVisible = false,
+        maxLength,
     }: Omit<TextInputProps, "label"> &
         // You must provide one of these props for accessibility! Or use `<TextInput>`
         // that comes with an accessible label.
@@ -233,6 +239,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 autoCapitalize={autoCapitalize}
                 name={formName}
                 enterKeyHint={onEnter ? "done" : undefined}
+                maxLength={maxLength}
                 onKeyDown={event => {
                     if (
                         onEnter &&
