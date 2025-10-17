@@ -108,9 +108,21 @@ export async function updateOurAccountObservedTimeZone(
     timeZone: TimeZone,
 ): Promise<void> {
     const authorizedContext = context.actor.authorizeSession();
+
     if (!isTimeZone(timeZone)) {
         throw new InvalidArgumentError(quote`Received invalid time zone: \`${timeZone}\``);
     }
+
+    const accountSettingsItem = await AccountsTable.getItemIfExists(authorizedContext, {
+        partitionType: "Account",
+        sortRangeType: "Settings",
+        accountId: authorizedContext.actor.getAccountId(),
+    });
+
+    if (accountSettingsItem?.observedTimeZone === timeZone) {
+        return;
+    }
+
     await AccountsTable.updateItem(
         authorizedContext,
         {
@@ -119,11 +131,15 @@ export async function updateOurAccountObservedTimeZone(
             accountId: authorizedContext.actor.getAccountId(),
         },
         item => {
-            item ??= getInitialAccountSettingsItem(authorizedContext.actor.getAccountId());
             return {
                 ...item,
                 observedTimeZone: timeZone,
             };
+        },
+        {
+            initialItem:
+                accountSettingsItem ??
+                getInitialAccountSettingsItem(authorizedContext.actor.getAccountId()),
         },
     );
 
