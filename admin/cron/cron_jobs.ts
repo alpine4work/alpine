@@ -6,7 +6,12 @@ export type CronJob = {
     readonly name: string;
     readonly rate: CronJobRate;
     readonly job: MaintenanceJobDescription;
+    readonly start: Date;
 };
+
+// When a rate runs is based on its start time. This start time will set rates to run at the top of
+// the hour.
+const defaultStartTime = new Date("2025-10-01T00:00:00.000Z");
 
 // Annoyingly the [AWS cron syntax][1] and the [`node-cron` syntax][2] (based
 // on [crontab syntax][3], which is the standard) are different. AWS has a
@@ -46,12 +51,14 @@ export const cronJobs: ReadonlyArray<CronJob> = [
         name: "RetryUnprocessedTaskActionTransactions",
         rate: {type: "Minutes", minutes: 3},
         job: {type: "RetryUnprocessedTaskActionTransactions"},
+        start: defaultStartTime,
     },
 
     {
         name: "EnqueueScheduledNotificationDigests",
         rate: {type: "Hours", hours: 1},
         job: {type: "EnqueueScheduledNotificationDigests"},
+        start: defaultStartTime,
     },
 ];
 

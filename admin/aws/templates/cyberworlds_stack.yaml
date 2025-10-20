@@ -815,50 +815,6 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsStack/Sqs/JobQueue/Resource
-    SqsJobQueuePolicyCA997844:
-        Type: AWS::SQS::QueuePolicy
-        Properties:
-            PolicyDocument:
-                Statement:
-                    - Action:
-                          - sqs:GetQueueAttributes
-                          - sqs:GetQueueUrl
-                          - sqs:SendMessage
-                      Condition:
-                          ArnEquals:
-                              aws:SourceArn:
-                                  Fn::GetAtt:
-                                      - CronJobsRetryUnprocessedTaskActionTransactionsRule39B01BFA
-                                      - Arn
-                      Effect: Allow
-                      Principal:
-                          Service: events.amazonaws.com
-                      Resource:
-                          Fn::GetAtt:
-                              - SqsJobQueue62388F96
-                              - Arn
-                    - Action:
-                          - sqs:GetQueueAttributes
-                          - sqs:GetQueueUrl
-                          - sqs:SendMessage
-                      Condition:
-                          ArnEquals:
-                              aws:SourceArn:
-                                  Fn::GetAtt:
-                                      - CronJobsEnqueueScheduledNotificationDigestsRule0C35C20A
-                                      - Arn
-                      Effect: Allow
-                      Principal:
-                          Service: events.amazonaws.com
-                      Resource:
-                          Fn::GetAtt:
-                              - SqsJobQueue62388F96
-                              - Arn
-                Version: 2012-10-17
-            Queues:
-                - Ref: SqsJobQueue62388F96
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Sqs/JobQueue/Policy/Resource
     SqsFileProcessorJobDeadLetterQueue5F17DE2A:
         Type: AWS::SQS::Queue
         UpdateReplacePolicy: Delete
@@ -1011,38 +967,95 @@ Resources:
                 Version: 2012-10-17
         Metadata:
             aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Policy/Resource
-    CronJobsRetryUnprocessedTaskActionTransactionsRule39B01BFA:
-        Type: AWS::Events::Rule
+    CronJobsRetryUnprocessedTaskActionTransactionsScheduleD6708946:
+        Type: AWS::Scheduler::Schedule
         Properties:
+            FlexibleTimeWindow:
+                Mode: OFF
             ScheduleExpression: rate(3 minutes)
+            ScheduleExpressionTimezone: Etc/UTC
+            StartDate: 2025-10-01T00:00:00.000Z
             State: ENABLED
-            Targets:
-                - Arn:
-                      Fn::GetAtt:
-                          - SqsJobQueue62388F96
-                          - Arn
-                  Id: Target0
-                  InputTransformer:
-                      InputPathsMap: {}
-                      InputTemplate: '{"type":"Maintenance","sendTime":"<aws.events.event.ingestion-time>","delaySeconds":0,"job":{"type":"RetryUnprocessedTaskActionTransactions"},"tracerContext":null}'
+            Target:
+                Arn:
+                    Fn::GetAtt:
+                        - SqsJobQueue62388F96
+                        - Arn
+                Input: '{"type":"Maintenance","sendTime":"<aws.scheduler.scheduled-time>","delaySeconds":0,"job":{"type":"RetryUnprocessedTaskActionTransactions"},"tracerContext":null}'
+                RetryPolicy:
+                    MaximumEventAgeInSeconds: 86400
+                    MaximumRetryAttempts: 5
+                RoleArn:
+                    Fn::GetAtt:
+                        - SchedulerRoleForTarget49d3a1E18AF9C0
+                        - Arn
+                SqsParameters: {}
         Metadata:
-            aws:cdk:path: CyberworldsStack/CronJobs/RetryUnprocessedTaskActionTransactionsRule/Resource
-    CronJobsEnqueueScheduledNotificationDigestsRule0C35C20A:
-        Type: AWS::Events::Rule
+            aws:cdk:path: CyberworldsStack/CronJobs/RetryUnprocessedTaskActionTransactionsSchedule/Resource
+    CronJobsEnqueueScheduledNotificationDigestsSchedule5D4EE6A2:
+        Type: AWS::Scheduler::Schedule
         Properties:
+            FlexibleTimeWindow:
+                Mode: OFF
             ScheduleExpression: rate(1 hour)
+            ScheduleExpressionTimezone: Etc/UTC
+            StartDate: 2025-10-01T00:00:00.000Z
             State: ENABLED
-            Targets:
-                - Arn:
-                      Fn::GetAtt:
-                          - SqsJobQueue62388F96
-                          - Arn
-                  Id: Target0
-                  InputTransformer:
-                      InputPathsMap: {}
-                      InputTemplate: '{"type":"Maintenance","sendTime":"<aws.events.event.ingestion-time>","delaySeconds":0,"job":{"type":"EnqueueScheduledNotificationDigests"},"tracerContext":null}'
+            Target:
+                Arn:
+                    Fn::GetAtt:
+                        - SqsJobQueue62388F96
+                        - Arn
+                Input: '{"type":"Maintenance","sendTime":"<aws.scheduler.scheduled-time>","delaySeconds":0,"job":{"type":"EnqueueScheduledNotificationDigests"},"tracerContext":null}'
+                RetryPolicy:
+                    MaximumEventAgeInSeconds: 86400
+                    MaximumRetryAttempts: 5
+                RoleArn:
+                    Fn::GetAtt:
+                        - SchedulerRoleForTarget49d3a1E18AF9C0
+                        - Arn
+                SqsParameters: {}
         Metadata:
-            aws:cdk:path: CyberworldsStack/CronJobs/EnqueueScheduledNotificationDigestsRule/Resource
+            aws:cdk:path: CyberworldsStack/CronJobs/EnqueueScheduledNotificationDigestsSchedule/Resource
+    SchedulerRoleForTarget49d3a1E18AF9C0:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Condition:
+                          StringEquals:
+                              aws:SourceAccount:
+                                  Ref: AWS::AccountId
+                              aws:SourceArn:
+                                  Fn::Join:
+                                      - ""
+                                      - - "arn:aws:scheduler:us-east-1:"
+                                        - Ref: AWS::AccountId
+                                        - :schedule-group/default
+                      Effect: Allow
+                      Principal:
+                          Service: scheduler.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/SchedulerRoleForTarget-49d3a1/Resource
+    SchedulerRoleForTarget49d3a1DefaultPolicyB497C568:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SqsJobQueue62388F96
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: SchedulerRoleForTarget49d3a1DefaultPolicyB497C568
+            Roles:
+                - Ref: SchedulerRoleForTarget49d3a1E18AF9C0
+        Metadata:
+            aws:cdk:path: CyberworldsStack/SchedulerRoleForTarget-49d3a1/DefaultPolicy/Resource
     AccountsTable81C15AE5:
         Type: AWS::DynamoDB::Table
         Properties:

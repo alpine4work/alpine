@@ -85,6 +85,10 @@ export class AwsSqs {
         );
     }
 
+    public getJobQueue() {
+        return this._jobQueue;
+    }
+
     public getJobQueueUrl() {
         return this._jobQueue.queueUrl;
     }
