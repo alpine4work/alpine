@@ -5221,6 +5221,25 @@ function handlePasteAfterResolvingReferences(
         }
     }
 
+    // If the selection is a file node, insert pasted content in a new paragraph after the file
+    // This matches the pattern from handleTextInput in the keymap plugin
+    if (selection instanceof NodeSelection && selection.node.type.name === "file") {
+        const insertPosition = selection.$anchor.after();
+        const transaction = createTransaction();
+
+        // Insert content directly at the position after the file/fileRow
+        transaction.replace(insertPosition, insertPosition, slice);
+
+        // Set selection to the end of the pasted content
+        const newSelection = TextSelection.near(
+            transaction.doc.resolve(insertPosition + slice.size + 1),
+        );
+        transaction.setSelection(newSelection);
+
+        dispatch(transaction.setMeta("paste", true).setMeta("uiEvent", "paste"));
+        return;
+    }
+
     // First check if we're in a table - if so, delegate to table paste handler
     if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return;
 
