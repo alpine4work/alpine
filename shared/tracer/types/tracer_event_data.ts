@@ -807,6 +807,9 @@ export type TracerEventData = {
 
             /** The number of messages involved in this SQS action. */
             readonly messageCount?: number;
+
+            /** The approximate number of times the message has been received by a queue consumer. Roughly equivalent to retry count. */
+            readonly approximateReceiveCount?: number;
         };
 
         /**

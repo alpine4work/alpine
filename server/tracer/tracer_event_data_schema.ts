@@ -275,6 +275,7 @@ const TracerEventDataSchema = {
             waitTimeSeconds: Schema.float,
             maxNumberOfMessages: Schema.integer,
             messageCount: Schema.integer,
+            approximateReceiveCount: Schema.integer,
         },
         ecs: {
             cluster: Schema.string,

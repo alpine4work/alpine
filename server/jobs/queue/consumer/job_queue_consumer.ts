@@ -445,6 +445,7 @@ export class JobQueueConsumer<
                                 WaitTimeSeconds: receiveMessagesWaitTimeSeconds,
                                 // SQS will not let us receive more than 10 messages at a time.
                                 MaxNumberOfMessages: this._maxFiberMessageCount,
+                                MessageSystemAttributeNames: ["ApproximateReceiveCount"],
                             }),
                             // In tests environments, when `stop()` is called cancel SQS `ReceiveMessage`
                             // requests instead of waiting out `WaitTimeSeconds`. In non-test environments
@@ -846,7 +847,15 @@ export class JobQueueConsumer<
                     : new Date(messageBody.sendTime.getTime() + messageBody.delaySeconds * 1000);
 
             span.addData({
-                aws: {sqs: {messageId: message.MessageId, messageCount: messageBatchSize}},
+                aws: {
+                    sqs: {
+                        messageId: message.MessageId,
+                        messageCount: messageBatchSize,
+                        approximateReceiveCount: message.Attributes?.ApproximateReceiveCount
+                            ? parseInt(message.Attributes.ApproximateReceiveCount, 10)
+                            : undefined,
+                    },
+                },
                 jobs: {
                     type: messageBody.job.type,
                     delaySeconds: messageBody.delaySeconds,
