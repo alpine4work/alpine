@@ -63,6 +63,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
             const input = {
                 Source: fromEmailAddress,
                 Destination: {ToAddresses: [toEmailAddress]},
+                ConfigurationSetName: "ProductionAlpine",
                 Message: {
                     Subject: {Charset: "utf8", Data: email.title},
                     Body: {Html: {Charset: "utf8", Data: email.html}},

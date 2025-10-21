@@ -50,12 +50,13 @@ async function addAwsResources(
     importSqs: (stack: Stack) => AwsSqs;
 }> {
     const vpc = new AwsVpc(stack);
+    const loggingService = new AwsLoggingService(stack);
 
     const ecsCluster = new AwsEcsCluster(stack, vpc);
     const opensearch = await AwsOpensearch.new(stack, vpc);
     const sqs = AwsSqs.new(stack);
-    const ses = new AwsSes(stack);
-    const loggingService = new AwsLoggingService(stack);
+    const ses = new AwsSes(stack, loggingService.loggingBucket);
+
     new AwsCronJobs(stack, sqs);
 
     const dynamo = await AwsDynamo.new(stack);

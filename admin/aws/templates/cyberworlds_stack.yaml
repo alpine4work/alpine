@@ -210,6 +210,86 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/Vpc/VPCGW
+    LoggingServiceBucket66AE76E8:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: cyberworlds-logs
+            LifecycleConfiguration:
+                Rules:
+                    - ExpirationInDays: 90
+                      Status: Enabled
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Resource
+    LoggingServiceBucketPolicyEA2FC156:
+        Type: AWS::S3::BucketPolicy
+        Properties:
+            Bucket:
+                Ref: LoggingServiceBucket66AE76E8
+            PolicyDocument:
+                Statement:
+                    - Action: s3:PutObject
+                      Effect: Allow
+                      Principal:
+                          AWS: arn:aws:iam::127311923021:root
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - LoggingServiceBucket66AE76E8
+                                      - Arn
+                                - /appService/AWSLogs/
+                                - Ref: AWS::AccountId
+                                - /*
+                    - Action: s3:PutObject
+                      Condition:
+                          StringEquals:
+                              s3:x-amz-acl: bucket-owner-full-control
+                      Effect: Allow
+                      Principal:
+                          Service: delivery.logs.amazonaws.com
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - LoggingServiceBucket66AE76E8
+                                        - Arn
+                                  - /appService/AWSLogs/
+                                  - Ref: AWS::AccountId
+                                  - /*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - LoggingServiceBucket66AE76E8
+                                        - Arn
+                                  - /fileProcessorService/AWSLogs/
+                                  - Ref: AWS::AccountId
+                                  - /*
+                    - Action: s3:GetBucketAcl
+                      Effect: Allow
+                      Principal:
+                          Service: delivery.logs.amazonaws.com
+                      Resource:
+                          Fn::GetAtt:
+                              - LoggingServiceBucket66AE76E8
+                              - Arn
+                    - Action: s3:PutObject
+                      Effect: Allow
+                      Principal:
+                          AWS: arn:aws:iam::127311923021:root
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - LoggingServiceBucket66AE76E8
+                                      - Arn
+                                - /fileProcessorService/AWSLogs/
+                                - Ref: AWS::AccountId
+                                - /*
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Policy/Resource
     EcsClusterFB9B21B5:
         Type: AWS::ECS::Cluster
         Metadata:
@@ -872,6 +952,166 @@ Resources:
                 SendingEnabled: true
         Metadata:
             aws:cdk:path: CyberworldsStack/Ses/ConfigurationSet/Resource
+    SesConfigurationSetConfigurationSetEventDestinationFirehoseDeliveryStreamIamRole446DB3E5:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Condition:
+                          StringEquals:
+                              AWS:SourceAccount:
+                                  Ref: AWS::AccountId
+                              AWS:SourceArn:
+                                  Fn::Join:
+                                      - ""
+                                      - - "arn:aws:ses:us-east-1:"
+                                        - Ref: AWS::AccountId
+                                        - :configuration-set/
+                                        - Ref: SesConfigurationSet74E7EAAF
+                      Effect: Allow
+                      Principal:
+                          Service: ses.amazonaws.com
+                Version: 2012-10-17
+            Policies:
+                - PolicyDocument:
+                      Statement:
+                          - Action: firehose:PutRecordBatch
+                            Effect: Allow
+                            Resource:
+                                Fn::GetAtt:
+                                    - SesKinesisFirehoseStreamBB6781CE
+                                    - Arn
+                      Version: 2012-10-17
+                  PolicyName: AllowFirehoseDeliveryStreamPublish
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/ConfigurationSet/ConfigurationSetEventDestination/FirehoseDeliveryStreamIamRole/Resource
+    SesConfigurationSetConfigurationSetEventDestination6A18A8BE:
+        Type: AWS::SES::ConfigurationSetEventDestination
+        Properties:
+            ConfigurationSetName:
+                Ref: SesConfigurationSet74E7EAAF
+            EventDestination:
+                Enabled: true
+                KinesisFirehoseDestination:
+                    DeliveryStreamARN:
+                        Fn::GetAtt:
+                            - SesKinesisFirehoseStreamBB6781CE
+                            - Arn
+                    IAMRoleARN:
+                        Fn::GetAtt:
+                            - SesConfigurationSetConfigurationSetEventDestinationFirehoseDeliveryStreamIamRole446DB3E5
+                            - Arn
+                MatchingEventTypes:
+                    - send
+                    - bounce
+                    - complaint
+                    - delivery
+                    - open
+                    - click
+                    - reject
+                    - deliveryDelay
+                    - subscription
+                    - renderingFailure
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/ConfigurationSet/ConfigurationSetEventDestination/Resource
+    SesKinesisFirehoseStreamS3DestinationRole062C7787:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: firehose.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/KinesisFirehoseStream/S3 Destination Role/Resource
+    SesKinesisFirehoseStreamS3DestinationRoleDefaultPolicyB4536BE8:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - LoggingServiceBucket66AE76E8
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - LoggingServiceBucket66AE76E8
+                                        - Arn
+                                  - /*
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SesKinesisFirehoseStreamLogGroupC79C70AD
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: SesKinesisFirehoseStreamS3DestinationRoleDefaultPolicyB4536BE8
+            Roles:
+                - Ref: SesKinesisFirehoseStreamS3DestinationRole062C7787
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/KinesisFirehoseStream/S3 Destination Role/DefaultPolicy/Resource
+    SesKinesisFirehoseStreamLogGroupC79C70AD:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 731
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/KinesisFirehoseStream/LogGroup/Resource
+    SesKinesisFirehoseStreamLogGroupS3DestinationEAC69861:
+        Type: AWS::Logs::LogStream
+        Properties:
+            LogGroupName:
+                Ref: SesKinesisFirehoseStreamLogGroupC79C70AD
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/KinesisFirehoseStream/LogGroup/S3Destination/Resource
+    SesKinesisFirehoseStreamBB6781CE:
+        Type: AWS::KinesisFirehose::DeliveryStream
+        Properties:
+            DeliveryStreamEncryptionConfigurationInput:
+                KeyType: AWS_OWNED_CMK
+            DeliveryStreamName: EmailEventsStream
+            DeliveryStreamType: DirectPut
+            ExtendedS3DestinationConfiguration:
+                BucketARN:
+                    Fn::GetAtt:
+                        - LoggingServiceBucket66AE76E8
+                        - Arn
+                CloudWatchLoggingOptions:
+                    Enabled: true
+                    LogGroupName:
+                        Ref: SesKinesisFirehoseStreamLogGroupC79C70AD
+                    LogStreamName:
+                        Ref: SesKinesisFirehoseStreamLogGroupS3DestinationEAC69861
+                Prefix: ses/email-events/!{timestamp:yyyy/MM/dd}/
+                RoleARN:
+                    Fn::GetAtt:
+                        - SesKinesisFirehoseStreamS3DestinationRole062C7787
+                        - Arn
+        DependsOn:
+            - SesKinesisFirehoseStreamS3DestinationRoleDefaultPolicyB4536BE8
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Ses/KinesisFirehoseStream/Resource
     SesEmailIdentity8E702B39:
         Type: AWS::SES::EmailIdentity
         Properties:
@@ -887,86 +1127,6 @@ Resources:
                 MailFromDomain: mail.alpine.inc
         Metadata:
             aws:cdk:path: CyberworldsStack/Ses/EmailIdentity/Resource
-    LoggingServiceBucket66AE76E8:
-        Type: AWS::S3::Bucket
-        Properties:
-            BucketName: cyberworlds-logs
-            LifecycleConfiguration:
-                Rules:
-                    - ExpirationInDays: 90
-                      Status: Enabled
-        UpdateReplacePolicy: Retain
-        DeletionPolicy: Retain
-        Metadata:
-            aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Resource
-    LoggingServiceBucketPolicyEA2FC156:
-        Type: AWS::S3::BucketPolicy
-        Properties:
-            Bucket:
-                Ref: LoggingServiceBucket66AE76E8
-            PolicyDocument:
-                Statement:
-                    - Action: s3:PutObject
-                      Effect: Allow
-                      Principal:
-                          AWS: arn:aws:iam::127311923021:root
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - LoggingServiceBucket66AE76E8
-                                      - Arn
-                                - /appService/AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                    - Action: s3:PutObject
-                      Condition:
-                          StringEquals:
-                              s3:x-amz-acl: bucket-owner-full-control
-                      Effect: Allow
-                      Principal:
-                          Service: delivery.logs.amazonaws.com
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - LoggingServiceBucket66AE76E8
-                                        - Arn
-                                  - /appService/AWSLogs/
-                                  - Ref: AWS::AccountId
-                                  - /*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - LoggingServiceBucket66AE76E8
-                                        - Arn
-                                  - /fileProcessorService/AWSLogs/
-                                  - Ref: AWS::AccountId
-                                  - /*
-                    - Action: s3:GetBucketAcl
-                      Effect: Allow
-                      Principal:
-                          Service: delivery.logs.amazonaws.com
-                      Resource:
-                          Fn::GetAtt:
-                              - LoggingServiceBucket66AE76E8
-                              - Arn
-                    - Action: s3:PutObject
-                      Effect: Allow
-                      Principal:
-                          AWS: arn:aws:iam::127311923021:root
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - LoggingServiceBucket66AE76E8
-                                      - Arn
-                                - /fileProcessorService/AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                Version: 2012-10-17
-        Metadata:
-            aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Policy/Resource
     CronJobsRetryUnprocessedTaskActionTransactionsScheduleD6708946:
         Type: AWS::Scheduler::Schedule
         Properties:
