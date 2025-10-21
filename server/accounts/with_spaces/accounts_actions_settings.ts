@@ -3,12 +3,21 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     authorizeOwnSpaceAccountAccess,
     authorizeSpaceAccess,
     getOurAccountSpaceIds,
 } from "~/server/spaces/spaces_actions.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {
     TimeZone,
     assertTimeZone,
@@ -17,6 +26,15 @@ import {
 } from "~/shared/helpers/intl/time_zone.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+
+const AccountSettingsItemContextCache = new DynamoContextCache<
+    AccountId,
+    AccountSettingsItem | null
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 function getInitialAccountSettingsItem(accountId: AccountId): AccountSettingsItem {
     return {
@@ -27,17 +45,54 @@ function getInitialAccountSettingsItem(accountId: AccountId): AccountSettingsIte
     };
 }
 
+async function getAccountSettingsItemIfExists(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    accountId: AccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<AccountSettingsItem | null> {
+    // Pretend like the unknown account doesn't exist. We do have an unknown
+    // account record in our database as a safety precaution to make sure we
+    // don't accidentally create an account with the unknown `AccountId`. But we
+    // should never return that data. Instead if you want data for an unknown
+    // account call `AccountModel.getUnknown()`.
+    //
+    // Calling `getAccount(unknownAccountId)` should always fail with a not
+    // found error.
+    if (accountId === unknownAccountId) return null;
+
+    return AccountSettingsItemContextCache.get(
+        context,
+        consistency,
+        accountId,
+        async consistency => {
+            const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
+                partitionType: "Account",
+                sortRangeType: "Settings",
+                accountId,
+                consistency,
+            });
+            return accountSettingsItem;
+        },
+    );
+}
+
+async function getAccountSettingsItem(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    accountId: AccountId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<AccountSettingsItem> {
+    const item = await getAccountSettingsItemIfExists(context, accountId, options);
+    if (!item) throw new NotFoundError("Account settings not found");
+    return item;
+}
+
 /**
  * Get the last opened `SpaceId` for the current session actor.
  */
 export async function getOurLastOpenedSpaceId(
     context: ServerSessionActionContext,
 ): Promise<SpaceId | null | undefined> {
-    const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Settings",
-        accountId: context.actor.getAccountId(),
-    });
+    const accountSettingsItem = await getAccountSettingsItem(context, context.actor.getAccountId());
 
     const {spaceIds} = await getOurAccountSpaceIds(context);
 
@@ -60,6 +115,8 @@ export async function updateOurLastOpenedSpaceId(
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
 
+    const accountSettingsItem = await getAccountSettingsItem(context, context.actor.getAccountId());
+
     await AccountsTable.updateItem(
         context,
         {
@@ -68,11 +125,15 @@ export async function updateOurLastOpenedSpaceId(
             accountId: context.actor.getAccountId(),
         },
         item => {
-            item ??= getInitialAccountSettingsItem(context.actor.getAccountId());
+            if (item.lastOpenedSpaceId === spaceId) return item;
             return {
                 ...item,
                 lastOpenedSpaceId: spaceId,
             };
+        },
+        {
+            initialItem:
+                accountSettingsItem ?? getInitialAccountSettingsItem(context.actor.getAccountId()),
         },
     );
 }
@@ -87,11 +148,7 @@ export async function getAccountTimeZoneIfExists(
     accountId: AccountId,
 ): Promise<TimeZone | null> {
     await authorizeOwnSpaceAccountAccess(context, accountId);
-    const accountSettingsItem = await AccountsTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Settings",
-        accountId,
-    });
+    const accountSettingsItem = await getAccountSettingsItem(context, accountId);
 
     return accountSettingsItem?.observedTimeZone
         ? assertTimeZone(accountSettingsItem.observedTimeZone)
@@ -113,17 +170,12 @@ export async function updateOurAccountObservedTimeZone(
         throw new InvalidArgumentError(quote`Received invalid time zone: \`${timeZone}\``);
     }
 
-    const accountSettingsItem = await AccountsTable.getItemIfExists(authorizedContext, {
-        partitionType: "Account",
-        sortRangeType: "Settings",
-        accountId: authorizedContext.actor.getAccountId(),
-    });
+    const accountSettingsItem = await getAccountSettingsItem(
+        authorizedContext,
+        authorizedContext.actor.getAccountId(),
+    );
 
-    if (accountSettingsItem?.observedTimeZone === timeZone) {
-        return;
-    }
-
-    await AccountsTable.updateItem(
+    const newAccountSettingsItem = await AccountsTable.updateItem(
         authorizedContext,
         {
             partitionType: "Account",
@@ -131,6 +183,7 @@ export async function updateOurAccountObservedTimeZone(
             accountId: authorizedContext.actor.getAccountId(),
         },
         item => {
+            if (item.observedTimeZone === timeZone) return item;
             return {
                 ...item,
                 observedTimeZone: timeZone,
@@ -143,6 +196,8 @@ export async function updateOurAccountObservedTimeZone(
         },
     );
 
-    // This ensures notifications related to the inbox are in the correct time zone.
-    await authorizedContext.notificationsInjection.notifyInboxOfTimeZoneChange(timeZone);
+    if (newAccountSettingsItem.observedTimeZone !== timeZone) {
+        // This ensures notifications related to the inbox are in the correct time zone.
+        await authorizedContext.notificationsInjection.notifyInboxOfTimeZoneChange(timeZone);
+    }
 }
