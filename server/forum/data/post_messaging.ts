@@ -178,8 +178,9 @@ export async function createPostComment(
                                         commentIndex: parent.startIndex,
                                     },
                                     endSortKey: {
-                                        sortRangeType: "Comments",
+                                        sortRangeType: "Comments#StreamPart",
                                         commentIndex: parent.endIndex,
+                                        partIndex: Number.MAX_SAFE_INTEGER,
                                     },
                                 }),
                             ),

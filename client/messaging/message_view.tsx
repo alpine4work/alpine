@@ -448,7 +448,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             if (
                 !isReadOnly &&
                 message.payload.type === "Content" &&
-                !isContentEmpty(message.payload.content.doc)
+                (!isContentEmpty(message.payload.content.doc) ||
+                    (message.stream !== null &&
+                        message.stream.parts.some(
+                            part =>
+                                part.payload.type === "Content" &&
+                                !isContentEmpty(part.payload.content),
+                        )))
             ) {
                 contextMenuActions.push([
                     {
@@ -795,11 +801,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (message.payload.type !== "Content") return null;
         if (!jumpState?.animation) return null;
 
-        let from: number;
-        let to: number;
+        let from: number | null;
+        let to: number | null;
 
         if (jumpState.start === null) {
-            from = 0;
+            from = null;
         } else {
             from = jumpState.start.pos;
 
@@ -818,7 +824,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
 
         if (jumpState.end === null) {
-            to = message.payload.content.doc.content.size;
+            to = null;
         } else {
             to = jumpState.end.pos;
 
@@ -848,10 +854,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (message.stream) {
             return (
                 <MessageStreamView
+                    message={message}
                     content={message.payload.content}
                     stream={message.stream}
                     withUserSelectNone={!canPrimaryInputHover}
                     getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                    jumpAnimation={jumpAnimation}
                 />
             );
         }
@@ -1419,7 +1427,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         return {
                             author: get(accountRegistry.getAccountStore(parent.message.author)),
                             truncatedContent: getTruncatedMessageContentForReplyPreview(get, {
-                                messagePayload: parent.message.payload,
+                                message: parent.message,
                                 messageNoun,
                                 accountRegistry,
                                 searchEntityRegistry,

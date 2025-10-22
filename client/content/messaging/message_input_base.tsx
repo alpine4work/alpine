@@ -1498,7 +1498,7 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                         return {
                             author: get(accountRegistry.getAccountStore(parent.message.author)),
                             truncatedContent: getTruncatedMessageContentForReplyPreview(get, {
-                                messagePayload: parent.message.payload,
+                                message: parent.message,
                                 messageNoun,
                                 accountRegistry,
                                 searchEntityRegistry,

@@ -168,6 +168,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         currentDate,
         fileEntityRenderers,
         withPosAttribute,
+        posAttributeOffset,
         isInert = false,
         placeholder,
         decorations,
@@ -190,6 +191,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         withPosAttribute?: boolean;
+        posAttributeOffset?: number;
         isInert?: boolean;
         placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
@@ -266,6 +268,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
     const html = serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
         withPosAttribute,
+        posAttributeOffset,
         startPos: 1,
         decorations,
 

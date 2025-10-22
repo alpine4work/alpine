@@ -12109,6 +12109,66 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
+            test("can create message with message range parent when message is a stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                await createMessage(session.action(), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message.index,
+                        startPos: 10,
+                        startVersion: 0,
+                        endIndex: message.index,
+                        endPos: 12,
+                        endVersion: 0,
+                    },
+                    content: content2,
+                    fileIds: [],
+                });
+            });
+
             describe("pagination", () => {
                 type ExpectedResult = Array<
                     `Message:${number}` | `StreamMessage:${number}` | `OtherStreamMessage:${number}`

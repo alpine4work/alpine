@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {Fragment, ReactNode} from "react";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
@@ -9,6 +10,7 @@ import {
     mergeContentReferences,
 } from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {
     boldClassName,
     codeClassName,
@@ -16,7 +18,9 @@ import {
     strikeClassName,
 } from "~/shared/design/core/constant_class_names.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
@@ -99,25 +103,26 @@ function getTruncatedMessageContentForReplyPreviewBase(
 export function getTruncatedMessageContentForReplyPreview(
     get: <Value>(store: Store<Value>) => Value,
     {
-        messagePayload,
+        message,
         messageNoun,
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
     }: {
-        messagePayload:
-            | {type: "Deleted"}
-            | {type: "Content"; content: MessageContentWithReferences};
+        message: MessageModel;
         messageNoun: string;
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
     },
 ): ReactNode {
-    switch (messagePayload.type) {
+    switch (message.payload.type) {
         case "Content": {
             return getTruncatedMessageContentForReplyPreviewBase(get, {
-                content: messagePayload.content,
+                content: {
+                    doc: cutMessageContentPayload(message),
+                    references: message.payload.content.references,
+                },
                 accountRegistry,
                 searchEntityRegistry,
                 fileRegistry,
@@ -135,7 +140,7 @@ export function getTruncatedMessageContentForReplyPreview(
             });
         }
         default:
-            throw exhaustive(messagePayload);
+            throw exhaustive(message.payload);
     }
 }
 
@@ -200,9 +205,7 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 startPayload = {
                     type: "Content",
                     content: {
-                        doc: assertMessageContent(
-                            startMessage.payload.content.doc.cut(actualStartPos, actualEndPos),
-                        ),
+                        doc: cutMessageContentPayload(startMessage, actualStartPos, actualEndPos),
                         references: startMessage.payload.content.references,
                     },
                 };
@@ -236,7 +239,7 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 startPayload = {
                     type: "Content",
                     content: {
-                        doc: assertMessageContent(startMessage.payload.content.doc.cut(pos)),
+                        doc: cutMessageContentPayload(startMessage, pos),
                         references: startMessage.payload.content.references,
                     },
                 };
@@ -270,7 +273,7 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 endPayload = {
                     type: "Content",
                     content: {
-                        doc: assertMessageContent(endMessage.payload.content.doc.cut(0, pos)),
+                        doc: cutMessageContentPayload(endMessage, 0, pos),
                         references: endMessage.payload.content.references,
                     },
                 };
@@ -322,4 +325,57 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
         searchEntityRegistry,
         fileRegistry,
     });
+}
+
+/**
+ * Cut the message content. If the message is a stream then we include stream
+ * parts in the cut content.
+ */
+function cutMessageContentPayload(
+    message: MessageModel<string>,
+    from?: number,
+    to?: number,
+): MessageContent {
+    assert(message.payload.type === "Content");
+
+    const {
+        payload: {
+            content: {doc: content},
+        },
+        stream,
+    } = message;
+
+    if (stream === null) {
+        return assertMessageContent(
+            content.cut(
+                clamp(0, from ?? 0, content.content.size),
+                clamp(0, to ?? content.content.size, content.content.size),
+            ),
+        );
+    }
+
+    const nodes: Array<Node> = [];
+
+    if (!isContentBodyEmpty(content)) {
+        for (const node of content.content.content) {
+            nodes.push(node);
+        }
+    }
+
+    for (const part of stream.parts) {
+        if (part.payload.type === "Content") {
+            for (const node of part.payload.content.content.content) {
+                nodes.push(node);
+            }
+        }
+    }
+
+    const contentWithStream = MessageContentProsemirrorSchema.nodes.doc.create({}, nodes);
+
+    return assertMessageContent(
+        contentWithStream.cut(
+            clamp(0, from ?? 0, contentWithStream.content.size),
+            clamp(0, to ?? contentWithStream.content.size, contentWithStream.content.size),
+        ),
+    );
 }

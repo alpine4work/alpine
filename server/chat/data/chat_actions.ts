@@ -757,8 +757,9 @@ function sendChatMessageForAccount(
                                         messageIndex: parent.startIndex,
                                     },
                                     endSortKey: {
-                                        sortRangeType: "Messages",
+                                        sortRangeType: "Messages#StreamPart",
                                         messageIndex: parent.endIndex,
+                                        partIndex: Number.MAX_SAFE_INTEGER,
                                     },
                                 }),
                             ),

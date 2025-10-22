@@ -176,6 +176,13 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     "data-index"?: number;
 
     /**
+     * Offset for all `data-pos` attributes in the message. Use this if you're
+     * rendering a larger piece of content by dividing it up into smaller
+     * `<ContentView>` parts (for example `<MessageStreamView>`).
+     */
+    posAttributeOffset?: number;
+
+    /**
      * Should all interactive elements be made inert? So not clickable and not
      * focusable. Gets its name from the [`inert` attribute][1].
      *
@@ -268,7 +275,7 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * the `<ContentView>` is mounted/unmounted (maybe because of list
      * virtualization) the animation state is preserved.
      */
-    jumpAnimation?: Memo<{from: number; to: number; startTime: Date}> | null;
+    jumpAnimation?: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
 };
 
 /**
@@ -285,6 +292,7 @@ export function ContentView<Content extends ContentWithReferences>({
     "aria-labelledby": ariaLabelledBy,
     "data-room": dataRoom,
     "data-index": dataIndex,
+    posAttributeOffset = 0,
     isInert = false,
     isEditorInitialAppRender = false,
     fileAttachmentTarget,
@@ -488,8 +496,8 @@ export function ContentView<Content extends ContentWithReferences>({
         if (jumpAnimation !== null) {
             decorations.push({
                 type: "Inline",
-                from: jumpAnimation.from,
-                to: jumpAnimation.to,
+                from: jumpAnimation.from ?? 0,
+                to: jumpAnimation.to ?? content.doc.content.size,
                 attrs: {
                     nodeName: "mark",
                     class: contentStyles.jumpAnimationClassName,
@@ -543,6 +551,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 fileEntityRenderers,
                 isInert,
                 withPosAttribute: true,
+                posAttributeOffset,
                 placeholder,
                 decorations: [decorations, codeBlockDecorations],
                 shouldHighlightComment,
@@ -587,6 +596,7 @@ export function ContentView<Content extends ContentWithReferences>({
         currentDate,
         fileEntityRenderers,
         isInert,
+        posAttributeOffset,
         placeholder,
         shouldHighlightComment,
         context,
@@ -695,8 +705,11 @@ export function ContentView<Content extends ContentWithReferences>({
             contentStyles.codeBlockCopyButtonClassName,
             fileClassName,
             contentStyles.mentionContainerClassName,
-            contentStyles.jumpAnimationClassName,
         ];
+
+        if (jumpAnimation !== null) {
+            classNames.push(contentStyles.jumpAnimationClassName);
+        }
 
         for (const element of parentElement.querySelectorAll(
             classNames
@@ -968,7 +981,7 @@ export function ContentView<Content extends ContentWithReferences>({
                             `.${codeBlockWrapperClassName}`,
                         )?.dataset.pos;
                         assert(posString);
-                        const pos = parseInt(posString, 10);
+                        const pos = parseInt(posString, 10) - posAttributeOffset;
                         assert(!isNaN(pos));
 
                         const $pos = content.doc.resolve(pos);
@@ -1001,7 +1014,7 @@ export function ContentView<Content extends ContentWithReferences>({
             if (element.classList.contains(fileClassName)) {
                 const posString = element.dataset.pos;
                 assert(posString);
-                const pos = parseInt(posString, 10);
+                const pos = parseInt(posString, 10) - posAttributeOffset;
                 assert(!isNaN(pos));
 
                 const $pos = content.doc.resolve(pos);
@@ -1132,6 +1145,7 @@ export function ContentView<Content extends ContentWithReferences>({
         fileRegistry,
         fileEntityRenderers,
         jumpAnimation,
+        posAttributeOffset,
     ]);
 
     // Watch all parent elements of our content view for scroll events. When a
@@ -1402,11 +1416,19 @@ export function ContentView<Content extends ContentWithReferences>({
                 const content = events.getContent();
 
                 const startPos = element.contains(startNode)
-                    ? assertExists(getContentViewPosFromDom(element, startNode, startOffset)?.[0])
+                    ? assertExists(
+                          getContentViewPosFromDom(element, startNode, startOffset, {
+                              posAttributeOffset,
+                          })?.[0],
+                      )
                     : 0;
 
                 const endPos = element.contains(endNode)
-                    ? assertExists(getContentViewPosFromDom(element, endNode, endOffset)?.[1])
+                    ? assertExists(
+                          getContentViewPosFromDom(element, endNode, endOffset, {
+                              posAttributeOffset,
+                          })?.[1],
+                      )
                     : content.doc.nodeSize - 2;
 
                 const slice = content.doc.slice(startPos, endPos, true);
@@ -1483,7 +1505,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 };
             },
         );
-    }, [events, fileAttachmentTarget, getClipboardSerializerPrefix, spaceId]);
+    }, [events, fileAttachmentTarget, getClipboardSerializerPrefix, posAttributeOffset, spaceId]);
 
     return (
         <>

@@ -4,7 +4,12 @@ import {Memo, ReactNode, memo, useEffect, useMemo, useState} from "react";
 import {ContentView} from "~/client/content/content_view.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {contentStyles, pulseAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {
+    contentStyles,
+    messagingStyles,
+    pulseAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
@@ -16,6 +21,7 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageStream,
     MessageStreamPartPayload,
@@ -51,20 +57,91 @@ const Box = null;
 // I haven't implemented backfilling since I'm moving fast today to get this
 // shipped.
 export function MessageStreamView({
+    message,
     content,
     stream,
     withUserSelectNone,
     getClipboardSerializerPrefix,
+    jumpAnimation,
 }: {
+    message: MessageModel<string> | OptimisticMessageModel;
     content: MessageContentWithReferences;
     stream: MessageStream;
     withUserSelectNone: boolean;
     getClipboardSerializerPrefix: Memo<() => string | null>;
+    jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
 }) {
     const spacingScale = useSpacingScale();
 
     const isContentEmpty = useMemo(() => isContentBodyEmpty(content.doc), [content.doc]);
     const [wasIncompleteWhenMounted] = useState(() => stream.completedTime === null);
+
+    let posAttributeOffset = 0;
+
+    const children: Array<ReactNode> = [];
+
+    if (!isContentEmpty) {
+        children.push(
+            <MessageStreamViewContentPart
+                key="content"
+                message={message}
+                doc={content.doc}
+                references={content.references}
+                posAttributeOffset={posAttributeOffset}
+                withUserSelectNone={withUserSelectNone}
+                getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+                jumpAnimation={jumpAnimation}
+            />,
+        );
+
+        posAttributeOffset += content.doc.content.size;
+    }
+
+    for (let index = 0; index < stream.parts.length; index++) {
+        const part = stream.parts[index]!;
+
+        let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
+
+        if (index === 0) {
+            if (isContentEmpty) {
+                previousBlockNodeTypeName = null;
+            } else {
+                previousBlockNodeTypeName = content.doc.lastChild!.type
+                    .name as ContentBlockNodeTypeName;
+            }
+        } else {
+            const previousPart = stream.parts[index - 1]!;
+
+            // TODO(calebmer, #ai): List items are getting the wrong amount of spacing. We
+            // should have less spacing between each list item.
+            previousBlockNodeTypeName =
+                previousPart.payload.type === "Content"
+                    ? (previousPart.payload.content.lastChild!.type
+                          .name as ContentBlockNodeTypeName)
+                    : // HACK: Something with standalone margin.
+                      "fileRow";
+        }
+
+        children.push(
+            <MessageStreamViewPart
+                key={index}
+                message={message}
+                payload={part.payload}
+                references={content.references}
+                posAttributeOffset={posAttributeOffset}
+                withUserSelectNone={withUserSelectNone}
+                getClipboardSerializerPrefix={
+                    isContentEmpty && index === 0 ? getClipboardSerializerPrefix : undefined
+                }
+                previousBlockNodeTypeName={previousBlockNodeTypeName}
+                jumpAnimation={jumpAnimation}
+            />,
+        );
+
+        if (part.payload.type === "Content") {
+            posAttributeOffset += part.payload.content.content.size;
+        }
+    }
 
     return (
         <div
@@ -74,48 +151,7 @@ export function MessageStreamView({
                     : contentStyles.paragraphLineHeightPx[spacingScale],
             }}
         >
-            {!isContentEmpty && (
-                <MessageStreamViewContentPart
-                    doc={content.doc}
-                    references={content.references}
-                    withUserSelectNone={withUserSelectNone}
-                    getClipboardSerializerPrefix={getClipboardSerializerPrefix}
-                />
-            )}
-            {stream.parts.map((part, index) => {
-                let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
-
-                if (index === 0) {
-                    if (isContentEmpty) {
-                        previousBlockNodeTypeName = null;
-                    } else {
-                        previousBlockNodeTypeName = content.doc.lastChild!.type
-                            .name as ContentBlockNodeTypeName;
-                    }
-                } else {
-                    const previousPart = stream.parts[index - 1]!;
-
-                    // TODO(calebmer, #ai): List items are getting the wrong amount of spacing. We
-                    // should have less spacing between each list item.
-                    previousBlockNodeTypeName =
-                        previousPart.payload.type === "Content"
-                            ? (previousPart.payload.content.lastChild!.type
-                                  .name as ContentBlockNodeTypeName)
-                            : // HACK: Something with standalone margin.
-                              "fileRow";
-                }
-
-                return (
-                    <MessageStreamViewPart
-                        key={index}
-                        payload={part.payload}
-                        references={content.references}
-                        withUserSelectNone={withUserSelectNone}
-                        getClipboardSerializerPrefix={getClipboardSerializerPrefix}
-                        previousBlockNodeTypeName={previousBlockNodeTypeName}
-                    />
-                );
-            })}
+            {children}
             {((isContentEmpty && stream.parts.length === 0) ||
                 (stream.parts.length > 0 &&
                     stream.parts[stream.parts.length - 1]!.payload.type !== "Content")) &&
@@ -241,17 +277,23 @@ function MessageStreamViewThinkingIndicator() {
 }
 
 const MessageStreamViewPart = memo(function MessageStreamViewPart({
+    message,
     payload,
     references,
+    posAttributeOffset,
     withUserSelectNone,
     getClipboardSerializerPrefix,
     previousBlockNodeTypeName,
+    jumpAnimation,
 }: {
+    message: MessageModel<string> | OptimisticMessageModel;
     payload: MessageStreamPartPayload;
     references: ContentReferences;
+    posAttributeOffset: number;
     withUserSelectNone: boolean;
     getClipboardSerializerPrefix: Memo<() => string | null> | undefined;
     previousBlockNodeTypeName: ContentBlockNodeTypeName | null;
+    jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
 }) {
     let node: ReactNode;
 
@@ -263,10 +305,13 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
         case "Content": {
             node = (
                 <MessageStreamViewContentPart
+                    message={message}
                     doc={payload.content}
                     references={references}
+                    posAttributeOffset={posAttributeOffset}
                     withUserSelectNone={withUserSelectNone}
                     getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+                    jumpAnimation={jumpAnimation}
                 />
             );
             break;
@@ -329,21 +374,55 @@ function MessageStreamViewToolCallPart({call}: {call: MessageStreamToolCallPartP
 }
 
 function MessageStreamViewContentPart({
+    message,
     doc,
     references,
+    posAttributeOffset,
     withUserSelectNone,
     getClipboardSerializerPrefix,
+    jumpAnimation: originalJumpAnimation,
 }: {
+    message: MessageModel<string> | OptimisticMessageModel;
     doc: MessageContent;
     references: ContentReferences;
+    posAttributeOffset: number;
     withUserSelectNone: boolean;
     getClipboardSerializerPrefix: Memo<() => string | null> | undefined;
+    jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
 }) {
+    const jumpAnimation = useMemo(() => {
+        if (originalJumpAnimation === null) return null;
+
+        const jumpAnimation = {
+            from:
+                originalJumpAnimation.from !== null
+                    ? Math.max(0, originalJumpAnimation.from - posAttributeOffset)
+                    : null,
+            to:
+                originalJumpAnimation.to !== null
+                    ? Math.min(doc.content.size, originalJumpAnimation.to - posAttributeOffset)
+                    : null,
+            startTime: originalJumpAnimation.startTime,
+        };
+
+        // If after offsetting, the jump animation doesn't make sense then we don't
+        // have a jump animation for this part.
+        if (jumpAnimation.from !== null && jumpAnimation.from > doc.content.size) return null;
+        if (jumpAnimation.to !== null && jumpAnimation.to < 0) return null;
+
+        return jumpAnimation;
+    }, [doc.content.size, originalJumpAnimation, posAttributeOffset]);
+
     return (
         <ContentView
+            className={messagingStyles.contentClassName}
+            data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
+            data-index={!message.isOptimistic ? message.index : undefined}
             content={{doc, references}}
+            posAttributeOffset={posAttributeOffset}
             withUserSelectNone={withUserSelectNone}
             getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+            jumpAnimation={jumpAnimation}
         />
     );
 }

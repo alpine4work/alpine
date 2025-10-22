@@ -10,6 +10,7 @@ export function getContentViewPosFromDom(
     parentElement: Element,
     node: DomNode,
     offset: number,
+    options?: {posAttributeOffset?: number},
 ): [number, number] | null {
     if (!parentElement.contains(node)) return null;
 
@@ -25,7 +26,7 @@ export function getContentViewPosFromDom(
                 // Double check that we're still inside `parentNode`.
                 if (!parentElement.contains(currentNode)) return null;
 
-                const finalPos = parseInt(posString, 10);
+                const finalPos = parseInt(posString, 10) - (options?.posAttributeOffset ?? 0);
                 return [finalPos, finalPos + 1];
             }
 
@@ -66,11 +67,13 @@ export function getContentViewPosFromDom(
                     // node then discard the relative position we've been accumulating since the
                     // true size of the node is 1.
                     if (currentNode.hasAttribute("data-inline")) {
-                        const finalPos = parseInt(posString, 10);
+                        const finalPos =
+                            parseInt(posString, 10) - (options?.posAttributeOffset ?? 0);
                         return [finalPos, finalPos + 1];
                     }
 
-                    const finalPos = parseInt(posString, 10) + pos + 1;
+                    const finalPos =
+                        parseInt(posString, 10) + pos + 1 - (options?.posAttributeOffset ?? 0);
                     return [finalPos, finalPos];
                 }
             }
@@ -93,6 +96,7 @@ export function getContentViewPosFromDom(
  */
 function getContentViewInlineNodeSizeFromDom(
     node: DomNode,
+    options?: {posAttributeOffset?: number},
 ): {type: "NodeSize"; nodeSize: number} | {type: "Pos"; pos: number} {
     if (node instanceof Text) {
         return {type: "NodeSize", nodeSize: node.data.length};
@@ -109,7 +113,7 @@ function getContentViewInlineNodeSizeFromDom(
     // summing up the node size.
     const posString = node.getAttribute("data-pos");
     if (posString !== null) {
-        return {type: "Pos", pos: parseInt(posString, 10) + 1};
+        return {type: "Pos", pos: parseInt(posString, 10) + 1 - (options?.posAttributeOffset ?? 0)};
     }
 
     let nodeSize = 0;

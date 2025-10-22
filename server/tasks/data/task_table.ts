@@ -5627,8 +5627,9 @@ export async function createTaskComment(
                                         commentIndex: parent.startIndex,
                                     },
                                     endSortKey: {
-                                        sortRangeType: "Comments",
+                                        sortRangeType: "Comments#StreamPart",
                                         commentIndex: parent.endIndex,
+                                        partIndex: Number.MAX_SAFE_INTEGER,
                                     },
                                 }),
                             ),

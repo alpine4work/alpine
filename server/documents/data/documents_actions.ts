@@ -4479,8 +4479,9 @@ export async function createDocumentComment(
                                         commentIndex: parent.startIndex,
                                     },
                                     endSortKey: {
-                                        sortRangeType: "Comments",
+                                        sortRangeType: "Comments#StreamPart",
                                         commentIndex: parent.endIndex,
+                                        partIndex: Number.MAX_SAFE_INTEGER,
                                     },
                                 }),
                             ),

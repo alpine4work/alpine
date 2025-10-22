@@ -22,6 +22,7 @@ export type RecursiveReadonlyArray<Value> = ReadonlyArray<Value | RecursiveReado
  */
 export type ProsemirrorHtmlSerializationOptions = {
     readonly withPosAttribute?: boolean;
+    readonly posAttributeOffset?: number;
     readonly nodeRenderers?: {
         [nodeName: string]:
             | ((
@@ -47,6 +48,7 @@ export type ProsemirrorHtmlSerializationOptions = {
 
 type ProsemirrorHtmlSerializationContext = {
     readonly withPosAttribute: boolean;
+    readonly posAttributeOffset: number;
     readonly nodeRenderers: {
         [nodeName: string]:
             | ((
@@ -161,6 +163,7 @@ export function serializeProsemirrorNodeToHtml(
 
     const context: ProsemirrorHtmlSerializationContext = {
         withPosAttribute: options.withPosAttribute ?? false,
+        posAttributeOffset: options.posAttributeOffset ?? 0,
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
@@ -221,6 +224,7 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
 
     const context: ProsemirrorHtmlSerializationContext = {
         withPosAttribute: options.withPosAttribute ?? false,
+        posAttributeOffset: options.posAttributeOffset ?? 0,
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
@@ -314,7 +318,7 @@ function serializeProsemirrorNode(
             // the DOM selection back to our ProseMirror document. Only nodes get the
             // `data-pos` attribute. So if we see `data-pos` we can be confident we have a
             // node element not a mark element.
-            html.setAttribute("data-pos", pos - 1);
+            html.setAttribute("data-pos", pos - 1 + context.posAttributeOffset);
             if (node.isInline) html.setAttribute("data-inline", "");
         }
 
