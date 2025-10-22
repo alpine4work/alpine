@@ -11,6 +11,7 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {getMessageListItemKey} from "~/client/messaging/render_message_list_item.js";
+import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
@@ -34,7 +35,7 @@ export function DocumentCommentInput({
     messageEditing,
     parent,
     onParentClear,
-    onJumpToComment,
+    onJumpToCommentRange,
     onDeleteComment,
     isConnected,
     procedures,
@@ -61,7 +62,7 @@ export function DocumentCommentInput({
     messageEditing: MessageEditing<DocumentCommentRoomKey>;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
-    onJumpToComment: (comment: DocumentCommentModel) => void;
+    onJumpToCommentRange: (options: JumpToMessageRangeOptions<DocumentCommentRoomKey>) => void;
     onDeleteComment: (commentIndex: number) => Promise<void>;
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
@@ -198,7 +199,7 @@ export function DocumentCommentInput({
             messageEditing={messageEditing}
             parent={parent}
             onParentClear={onParentClear}
-            onJumpToMessage={onJumpToComment}
+            onJumpToMessageRange={onJumpToCommentRange}
             onDeleteMessage={onDeleteComment}
             onShowTypingIndicator={() => {
                 procedures

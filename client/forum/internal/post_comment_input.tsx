@@ -22,6 +22,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
+import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -82,7 +83,7 @@ export function PostCommentInput(props: {
     postCommentEditing: MessageEditing<PostId>;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
-    onJumpToPostComment: (postComment: PostCommentModel) => void;
+    onJumpToPostCommentRange: (options: JumpToMessageRangeOptions<PostId>) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
     onPostRealtimeEventTransaction: Memo<
@@ -218,7 +219,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         postCommentEditing,
         parent,
         onParentClear,
-        onJumpToPostComment,
+        onJumpToPostCommentRange,
         onDeletePostComment,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
@@ -327,7 +328,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             messageEditing={postCommentEditing}
             parent={parent}
             onParentClear={onParentClear}
-            onJumpToMessage={onJumpToPostComment}
+            onJumpToMessageRange={onJumpToPostCommentRange}
             onDeleteMessage={onDeletePostComment}
             onShowTypingIndicator={() => {
                 // Don't show an error updating typing indicators to the user. We will see an

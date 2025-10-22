@@ -138,6 +138,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
+    encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -1360,10 +1361,16 @@ export function DocumentContentEditor({
             switch (initialScroll.type) {
                 case "CommentInOpenThread": {
                     if (initialCommentThreadResult) {
-                        commentThreadListViewRef.current?.jumpToCommentIndex(
-                            initialCommentThreadResult.commentThread.id,
-                            initialScroll.commentIndex,
-                        );
+                        commentThreadListViewRef.current?.jumpToCommentRange({
+                            roomKey: encodeDocumentCommentRoomKey(
+                                documentId,
+                                initialCommentThreadResult.commentThread.id,
+                            ),
+                            startIndex: initialScroll.commentIndex,
+                            endIndex: initialScroll.commentIndex,
+                            start: null,
+                            end: null,
+                        });
                     }
                     break;
                 }
@@ -1383,7 +1390,7 @@ export function DocumentContentEditor({
                 default:
                     throw exhaustive(initialScroll);
             }
-        }, [initialCommentThreadResult, initialScroll, scrollToEditorRect]);
+        }, [documentId, initialCommentThreadResult, initialScroll, scrollToEditorRect]);
     }
 
     /* ========================================================================== *\

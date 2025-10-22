@@ -30,6 +30,10 @@ import {
     renderMessageListItem,
 } from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {
+    JumpToMessageRangeOptions,
+    useJumpToMessageRange,
+} from "~/client/messaging/use_jump_to_message_range.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
@@ -40,9 +44,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
@@ -159,8 +161,8 @@ class MessagingViewState<Message extends MessageModel> {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export type MessagingViewRef = {
-    jumpToMessageIndex(messageIndex: number): void;
+export type MessagingViewRef<RoomKey extends string> = {
+    jumpToMessageRange(options: JumpToMessageRangeOptions<RoomKey>): void;
     getScrollOffset(): number;
     setScrollOffset(scrollOffset: number): void;
 };
@@ -400,7 +402,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
     },
-    ref: Ref<MessagingViewRef>,
+    ref: Ref<MessagingViewRef<RoomKey>>,
 ) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
@@ -499,69 +501,21 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     // Manages which comment `<MessageInput>` is currently replying to.
     const [inputParent, setInputParent] = useState<MessageContentPayloadParent | null>(null);
 
-    // A message to highlight for the user. We currently highlight messages with a
-    // little wiggle animation (see `wiggle_animation.css.ts` for more information).
-    // We highlight messages when initially loading a page with a message index in
-    // the URL and when the user clicks on a reply preview to jump to it.
-    const [highlightMessage, setHighlightMessage] = useState<{
-        messageIndex: number;
-        shouldHighlightRef: MutableRefObject<boolean>;
-    } | null>(null);
-
-    const isJumpingToMessageRef = useRef(false);
-
-    // Jumping to a message entails:
-    //
-    // 1. We scroll to the message
-    // 2. We highlight the message to the user
-    const jumpToMessageIndex = useEvent((messageIndex: number) => {
-        // If we are in the process of jumping, don't start another jump
-        if (isJumpingToMessageRef.current) return;
-
-        const view = assertExists(viewRef.current);
-
-        const scrollToIndex = state.getItemIndexForMessageIndex(messageIndex);
-
-        const peekRenderedRange = view.peekRenderedRangeAfterScrollToIndex(scrollToIndex);
-        const result = tryLoadingMoreData(peekRenderedRange);
-
-        if (!result.isLoading) {
-            view.scrollToIndex(scrollToIndex, {withAnchor: true});
-
-            setHighlightMessage({
-                messageIndex,
-                shouldHighlightRef: {current: true},
-            });
-        } else {
-            isJumpingToMessageRef.current = true;
-
-            void Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
-                isJumpingToMessageRef.current = false;
-
-                view.scrollToIndex(scrollToIndex, {withAnchor: true});
-
-                setHighlightMessage({
-                    messageIndex,
-                    shouldHighlightRef: {current: true},
-                });
-            });
-        }
+    const {jumpState, jumpToMessageRange} = useJumpToMessageRange({
+        viewRef,
+        tryLoadingMoreData,
+        scrollToIndexForMessageIndex: (roomKey, index) => state.getItemIndexForMessageIndex(index),
     });
-
-    const handleJumpToMessage = useCallback(
-        (message: Message) => jumpToMessageIndex(message.index),
-        [jumpToMessageIndex],
-    );
 
     useImperativeHandle(
         ref,
         () => ({
-            jumpToMessageIndex,
+            jumpToMessageRange,
             getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
         }),
-        [jumpToMessageIndex],
+        [jumpToMessageRange],
     );
 
     useMessagingRealtime({
@@ -631,7 +585,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     };
                 }
                 default: {
-                    return renderMessageListItem({
+                    return renderMessageListItem<RoomKey, Message>({
                         spacingScale,
                         messageNoun,
                         messageStartOfSentenceNoun,
@@ -646,13 +600,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         item,
                         randomSeedForShimmer,
                         messageEditing,
-                        shouldHighlightRef:
+                        jumpState:
                             item.message &&
                             !item.message.isOptimistic &&
-                            highlightMessage?.messageIndex === item.message.index
-                                ? highlightMessage.shouldHighlightRef
+                            jumpState &&
+                            jumpState.options.startIndex <= item.message.index &&
+                            item.message.index <= jumpState.options.endIndex
+                                ? jumpState.messages[
+                                      item.message.index - jumpState.options.startIndex
+                                  ]!
                                 : null,
-                        onJumpToMessage: handleJumpToMessage,
+                        onJumpToMessageRange: jumpToMessageRange,
                         onReplyToMessage: message =>
                             setInputParent({type: "Message", index: message.index}),
                         onDeleteMessage: async message => {
@@ -672,8 +630,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             deleteMessage,
             fileAttachmentTarget,
             getMessageUrl,
-            handleJumpToMessage,
-            highlightMessage,
+            jumpState,
+            jumpToMessageRange,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
@@ -743,7 +701,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     messageEditing={messageEditing}
                     parent={inputParent}
                     onParentClear={() => setInputParent(null)}
-                    onJumpToMessage={handleJumpToMessage}
+                    onJumpToMessageRange={jumpToMessageRange}
                     onDeleteMessage={async messageIndex => {
                         await deleteMessage({messageIndex});
                     }}

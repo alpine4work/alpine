@@ -36,6 +36,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -178,7 +179,7 @@ export default function NewChatRoute() {
     );
 
     const accountPickerContainerRef = useRef<HTMLDivElement>(null);
-    const messagingViewRef = useRef<MessagingViewRef>(null);
+    const messagingViewRef = useRef<MessagingViewRef<ChatId>>(null);
 
     // If `<ChatAccountPicker>` grows then `<NewChatMessagingView>` will shrink.
     // But instead of keeping content at the top of `<NewChatMessagingView>` stable,

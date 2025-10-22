@@ -4,17 +4,7 @@ import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowArcRight, Copy, Link as LinkIcon, Trash} from "phosphor-react";
-import {
-    Fragment,
-    Memo,
-    MutableRefObject,
-    RefObject,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Fragment, Memo, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {
     getAccountRegistry,
@@ -41,7 +31,6 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
-import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -58,6 +47,10 @@ import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/sh
 import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {
+    JumpMessageState,
+    JumpToMessageRangeOptions,
+} from "~/client/messaging/use_jump_to_message_range.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
@@ -92,8 +85,6 @@ import {
     messagingStyles,
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
-    wiggleAnimation,
-    wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
 import {
     AccessPolicy,
@@ -114,6 +105,8 @@ import {
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -157,8 +150,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     nextMessage,
     messages,
     messageEditing,
-    shouldHighlightRef,
-    onJumpToMessage,
+    jumpState,
+    onJumpToMessageRange,
     onReplyToMessage: onReplyToMessageProp,
     onDeleteMessage,
     getMessageUrl,
@@ -176,8 +169,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messages: MessageList<Message>;
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
-    shouldHighlightRef: MutableRefObject<boolean> | null;
-    onJumpToMessage: Memo<(message: Message) => void>;
+    jumpState: JumpMessageState | null;
+    onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
@@ -301,7 +294,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     parentMessages.push(message);
                 }
 
-                return {...parent, messages: parentMessages};
+                return {...parent, messages: assertNonEmptyReadonlyArray(parentMessages)};
             }
             default:
                 throw exhaustive(parent);
@@ -369,47 +362,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         delayLoadingIndicatorLimitMs * 2,
     );
 
-    const [shouldHighlight, setShouldHighlight] = useState(false);
-
-    // If the ref we were provided told us to highlight then update our state and
-    // clear the ref so we only highlight once for the ref.
+    // Schedule the jump animation to run once `<MessageView>` mounts.
     useEffect(() => {
-        if (!shouldHighlightRef?.current) return;
-
-        let cleanup: (() => void) | undefined;
-
-        const unschedule = scheduleAfterNavigationAnimation(() => {
-            // Wait a bit before highlighting in case this component is immediately
-            // unmounted. This will happen if while measuring content the virtualized
-            // scroll view thinks this is offscreen before our scroll anchoring puts it
-            // back in place. Arguably this is a bug in the virtualized scroll view.
-            const timeout = createTimeout(() => {
-                if (!shouldHighlightRef?.current) return;
-                shouldHighlightRef.current = false;
-
-                setShouldHighlight(true);
-            }, 10);
-
-            cleanup = () => timeout.clear();
-        });
-
-        return () => {
-            unschedule();
-            cleanup?.();
-        };
-    }, [shouldHighlightRef]);
-
-    useEffect(() => {
-        if (!shouldHighlight) return;
-
-        const timeout = createTimeout(() => {
-            setShouldHighlight(false);
-        }, wiggleAnimationDuration);
-
-        return () => {
-            timeout.clear();
-        };
-    }, [shouldHighlight]);
+        if (!jumpState) return;
+        jumpState.scheduleAnimation();
+    }, [jumpState]);
 
     const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
@@ -832,6 +789,56 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [canPrimaryInputHover, events, isEditingThisMessage, isReadOnly, message.payload]);
 
+    // If we're highlighting this message then get the correct `from` and `to`
+    // positions based on the versioning information we have for the highlight.
+    const jumpAnimation = useMemo(() => {
+        if (message.payload.type !== "Content") return null;
+        if (!jumpState?.animation) return null;
+
+        let from: number;
+        let to: number;
+
+        if (jumpState.start === null) {
+            from = 0;
+        } else {
+            from = jumpState.start.pos;
+
+            const version = message.payload.contentUpdate?.mappings.length ?? 0;
+
+            const mappings =
+                version > jumpState.start.version
+                    ? message.payload.contentUpdate?.mappings.slice(
+                          -(version - jumpState.start.version),
+                      ) ?? emptyArray
+                    : emptyArray;
+
+            for (const mapping of mappings) {
+                from = mapping.map(from, 1);
+            }
+        }
+
+        if (jumpState.end === null) {
+            to = message.payload.content.doc.content.size;
+        } else {
+            to = jumpState.end.pos;
+
+            const version = message.payload.contentUpdate?.mappings.length ?? 0;
+
+            const mappings =
+                version > jumpState.end.version
+                    ? message.payload.contentUpdate?.mappings.slice(
+                          -(version - jumpState.end.version),
+                      ) ?? emptyArray
+                    : emptyArray;
+
+            for (const mapping of mappings) {
+                to = mapping.map(to, -1);
+            }
+        }
+
+        return {from, to, startTime: jumpState.animation.startTime};
+    }, [jumpState, message.payload]);
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -917,20 +924,22 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <ContentView
+                data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
+                data-index={!message.isOptimistic ? message.index : undefined}
                 className={messagingStyles.contentClassName}
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdate?.time}
                 withUserSelectNone={!canPrimaryInputHover}
                 getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
-                data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
-                data-index={!message.isOptimistic ? message.index : undefined}
+                jumpAnimation={jumpAnimation}
             />
         );
     }, [
-        canPrimaryInputHover,
-        events.getClipboardSerializerPrefix,
         message,
         messageTextForBigEmojiMessage,
+        canPrimaryInputHover,
+        events.getClipboardSerializerPrefix,
+        jumpAnimation,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -983,10 +992,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 parentMessageRef={parentMessageRef}
                 messageNoun={messageNoun}
                 parent={parent}
-                onJumpToMessage={onJumpToMessage}
+                onJumpToMessageRange={onJumpToMessageRange}
             />
         );
-    }, [messageNoun, onJumpToMessage, parent]);
+    }, [messageNoun, onJumpToMessageRange, parent]);
 
     const timestampDividerNode = useMemo(() => {
         if (!shouldShowTimestampBeforeMessage) return null;
@@ -1110,9 +1119,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         shouldShowOptimisticLoadingIndicator &&
                             pulseAnimationWithReducedOpacityClassName,
                     )}
-                    style={{
-                        animation: shouldHighlight ? wiggleAnimation : undefined,
-                    }}
                     data-testid={
                         process.env.NODE_ENV !== "production"
                             ? `MessageView:${
@@ -1393,11 +1399,12 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     parentMessageRef,
     messageNoun,
     parent,
+    onJumpToMessageRange,
 }: {
     parentMessageRef: RefObject<HTMLDivElement>;
     messageNoun: string;
     parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
-    onJumpToMessage: Memo<(message: Message) => void>;
+    onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
 }) {
     const spacingScale = useSpacingScale();
     const accountRegistry = useAccountRegistry();
@@ -1422,9 +1429,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                     }
                     case "MessagesRange": {
                         return {
-                            author: get(
-                                accountRegistry.getAccountStore(parent.messages[0]!.author),
-                            ),
+                            author: get(accountRegistry.getAccountStore(parent.messages[0].author)),
                             truncatedContent: getTruncatedMessagesRangeContentForReplyPreview(get, {
                                 messages: parent.messages,
                                 startVersion: parent.startVersion,
@@ -1453,7 +1458,30 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            // TODO(calebmer): Will reimplement this in the next PR
+            switch (parent.type) {
+                case "Message": {
+                    onJumpToMessageRange({
+                        roomKey: parent.message.getRoomKey(),
+                        startIndex: parent.message.index,
+                        endIndex: parent.message.index,
+                        start: null,
+                        end: null,
+                    });
+                    break;
+                }
+                case "MessagesRange": {
+                    onJumpToMessageRange({
+                        roomKey: parent.messages[0].getRoomKey(),
+                        startIndex: parent.startIndex,
+                        endIndex: parent.endIndex,
+                        start: {version: parent.startVersion, pos: parent.startPos},
+                        end: {version: parent.endVersion, pos: parent.endPos},
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(parent);
+            }
         },
     });
 

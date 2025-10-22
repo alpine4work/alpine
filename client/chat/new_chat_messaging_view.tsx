@@ -8,6 +8,7 @@ import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
@@ -26,7 +27,7 @@ function NewChatMessagingView(
             initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
         } | null;
     },
-    ref: Ref<MessagingViewRef>,
+    ref: Ref<MessagingViewRef<ChatId>>,
 ) {
     const context = useAppContext();
 

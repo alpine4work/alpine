@@ -1,6 +1,5 @@
 import {
     Memo,
-    MutableRefObject,
     ReactNode,
     Ref,
     RefObject,
@@ -33,6 +32,10 @@ import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
 import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {
+    JumpToMessageRangeOptions,
+    useJumpToMessageRange,
+} from "~/client/messaging/use_jump_to_message_range.js";
 import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
@@ -66,7 +69,6 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
@@ -79,7 +81,6 @@ import {
 } from "~/shared/documents/document_model.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -120,7 +121,7 @@ export type DocumentCommentThreadListViewRef = {
      * Jump to the provided comment. If the comment thread or comment do
      * not exist this will do nothing.
      */
-    jumpToCommentIndex(commentThreadId: DocumentCommentThreadId, commentIndex: number): void;
+    jumpToCommentRange(options: JumpToMessageRangeOptions<DocumentCommentRoomKey>): void;
 };
 
 type DocumentCommentThreadTreeItem =
@@ -615,80 +616,24 @@ function DocumentCommentThreadListView(
         ReadonlyMap<DocumentCommentThreadId, MessageContentPayloadParent>
     >(new Map());
 
-    // A comment to highlight for the user. We currently highlight comments with a
-    // little wiggle animation (see `wiggle_animation.css.ts` for more information).
-    // We highlight comments when initially loading a page with a comment index in
-    // the URL and when the user clicks on a reply preview to jump to it.
-    const [highlightComment, setHighlightComment] = useState<{
-        commentThreadId: DocumentCommentThreadId;
-        commentIndex: number;
-        shouldHighlightRef: MutableRefObject<boolean>;
-    } | null>(null);
-
-    const isJumpingToCommentRef = useRef(false);
-
-    // Jumping to a comment entails:
-    //
-    // 1. We scroll to the comment
-    // 2. We highlight the comment to the user
-    const jumpToCommentIndex = useEvent(
-        (commentThreadId: DocumentCommentThreadId, commentIndex: number) => {
-            // If we are in the process of jumping, don't start another jump
-            if (isJumpingToCommentRef.current) return;
-
-            const view = assertExists(viewRef.current);
+    const {jumpState, jumpToMessageRange} = useJumpToMessageRange<DocumentCommentRoomKey>({
+        viewRef,
+        tryLoadingMoreData,
+        scrollToIndexForMessageIndex: (roomKey, index) => {
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
             const nodeResult = tree.getNodeByKeyIfExists(commentThreadId);
-            if (!nodeResult) return;
+            if (!nodeResult) return null;
             const {node, startItemIndex} = nodeResult;
 
             // Make sure the comment index is valid.
-            if (
-                commentIndex < 0 ||
-                commentIndex >= node.comments.getMessageCountIncludingOptimisticMessages()
-            ) {
-                return;
+            if (index < 0 || index >= node.comments.getMessageCountIncludingOptimisticMessages()) {
+                return null;
             }
 
-            const scrollToIndex = startItemIndex + 1 + commentIndex;
-
-            const peekRenderedRange = view.peekRenderedRangeAfterScrollToIndex(scrollToIndex);
-            const result = tryLoadingMoreData(peekRenderedRange);
-
-            if (!result.isLoading) {
-                view.scrollToIndex(scrollToIndex, {withAnchor: true});
-
-                setHighlightComment({
-                    commentThreadId,
-                    commentIndex,
-                    shouldHighlightRef: {current: true},
-                });
-            } else {
-                isJumpingToCommentRef.current = true;
-
-                void Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(
-                    () => {
-                        isJumpingToCommentRef.current = false;
-
-                        view.scrollToIndex(scrollToIndex, {withAnchor: true});
-
-                        setHighlightComment({
-                            commentThreadId,
-                            commentIndex,
-                            shouldHighlightRef: {current: true},
-                        });
-                    },
-                );
-            }
+            return startItemIndex + 1 + index;
         },
-    );
-
-    const handleJumpToComment = useCallback(
-        (comment: DocumentCommentModel) => {
-            jumpToCommentIndex(comment.commentThreadId, comment.index);
-        },
-        [jumpToCommentIndex],
-    );
+    });
 
     useImperativeHandle(
         ref,
@@ -697,9 +642,9 @@ function DocumentCommentThreadListView(
             getContentHeight: () => assertExists(viewRef.current).getContentHeight(),
             getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
             setScrollOffset: (...args) => assertExists(viewRef.current).setScrollOffset(...args),
-            jumpToCommentIndex,
+            jumpToCommentRange: jumpToMessageRange,
         }),
-        [jumpToCommentIndex],
+        [jumpToMessageRange],
     );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
@@ -954,14 +899,17 @@ function DocumentCommentThreadListView(
                         fileAttachmentTarget,
                         randomSeedForShimmer: item.commentThread.id,
                         messageEditing,
-                        shouldHighlightRef:
-                            highlightComment?.commentThreadId === item.commentThread.id &&
+                        jumpState:
                             item.commentItem.message &&
                             !item.commentItem.message.isOptimistic &&
-                            highlightComment?.commentIndex === item.commentItem.message.index
-                                ? highlightComment.shouldHighlightRef
+                            jumpState &&
+                            jumpState.options.startIndex <= item.commentItem.message.index &&
+                            item.commentItem.message.index <= jumpState.options.endIndex
+                                ? jumpState.messages[
+                                      item.commentItem.message.index - jumpState.options.startIndex
+                                  ]!
                                 : null,
-                        onJumpToMessage: handleJumpToComment,
+                        onJumpToMessageRange: jumpToMessageRange,
                         onReplyToMessage: comment => {
                             setInputParentByCommentThreadId(inputParentByCommentThreadId => {
                                 const newInputParentByCommentThreadId = new Map(
@@ -1099,7 +1047,7 @@ function DocumentCommentThreadListView(
                                     return newInputParentByCommentThreadId;
                                 });
                             }}
-                            onJumpToComment={handleJumpToComment}
+                            onJumpToCommentRange={jumpToMessageRange}
                             onDeleteComment={async commentIndex => {
                                 await procedures.deleteComment({
                                     commentThreadId: item.commentThread.id,
@@ -1204,8 +1152,8 @@ function DocumentCommentThreadListView(
             spacingScale,
             fileAttachmentTarget,
             messageEditing,
-            highlightComment,
-            handleJumpToComment,
+            jumpState,
+            jumpToMessageRange,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
             space.id,
@@ -1365,7 +1313,7 @@ function DocumentCommentThreadListView(
                                         },
                                     );
                                 }}
-                                onJumpToComment={handleJumpToComment}
+                                onJumpToCommentRange={jumpToMessageRange}
                                 onDeleteComment={async commentIndex => {
                                     await procedures.deleteComment({
                                         commentThreadId: item.commentThread.id,

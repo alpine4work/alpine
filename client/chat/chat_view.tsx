@@ -32,6 +32,7 @@ import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
@@ -249,7 +250,7 @@ function ChatMessagingView({
     initialScrollToMessageIndex: number | null;
 }) {
     const context = useAppContext();
-    const messagingRef = useRef<MessagingViewRef>(null);
+    const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
 
     const {isConnected, procedures, subscribeToEvents} = useWebSocket(
         "ChannelRealtimeService",
@@ -268,9 +269,16 @@ function ChatMessagingView({
 
         const messaging = assertExists(messagingRef.current);
 
-        if (initialScrollToMessageIndex !== null)
-            messaging.jumpToMessageIndex(initialScrollToMessageIndex);
-    }, [initialScrollToMessageIndex]);
+        if (initialScrollToMessageIndex !== null) {
+            messaging.jumpToMessageRange({
+                roomKey: chat.id,
+                startIndex: initialScrollToMessageIndex,
+                endIndex: initialScrollToMessageIndex,
+                start: null,
+                end: null,
+            });
+        }
+    }, [chat.id, initialScrollToMessageIndex]);
 
     return (
         <MessagingView

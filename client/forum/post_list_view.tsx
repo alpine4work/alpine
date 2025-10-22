@@ -1,7 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
-    MutableRefObject,
     ReactNode,
     Ref,
     RefObject,
@@ -59,6 +58,10 @@ import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {
+    JumpToMessageRangeOptions,
+    useJumpToMessageRange,
+} from "~/client/messaging/use_jump_to_message_range.js";
 import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -98,13 +101,11 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -142,7 +143,7 @@ export type PostListViewRef = {
      * Jump to the provided post comment. If the post or post comment do
      * not exist an error will be thrown.
      */
-    jumpToPostCommentIndex(postId: PostId, postCommentIndex: number): void;
+    jumpToPostCommentRange(options: JumpToMessageRangeOptions<PostId>): void;
 
     /**
      * Start editing the post with the provided `PostId`.
@@ -724,73 +725,19 @@ function PostListView(
         });
     }
 
-    // A comment to highlight for the user. We currently highlight comments with a
-    // little wiggle animation (see `wiggle_animation.css.ts` for more information).
-    // We highlight comments when initially loading a page with a comment index in
-    // the URL and when the user clicks on a reply preview to jump to it.
-    const [highlightPostComment, setHighlightPostComment] = useState<{
-        postId: PostId;
-        postCommentIndex: number;
-        shouldHighlightRef: MutableRefObject<boolean>;
-    } | null>(null);
-
-    const isJumpingToPostCommentRef = useRef(false);
-
-    // Jumping to a post comment entails:
-    //
-    // 1. We scroll to the comment
-    // 2. We highlight the comment to the user
-    const jumpToPostCommentIndex = useEvent((postId: PostId, postCommentIndex: number) => {
-        // If we are in the process of jumping, don't start another jump
-        if (isJumpingToPostCommentRef.current) return;
-
-        const view = assertExists(viewRef.current);
-
-        const scrollToIndex = assertExists(posts.getPostByIdIfExists(postId)).getPostCommentIndex(
-            postCommentIndex,
-        );
-
-        const peekRenderedRange = view.peekRenderedRangeAfterScrollToIndex(scrollToIndex);
-        const result = tryLoadingMoreData(peekRenderedRange);
-
-        if (!result.isLoading) {
-            view.scrollToIndex(scrollToIndex, {withAnchor: true});
-
-            setHighlightPostComment({
-                postId,
-                postCommentIndex,
-                shouldHighlightRef: {current: true},
-            });
-        } else {
-            isJumpingToPostCommentRef.current = true;
-
-            void Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
-                isJumpingToPostCommentRef.current = false;
-
-                view.scrollToIndex(scrollToIndex, {withAnchor: true});
-
-                setHighlightPostComment({
-                    postId,
-                    postCommentIndex,
-                    shouldHighlightRef: {current: true},
-                });
-            });
-        }
+    const {jumpState, jumpToMessageRange} = useJumpToMessageRange<PostId>({
+        viewRef,
+        tryLoadingMoreData,
+        scrollToIndexForMessageIndex: (postId, index) =>
+            assertExists(posts.getPostByIdIfExists(postId)).getPostCommentIndex(index),
     });
-
-    const handleJumpToPostComment = useCallback(
-        (postComment: PostCommentModel) => {
-            jumpToPostCommentIndex(postComment.postId, postComment.index);
-        },
-        [jumpToPostCommentIndex],
-    );
 
     const postEditingDispatch = postEditing.dispatch;
 
     useImperativeHandle(
         ref,
         () => ({
-            jumpToPostCommentIndex,
+            jumpToPostCommentRange: jumpToMessageRange,
             startEditingPost: (postId, currentContent) => {
                 postEditingDispatch({
                     type: "StartEditing",
@@ -800,7 +747,7 @@ function PostListView(
                 });
             },
         }),
-        [jumpToPostCommentIndex, platform, postEditingDispatch],
+        [jumpToMessageRange, platform, postEditingDispatch],
     );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
@@ -1328,14 +1275,19 @@ function PostListView(
                                     nextMessage={nextComment}
                                     messages={item.postComments}
                                     messageEditing={messageEditing}
-                                    shouldHighlightRef={
-                                        highlightPostComment?.postId === item.post.id &&
-                                        highlightPostComment.postCommentIndex ===
-                                            item.postCommentIndex
-                                            ? highlightPostComment.shouldHighlightRef
+                                    jumpState={
+                                        item.postComment &&
+                                        !item.postComment.isOptimistic &&
+                                        jumpState &&
+                                        jumpState.options.startIndex <= item.postComment.index &&
+                                        item.postComment.index <= jumpState.options.endIndex
+                                            ? jumpState.messages[
+                                                  item.postComment.index -
+                                                      jumpState.options.startIndex
+                                              ]!
                                             : null
                                     }
-                                    onJumpToMessage={handleJumpToPostComment}
+                                    onJumpToMessageRange={jumpToMessageRange}
                                     onReplyToMessage={() => {
                                         if (item.postComment.isOptimistic) return;
                                         const postCommentIndex = item.postComment.index;
@@ -1563,7 +1515,7 @@ function PostListView(
                                     return newInputParentByPostId;
                                 });
                             }}
-                            onJumpToPostComment={handleJumpToPostComment}
+                            onJumpToPostCommentRange={jumpToMessageRange}
                             onDeletePostComment={async postCommentIndex => {
                                 const procedures = proceduresByPostIdRef.current.get(item.post.id);
                                 if (!procedures)
@@ -1780,13 +1732,13 @@ function PostListView(
             initialScrollForFirstPost,
             idBase,
             isShowingAllContentByPostId,
+            onOptimisticPostRealtimeEventTransaction,
             onTogglePostComments,
             loadInitialPostComments,
-            onOptimisticPostRealtimeEventTransaction,
             messageEditing,
             fileAttachmentTargetByPostId,
-            highlightPostComment,
-            handleJumpToPostComment,
+            jumpState,
+            jumpToMessageRange,
             header,
             inputParentByPostId,
             inputRefByPostId,
@@ -2075,7 +2027,7 @@ function PostListView(
                                             return newInputParentByPostId;
                                         });
                                     }}
-                                    onJumpToPostComment={handleJumpToPostComment}
+                                    onJumpToPostCommentRange={jumpToMessageRange}
                                     onDeletePostComment={async postCommentIndex => {
                                         const procedures = proceduresByPostIdRef.current.get(
                                             lastPostContentItem.post.id,

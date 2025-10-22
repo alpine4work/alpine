@@ -44,7 +44,13 @@ export function PostView({
         const postList = assertExists(postListRef.current);
 
         if (initialScroll?.type === "Comment")
-            postList.jumpToPostCommentIndex(initialPost.model.id, initialScroll.commentIndex);
+            postList.jumpToPostCommentRange({
+                roomKey: initialPost.model.id,
+                startIndex: initialScroll.commentIndex,
+                endIndex: initialScroll.commentIndex,
+                start: null,
+                end: null,
+            });
     }, [initialPost.model.id, initialScroll]);
 
     const [postsFromState, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>

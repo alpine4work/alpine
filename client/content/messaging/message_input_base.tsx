@@ -125,6 +125,7 @@ import {
     getFileImageContentTypes,
     getFileVideoContentTypes,
 } from "~/shared/files/file_content_type.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -172,7 +173,13 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     } | null;
     parent?: MessageContentPayloadParentWithMessages<RoomKey, Message> | null;
     onParentClear?: () => void;
-    onJumpToMessage?: (message: Message) => void;
+    onJumpToMessageRange?: (options: {
+        roomKey: RoomKey;
+        startIndex: number;
+        endIndex: number;
+        start: {version: number; pos: number} | null;
+        end: {version: number; pos: number} | null;
+    }) => void;
     onShowTypingIndicator?: () => void;
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
@@ -194,7 +201,7 @@ export type MessageContentPayloadParentWithMessages<
       }
     | {
           readonly type: "MessagesRange";
-          readonly messages: ReadonlyArray<Message>;
+          readonly messages: NonEmptyReadonlyArray<Message>;
           readonly startIndex: number;
           readonly endIndex: number;
           readonly startVersion: number;
@@ -240,7 +247,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         messageEditingForThisInput = null,
         parent: parentProp,
         onParentClear,
-        onJumpToMessage,
+        onJumpToMessageRange,
         onShowTypingIndicator,
         onHideTypingIndicator,
         "data-testid": dataTestId,
@@ -836,7 +843,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             <MessageInputParent
                                 messageNoun={messageNoun}
                                 parent={parent}
-                                onJumpToMessage={onJumpToMessage}
+                                onJumpToMessageRange={onJumpToMessageRange}
                                 onParentClear={onParentClear}
                                 paddingX={screenPaddingX}
                             />
@@ -1459,12 +1466,21 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 function MessageInputParent<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun,
     parent,
+    onJumpToMessageRange,
     onParentClear,
     paddingX,
 }: {
     messageNoun: string;
     parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
-    onJumpToMessage: ((message: Message) => void) | undefined;
+    onJumpToMessageRange:
+        | ((options: {
+              roomKey: RoomKey;
+              startIndex: number;
+              endIndex: number;
+              start: {version: number; pos: number} | null;
+              end: {version: number; pos: number} | null;
+          }) => void)
+        | undefined;
     onParentClear: (() => void) | undefined;
     paddingX: Spacing | {desktop: Spacing; mobile: Spacing};
 }) {
@@ -1492,9 +1508,7 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                     }
                     case "MessagesRange": {
                         return {
-                            author: get(
-                                accountRegistry.getAccountStore(parent.messages[0]!.author),
-                            ),
+                            author: get(accountRegistry.getAccountStore(parent.messages[0].author)),
                             truncatedContent: getTruncatedMessagesRangeContentForReplyPreview(get, {
                                 messages: parent.messages,
                                 startVersion: parent.startVersion,
@@ -1521,7 +1535,30 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            // TODO(calebmer): Will reimplement this in the next PR
+            switch (parent.type) {
+                case "Message": {
+                    onJumpToMessageRange?.({
+                        roomKey: parent.message.getRoomKey(),
+                        startIndex: parent.message.index,
+                        endIndex: parent.message.index,
+                        start: null,
+                        end: null,
+                    });
+                    break;
+                }
+                case "MessagesRange": {
+                    onJumpToMessageRange?.({
+                        roomKey: parent.messages[0].getRoomKey(),
+                        startIndex: parent.startIndex,
+                        endIndex: parent.endIndex,
+                        start: {version: parent.startVersion, pos: parent.startPos},
+                        end: {version: parent.endVersion, pos: parent.endPos},
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(parent);
+            }
         },
     });
 

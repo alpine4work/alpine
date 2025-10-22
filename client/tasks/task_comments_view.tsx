@@ -63,7 +63,7 @@ export function TaskCommentsView({
 }) {
     const context = useAppContext();
     const routeLayout = useRouteLayout();
-    const messagingRef = useRef<MessagingViewRef>(null);
+    const messagingRef = useRef<MessagingViewRef<TaskId>>(null);
     const [initialComments, setInitialComments] = useState(initialCommentsFromProps);
 
     const setErrorState = useErrorState();
@@ -121,9 +121,16 @@ export function TaskCommentsView({
 
         const messaging = assertExists(messagingRef.current);
 
-        if (initialScrollToCommentIndex !== null)
-            messaging.jumpToMessageIndex(initialScrollToCommentIndex);
-    }, [initialScrollToCommentIndex, initialComments]);
+        if (initialScrollToCommentIndex !== null) {
+            messaging.jumpToMessageRange({
+                roomKey: taskId,
+                startIndex: initialScrollToCommentIndex,
+                endIndex: initialScrollToCommentIndex,
+                start: null,
+                end: null,
+            });
+        }
+    }, [initialScrollToCommentIndex, initialComments, taskId]);
 
     const header = useMemo(() => {
         if (routeLayout !== "narrow") {

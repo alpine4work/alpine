@@ -1,4 +1,6 @@
 import classNames from "classnames";
+import Color from "color";
+import {animate} from "motion";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
 import {
@@ -47,6 +49,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
+import {getColorSchemeWithoutListeningIfBrowser} from "~/client/helpers/color_scheme.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -78,6 +81,7 @@ import {
     linkClassName,
     paragraphClassName,
 } from "~/shared/design/core/constant_class_names.js";
+import {easeOutCubic} from "~/shared/design/core/easing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -95,6 +99,12 @@ import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/seria
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore, undefinedStore} from "~/shared/store/const_store.js";
+
+export const jumpAnimationDurationMs = 3000;
+const jumpAnimationFadeInDurationMs = 70;
+const jumpAnimationFadeOutDurationMs = 500;
+const jumpAnimationSolidDurationMs =
+    jumpAnimationDurationMs - jumpAnimationFadeInDurationMs - jumpAnimationFadeOutDurationMs;
 
 const ContentViewCodeBlockDecorationsSchema = Schema.array(
     Schema.object({
@@ -250,6 +260,15 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * `isContentBodyEmpty()` is true or this function is true.
      */
     isBodyEmpty?: boolean;
+
+    /**
+     * Runs a jump animation on the content between these two positions.
+     *
+     * To support interruptible animations you should provide a `startTime`. So if
+     * the `<ContentView>` is mounted/unmounted (maybe because of list
+     * virtualization) the animation state is preserved.
+     */
+    jumpAnimation?: Memo<{from: number; to: number; startTime: Date}> | null;
 };
 
 /**
@@ -277,6 +296,7 @@ export function ContentView<Content extends ContentWithReferences>({
     transformScale = 1,
     getClipboardSerializerPrefix,
     isBodyEmpty: isBodyEmptyFromProps = false,
+    jumpAnimation = null,
 }: ContentViewProps<Content>) {
     assert(
         !content.doc.type.schema.nodes.file || fileAttachmentTarget,
@@ -465,6 +485,18 @@ export function ContentView<Content extends ContentWithReferences>({
             }
         });
 
+        if (jumpAnimation !== null) {
+            decorations.push({
+                type: "Inline",
+                from: jumpAnimation.from,
+                to: jumpAnimation.to,
+                attrs: {
+                    nodeName: "mark",
+                    class: contentStyles.jumpAnimationClassName,
+                },
+            });
+        }
+
         // If we have some initial code block decorations from server-side rendering
         // then use those instead of trying to compute new decorations. Since we
         // may not be able to compute new decorations given no language parsers will be
@@ -536,6 +568,7 @@ export function ContentView<Content extends ContentWithReferences>({
         shouldShowSeeMoreContentButton,
         shouldShowSeeLessContentButton,
         content,
+        jumpAnimation,
         initialCodeBlockDecorations,
         isBodyEmptyFromProps,
         id,
@@ -662,6 +695,7 @@ export function ContentView<Content extends ContentWithReferences>({
             contentStyles.codeBlockCopyButtonClassName,
             fileClassName,
             contentStyles.mentionContainerClassName,
+            contentStyles.jumpAnimationClassName,
         ];
 
         for (const element of parentElement.querySelectorAll(
@@ -1039,6 +1073,38 @@ export function ContentView<Content extends ContentWithReferences>({
                     });
                 }
             }
+
+            if (
+                jumpAnimation !== null &&
+                element.classList.contains(contentStyles.jumpAnimationClassName)
+            ) {
+                const colorScheme = assertExists(getColorSchemeWithoutListeningIfBrowser());
+
+                const backgroundColor = contentStyles.jumpAnimationBackgroundColor[colorScheme];
+
+                const transparentBackgroundColor = Color(backgroundColor).alpha(0).hexa();
+
+                const animation = animate([
+                    [element, {backgroundColor: transparentBackgroundColor}, {duration: 0}],
+                    [
+                        element,
+                        {backgroundColor},
+                        {duration: jumpAnimationFadeInDurationMs / 1000, ease: "linear"},
+                    ],
+                    [element, {backgroundColor}, {duration: jumpAnimationSolidDurationMs / 1000}],
+                    [
+                        element,
+                        {backgroundColor: transparentBackgroundColor},
+                        {
+                            duration: jumpAnimationFadeOutDurationMs / 1000,
+                            ease: easeOutCubic,
+                        },
+                    ],
+                ]);
+
+                // Synchronize all animations based on the provided `startTime`.
+                animation.time = (Date.now() - jumpAnimation.startTime.getTime()) / 1000;
+            }
         }
 
         return () => {
@@ -1065,6 +1131,7 @@ export function ContentView<Content extends ContentWithReferences>({
         isInitialAppRender,
         fileRegistry,
         fileEntityRenderers,
+        jumpAnimation,
     ]);
 
     // Watch all parent elements of our content view for scroll events. When a

@@ -192,12 +192,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     }
 });
 
-// TODO(calebmer): We'll remove `.skip()` in the next PR
-// eslint-disable-next-line playwright/no-skipped-test
-test.skip("clicking a reply will scroll to the comment", async ({
-    page,
-    context: browserContext,
-}) => {
+test("clicking a reply will scroll to the comment", async ({page, context: browserContext}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",

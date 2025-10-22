@@ -30,6 +30,7 @@ import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -38,6 +39,7 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -76,7 +78,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     messageEditing: MessageEditing<RoomKey>;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
-    onJumpToMessage: (message: Message) => void;
+    onJumpToMessageRange: (options: JumpToMessageRangeOptions<RoomKey>) => void;
     onDeleteMessage: (messageIndex: number) => Promise<void>;
     onShowTypingIndicator: () => void;
     onHideTypingIndicator: () => void;
@@ -115,7 +117,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         messageEditing,
         parent: parentWithoutMessages,
         onParentClear,
-        onJumpToMessage,
+        onJumpToMessageRange,
         onDeleteMessage,
         onShowTypingIndicator,
         onHideTypingIndicator,
@@ -166,7 +168,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     parentMessages.push(message);
                 }
 
-                return {...parentWithoutMessages, messages: parentMessages};
+                return {
+                    ...parentWithoutMessages,
+                    messages: assertNonEmptyReadonlyArray(parentMessages),
+                };
             }
             default:
                 throw exhaustive(parentWithoutMessages);
@@ -480,7 +485,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 messageEditingForThisInput={messageEditingForThisInput}
                 parent={parent}
                 onParentClear={onParentClear}
-                onJumpToMessage={onJumpToMessage}
+                onJumpToMessageRange={onJumpToMessageRange}
                 onShowTypingIndicator={onShowTypingIndicator}
                 onHideTypingIndicator={onHideTypingIndicator}
                 isBottomBar={!isNotBottomBar}

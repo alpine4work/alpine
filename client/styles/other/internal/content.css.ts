@@ -2897,6 +2897,22 @@ function createSquiggleSvg(w: number, color: string) {
 </svg>`;
 }
 
+// This is only used by `<ContentView>` but because we need access to
+// `commentBackgroundColors` we include the class in this file instead of
+// `content_view.css.ts`.
+export const jumpAnimationClassName = style({
+    color: "inherit",
+    backgroundColor: "transparent",
+    // Extend the comment background color to the line height.
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.bottom,
+});
+
+export const jumpAnimationBackgroundColor = {
+    light: commentBackgroundColors.light.active,
+    dark: commentBackgroundColors.dark.active,
+};
+
 function createChildSelectors(child: "first" | "last") {
     const selectors1 = [
         `${listItemClassName}:${child}-child > *:${child}-child`,

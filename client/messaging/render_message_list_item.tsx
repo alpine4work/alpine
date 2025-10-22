@@ -1,10 +1,14 @@
-import {Memo, MutableRefObject, ReactElement, ReactNode, cloneElement} from "react";
+import {Memo, ReactElement, ReactNode, cloneElement} from "react";
 import {Spacer} from "~/client/design/spacer.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
+import {
+    JumpMessageState,
+    JumpToMessageRangeOptions,
+} from "~/client/messaging/use_jump_to_message_range.js";
 import {
     messageViewMarginY,
     messageViewMinHeightPx,
@@ -39,8 +43,8 @@ export function renderMessageListItem<
     item,
     randomSeedForShimmer,
     messageEditing,
-    shouldHighlightRef,
-    onJumpToMessage,
+    jumpState,
+    onJumpToMessageRange,
     onReplyToMessage,
     onDeleteMessage,
     getMessageUrl,
@@ -59,8 +63,8 @@ export function renderMessageListItem<
     item: MessageListItem<Message>;
     randomSeedForShimmer: string;
     messageEditing: MessageEditing<RoomKey>;
-    shouldHighlightRef: MutableRefObject<boolean> | null;
-    onJumpToMessage: Memo<(message: Message) => void>;
+    jumpState: JumpMessageState | null;
+    onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
     onReplyToMessage: (message: Message) => void;
     onDeleteMessage: (message: Message) => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
@@ -104,8 +108,8 @@ export function renderMessageListItem<
                         nextMessage={nextMessage}
                         messages={messages}
                         messageEditing={messageEditing}
-                        shouldHighlightRef={shouldHighlightRef}
-                        onJumpToMessage={onJumpToMessage}
+                        jumpState={jumpState}
+                        onJumpToMessageRange={onJumpToMessageRange}
                         onReplyToMessage={() => {
                             if (item.message.isOptimistic) return;
                             onReplyToMessage(item.message);
