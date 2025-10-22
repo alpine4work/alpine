@@ -6143,6 +6143,13 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "hasProcessedNullAlternative": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": true
+                                        },
+                                        "optional": true
+                                    },
                                     "preview": {
                                         "valueSchema": {
                                             "type": "Nullable",

@@ -8,6 +8,9 @@ ts_project(
         "//server/spaces/test_helpers",
         "//shared/spaces/test_helpers",
     ],
+    tests = {
+        "spaces_actions_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/crawl:__pkg__",
         "//app:__pkg__",

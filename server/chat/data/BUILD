@@ -20,6 +20,7 @@ ts_project(
     ],
     tests = {
         "chat_actions_test": {"size": "medium"},
+        "authorize_chat_access_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

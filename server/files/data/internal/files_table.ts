@@ -146,6 +146,17 @@ export const FilesTable = DynamoTableSchema.new({
                         alternative: FileAlternativeSchema.nullable().default(null),
 
                         /**
+                         * True if `alternative` is now null but at some point in time
+                         * `alternative` was set to `{isProcessing: true}`. This happens for the
+                         * `video/mp4` and `audio/mp4` content types which might be web safe or web
+                         * unsafe depending on the codecs used. So we set
+                         * `alternative: {isProcessing: true}` until we figure out the codecs. If we
+                         * have web safe codecs then we'll set `alternative` to `null` and this
+                         * property to `true`.
+                         */
+                        hasProcessedNullAlternative: Schema.value(true).optional(),
+
+                        /**
                          * A visual preview image for the file. Previews are a scaled down, often
                          * non-interactive, display of a file. For example files displayed in a
                          * document image gallery are previews.

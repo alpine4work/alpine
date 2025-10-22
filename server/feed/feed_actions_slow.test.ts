@@ -69,5 +69,6 @@ test(
             ],
         });
     },
-    60 * 1000,
+    // Match Bazel's `medium` test size timeout.
+    300 * 1000,
 );

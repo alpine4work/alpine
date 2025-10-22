@@ -1695,16 +1695,19 @@ test("adds search affinity points for task collection when it’s added to a tas
     expect(await getTaskCollectionSearchAffinityPoints(session2)).toEqual(null);
 
     await task1.addCollection(session1, collection);
+    await ProcessContextModule.waitForTestTasks();
 
     expect(await getTaskCollectionSearchAffinityPoints(session1)).toBeCloseTo(3.2);
     expect(await getTaskCollectionSearchAffinityPoints(session2)).toEqual(null);
 
     await task2.addCollection(session2, collection);
+    await ProcessContextModule.waitForTestTasks();
 
     expect(await getTaskCollectionSearchAffinityPoints(session1)).toBeCloseTo(3.2);
     expect(await getTaskCollectionSearchAffinityPoints(session2)).toBeCloseTo(0.2);
 
     await task3.addCollection(session1, collection);
+    await ProcessContextModule.waitForTestTasks();
 
     expect(await getTaskCollectionSearchAffinityPoints(session1)).toBeCloseTo(3.4);
     expect(await getTaskCollectionSearchAffinityPoints(session2)).toBeCloseTo(0.2);

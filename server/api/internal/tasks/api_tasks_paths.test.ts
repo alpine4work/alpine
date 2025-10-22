@@ -1,9 +1,6 @@
+import {CalendarDate} from "@internationalized/date";
 import {apiTasksPaths} from "~/server/api/internal/tasks/api_tasks_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-import {
-    testMessagingApiImplementation,
-    testMessagingApiImplementationSearchInjection,
-} from "~/server/api/internal/test_helpers/test_messaging_api_implementation.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -11,26 +8,18 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 
 const baseContext = createTestContext({
     shouldStartOpensearch: true,
     tasksInjection,
-    searchInjection: testMessagingApiImplementationSearchInjection,
 });
 
 const context = TestTaskRealtimeServer.with(baseContext);
 
 const server = createTestApiServer(context, apiTasksPaths);
-
-testMessagingApiImplementation(context, server, {
-    generateMissingRoomPath: () => `/tasks/${generateId<TaskId>()}`,
-    createPrivateRoom: async session => {
-        const task = await TestTask.create(session);
-        return {roomPath: `/tasks/${task.id}`, room: task, initialMessageCount: 0};
-    },
-});
 
 test("can read task information", async () => {
     const space = await TestSpace.create(context);
@@ -43,6 +32,8 @@ test("can read task information", async () => {
     const task = await TestTask.create(session1);
     await task.typeTitle(session1, "Hello, world!");
     await task.updateAssignee(session1, session2);
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/tasks/${task.id}`, {
@@ -75,6 +66,8 @@ test("can read task with notes content", async () => {
 
     const task = await TestTask.create(session, {title: "Task with Notes"});
     await task.typeNotes(session, "These are some task notes with important details.");
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/tasks/${task.id}`, {
@@ -115,9 +108,10 @@ test("can read task with due date", async () => {
 
     const task = await TestTask.create(session, {title: "Task with Due Date"});
 
-    const {CalendarDate} = await import("@internationalized/date");
     const dueDate = new CalendarDate(2025, 12, 31);
     await task.updateDueDate(session, dueDate);
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/tasks/${task.id}`, {
@@ -149,6 +143,8 @@ test("can read task with closed status", async () => {
     const task = await TestTask.create(session, {title: "Closed Task"});
     await task.updateStatus(session, "Closed");
 
+    await ProcessContextModule.waitForTestTasks();
+
     expect(
         await server.GET(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -179,6 +175,8 @@ test("can read task with active status", async () => {
 
     const task = await TestTask.create(session1, {title: "Active Task"});
     await task.updateAssignee(session1, session2, {assigneeStatus: "Active"});
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/tasks/${task.id}`, {
@@ -216,6 +214,8 @@ test("can read task with inactive status", async () => {
     const task = await TestTask.create(session1, {title: "Inactive Task"});
     await task.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
 
+    await ProcessContextModule.waitForTestTasks();
+
     expect(
         await server.GET(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -251,6 +251,8 @@ test("can read task with high priority", async () => {
     const task = await TestTask.create(session, {title: "High Priority Task"});
     await task.updatePriority(session, "High");
 
+    await ProcessContextModule.waitForTestTasks();
+
     expect(
         await server.GET(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -279,6 +281,8 @@ test("can’t read task information without access", async () => {
 
     const task = await TestTask.create(session2);
 
+    await ProcessContextModule.waitForTestTasks();
+
     expect(
         await server.GET(`/tasks/${task.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -300,6 +304,8 @@ test("can’t read task information for non-existent task", async () => {
 
     const bot = await TestBot.createAndInstantiate(session);
     const apiKey = await bot.createApiKey(session);
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/tasks/${generateId<TaskId>()}`, {
@@ -327,6 +333,8 @@ test("can read task collection information", async () => {
         name: "My Project Tasks",
         access: "Public",
     });
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/task-collections/${collection.id}`, {
@@ -357,6 +365,8 @@ test("can’t read task collection information without access", async () => {
         access: "Private",
     });
 
+    await ProcessContextModule.waitForTestTasks();
+
     expect(
         await server.GET(`/task-collections/${collection.id}`, {
             headers: {authorization: `bearer ${apiKey}`},
@@ -378,6 +388,8 @@ test("can’t read task collection information for non-existent collection", asy
 
     const bot = await TestBot.createAndInstantiate(session);
     const apiKey = await bot.createApiKey(session);
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/task-collections/${generateId<TaskCollectionId>()}`, {
@@ -401,6 +413,8 @@ test("can read task information with task scope", async () => {
     const bot = await TestBot.createAndInstantiate(session);
     const task = await TestTask.create(session, {title: "Hello, world!"});
     const apiKey = await bot.createApiKey({type: "Task", taskId: task.id});
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/tasks/${task.id}`, {
@@ -433,6 +447,8 @@ test("can read task collection information with task scope", async () => {
 
     const bot = await TestBot.createAndInstantiate(session);
     const apiKey = await bot.createApiKey({type: "Task", taskId: task.id});
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await server.GET(`/task-collections/${collection.id}`, {

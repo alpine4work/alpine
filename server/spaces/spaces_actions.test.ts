@@ -2863,7 +2863,7 @@ test("don’t allow creating multiple owners in a single space (with test scenar
     );
 });
 
-test("`internalAddSpaceAccount()` should throw if anonymous account tries to add account", async () => {
+test("`addSpaceAccount()` should throw if anonymous account tries to add account", async () => {
     const space = await TestSpace.create(context);
     const otherAccount = await TestAccount.create(context);
 
@@ -2876,7 +2876,7 @@ test("`internalAddSpaceAccount()` should throw if anonymous account tries to add
     ).rejects.toThrow(UnauthenticatedError);
 });
 
-test("`internalAddSpaceAccount()` should throw if system actor for another space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if system actor for another space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const otherAccount = await TestAccount.create(context);
@@ -2889,7 +2889,7 @@ test("`internalAddSpaceAccount()` should throw if system actor for another space
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()` should work if system actor for space tries to add account", async () => {
+test("`addSpaceAccount()` should work if system actor for space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const otherAccount = await TestAccount.create(context);
@@ -2905,7 +2905,7 @@ test("`internalAddSpaceAccount()` should work if system actor for space tries to
     expect(account?.initialData.space.role).toBe("Member");
 });
 
-test("`internalAddSpaceAccount()` can’t add the same account to the space twice", async () => {
+test("`addSpaceAccount()` can’t add the same account to the space twice", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const otherAccount = await TestAccount.create(context);
@@ -2927,7 +2927,7 @@ test("`internalAddSpaceAccount()` can’t add the same account to the space twic
     expect(account?.initialData.space.role).toBe("Member");
 });
 
-test("`internalAddSpaceAccount()` can’t add an account that is already a member", async () => {
+test("`addSpaceAccount()` can’t add an account that is already a member", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const alreadyMember = await space.createSession();
@@ -2940,7 +2940,7 @@ test("`internalAddSpaceAccount()` can’t add an account that is already a membe
     ).rejects.toThrow(FailedPreconditionError);
 });
 
-test("`internalAddSpaceAccount()` can’t add an account that is already invited", async () => {
+test("`addSpaceAccount()` can’t add an account that is already invited", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const email = generateEmailAddressForTest();
@@ -2954,7 +2954,7 @@ test("`internalAddSpaceAccount()` can’t add an account that is already invited
     ).rejects.toThrow(FailedPreconditionError);
 });
 
-test("`internalAddSpaceAccount()` can’t add an account that doesn’t exist", async () => {
+test("`addSpaceAccount()` can’t add an account that doesn’t exist", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
 
@@ -2966,7 +2966,7 @@ test("`internalAddSpaceAccount()` can’t add an account that doesn’t exist", 
     ).rejects.toThrow("Account not found");
 });
 
-test("`internalAddSpaceAccount()` should throw if impersonated account member in another space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if impersonated account member in another space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
 
@@ -2985,7 +2985,7 @@ test("`internalAddSpaceAccount()` should throw if impersonated account member in
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()` should throw if impersonated account (`Admin`) in another space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if impersonated account (`Admin`) in another space tries to add account", async () => {
     const space = await TestSpace.create(context);
 
     const otherSpace = await TestSpace.create(context);
@@ -3000,7 +3000,7 @@ test("`internalAddSpaceAccount()` should throw if impersonated account (`Admin`)
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()` should throw if impersonated account (`Member`) for space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if impersonated account (`Member`) for space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const memberSession = await space.createSession({role: "Member"});
     const otherAccount = await TestAccount.create(context);
@@ -3013,7 +3013,7 @@ test("`internalAddSpaceAccount()` should throw if impersonated account (`Member`
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()`should work if impersonated account (`Admin`) for space tries to add account", async () => {
+test("`addSpaceAccount()`should work if impersonated account (`Admin`) for space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const adminSession = await space.createSession({role: "Admin"});
@@ -3029,7 +3029,7 @@ test("`internalAddSpaceAccount()`should work if impersonated account (`Admin`) f
     expect(account?.initialData.space.role).toBe("Member");
 });
 
-test("`internalAddSpaceAccount()` should throw if account (`Member`) in another space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if account (`Member`) in another space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const memberSession = await otherSpace.createSession({role: "Member"});
@@ -3043,7 +3043,7 @@ test("`internalAddSpaceAccount()` should throw if account (`Member`) in another 
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()` should throw if account (`Admin`) in another space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if account (`Admin`) in another space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const adminSession = await otherSpace.createSession({role: "Admin"});
@@ -3057,7 +3057,7 @@ test("`internalAddSpaceAccount()` should throw if account (`Admin`) in another s
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()` should throw if account member for space tries to add account", async () => {
+test("`addSpaceAccount()` should throw if account member for space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const memberSession = await space.createSession({role: "Member"});
     const otherAccount = await TestAccount.create(context);
@@ -3070,7 +3070,7 @@ test("`internalAddSpaceAccount()` should throw if account member for space tries
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("`internalAddSpaceAccount()` should work if account admin for space tries to add account", async () => {
+test("`addSpaceAccount()` should work if account admin for space tries to add account", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const adminSession = await space.createSession({role: "Admin"});
@@ -5387,7 +5387,7 @@ test("`moveSpaceAccountOwnerRole()` can’t move ownership to removed account", 
     expect((await memberSession.get()).initialData.space.role).toBe("Member");
 });
 
-test("`internalAddSpaceAccount()` shouldn’t add two owners in race condition", async () => {
+test("`addSpaceAccount()` shouldn’t add two owners in race condition", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
     const account1 = await TestAccount.create(context);
@@ -5438,7 +5438,7 @@ test("`internalAddSpaceAccount()` shouldn’t add two owners in race condition",
     );
 });
 
-test("`internalAddSpaceAccount()` shouldn’t add two owners in race condition using test scenario framework", async () => {
+test("`addSpaceAccount()` shouldn’t add two owners in race condition using test scenario framework", async () => {
     const space = await TestSpace.create(context);
     const account1Id = generateId<AccountId>();
     const account2Id = generateId<AccountId>();
@@ -5524,7 +5524,7 @@ test("`moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition
     );
 });
 
-test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition (simple)", async () => {
+test("`addSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition (simple)", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const session = await space.createSession();
@@ -5548,7 +5548,7 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
 
     const {unpause: unpause2} = await pause2Promise;
 
-    await expect(promise1).rejects.toThrow("Space already has an owner");
+    await expect(promise1).rejects.toThrow("Space already has an owner account");
     unpause2();
     await expect(promise2).resolves.toBeTruthy();
 
@@ -5570,7 +5570,7 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
     );
 });
 
-test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t add two owners in race condition (simple)", async () => {
+test("`moveSpaceAccountOwnerRole()` and `addSpaceAccount()` shouldn’t add two owners in race condition (simple)", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const session = await space.createSession();
@@ -5623,7 +5623,7 @@ test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t 
     );
 });
 
-test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition", async () => {
+test("`addSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherAccount1 = await TestAccount.create(context);
@@ -5681,7 +5681,7 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
     );
 });
 
-test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t add two owners in race condition", async () => {
+test("`moveSpaceAccountOwnerRole()` and `addSpaceAccount()` shouldn’t add two owners in race condition", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherAccount1 = await TestAccount.create(context);

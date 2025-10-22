@@ -1,9 +1,5 @@
 import {apiForumPaths} from "~/server/api/internal/forum/api_forum_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
-import {
-    testMessagingApiImplementation,
-    testMessagingApiImplementationSearchInjection,
-} from "~/server/api/internal/test_helpers/test_messaging_api_implementation.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
@@ -14,19 +10,9 @@ import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext({
     forumInjection,
-    searchInjection: testMessagingApiImplementationSearchInjection,
 });
 
 const server = createTestApiServer(context, apiForumPaths);
-
-testMessagingApiImplementation(context, server, {
-    generateMissingRoomPath: () => `/posts/${generateId<PostId>()}`,
-    createPrivateRoom: async session => {
-        const channel = await TestChannel.create(session, {access: "Private"});
-        const post = await channel.createPost(session);
-        return {roomPath: `/posts/${post.id}`, room: post, initialMessageCount: 0};
-    },
-});
 
 test("can read channel information", async () => {
     const space = await TestSpace.create(context);

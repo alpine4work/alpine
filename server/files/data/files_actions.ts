@@ -555,10 +555,7 @@ export class FileUploader {
                     if (!item.alternative) {
                         // Noop if we've already finished processing the alternative. This makes the
                         // function idempotent.
-                        //
-                        // We'll still error if we try to finish with a non-null `alternative` but
-                        // there's no non-null `alternative` in the file as a precaution.
-                        if (alternative === null) return item;
+                        if (item.hasProcessedNullAlternative) return item;
 
                         throw new InternalError("File doesn’t have an alternative");
                     }
@@ -567,19 +564,24 @@ export class FileUploader {
                     // function idempotent.
                     if (!item.alternative.isProcessing) return item;
 
-                    return {
-                        ...item,
-                        alternative:
-                            alternative !== null
-                                ? {
-                                      isProcessing: false,
-                                      ok: true,
-                                      contentType: alternative.contentType,
-                                      contentLength: alternative.contentLength,
-                                      isImagePreviewContent: false,
-                                  }
-                                : null,
-                    };
+                    if (alternative === null) {
+                        return {
+                            ...item,
+                            alternative: null,
+                            hasProcessedNullAlternative: true,
+                        };
+                    } else {
+                        return {
+                            ...item,
+                            alternative: {
+                                isProcessing: false,
+                                ok: true,
+                                contentType: alternative.contentType,
+                                contentLength: alternative.contentLength,
+                                isImagePreviewContent: false,
+                            },
+                        };
+                    }
                 },
                 {initialItem: itemRef.current},
             );
@@ -1118,6 +1120,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.alternative) {
+                        // Noop if we've already finished processing the alternative. This makes the
+                        // function idempotent.
+                        if (item.hasProcessedNullAlternative) return item;
+
                         throw new InternalError("File doesn’t have an alternative");
                     }
 

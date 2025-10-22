@@ -10,8 +10,8 @@ ts_project(
         "//server/tasks/test_helpers",
     ],
     tests = {
-        "search_entity_table_test": {"size": "medium"},
-        "search_entity_table_index_embedding_chunks_job_test": {"size": "medium"},
+        "search_entity_actions_test": {"size": "medium"},
+        "search_entity_actions_index_embedding_chunks_job_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

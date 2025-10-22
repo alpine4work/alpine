@@ -12,6 +12,7 @@ ts_project(
         "//server/tasks/test_helpers",
         "//server/tasks/realtime/test_helpers",
     ],
+    tests = {"api_tasks_paths_test": {"size": "medium"}},
     visibility = ["//server/api:__subpackages__"],
     deps = [
         "//server/api/internal/shared",
