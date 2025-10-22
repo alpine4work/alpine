@@ -45,6 +45,7 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 const context = createTestContext({
     chatInjection,
@@ -112,10 +113,7 @@ function massageMessage(message: ChatMessageModel | null) {
         case "Content": {
             return {
                 authorId: message.author.id,
-                parentMessageIndex:
-                    message.payload.parent?.type === "Message"
-                        ? message.payload.parent.index
-                        : null,
+                parent: message.payload.parent,
                 content: message.payload.content.doc,
                 hasContentUpdated: message.payload.contentUpdate !== null,
             };
@@ -165,12 +163,12 @@ async function sendChatMessageToAccounts(
     {
         spaceId,
         otherAccountIds,
-        parentMessageIndex,
+        parent,
         content,
     }: {
         spaceId: SpaceId;
         otherAccountIds: ReadonlyArray<AccountId>;
-        parentMessageIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
     },
 ) {
@@ -181,7 +179,7 @@ async function sendChatMessageToAccounts(
 
     return sendChatMessage(context, {
         chatId,
-        parentMessageIndex,
+        parent,
         content,
         fileIds: [],
     });
@@ -193,7 +191,7 @@ test("can send initial messages to other accounts", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -218,7 +216,7 @@ test("can send initial messages to other accounts", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -228,7 +226,7 @@ test("can send initial messages to other accounts", async () => {
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -255,7 +253,7 @@ test("can send initial messages to other accounts", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -269,7 +267,7 @@ test("can send initial messages to same account", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -294,7 +292,7 @@ test("can send initial messages to same account", async () => {
         messages: [
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -304,7 +302,7 @@ test("can send initial messages to same account", async () => {
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA3), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -331,7 +329,7 @@ test("can send initial messages to same account", async () => {
         messages: [
             {
                 authorId: scenario.sessionA3.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -345,7 +343,7 @@ test("can send message to self", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -367,7 +365,7 @@ test("can send message to self", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -377,7 +375,7 @@ test("can send message to self", async () => {
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -397,13 +395,13 @@ test("can send message to self", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -417,7 +415,7 @@ test("can not get messages in a chat you don’t have access to", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -440,7 +438,7 @@ test("can not get messages in a chat you don’t have access to", async () => {
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -465,7 +463,7 @@ test("can not get messages in a chat you don’t have access to", async () => {
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content3,
     });
 
@@ -491,7 +489,7 @@ test("can reply to message by sending to account", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -516,7 +514,7 @@ test("can reply to message by sending to account", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -526,7 +524,7 @@ test("can reply to message by sending to account", async () => {
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -553,13 +551,13 @@ test("can reply to message by sending to account", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -574,7 +572,7 @@ test("can’t send messages to an account that doesn’t exist", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [generateId()],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new NotFoundError("Can’t find account in space"));
@@ -587,7 +585,7 @@ test("can’t send messages to accounts in a different space", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionB1.account.id],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new NotFoundError("Can’t find account in space"));
@@ -596,7 +594,7 @@ test("can’t send messages to accounts in a different space", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceB.id,
             otherAccountIds: [scenario.sessionB1.account.id],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
@@ -605,7 +603,7 @@ test("can’t send messages to accounts in a different space", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
             spaceId: scenario.spaceB.id,
             otherAccountIds: [scenario.sessionA1.account.id],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new NotFoundError("Can’t find account in space"));
@@ -614,7 +612,7 @@ test("can’t send messages to accounts in a different space", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionA1.account.id],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
@@ -627,7 +625,7 @@ test("can not send messages to self in a different space", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionA1), {
             spaceId: scenario.spaceB.id,
             otherAccountIds: [],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
@@ -636,7 +634,7 @@ test("can not send messages to self in a different space", async () => {
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [],
-            parentMessageIndex: null,
+            parent: null,
             content: content1,
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
@@ -648,7 +646,7 @@ test("can send message to account in multiple spaces", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -673,7 +671,7 @@ test("can send message to account in multiple spaces", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -683,7 +681,7 @@ test("can send message to account in multiple spaces", async () => {
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
         otherAccountIds: [scenario.sessionB1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -710,7 +708,7 @@ test("can send message to account in multiple spaces", async () => {
         messages: [
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -724,7 +722,7 @@ test("same accounts will have different chats in different spaces", async () => 
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionX1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -749,7 +747,7 @@ test("same accounts will have different chats in different spaces", async () => 
         messages: [
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -759,7 +757,7 @@ test("same accounts will have different chats in different spaces", async () => 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -786,7 +784,7 @@ test("same accounts will have different chats in different spaces", async () => 
         messages: [
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -804,7 +802,7 @@ test("can send messages to multiple accounts", async () => {
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -831,7 +829,7 @@ test("can send messages to multiple accounts", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -845,7 +843,7 @@ test("can send messages to multiple accounts", async () => {
             scenario.sessionX1.account.id,
             scenario.sessionX3.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -874,7 +872,7 @@ test("can send messages to multiple accounts", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -892,7 +890,7 @@ test("anyone the message was sent to can read the message", async () => {
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -919,7 +917,7 @@ test("anyone the message was sent to can read the message", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -940,7 +938,7 @@ test("anyone the message was sent to can read the message", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -961,7 +959,7 @@ test("anyone the message was sent to can read the message", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -982,7 +980,7 @@ test("anyone the message was sent to can read the message", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1018,7 +1016,7 @@ test("can reply to a message sent to multiple accounts", async () => {
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1045,7 +1043,7 @@ test("can reply to a message sent to multiple accounts", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1059,7 +1057,7 @@ test("can reply to a message sent to multiple accounts", async () => {
             scenario.sessionA2.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1088,13 +1086,13 @@ test("can reply to a message sent to multiple accounts", async () => {
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1112,7 +1110,7 @@ test("race condition where two accounts try to create the same chat at the same 
     const message1Promise = sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1121,7 +1119,7 @@ test("race condition where two accounts try to create the same chat at the same 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1146,7 +1144,7 @@ test("race condition where two accounts try to create the same chat at the same 
         messages: [
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1173,13 +1171,13 @@ test("race condition where two accounts try to create the same chat at the same 
         messages: [
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1202,7 +1200,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1227,7 +1225,7 @@ test("can send initial messages to other accounts (when a chat already has the o
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1246,7 +1244,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1273,7 +1271,7 @@ test("can send initial messages to other accounts (when a chat already has the o
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1292,7 +1290,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content3,
     });
 
@@ -1319,7 +1317,7 @@ test("can send initial messages to other accounts (when a chat already has the o
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 hasContentUpdated: false,
             },
@@ -1342,7 +1340,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1367,7 +1365,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1386,7 +1384,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1413,7 +1411,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1436,7 +1434,7 @@ test("can send initial messages to same account (when a chat already has the opt
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1461,7 +1459,7 @@ test("can send initial messages to same account (when a chat already has the opt
         messages: [
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1480,7 +1478,7 @@ test("can send initial messages to same account (when a chat already has the opt
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA3), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1507,7 +1505,7 @@ test("can send initial messages to same account (when a chat already has the opt
         messages: [
             {
                 authorId: scenario.sessionA3.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1527,7 +1525,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1549,7 +1547,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1559,7 +1557,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1579,13 +1577,13 @@ test("can send message to self (when a chat already has the optimistic id)", asy
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1608,7 +1606,7 @@ test("can not get messages in a chat you don’t have access to (when a chat alr
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1640,7 +1638,7 @@ test("can not get messages in a chat you don’t have access to (when a chat alr
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1671,7 +1669,7 @@ test("can not get messages in a chat you don’t have access to (when a chat alr
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content3,
     });
 
@@ -1706,7 +1704,7 @@ test("can reply to message by sending to account (when a chat already has the op
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1731,7 +1729,7 @@ test("can reply to message by sending to account (when a chat already has the op
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1741,7 +1739,7 @@ test("can reply to message by sending to account (when a chat already has the op
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1768,13 +1766,13 @@ test("can reply to message by sending to account (when a chat already has the op
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1797,7 +1795,7 @@ test("can send message to account in multiple spaces (when a chat already has th
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1822,7 +1820,7 @@ test("can send message to account in multiple spaces (when a chat already has th
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1841,7 +1839,7 @@ test("can send message to account in multiple spaces (when a chat already has th
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
         otherAccountIds: [scenario.sessionB1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1868,7 +1866,7 @@ test("can send message to account in multiple spaces (when a chat already has th
         messages: [
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1891,7 +1889,7 @@ test("same accounts will have different chats in different spaces (when a chat a
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionX1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -1916,7 +1914,7 @@ test("same accounts will have different chats in different spaces (when a chat a
         messages: [
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -1935,7 +1933,7 @@ test("same accounts will have different chats in different spaces (when a chat a
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionX1), {
         spaceId: scenario.spaceB.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -1962,7 +1960,7 @@ test("same accounts will have different chats in different spaces (when a chat a
         messages: [
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -1991,7 +1989,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2018,7 +2016,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2043,7 +2041,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
             scenario.sessionX1.account.id,
             scenario.sessionX3.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2072,7 +2070,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2101,7 +2099,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2128,7 +2126,7 @@ test("anyone the message was sent to can read the message (when a chat already h
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2149,7 +2147,7 @@ test("anyone the message was sent to can read the message (when a chat already h
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2170,7 +2168,7 @@ test("anyone the message was sent to can read the message (when a chat already h
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2191,7 +2189,7 @@ test("anyone the message was sent to can read the message (when a chat already h
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2238,7 +2236,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2265,7 +2263,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2279,7 +2277,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
             scenario.sessionA2.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2308,13 +2306,13 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionX1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2341,7 +2339,7 @@ test("race condition where two accounts try to create the same chat at the same 
     const message1Promise = sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2350,7 +2348,7 @@ test("race condition where two accounts try to create the same chat at the same 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA2), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2375,7 +2373,7 @@ test("race condition where two accounts try to create the same chat at the same 
         messages: [
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2402,13 +2400,13 @@ test("race condition where two accounts try to create the same chat at the same 
         messages: [
             {
                 authorId: scenario.sessionA2.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
@@ -2422,56 +2420,56 @@ test("can find correct chat to send message to when account has a lot of chats",
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2482,7 +2480,7 @@ test("can find correct chat to send message to when account has a lot of chats",
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2494,35 +2492,35 @@ test("can find correct chat to send message to when account has a lot of chats",
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
     const message4 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2533,7 +2531,7 @@ test("can find correct chat to send message to when account has a lot of chats",
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2586,13 +2584,13 @@ test("can find correct chat to send message to when account has a lot of chats",
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2613,13 +2611,13 @@ test("can find correct chat to send message to when account has a lot of chats",
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2640,13 +2638,13 @@ test("can find correct chat to send message to when account has a lot of chats",
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2667,13 +2665,13 @@ test("can find correct chat to send message to when account has a lot of chats",
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2694,13 +2692,13 @@ test("can find correct chat to send message to when account has a lot of chats",
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2759,56 +2757,56 @@ test("can find correct chat to send message to when account has a lot of chats (
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2819,7 +2817,7 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -2831,35 +2829,35 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
     const message4 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2870,7 +2868,7 @@ test("can find correct chat to send message to when account has a lot of chats (
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content2,
     });
 
@@ -2923,13 +2921,13 @@ test("can find correct chat to send message to when account has a lot of chats (
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2950,13 +2948,13 @@ test("can find correct chat to send message to when account has a lot of chats (
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -2977,13 +2975,13 @@ test("can find correct chat to send message to when account has a lot of chats (
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -3004,13 +3002,13 @@ test("can find correct chat to send message to when account has a lot of chats (
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -3031,13 +3029,13 @@ test("can find correct chat to send message to when account has a lot of chats (
         messages: [
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 hasContentUpdated: false,
             },
             {
                 authorId: scenario.sessionA1.account.id,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 hasContentUpdated: false,
             },
@@ -3058,56 +3056,56 @@ test("can get chats shared between an account and other accounts", async () => {
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message4 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message5 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message6 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message7 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionA3.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message8 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionX1.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -3118,7 +3116,7 @@ test("can get chats shared between an account and other accounts", async () => {
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -3130,28 +3128,28 @@ test("can get chats shared between an account and other accounts", async () => {
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message11 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
         otherAccountIds: [scenario.sessionA2.account.id, scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message12 = await sendChatMessageToAccounts(context.action(scenario.sessionB1), {
         spaceId: scenario.spaceB.id,
         otherAccountIds: [scenario.sessionX1.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
     const message13 = await sendChatMessageToAccounts(context.action(scenario.sessionB1), {
         spaceId: scenario.spaceB.id,
         otherAccountIds: [scenario.sessionX1.account.id, scenario.sessionX2.account.id],
-        parentMessageIndex: null,
+        parent: null,
         content: content1,
     });
 
@@ -4232,7 +4230,7 @@ test("bot can’t send messages in a chat if it’s not a member even if its sco
     await expect(
         sendChatMessage(bot.action({type: "Account", accountId: session3.account.id}), {
             chatId: chat.id,
-            parentMessageIndex: null,
+            parent: null,
             content: createSimpleMessageContent("bar"),
             fileIds: [],
         }),
@@ -4252,7 +4250,7 @@ test("bot can send messages in a chat if it’s a member", async () => {
 
     await sendChatMessage(bot.action({type: "Account", accountId: session3.account.id}), {
         chatId: chat.id,
-        parentMessageIndex: null,
+        parent: null,
         content: createSimpleMessageContent("bar"),
         fileIds: [],
     });
@@ -4402,13 +4400,10 @@ testMessagingImplementation<ChatId>(context, {
     getRoomBotScope(chatId) {
         return {type: "Chat", chatId};
     },
-    async createMessage(
-        context,
-        {roomKey: chatId, parentMessageIndex, content, fileIds, isStream},
-    ) {
+    async createMessage(context, {roomKey: chatId, parent, content, fileIds, isStream}) {
         const message = await sendChatMessage(context, {
             chatId,
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
             isStream,

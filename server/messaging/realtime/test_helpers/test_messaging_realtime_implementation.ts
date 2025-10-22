@@ -155,21 +155,21 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -334,7 +334,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -382,7 +382,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -481,7 +481,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -561,7 +561,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -622,7 +622,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -668,7 +668,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -780,7 +780,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -841,7 +841,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection3.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -997,7 +997,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1009,13 +1009,13 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await connection3.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -1160,7 +1160,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1177,7 +1177,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection2CreateMessagePromise = connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -1185,7 +1185,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             const {unpause: unpause2} = await pause2Promise;
 
             await connection3.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -1342,7 +1342,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1355,13 +1355,13 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection4.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await connection3.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -1511,7 +1511,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1618,7 +1618,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1709,21 +1709,21 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1914,21 +1914,21 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2103,21 +2103,21 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2346,7 +2346,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(connection3.takeEvents()).toEqual([]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [`Document:${document1.id}`],
             });
@@ -2455,7 +2455,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             ]);
 
             await connection2.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [`Document:${document2.id}`, `Document:${document3.id}`],
             });
@@ -2711,7 +2711,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             // First create a message that we'll update
             const initialMessage = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2943,7 +2943,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const createMessagePromise = connection3.procedures.createMessage({
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [`Document:${document.id}`],
             });
@@ -3110,7 +3110,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             // First create a message that we'll update
             const initialMessage = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });

@@ -25,6 +25,7 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -115,11 +116,11 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
     protected override _createMessage(
         context: TestAccountActionContext,
         {
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         }: {
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
         },
@@ -127,7 +128,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         return createDocumentComment(context, {
             documentId: this.document.id,
             commentThreadId: this.id,
-            parentCommentIndex: parentMessageIndex,
+            parent,
             content,
             fileIds,
         });

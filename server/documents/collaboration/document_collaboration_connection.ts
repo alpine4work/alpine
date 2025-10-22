@@ -487,14 +487,11 @@ export class DocumentCollaborationConnection {
             };
         },
 
-        createComment: async (
-            context,
-            {commentThreadId, parentCommentIndex: parentMessageIndex, content, fileIds},
-        ) => {
+        createComment: async (context, {commentThreadId, parent, content, fileIds}) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.createMessage(context, {parentMessageIndex, content, fileIds});
+            return connection.createMessage(context, {parent, content, fileIds});
         },
 
         updateCommentContent: async (
@@ -932,10 +929,7 @@ export class DocumentCollaborationConnection {
                     connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
                 );
             },
-            createMessage: async (
-                context,
-                {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
-            ) => {
+            createMessage: async (context, {roomKey, parent, content, fileIds}) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
                 // Wait for our optimistic comment thread to persist before talking to
@@ -952,7 +946,7 @@ export class DocumentCollaborationConnection {
                 return createDocumentComment(context, {
                     documentId,
                     commentThreadId,
-                    parentCommentIndex,
+                    parent,
                     content,
                     fileIds,
                 });

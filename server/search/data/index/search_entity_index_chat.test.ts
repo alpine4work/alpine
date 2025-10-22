@@ -302,7 +302,7 @@ test("will index streaming chat message after delay", async () => {
 
     const message = await sendChatMessage(botAccount.action(session), {
         chatId: chat.id,
-        parentMessageIndex: null,
+        parent: null,
         content: createSimpleMessageContent(),
         fileIds: [],
         isStream: true,

@@ -143,7 +143,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
 
             const {spaceId, index, createdTime} = await sendChatMessage(context, {
                 chatId: pathParameters.id,
-                parentMessageIndex: null,
+                parent: null,
                 content,
                 fileIds: [],
                 consistency: "StrongWithinCache",

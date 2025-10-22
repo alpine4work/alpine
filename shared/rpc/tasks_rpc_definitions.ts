@@ -19,7 +19,10 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdateSchema,
+    MessageContentPayloadParentSchema,
+} from "~/shared/messaging/message_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -184,7 +187,7 @@ export const createTaskComment = defineRpc({
     name: "createTaskComment",
     input: {
         taskId: Schema.id<TaskId>(),
-        parentCommentIndex: Schema.integer.nullable(),
+        parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },

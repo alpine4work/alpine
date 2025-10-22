@@ -11,6 +11,8 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
+    MessageContentPayloadParent,
+    MessageContentPayloadParentSchema,
     MessageContentPayloadSchema,
     MessageStreamPartPayload,
     MessageStreamPartPayloadSchema,
@@ -53,7 +55,7 @@ export type BackfillMessagesProcedureOutput<Message extends MessageModel> = {
 };
 
 export type CreateMessageProcedure = (input: {
-    parentMessageIndex: number | null;
+    parent: MessageContentPayloadParent | null;
     content: MessageContent;
     fileIds: ReadonlyArray<FileId | FileEntityId>;
 }) => Promise<{}>;
@@ -138,7 +140,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
          */
         createMessage: {
             input: {
-                parentMessageIndex: Schema.integer.nullable(),
+                parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
             },

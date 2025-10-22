@@ -10,7 +10,10 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdateSchema,
+    MessageContentPayloadParentSchema,
+} from "~/shared/messaging/message_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -60,7 +63,7 @@ export const sendChatMessage = defineRpc({
     name: "sendChatMessage",
     input: {
         chatId: Schema.id<ChatId>(),
-        parentMessageIndex: Schema.integer.nullable(),
+        parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },

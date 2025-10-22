@@ -140,10 +140,8 @@ export class PostRealtimeConnection {
             };
         },
 
-        createComment: async (
-            context,
-            {parentCommentIndex: parentMessageIndex, content, fileIds},
-        ) => this._connection.createMessage(context, {parentMessageIndex, content, fileIds}),
+        createComment: async (context, {parent, content, fileIds}) =>
+            this._connection.createMessage(context, {parent, content, fileIds}),
 
         updateCommentContent: (context, {commentIndex: messageIndex, version, steps}) =>
             this._connection.updateMessageContent(context, {messageIndex, version, steps}),
@@ -222,11 +220,11 @@ export class PostRealtimeConnection {
 
 const createMessage: CreateMessageFunction<PostId> = (
     context,
-    {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
+    {roomKey: postId, parent, content, fileIds},
 ) => {
     return createPostComment(context, {
         postId,
-        parentCommentIndex,
+        parent,
         content,
         fileIds,
     });

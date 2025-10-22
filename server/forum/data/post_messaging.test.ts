@@ -132,13 +132,10 @@ testMessagingImplementation<PostId>(context, {
     getRoomBotScope(postId) {
         return {type: "Post", postId};
     },
-    async createMessage(
-        context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds, isStream},
-    ) {
+    async createMessage(context, {roomKey: postId, parent, content, fileIds, isStream}) {
         const comment = await createPostComment(context, {
             postId,
-            parentCommentIndex,
+            parent,
             content,
             fileIds,
             isStream,

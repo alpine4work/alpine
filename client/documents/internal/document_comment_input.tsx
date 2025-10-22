@@ -188,7 +188,7 @@ export function DocumentCommentInput({
             createMessage={async input => {
                 await procedures.createComment({
                     commentThreadId: commentThread.id,
-                    parentCommentIndex: input.parentMessageIndex,
+                    parent: input.parent,
                     content: input.content,
                     fileIds: input.fileIds,
                 });

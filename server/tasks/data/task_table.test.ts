@@ -19387,7 +19387,7 @@ test("throws error for users that only have view access when trying to access ta
     const content1 = createSimpleMessageContent("test1");
     const taskComment = await createTaskComment(context.action(creatorSession), {
         taskId: task.id,
-        parentCommentIndex: null,
+        parent: null,
         content: content1,
         fileIds: [],
     });
@@ -19491,7 +19491,7 @@ test("throws error for users that only have view access when trying to create ta
     const content1 = createSimpleMessageContent("test1");
     const taskCommentDetails = {
         taskId: task.id,
-        parentCommentIndex: null,
+        parent: null,
         content: content1,
         fileIds: [],
     };

@@ -55,6 +55,7 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messagin
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {
     markSearchAffinityCreateDocumentEntityInteraction,
@@ -4397,7 +4398,7 @@ export async function createDocumentComment(
     {
         documentId,
         commentThreadId,
-        parentCommentIndex,
+        parent,
         content,
         fileIds,
         isStream,
@@ -4405,7 +4406,7 @@ export async function createDocumentComment(
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
-        parentCommentIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
@@ -4417,7 +4418,7 @@ export async function createDocumentComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [spaceId, commentThreadItem, parentCommentItem] = await runAllPromises([
+        const [spaceId, commentThreadItem] = await runAllPromises([
             (async () => {
                 const {spaceId} = await authorizeDocumentAccess(context, documentId, "Comment", {
                     consistency,
@@ -4448,19 +4449,50 @@ export async function createDocumentComment(
                 commentThreadId,
                 consistency,
             }),
-            typeof parentCommentIndex === "number"
-                ? DocumentsTable.getItem(
-                      context,
-                      {
-                          partitionType: "DocumentCommentThread",
-                          sortRangeType: "Comments",
-                          documentId,
-                          commentThreadId,
-                          commentIndex: parentCommentIndex,
-                      },
-                      {consistency},
-                  )
-                : null,
+            (async () => {
+                if (!parent) return;
+
+                switch (parent.type) {
+                    case "Message": {
+                        await DocumentsTable.getItem(context, {
+                            partitionType: "DocumentCommentThread",
+                            sortRangeType: "Comments",
+                            documentId,
+                            commentThreadId,
+                            commentIndex: parent.index,
+                        });
+                        break;
+                    }
+                    case "MessagesRange": {
+                        const commentItems = await arrayFromAsyncIterable(
+                            processCommentsQuery(
+                                "Ascending",
+                                DocumentsTable.query(context, {
+                                    limit: "All",
+                                    partitionKey: {
+                                        partitionType: "DocumentCommentThread",
+                                        documentId,
+                                        commentThreadId,
+                                    },
+                                    startSortKey: {
+                                        sortRangeType: "Comments",
+                                        commentIndex: parent.startIndex,
+                                    },
+                                    endSortKey: {
+                                        sortRangeType: "Comments",
+                                        commentIndex: parent.endIndex,
+                                    },
+                                }),
+                            ),
+                        );
+
+                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(parent);
+                }
+            })(),
         ]);
 
         if (!commentThreadItem)
@@ -4496,9 +4528,7 @@ export async function createDocumentComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parent: parentCommentItem
-                        ? {type: "Message", index: parentCommentItem.commentIndex}
-                        : null,
+                    parent,
                     content,
                     contentUpdate: null,
                     fileIds,

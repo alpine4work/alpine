@@ -35,6 +35,7 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messagin
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {getAccount, isAccountMemberOfSpace} from "~/server/spaces/spaces_actions.js";
@@ -43,7 +44,6 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {
     FailedPreconditionError,
     InternalError,
-    NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -82,14 +82,14 @@ export async function createPostComment(
     context: ServerAccountActionContext,
     {
         postId,
-        parentCommentIndex,
+        parent,
         content,
         fileIds,
         isStream,
         consistency = "Eventual",
     }: {
         postId: PostId;
-        parentCommentIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
@@ -151,22 +151,46 @@ export async function createPostComment(
             }),
 
             (async () => {
-                if (typeof parentCommentIndex !== "number") return;
+                if (!parent) return;
 
-                const parentCommentItem = await ForumTable.getPartialItemIfExists(
-                    context,
-                    {
-                        partitionType: "Post",
-                        sortRangeType: "Comments",
-                        postId,
-                        commentIndex: parentCommentIndex,
-                    },
-                    {
-                        consistency,
-                        attributes: [],
-                    },
-                );
-                if (!parentCommentItem) throw new NotFoundError("Post parent comment not found");
+                switch (parent.type) {
+                    case "Message": {
+                        await ForumTable.getItem(context, {
+                            partitionType: "Post",
+                            sortRangeType: "Comments",
+                            postId,
+                            commentIndex: parent.index,
+                        });
+                        break;
+                    }
+                    case "MessagesRange": {
+                        const commentItems = await arrayFromAsyncIterable(
+                            processCommentsQuery(
+                                "Ascending",
+                                ForumTable.query(context, {
+                                    limit: "All",
+                                    partitionKey: {
+                                        partitionType: "Post",
+                                        postId,
+                                    },
+                                    startSortKey: {
+                                        sortRangeType: "Comments",
+                                        commentIndex: parent.startIndex,
+                                    },
+                                    endSortKey: {
+                                        sortRangeType: "Comments",
+                                        commentIndex: parent.endIndex,
+                                    },
+                                }),
+                            ),
+                        );
+
+                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(parent);
+                }
             })(),
         ]);
 
@@ -198,10 +222,7 @@ export async function createPostComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parent:
-                        parentCommentIndex !== null
-                            ? {type: "Message", index: parentCommentIndex}
-                            : null,
+                    parent,
                     content,
                     contentUpdate: null,
                     fileIds,

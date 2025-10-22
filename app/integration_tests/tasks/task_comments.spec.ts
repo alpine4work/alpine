@@ -66,7 +66,7 @@ test("expanding task from peek opens task detail view", async ({page, context: b
     const content1 = createSimpleMessageContent("1st task comment");
     await createTaskComment(context.action(session), {
         taskId: task.id,
-        parentCommentIndex: null,
+        parent: null,
         content: content1,
         fileIds: [],
     });
@@ -149,7 +149,7 @@ test("task comments are visible in task detail view and can add comments", async
     const content1 = createSimpleMessageContent("1st task comment");
     await createTaskComment(context.action(session), {
         taskId: task.id,
-        parentCommentIndex: null,
+        parent: null,
         content: content1,
         fileIds: [],
     });
@@ -189,7 +189,7 @@ test("mobile task comments route navigates to task detail view when window size 
     const content1 = createSimpleMessageContent("1st task comment");
     await createTaskComment(context.action(session), {
         taskId: task.id,
-        parentCommentIndex: null,
+        parent: null,
         content: content1,
         fileIds: [],
     });

@@ -39,7 +39,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
 
     const comment = await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
@@ -123,7 +123,7 @@ test("can’t edit or delete a post comment that’s not yours", async ({
 
     const comment = await createPostComment(context.action(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
@@ -180,7 +180,7 @@ test("can see a post comment edited in realtime", async ({
 
     const comment = await createPostComment(context.action(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
@@ -265,7 +265,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
 
     const comment = await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
@@ -328,7 +328,7 @@ test("can see a post comment deleted in realtime", async ({
 
     const comment = await createPostComment(context.action(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
@@ -407,7 +407,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
 
     const comment = await createPostComment(context.action(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
@@ -504,7 +504,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
 
     const comment = await createPostComment(context.action(session2), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });

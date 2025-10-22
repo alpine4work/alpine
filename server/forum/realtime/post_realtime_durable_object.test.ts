@@ -122,8 +122,8 @@ testMessagingRealtimeImplementation<PostId>(context, {
                         typingStateByConnectionId,
                     };
                 },
-                createMessage: ({parentMessageIndex: parentCommentIndex, content, fileIds}) =>
-                    connection.procedures.createComment({parentCommentIndex, content, fileIds}),
+                createMessage: ({parent, content, fileIds}) =>
+                    connection.procedures.createComment({parent, content, fileIds}),
                 updateMessageContent: ({messageIndex: commentIndex, version, steps}) =>
                     connection.procedures.updateCommentContent({commentIndex, version, steps}),
                 deleteMessage: ({messageIndex: commentIndex}) =>
@@ -151,13 +151,10 @@ testMessagingRealtimeImplementation<PostId>(context, {
             stream: null,
         });
     },
-    createMessage(
-        context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
-    ) {
+    createMessage(context, {roomKey: postId, parent, content, fileIds}) {
         return createPostComment(context, {
             postId,
-            parentCommentIndex,
+            parent,
             content,
             fileIds,
         });

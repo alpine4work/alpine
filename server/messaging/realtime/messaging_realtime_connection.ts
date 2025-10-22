@@ -35,6 +35,7 @@ import {
 } from "~/shared/messaging/message_references.js";
 import {
     MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
     MessagePayload,
 } from "~/shared/messaging/message_schema.js";
 import {
@@ -54,7 +55,7 @@ export type CreateMessageFunction<RoomKey extends string> = (
     context: WorkerSessionActionContext,
     options: {
         roomKey: RoomKey;
-        parentMessageIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
@@ -497,11 +498,11 @@ export class MessagingRealtimeConnection<
     public async createMessage(
         context: WorkerSessionActionContext,
         {
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         }: {
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId | FileEntityId>;
         },
@@ -514,7 +515,7 @@ export class MessagingRealtimeConnection<
 
         const {index, createdTime} = await this._createMessage(context, {
             roomKey: this.roomKey,
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         });
@@ -532,13 +533,7 @@ export class MessagingRealtimeConnection<
 
             const messagePayload: MessagePayload = {
                 type: "Content",
-                parent:
-                    parentMessageIndex !== null
-                        ? {
-                              type: "Message",
-                              index: parentMessageIndex,
-                          }
-                        : null,
+                parent,
                 content,
                 contentUpdate: null,
                 fileIds,

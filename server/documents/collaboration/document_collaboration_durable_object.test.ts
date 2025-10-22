@@ -1356,7 +1356,7 @@ test("when comment threads are added back to the document they will be loaded", 
     await createDocumentComment(session3.action(), {
         documentId: document.id,
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
     });
@@ -1517,7 +1517,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
     await createDocumentComment(session3.action(), {
         documentId: document.id,
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
     });
@@ -1739,7 +1739,7 @@ test("can create comments in comment threads", async () => {
     await expect(
         connection1.procedures.createComment({
             commentThreadId,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         }),
@@ -1853,7 +1853,7 @@ test("can create comments in comment threads", async () => {
 
     await connection1.procedures.createComment({
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
     });
@@ -2034,7 +2034,7 @@ test("can create comments in comment threads", async () => {
 
     await connection1.procedures.createComment({
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test message content 3"),
         fileIds: [],
     });
@@ -2136,7 +2136,7 @@ test("if comment thread is persisting we will wait to create messages but respon
     await expect(
         connection1.procedures.createComment({
             commentThreadId,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         }),
@@ -2216,7 +2216,7 @@ test("if comment thread is persisting we will wait to create messages but respon
 
     const createMessagePromise = connection2.procedures.createComment({
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
     });
@@ -2410,7 +2410,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
     await expect(
         connection1.procedures.createComment({
             commentThreadId,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         }),
@@ -2588,7 +2588,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
 
     const createMessagePromise = connection2.procedures.createComment({
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
     });
@@ -2706,7 +2706,7 @@ test("while comment thread is persisting we will respond to comment load request
     await expect(
         connection1.procedures.createComment({
             commentThreadId,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         }),
@@ -4833,7 +4833,7 @@ test("can’t call comment procedures as viewer", async () => {
     await expect(
         connection2.procedures.createComment({
             commentThreadId: commentThread.id,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("foo"),
             fileIds: [],
         }),
@@ -4843,7 +4843,7 @@ test("can’t call comment procedures as viewer", async () => {
 
     await connection1.procedures.createComment({
         commentThreadId: commentThread.id,
-        parentCommentIndex: null,
+        parent: null,
         content: oldContent,
         fileIds: [],
     });
@@ -5327,7 +5327,7 @@ test("viewer receives update events without comment data", async () => {
 
     await connection2.procedures.createComment({
         commentThreadId,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test comment 2"),
         fileIds: [],
     });
@@ -6016,10 +6016,10 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
                         typingStateByConnectionId,
                     };
                 },
-                createMessage: ({parentMessageIndex: parentCommentIndex, content, fileIds}) =>
+                createMessage: ({parent, content, fileIds}) =>
                     connection.procedures.createComment({
                         commentThreadId,
-                        parentCommentIndex,
+                        parent,
                         content,
                         fileIds,
                     }),
@@ -6059,13 +6059,13 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             stream: null,
         });
     },
-    createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds}) {
+    createMessage(context, {roomKey, parent, content, fileIds}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return createDocumentCommentRpc(context, {
             documentId,
             commentThreadId,
-            parentCommentIndex,
+            parent,
             content,
             fileIds,
         });

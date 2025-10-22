@@ -10,6 +10,7 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
@@ -63,7 +64,7 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
         /** See `createMessage` in `messaging_realtime_protocol.ts`. */
         createComment: {
             input: {
-                parentCommentIndex: Schema.integer.nullable(),
+                parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
             },

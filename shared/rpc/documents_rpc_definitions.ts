@@ -32,7 +32,10 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdateSchema,
+    MessageContentPayloadParentSchema,
+} from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -233,7 +236,7 @@ export const createDocumentComment = defineRpc({
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
-        parentCommentIndex: Schema.integer.nullable(),
+        parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },

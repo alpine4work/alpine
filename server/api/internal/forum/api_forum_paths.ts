@@ -164,7 +164,7 @@ export const apiForumPaths: Pick<
 
             const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParameters.id,
-                parentCommentIndex: null,
+                parent: null,
                 content,
                 fileIds: [],
                 isStream: requestBody.isStream,

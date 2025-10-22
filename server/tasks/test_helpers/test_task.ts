@@ -39,6 +39,7 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -154,18 +155,18 @@ export class TestTask extends TestCommentRoomBase {
     protected override _createMessage(
         context: TestAccountActionContext,
         {
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         }: {
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
         },
     ) {
         return createTaskComment(context, {
             taskId: this.id,
-            parentCommentIndex: parentMessageIndex,
+            parent,
             content,
             fileIds,
         });

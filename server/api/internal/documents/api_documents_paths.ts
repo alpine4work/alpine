@@ -130,7 +130,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             const {spaceId, index, createdTime} = await createDocumentComment(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
-                parentCommentIndex: null,
+                parent: null,
                 content,
                 fileIds: [],
                 isStream: requestBody.isStream,

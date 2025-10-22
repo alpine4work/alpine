@@ -57,21 +57,21 @@ test("can open and close post comments in channel", async ({
 
     await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 2"),
         fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 3"),
         fileIds: [],
     });
@@ -116,21 +116,21 @@ test("comments are always open at a direct post url", async ({page, context: bro
 
     await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 2"),
         fileIds: [],
     });
 
     await createPostComment(context.action(session1), {
         postId: post.id,
-        parentCommentIndex: null,
+        parent: null,
         content: createSimpleMessageContent("Test post comment content 3"),
         fileIds: [],
     });

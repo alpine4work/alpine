@@ -34,7 +34,6 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-    UnimplementedError,
 } from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -55,6 +54,7 @@ import {
 import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
     MessagePayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
@@ -66,7 +66,7 @@ type CreateMessageFunctionForTest<RoomKey extends string> = (
     context: TestAccountActionContext,
     options: {
         roomKey: RoomKey;
-        parentMessageIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId>;
         isStream?: boolean;
@@ -537,25 +537,9 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         switch (message.payload.type) {
             case "Content": {
-                let parentMessageIndex: number | null = null;
-
-                if (message.payload.parent !== null) {
-                    switch (message.payload.parent.type) {
-                        case "Message": {
-                            parentMessageIndex = message.payload.parent.index;
-                            break;
-                        }
-                        default: {
-                            throw new UnimplementedError(
-                                `\`massageMessage()\` hasn’t implemented parent type ${message.payload.parent.type}`,
-                            );
-                        }
-                    }
-                }
-
                 return {
                     author: message.author,
-                    parentMessageIndex,
+                    parent: message.payload.parent,
                     content: message.payload.content.doc,
                     hasContentUpdated: message.payload.contentUpdate !== null,
                     ...(message.payload.files.length > 0
@@ -581,24 +565,8 @@ export function testMessagingImplementation<RoomKey extends string>(
     function massageMessagePayload(payload: MessagePayload) {
         switch (payload.type) {
             case "Content": {
-                let parentMessageIndex: number | null = null;
-
-                if (payload.parent !== null) {
-                    switch (payload.parent.type) {
-                        case "Message": {
-                            parentMessageIndex = payload.parent.index;
-                            break;
-                        }
-                        default: {
-                            throw new UnimplementedError(
-                                `\`massageMessagePayload()\` hasn’t implemented parent type ${payload.parent.type}`,
-                            );
-                        }
-                    }
-                }
-
                 return {
-                    parentMessageIndex,
+                    parent: payload.parent,
                     content: payload.content,
                     hasContentUpdated: payload.contentUpdate !== null,
                     ...(payload.fileIds.length > 0 ? {fileIds: payload.fileIds} : {}),
@@ -825,7 +793,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -844,7 +812,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -856,7 +824,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -875,7 +843,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -883,7 +851,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message2 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -902,7 +870,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     hasContentUpdated: false,
                 },
@@ -910,7 +878,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -929,7 +897,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content3,
                     hasContentUpdated: false,
                 },
@@ -941,7 +909,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -958,7 +926,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -969,7 +937,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: getMissingRoomKey(),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 }),
@@ -982,7 +950,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(otherSpaceSession), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 }),
@@ -994,21 +962,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -1016,7 +984,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session4), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content4,
                     fileIds: [],
                 }),
@@ -1026,7 +994,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await expect(
                     createMessage(context.action(session5), {
                         roomKey: room.key,
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         fileIds: [],
                     }),
@@ -1047,7 +1015,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session2), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content,
                     fileIds: [],
                 }),
@@ -1068,7 +1036,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [fileId],
             });
@@ -1087,7 +1055,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                     fileIds: [fileId],
@@ -1127,7 +1095,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [file1Id, file2Id, file3Id],
             });
@@ -1146,7 +1114,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                     fileIds: [file1Id, file2Id, file3Id],
@@ -1162,7 +1130,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [fileId],
                 }),
@@ -1181,7 +1149,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [generateChronologicalId()],
                 }),
@@ -1210,7 +1178,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: room1.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [fileId],
                 }),
@@ -1231,7 +1199,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [fileId],
                 }),
@@ -1249,7 +1217,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1266,7 +1234,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1286,7 +1254,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1342,28 +1310,28 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message1.index,
+                parent: {type: "Message", index: message1.index},
                 content: content2,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message2.index,
+                parent: {type: "Message", index: message2.index},
                 content: content3,
                 fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message2.index,
+                parent: {type: "Message", index: message2.index},
                 content: content4,
                 fileIds: [],
             });
@@ -1380,7 +1348,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1398,7 +1366,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: message1.index,
+                    parent: {type: "Message", index: message1.index},
                     content: content2,
                     hasContentUpdated: false,
                 },
@@ -1416,7 +1384,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: message2.index,
+                    parent: {type: "Message", index: message2.index},
                     content: content3,
                     hasContentUpdated: false,
                 },
@@ -1434,7 +1402,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: message2.index,
+                    parent: {type: "Message", index: message2.index},
                     content: content4,
                     hasContentUpdated: false,
                 },
@@ -1447,7 +1415,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await expect(
                 createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: 42,
+                    parent: {type: "Message", index: 42},
                     content: content1,
                     fileIds: [],
                 }),
@@ -1461,7 +1429,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1470,7 +1438,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -1479,7 +1447,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -1495,7 +1463,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -1508,7 +1476,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1525,7 +1493,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1550,7 +1518,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     hasContentUpdated: true,
                 },
@@ -1562,7 +1530,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1599,7 +1567,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1627,7 +1595,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1666,7 +1634,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1729,7 +1697,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1746,7 +1714,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1773,7 +1741,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1785,7 +1753,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1802,7 +1770,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1829,7 +1797,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1841,7 +1809,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1858,7 +1826,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1883,7 +1851,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     hasContentUpdated: true,
                 },
@@ -1896,7 +1864,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1913,7 +1881,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -1938,7 +1906,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     hasContentUpdated: true,
                 },
@@ -1967,7 +1935,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     hasContentUpdated: true,
                 },
@@ -1979,7 +1947,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -1996,7 +1964,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2023,7 +1991,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2051,7 +2019,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2066,7 +2034,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2083,7 +2051,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2126,7 +2094,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2138,7 +2106,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2155,7 +2123,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2208,7 +2176,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2225,7 +2193,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2250,7 +2218,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2262,7 +2230,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2279,7 +2247,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2304,7 +2272,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2316,7 +2284,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2333,7 +2301,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2367,7 +2335,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2384,7 +2352,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2411,7 +2379,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session2.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2423,7 +2391,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2440,7 +2408,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2465,7 +2433,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2491,7 +2459,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2504,7 +2472,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2521,7 +2489,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2561,7 +2529,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2578,7 +2546,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         space.id,
                         session1.accountId,
                     ),
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     hasContentUpdated: false,
                 },
@@ -2620,56 +2588,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -2692,7 +2660,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2702,7 +2670,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -2712,7 +2680,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -2722,7 +2690,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -2732,7 +2700,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2742,7 +2710,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -2752,7 +2720,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2762,7 +2730,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -2775,56 +2743,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -2876,7 +2844,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -2899,7 +2867,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2908,7 +2876,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -2931,7 +2899,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2941,7 +2909,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -2950,7 +2918,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -2973,7 +2941,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -2983,7 +2951,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -2993,7 +2961,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3125,56 +3093,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -3197,7 +3165,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3207,7 +3175,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3217,7 +3185,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3242,7 +3210,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3252,7 +3220,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3262,7 +3230,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3272,7 +3240,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3282,7 +3250,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3307,7 +3275,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3317,7 +3285,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3327,7 +3295,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3337,7 +3305,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3347,7 +3315,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3357,7 +3325,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3367,7 +3335,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3392,7 +3360,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3402,7 +3370,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3412,7 +3380,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3422,7 +3390,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3432,7 +3400,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3442,7 +3410,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3452,7 +3420,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3462,7 +3430,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3475,56 +3443,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -3547,7 +3515,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3557,7 +3525,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3567,7 +3535,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3577,7 +3545,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3587,7 +3555,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3597,7 +3565,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3622,7 +3590,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3632,7 +3600,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3642,7 +3610,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3669,56 +3637,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -3741,7 +3709,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3766,7 +3734,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3776,7 +3744,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3786,7 +3754,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3796,7 +3764,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3821,7 +3789,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3831,7 +3799,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3841,7 +3809,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3851,7 +3819,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3861,7 +3829,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -3871,7 +3839,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -3881,7 +3849,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -3894,56 +3862,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -3966,7 +3934,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3976,7 +3944,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -3986,7 +3954,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4011,7 +3979,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4021,7 +3989,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -4046,7 +4014,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4056,7 +4024,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -4066,7 +4034,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -4090,56 +4058,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -4162,7 +4130,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4172,7 +4140,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4182,7 +4150,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4207,7 +4175,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4217,7 +4185,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4227,7 +4195,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4237,7 +4205,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4250,56 +4218,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -4322,7 +4290,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4332,7 +4300,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4342,7 +4310,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4367,7 +4335,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4377,7 +4345,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4387,7 +4355,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4397,7 +4365,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4422,7 +4390,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4432,7 +4400,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4442,7 +4410,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4452,7 +4420,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4465,56 +4433,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -4537,7 +4505,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4547,7 +4515,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4557,7 +4525,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4567,7 +4535,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4577,7 +4545,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4587,7 +4555,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4597,7 +4565,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -4607,7 +4575,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -4620,56 +4588,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -4721,7 +4689,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -4744,7 +4712,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4753,7 +4721,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -4776,7 +4744,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4786,7 +4754,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4795,7 +4763,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -4818,7 +4786,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -4828,7 +4796,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -4838,7 +4806,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -4970,56 +4938,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -5042,7 +5010,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5052,7 +5020,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5062,7 +5030,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5087,7 +5055,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5097,7 +5065,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5107,7 +5075,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5117,7 +5085,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5127,7 +5095,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5152,7 +5120,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5162,7 +5130,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5172,7 +5140,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5182,7 +5150,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5192,7 +5160,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5202,7 +5170,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5212,7 +5180,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5237,7 +5205,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5247,7 +5215,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5257,7 +5225,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5267,7 +5235,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5277,7 +5245,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5287,7 +5255,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5297,7 +5265,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5307,7 +5275,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5320,56 +5288,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -5392,7 +5360,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5417,7 +5385,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5427,7 +5395,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5437,7 +5405,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5447,7 +5415,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5472,7 +5440,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5482,7 +5450,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5492,7 +5460,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5502,7 +5470,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5512,7 +5480,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5522,7 +5490,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5532,7 +5500,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5545,56 +5513,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -5617,7 +5585,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5627,7 +5595,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5637,7 +5605,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5647,7 +5615,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5657,7 +5625,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5667,7 +5635,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5692,7 +5660,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5702,7 +5670,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5712,7 +5680,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -5736,56 +5704,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -5808,7 +5776,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5818,7 +5786,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5828,7 +5796,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5853,7 +5821,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5863,7 +5831,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5888,7 +5856,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -5898,7 +5866,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -5908,7 +5876,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -5932,56 +5900,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -6004,7 +5972,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6014,7 +5982,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6039,7 +6007,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -6049,7 +6017,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6059,7 +6027,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6072,56 +6040,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -6144,7 +6112,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6154,7 +6122,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -6164,7 +6132,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -6189,7 +6157,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6199,7 +6167,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6209,7 +6177,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -6219,7 +6187,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -6244,7 +6212,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6254,7 +6222,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6264,7 +6232,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -6274,7 +6242,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -6287,56 +6255,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -6376,7 +6344,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -6394,7 +6362,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6412,7 +6380,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -6422,7 +6390,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -6432,7 +6400,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6442,7 +6410,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6455,56 +6423,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -6544,7 +6512,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -6562,7 +6530,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -6580,7 +6548,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -6590,7 +6558,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -6600,7 +6568,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6610,7 +6578,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -6626,7 +6594,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
@@ -6663,7 +6631,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
@@ -6698,7 +6666,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
@@ -6774,7 +6742,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
@@ -6827,21 +6795,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
 
                 const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     fileIds: [],
                 });
 
                 const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content3,
                     fileIds: [],
                 });
@@ -6916,21 +6884,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
 
                 const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     fileIds: [],
                 });
 
                 const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content3,
                     fileIds: [],
                 });
@@ -7001,21 +6969,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                 });
 
                 const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content2,
                     fileIds: [],
                 });
 
                 const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content3,
                     fileIds: [],
                 });
@@ -7063,56 +7031,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message3.index,
+                parent: {type: "Message", index: message3.index},
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: message3.index,
+                parent: {type: "Message", index: message3.index},
                 content: content1,
                 fileIds: [],
             });
 
             const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message6.index,
+                parent: {type: "Message", index: message6.index},
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: message2.index,
+                parent: {type: "Message", index: message2.index},
                 content: content4,
                 fileIds: [],
             });
@@ -7135,7 +7103,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7145,7 +7113,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7155,7 +7123,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7165,7 +7133,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7175,7 +7143,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7185,7 +7153,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7195,7 +7163,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message6.index,
+                        parent: {type: "Message", index: message6.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7205,7 +7173,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message2.index,
+                        parent: {type: "Message", index: message2.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7230,7 +7198,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7240,7 +7208,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7250,7 +7218,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7260,7 +7228,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message6.index,
+                        parent: {type: "Message", index: message6.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7270,7 +7238,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message2.index,
+                        parent: {type: "Message", index: message2.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7282,7 +7250,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7292,7 +7260,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7317,7 +7285,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7327,7 +7295,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7337,7 +7305,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7349,7 +7317,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7362,63 +7330,63 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message3.index,
+                parent: {type: "Message", index: message3.index},
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: message3.index,
+                parent: {type: "Message", index: message3.index},
                 content: content1,
                 fileIds: [],
             });
 
             const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message6.index,
+                parent: {type: "Message", index: message6.index},
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: message2.index,
+                parent: {type: "Message", index: message2.index},
                 content: content4,
                 fileIds: [],
             });
 
             const message9 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -7441,7 +7409,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7451,7 +7419,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7461,7 +7429,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7471,7 +7439,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7481,7 +7449,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7491,7 +7459,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7501,7 +7469,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message6.index,
+                        parent: {type: "Message", index: message6.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7511,7 +7479,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message2.index,
+                        parent: {type: "Message", index: message2.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7521,7 +7489,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7546,7 +7514,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7556,7 +7524,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7566,7 +7534,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7576,7 +7544,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message6.index,
+                        parent: {type: "Message", index: message6.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7586,7 +7554,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message2.index,
+                        parent: {type: "Message", index: message2.index},
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -7598,7 +7566,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7608,7 +7576,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7633,7 +7601,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7643,7 +7611,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7653,7 +7621,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7665,7 +7633,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7690,7 +7658,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7700,7 +7668,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7710,7 +7678,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7720,7 +7688,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -7730,7 +7698,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -7740,7 +7708,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -7753,42 +7721,42 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -7846,42 +7814,42 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -7939,42 +7907,42 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -8028,42 +7996,42 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -8133,21 +8101,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -8200,7 +8168,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -8232,21 +8200,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -8270,7 +8238,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8280,7 +8248,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8290,7 +8258,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8331,7 +8299,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -8341,7 +8309,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8351,7 +8319,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -8384,7 +8352,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8394,7 +8362,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -8468,7 +8436,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -8481,7 +8449,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -8518,7 +8486,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8528,7 +8496,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: true,
                     },
@@ -8538,7 +8506,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -8572,7 +8540,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -8606,7 +8574,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -8623,21 +8591,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -8657,21 +8625,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -8691,21 +8659,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -8729,7 +8697,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8739,7 +8707,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8749,7 +8717,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8790,7 +8758,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                     space.id,
                                     session1.accountId,
                                 ),
-                                parentMessageIndex: null,
+                                parent: null,
                                 content: content1,
                                 hasContentUpdated: false,
                             },
@@ -8800,7 +8768,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                     space.id,
                                     session2.accountId,
                                 ),
-                                parentMessageIndex: null,
+                                parent: null,
                                 content: content1,
                                 hasContentUpdated: false,
                             },
@@ -8810,7 +8778,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                     space.id,
                                     session3.accountId,
                                 ),
-                                parentMessageIndex: null,
+                                parent: null,
                                 content: content1,
                                 hasContentUpdated: false,
                             },
@@ -8838,42 +8806,42 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -8897,7 +8865,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8907,7 +8875,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8917,7 +8885,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8947,7 +8915,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session3.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -8957,7 +8925,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -8967,7 +8935,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -8984,21 +8952,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
@@ -9106,56 +9074,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message1.index,
+                parent: {type: "Message", index: message1.index},
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: message3.index,
+                parent: {type: "Message", index: message3.index},
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -9178,7 +9146,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -9188,7 +9156,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -9198,7 +9166,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -9208,7 +9176,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -9220,7 +9188,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -9230,7 +9198,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message1.index,
+                        parent: {type: "Message", index: message1.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -9243,56 +9211,56 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: message1.index,
+                parent: {type: "Message", index: message1.index},
                 content: content3,
                 fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: message3.index,
+                parent: {type: "Message", index: message3.index},
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content4,
                 fileIds: [],
             });
@@ -9315,7 +9283,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -9325,7 +9293,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: message3.index,
+                        parent: {type: "Message", index: message3.index},
                         content: content2,
                         hasContentUpdated: false,
                     },
@@ -9335,7 +9303,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -9345,7 +9313,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session2.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content4,
                         hasContentUpdated: false,
                     },
@@ -9357,7 +9325,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: null,
+                        parent: null,
                         content: content1,
                         hasContentUpdated: false,
                     },
@@ -9367,7 +9335,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             space.id,
                             session1.accountId,
                         ),
-                        parentMessageIndex: message1.index,
+                        parent: {type: "Message", index: message1.index},
                         content: content3,
                         hasContentUpdated: false,
                     },
@@ -9380,14 +9348,14 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -9410,14 +9378,14 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
@@ -9479,21 +9447,21 @@ export function testMessagingImplementation<RoomKey extends string>(
             // Create 5 messages
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -9517,21 +9485,21 @@ export function testMessagingImplementation<RoomKey extends string>(
             // Create 3 messages
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -9591,21 +9559,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -9628,21 +9596,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -9664,21 +9632,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -9701,21 +9669,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content1,
                 fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content2,
                 fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
-                parentMessageIndex: null,
+                parent: null,
                 content: content3,
                 fileIds: [],
             });
@@ -9732,6 +9700,859 @@ export function testMessagingImplementation<RoomKey extends string>(
             expect(result.messages[0]!.payload.content).toEqual(content1);
         });
 
+        test("can’t create message with invalid single message range", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: 42,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: 42,
+                        endPos: 4,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Parent messages for range not found");
+        });
+
+        test("can’t create message with invalid messages range", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: 42,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: 45,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Parent messages for range not found");
+        });
+
+        test("can’t create message with message range that starts and ends in same deleted message", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await deleteMessage(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: message1.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range starts in deleted message");
+        });
+
+        test("can’t create message with message range that starts and ends in deleted message", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await deleteMessage(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+            });
+
+            await deleteMessage(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: message2.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range starts in deleted message");
+        });
+
+        test("can’t create message with message range that starts in deleted message", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await deleteMessage(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: message2.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range starts in deleted message");
+        });
+
+        test("can’t create message with message range that ends in deleted message", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await deleteMessage(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: message2.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range ends in deleted message");
+        });
+
+        test("can’t create message with message range with an invalid start version", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("4"))],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 0,
+                        startVersion: 42,
+                        endIndex: message1.index,
+                        endPos: 2,
+                        endVersion: 42,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Invalid message range start version");
+        });
+
+        test("can’t create message with message range that starts with an invalid start version", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("4"))],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 0,
+                        startVersion: 42,
+                        endIndex: message2.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Invalid message range start version");
+        });
+
+        test("can’t create message with message range that ends with an invalid start version", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("4"))],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message2.index,
+                        startPos: 0,
+                        startVersion: 0,
+                        endIndex: message1.index,
+                        endPos: 2,
+                        endVersion: 42,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Invalid message range end version");
+        });
+
+        test("can create message with message range parent", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message1.index,
+                    startPos: 2,
+                    startVersion: 0,
+                    endIndex: message2.index,
+                    endPos: 2,
+                    endVersion: 0,
+                },
+                content: content4,
+                fileIds: [],
+            });
+        });
+
+        test("can create message with message range parent on start message with later version", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message1.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("4"))],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message1.index,
+                    startPos: 2,
+                    startVersion: 1,
+                    endIndex: message2.index,
+                    endPos: 2,
+                    endVersion: 0,
+                },
+                content: content4,
+                fileIds: [],
+            });
+        });
+
+        test("can create message with message range parent on end message with later version", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message2.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("4"))],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message1.index,
+                    startPos: 2,
+                    startVersion: 0,
+                    endIndex: message2.index,
+                    endPos: 2,
+                    endVersion: 1,
+                },
+                content: content4,
+                fileIds: [],
+            });
+        });
+
+        test("doesn’t currently check start or end position when creating message with message range parent", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            // NOTE(calebmer): We could check position in the future. Mostly not doing so
+            // out of laziness right now since we'd have to map positions that are from
+            // different versions.
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message1.index,
+                    startPos: 42,
+                    startVersion: 0,
+                    endIndex: message2.index,
+                    endPos: 42,
+                    endVersion: 0,
+                },
+                content: content4,
+                fileIds: [],
+            });
+        });
+
+        test("loading messages from end when a message includes message range parent includes all messages in the range", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message1.index,
+                    startPos: 2,
+                    startVersion: 0,
+                    endIndex: message2.index,
+                    endPos: 2,
+                    endVersion: 0,
+                },
+                content: content4,
+                fileIds: [],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.action(session1), {
+                        roomKey: room.key,
+                        limit: 2,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 7,
+                messages: [
+                    {
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parent: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: message1.index,
+                            startPos: 2,
+                            startVersion: 0,
+                            endIndex: message2.index,
+                            endPos: 2,
+                            endVersion: 0,
+                        },
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
+                        parent: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
+                        parent: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+        });
+
+        test("loading messages from start when a message includes message range parent includes all messages in the range", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message3 = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message1.index,
+                    startPos: 2,
+                    startVersion: 0,
+                    endIndex: message2.index,
+                    endPos: 2,
+                    endVersion: 0,
+                },
+                content: content4,
+                fileIds: [],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.action(session1), {
+                        roomKey: room.key,
+                        limit: 2,
+                        afterMessageIndex: message3.index,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 7,
+                messages: [
+                    {
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parent: null,
+                        content: content3,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: message1.index,
+                            startPos: 2,
+                            startVersion: 0,
+                            endIndex: message2.index,
+                            endPos: 2,
+                            endVersion: 0,
+                        },
+                        content: content4,
+                        hasContentUpdated: false,
+                    },
+                ],
+                otherReferencedMessages: [
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
+                        parent: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
+                        parent: null,
+                        content: content2,
+                        hasContentUpdated: false,
+                    },
+                ],
+            });
+        });
+
         describe("message streams", () => {
             test("can create stream message as a bot actor", async () => {
                 const space = await TestSpace.create(context);
@@ -9746,7 +10567,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent("Hello, world!"),
                     fileIds: [],
                     isStream: true,
@@ -9778,7 +10599,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: content1,
                     fileIds: [],
                     isStream: true,
@@ -9807,7 +10628,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent("Hello, world!"),
                     fileIds: [],
                     isStream: true,
@@ -9834,7 +10655,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent("Hello, world!"),
                     fileIds: [],
                 });
@@ -9861,7 +10682,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await expect(
                     createMessage(session.action(), {
                         roomKey: room.key,
-                        parentMessageIndex: null,
+                        parent: null,
                         content: createSimpleMessageContent("Hello, world!"),
                         fileIds: [],
                         isStream: true,
@@ -9882,7 +10703,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -9914,7 +10735,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -9964,7 +10785,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                 });
@@ -9995,7 +10816,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10055,7 +10876,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     botAccount.action(getRoomBotScope(room1.key)),
                     {
                         roomKey: room1.key,
-                        parentMessageIndex: null,
+                        parent: null,
                         content: createSimpleMessageContent(),
                         fileIds: [],
                         isStream: true,
@@ -10104,7 +10925,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(bot1Account.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10148,7 +10969,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10232,7 +11053,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10302,7 +11123,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10406,7 +11227,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10487,7 +11308,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10545,7 +11366,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10637,7 +11458,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10707,7 +11528,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10777,7 +11598,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10854,7 +11675,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                 });
@@ -10880,7 +11701,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -10953,7 +11774,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     botAccount.action(getRoomBotScope(room1.key)),
                     {
                         roomKey: room1.key,
-                        parentMessageIndex: null,
+                        parent: null,
                         content: createSimpleMessageContent(),
                         fileIds: [],
                         isStream: true,
@@ -11015,7 +11836,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 const message = await createMessage(bot1Account.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: createSimpleMessageContent(),
                     fileIds: [],
                     isStream: true,
@@ -11419,7 +12240,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                                 botAccount.action(getRoomBotScope(room.key)),
                                                 {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(),
                                                     fileIds: [],
                                                     isStream: true,
@@ -11455,7 +12276,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             for (let i = 0; i < 4; i++) {
                                                 await createMessage(session.action(), {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(
                                                         `Test message ${i + 1}`,
                                                     ),
@@ -11468,7 +12289,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             for (let i = 0; i < 4; i++) {
                                                 await createMessage(session.action(), {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(
                                                         `Test message ${i + 1}`,
                                                     ),
@@ -11480,7 +12301,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                                 botAccount.action(getRoomBotScope(room.key)),
                                                 {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(),
                                                     fileIds: [],
                                                     isStream: true,
@@ -11518,7 +12339,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             for (let i = 0; i < 1; i++) {
                                                 await createMessage(session.action(), {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(
                                                         `Test message ${i + 1}`,
                                                     ),
@@ -11530,7 +12351,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                                 botAccount.action(getRoomBotScope(room.key)),
                                                 {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(),
                                                     fileIds: [],
                                                     isStream: true,
@@ -11566,7 +12387,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             for (let i = 0; i < 1; i++) {
                                                 await createMessage(session.action(), {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(
                                                         `Test message ${i + 2}`,
                                                     ),
@@ -11578,7 +12399,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                                 botAccount.action(getRoomBotScope(room.key)),
                                                 {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(),
                                                     fileIds: [],
                                                     isStream: true,
@@ -11614,7 +12435,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                             for (let i = 0; i < 2; i++) {
                                                 await createMessage(session.action(), {
                                                     roomKey: room.key,
-                                                    parentMessageIndex: null,
+                                                    parent: null,
                                                     content: createSimpleMessageContent(
                                                         `Test message ${i + 3}`,
                                                     ),
@@ -11710,7 +12531,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
                     await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                         roomKey: room.key,
-                        parentMessageIndex: null,
+                        parent: null,
                         content: createSimpleMessageContent("Hello, world!"),
                         fileIds: [],
                         isStream: true,
@@ -11748,7 +12569,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         botAccount.action(getRoomBotScope(room.key)),
                         {
                             roomKey: room.key,
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("Hello, world!"),
                             fileIds: [],
                             isStream: true,
@@ -11797,7 +12618,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         botAccount.action(getRoomBotScope(room.key)),
                         {
                             roomKey: room.key,
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("Hello, world!"),
                             fileIds: [],
                             isStream: true,
@@ -11866,7 +12687,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         botAccount.action(getRoomBotScope(room.key)),
                         {
                             roomKey: room.key,
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("Hello, world!"),
                             fileIds: [],
                             isStream: true,
@@ -11942,7 +12763,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             botAccount.action(getRoomBotScope(room.key)),
                             {
                                 roomKey: room.key,
-                                parentMessageIndex: null,
+                                parent: null,
                                 content: createSimpleMessageContent("Hello, world!"),
                                 fileIds: [],
                                 isStream: true,
@@ -12027,7 +12848,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             botAccount.action(getRoomBotScope(room.key)),
                             {
                                 roomKey: room.key,
-                                parentMessageIndex: null,
+                                parent: null,
                                 content: createSimpleMessageContent("Hello, world!"),
                                 fileIds: [],
                                 isStream: true,

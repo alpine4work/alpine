@@ -153,11 +153,11 @@ export class ChatRealtimeConnection {
 
 const createMessage: CreateMessageFunction<ChatId> = (
     context,
-    {roomKey: chatId, parentMessageIndex, content, fileIds},
+    {roomKey: chatId, parent, content, fileIds},
 ) => {
     return sendChatMessage(context, {
         chatId,
-        parentMessageIndex,
+        parent,
         content,
         fileIds,
     });

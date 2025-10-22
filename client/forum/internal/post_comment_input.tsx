@@ -317,7 +317,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             onUpdateMessages={onUpdatePostComments}
             createMessage={async input => {
                 await procedures.createComment({
-                    parentCommentIndex: input.parentMessageIndex,
+                    parent: input.parent,
                     content: input.content,
                     fileIds: input.fileIds,
                 });

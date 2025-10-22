@@ -117,10 +117,10 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             stream: null,
         });
     },
-    createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
+    createMessage(context, {roomKey: chatId, parent, content, fileIds}) {
         return sendChatMessage(context, {
             chatId,
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         });

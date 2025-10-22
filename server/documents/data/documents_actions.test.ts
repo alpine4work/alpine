@@ -10831,7 +10831,7 @@ describe("Comments", () => {
         await createDocumentComment(session1.action(), {
             documentId: document.id,
             commentThreadId,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         });
@@ -11029,7 +11029,7 @@ describe("Comments", () => {
         await createDocumentComment(session1.action(), {
             documentId: document.id,
             commentThreadId,
-            parentCommentIndex: null,
+            parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         });
@@ -11613,7 +11613,7 @@ describe("Comments", () => {
         await createDocumentComment(session1.action(), {
             documentId: document.id,
             commentThreadId,
-            parentCommentIndex: 0,
+            parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
         });
@@ -11641,7 +11641,7 @@ describe("Comments", () => {
         await createDocumentComment(session1.action(), {
             documentId: document.id,
             commentThreadId,
-            parentCommentIndex: 0,
+            parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 3"),
             fileIds: [],
         });
@@ -11718,7 +11718,7 @@ describe("Comments", () => {
         await createDocumentComment(session1.action(), {
             documentId: document.id,
             commentThreadId,
-            parentCommentIndex: 0,
+            parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 4"),
             fileIds: [],
         });
@@ -11795,7 +11795,7 @@ describe("Comments", () => {
         await createDocumentComment(session1.action(), {
             documentId: document.id,
             commentThreadId,
-            parentCommentIndex: 0,
+            parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 5"),
             fileIds: [],
         });
@@ -12056,7 +12056,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("Test message content 2"),
                 fileIds: [],
             });
@@ -12108,7 +12108,7 @@ describe("Comments", () => {
             await createDocumentComment(session4.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("Test message content 3"),
                 fileIds: [],
             });
@@ -12174,7 +12174,7 @@ describe("Comments", () => {
             await createDocumentComment(session2.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("Test message content 4"),
                 fileIds: [],
             });
@@ -12309,7 +12309,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("Test message content 2"),
                 fileIds: [],
             });
@@ -12480,7 +12480,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: assertMessageContent(
                     MessageContentProsemirrorSchema.node("doc", {}, [
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -12615,7 +12615,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: assertMessageContent(
                     MessageContentProsemirrorSchema.node("doc", {}, [
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -12738,7 +12738,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: assertMessageContent(
                     MessageContentProsemirrorSchema.node("doc", {}, [
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -12887,7 +12887,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: oldContent,
                 fileIds: [],
             });
@@ -13070,7 +13070,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: assertMessageContent(
                     MessageContentProsemirrorSchema.node("doc", {}, [
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -13259,7 +13259,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: oldContent,
                 fileIds: [],
             });
@@ -13459,7 +13459,7 @@ describe("Comments", () => {
             await createDocumentComment(session1.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: assertMessageContent(
                     MessageContentProsemirrorSchema.node("doc", {}, [
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -13529,7 +13529,7 @@ describe("Comments", () => {
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: assertMessageContent(
                     MessageContentProsemirrorSchema.node("doc", {}, [
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
@@ -13627,7 +13627,7 @@ describe("Comments", () => {
             const comment = await createDocumentComment(session2.action(), {
                 documentId: document.id,
                 commentThreadId,
-                parentCommentIndex: null,
+                parent: null,
                 content: oldContent,
                 fileIds: [],
             });

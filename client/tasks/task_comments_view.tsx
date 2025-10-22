@@ -19,6 +19,7 @@ import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
     getTaskCommentsFromEnd,
@@ -230,12 +231,12 @@ export function TaskCommentsView({
     const createMessage = useCallback(
         (input: {
             content: MessageContent;
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             fileIds: ReadonlyArray<FileId | FileEntityId>;
         }) => {
             return procedures.createComment({
                 content: input.content,
-                parentCommentIndex: input.parentMessageIndex,
+                parent: input.parent,
                 fileIds: input.fileIds,
             });
         },

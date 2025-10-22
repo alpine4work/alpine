@@ -41,6 +41,7 @@ import {
     MessageItem,
     processMessagesQuery,
 } from "~/server/messaging/helpers/process_messages_query.js";
+import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {
@@ -638,14 +639,14 @@ export function sendChatMessage(
     context: ServerAccountActionContext,
     {
         chatId,
-        parentMessageIndex,
+        parent,
         content,
         fileIds,
         isStream,
         consistency,
     }: {
         chatId: ChatId;
-        parentMessageIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
@@ -660,7 +661,7 @@ export function sendChatMessage(
     return sendChatMessageForAccount(context, {
         chatId,
         authorId: context.actor.getPossiblyBotAccountId(),
-        parentMessageIndex,
+        parent,
         content,
         fileIds,
         clerical: isStream ? {type: "Stream"} : undefined,
@@ -676,7 +677,7 @@ function sendChatMessageForAccount(
     {
         chatId,
         authorId,
-        parentMessageIndex,
+        parent,
         content,
         fileIds,
         clerical,
@@ -685,7 +686,7 @@ function sendChatMessageForAccount(
     }: {
         chatId: ChatId;
         authorId: AccountId;
-        parentMessageIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         clerical?: MessageContentPayloadClerical;
@@ -729,22 +730,46 @@ function sendChatMessageForAccount(
                 return items;
             })(),
             (async () => {
-                if (typeof parentMessageIndex !== "number") return;
+                if (!parent) return;
 
-                const parentMessageItem = await ChatTable.getPartialItemIfExists(
-                    context,
-                    {
-                        partitionType: "Chat",
-                        sortRangeType: "Messages",
-                        chatId,
-                        messageIndex: parentMessageIndex,
-                    },
-                    {
-                        consistency,
-                        attributes: [],
-                    },
-                );
-                if (!parentMessageItem) throw new NotFoundError("Chat parent message not found");
+                switch (parent.type) {
+                    case "Message": {
+                        await ChatTable.getItem(context, {
+                            partitionType: "Chat",
+                            sortRangeType: "Messages",
+                            chatId,
+                            messageIndex: parent.index,
+                        });
+                        break;
+                    }
+                    case "MessagesRange": {
+                        const messageItems = await arrayFromAsyncIterable(
+                            processMessagesQuery(
+                                "Ascending",
+                                ChatTable.query(context, {
+                                    limit: "All",
+                                    partitionKey: {
+                                        partitionType: "Chat",
+                                        chatId,
+                                    },
+                                    startSortKey: {
+                                        sortRangeType: "Messages",
+                                        messageIndex: parent.startIndex,
+                                    },
+                                    endSortKey: {
+                                        sortRangeType: "Messages",
+                                        messageIndex: parent.endIndex,
+                                    },
+                                }),
+                            ),
+                        );
+
+                        validateMessageContentPayloadMessagesRangeParent(parent, messageItems);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(parent);
+                }
             })(),
         ]);
 
@@ -787,10 +812,7 @@ function sendChatMessageForAccount(
                     createdTime,
                     payload: {
                         type: "Content",
-                        parent:
-                            parentMessageIndex !== null
-                                ? {type: "Message", index: parentMessageIndex}
-                                : null,
+                        parent,
                         content,
                         contentUpdate: null,
                         fileIds,
@@ -3005,7 +3027,7 @@ export async function processSendShareNotificationJob(
                 await sendChatMessageForAccount(context, {
                     chatId,
                     authorId: actorAccountId,
-                    parentMessageIndex: null,
+                    parent: null,
                     content: notification.content,
                     fileIds: [entityId],
                     clerical: {

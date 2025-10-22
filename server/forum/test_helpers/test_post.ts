@@ -36,6 +36,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 let testPostCount = 1;
 
@@ -203,18 +204,18 @@ export class TestPost extends TestCommentRoomBase {
     protected override _createMessage(
         context: TestAccountActionContext,
         {
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         }: {
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
         },
     ) {
         return createPostComment(context, {
             postId: this.id,
-            parentCommentIndex: parentMessageIndex,
+            parent,
             content,
             fileIds,
         });

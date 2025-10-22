@@ -22,7 +22,10 @@ import {
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {MessageContentPayloadContentUpdate} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
+} from "~/shared/messaging/message_schema.js";
 
 const testMessageCountByConstructor = new DefaultMap<
     typeof TestMessagingRoomBase,
@@ -53,7 +56,7 @@ export abstract class TestMessagingRoomBase {
     protected abstract _createMessage(
         context: TestAccountActionContext,
         options: {
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
         },
@@ -125,7 +128,7 @@ export abstract class TestMessagingRoomBase {
         const {index, createdTime} = await this._createMessage(
             "action" in session ? session.action() : session,
             {
-                parentMessageIndex: parent?.index ?? null,
+                parent: parent ? {type: "Message", index: parent.index} : null,
                 content:
                     typeof content === "string"
                         ? createSimpleMessageContent(content)

@@ -20,6 +20,7 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
@@ -156,7 +157,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         createComment: {
             input: {
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
-                parentCommentIndex: Schema.integer.nullable(),
+                parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
             },

@@ -42,6 +42,7 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messagin
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
@@ -5554,14 +5555,14 @@ export async function createTaskComment(
     context: ServerAccountActionContext,
     {
         taskId,
-        parentCommentIndex,
+        parent,
         content,
         fileIds,
         isStream,
         consistency,
     }: {
         taskId: TaskId;
-        parentCommentIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
@@ -5599,22 +5600,46 @@ export async function createTaskComment(
                 return {spaceId, commentsSummaryItem};
             },
             async () => {
-                if (typeof parentCommentIndex !== "number") return;
+                if (!parent) return;
 
-                const parentCommentItem = await TaskTable.getPartialItemIfExists(
-                    context,
-                    {
-                        partitionType: "Task",
-                        sortRangeType: "Comments",
-                        taskId,
-                        commentIndex: parentCommentIndex,
-                    },
-                    {
-                        consistency,
-                        attributes: [],
-                    },
-                );
-                if (!parentCommentItem) throw new NotFoundError("Task parent comment not found");
+                switch (parent.type) {
+                    case "Message": {
+                        await TaskTable.getItem(context, {
+                            partitionType: "Task",
+                            sortRangeType: "Comments",
+                            taskId,
+                            commentIndex: parent.index,
+                        });
+                        break;
+                    }
+                    case "MessagesRange": {
+                        const commentItems = await arrayFromAsyncIterable(
+                            processCommentsQuery(
+                                "Ascending",
+                                TaskTable.query(context, {
+                                    limit: "All",
+                                    partitionKey: {
+                                        partitionType: "Task",
+                                        taskId,
+                                    },
+                                    startSortKey: {
+                                        sortRangeType: "Comments",
+                                        commentIndex: parent.startIndex,
+                                    },
+                                    endSortKey: {
+                                        sortRangeType: "Comments",
+                                        commentIndex: parent.endIndex,
+                                    },
+                                }),
+                            ),
+                        );
+
+                        validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(parent);
+                }
             },
         );
 
@@ -5645,10 +5670,7 @@ export async function createTaskComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parent:
-                        parentCommentIndex !== null
-                            ? {type: "Message", index: parentCommentIndex}
-                            : null,
+                    parent,
                     content,
                     contentUpdate: null,
                     fileIds,

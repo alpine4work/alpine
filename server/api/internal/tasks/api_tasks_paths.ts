@@ -183,7 +183,7 @@ export const apiTasksPaths: Pick<
 
             const {spaceId, index, createdTime} = await createTaskComment(context, {
                 taskId: pathParameters.id,
-                parentCommentIndex: null,
+                parent: null,
                 content,
                 fileIds: [],
                 isStream: requestBody.isStream,

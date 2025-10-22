@@ -230,16 +230,13 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         const [documentId] = decodeDocumentCommentRoomKey(roomKey);
         return {type: "Document", documentId};
     },
-    async createMessage(
-        context,
-        {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds, isStream},
-    ) {
+    async createMessage(context, {roomKey, parent, content, fileIds, isStream}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         const comment = await createDocumentComment(context, {
             documentId,
             commentThreadId,
-            parentCommentIndex,
+            parent,
             content,
             fileIds,
             isStream,

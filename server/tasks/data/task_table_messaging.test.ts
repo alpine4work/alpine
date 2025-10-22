@@ -134,13 +134,10 @@ testMessagingImplementation<TaskId>(processContext, {
     getRoomBotScope(taskId) {
         return {type: "Task", taskId};
     },
-    async createMessage(
-        context,
-        {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds, isStream},
-    ) {
+    async createMessage(context, {roomKey: taskId, parent, content, fileIds, isStream}) {
         const comment = await createTaskComment(context, {
             taskId,
-            parentCommentIndex,
+            parent,
             content,
             fileIds,
             isStream,

@@ -47,6 +47,7 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -61,7 +62,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     isMessageCreationDisabled?: boolean;
     onUpdateMessages: (update: (messages: MessageList<Message>) => MessageList<Message>) => void;
     createMessage: (input: {
-        parentMessageIndex: number | null;
+        parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
     }) => Promise<void>;
@@ -330,7 +331,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         // close the page if we haven't finished sending their message. It will
                         // look ok on their machine but might not be on the server.
                         await createMessage({
-                            parentMessageIndex: replyingToMessage?.index ?? null,
+                            parent: replyingToMessage
+                                ? {type: "Message", index: replyingToMessage.index}
+                                : null,
                             content: inputContent.doc,
                             fileIds: inputFiles.map(inputFile =>
                                 inputFile.type === "FileEntity"

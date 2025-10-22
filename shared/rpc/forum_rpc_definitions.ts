@@ -28,7 +28,10 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdateSchema,
+    MessageContentPayloadParentSchema,
+} from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -319,7 +322,7 @@ export const createPostComment = defineRpc({
     name: "createPostComment",
     input: {
         postId: Schema.id<PostId>(),
-        parentCommentIndex: Schema.integer.nullable(),
+        parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },

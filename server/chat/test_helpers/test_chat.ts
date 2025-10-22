@@ -21,6 +21,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 export class TestChat extends TestMessageRoomBase {
     public readonly context: TestContext;
@@ -97,18 +98,18 @@ export class TestChat extends TestMessageRoomBase {
     protected override _createMessage(
         context: TestAccountActionContext,
         {
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         }: {
-            parentMessageIndex: number | null;
+            parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
         },
     ) {
         return sendChatMessage(context, {
             chatId: this.id,
-            parentMessageIndex,
+            parent,
             content,
             fileIds,
         });
