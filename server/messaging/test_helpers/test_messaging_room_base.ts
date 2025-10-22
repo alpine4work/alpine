@@ -79,7 +79,7 @@ export abstract class TestMessagingRoomBase {
         context: TestSessionActionContext,
         options: {
             messageIndex: number;
-            version: number;
+            contentVersion: number;
             steps: ReadonlyArray<Step>;
         },
     ): Promise<{
@@ -248,7 +248,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
         return this.room._updateMessageContent(session.action(), {
             messageIndex: this.index,
-            version: message.payload.contentUpdate?.mappings.length ?? 0,
+            contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
             steps: [
                 new ReplaceStep(
                     0,

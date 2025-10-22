@@ -4852,7 +4852,7 @@ test("can’t call comment procedures as viewer", async () => {
         connection2.procedures.updateCommentContent({
             commentThreadId: commentThread.id,
             commentIndex: 1,
-            version: 0,
+            contentVersion: 0,
             steps: [
                 new ReplaceStep(
                     0,
@@ -4866,7 +4866,7 @@ test("can’t call comment procedures as viewer", async () => {
     await connection1.procedures.updateCommentContent({
         commentThreadId: commentThread.id,
         commentIndex: 1,
-        version: 0,
+        contentVersion: 0,
         steps: [
             new ReplaceStep(
                 0,
@@ -6023,11 +6023,11 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
                         content,
                         fileIds,
                     }),
-                updateMessageContent: ({messageIndex: commentIndex, version, steps}) =>
+                updateMessageContent: ({messageIndex: commentIndex, contentVersion, steps}) =>
                     connection.procedures.updateCommentContent({
                         commentThreadId,
                         commentIndex,
-                        version,
+                        contentVersion,
                         steps,
                     }),
                 deleteMessage: ({messageIndex: commentIndex}) =>
@@ -6070,14 +6070,14 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             fileIds,
         });
     },
-    updateMessageContent(context, {roomKey, messageIndex: commentIndex, version, steps}) {
+    updateMessageContent(context, {roomKey, messageIndex: commentIndex, contentVersion, steps}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return updateDocumentCommentContent(context, {
             documentId,
             commentThreadId,
             commentIndex,
-            version,
+            contentVersion,
             steps,
         });
     },

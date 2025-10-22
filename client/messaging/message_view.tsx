@@ -824,12 +824,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         } else {
             from = jumpState.start.pos;
 
-            const version = message.payload.contentUpdate?.mappings.length ?? 0;
+            const contentVersion = message.payload.contentUpdate?.mappings.length ?? 0;
 
             const mappings =
-                version > jumpState.start.version
+                contentVersion > jumpState.start.contentVersion
                     ? message.payload.contentUpdate?.mappings.slice(
-                          -(version - jumpState.start.version),
+                          -(contentVersion - jumpState.start.contentVersion),
                       ) ?? emptyArray
                     : emptyArray;
 
@@ -843,12 +843,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         } else {
             to = jumpState.end.pos;
 
-            const version = message.payload.contentUpdate?.mappings.length ?? 0;
+            const contentVersion = message.payload.contentUpdate?.mappings.length ?? 0;
 
             const mappings =
-                version > jumpState.end.version
+                contentVersion > jumpState.end.contentVersion
                     ? message.payload.contentUpdate?.mappings.slice(
-                          -(version - jumpState.end.version),
+                          -(contentVersion - jumpState.end.contentVersion),
                       ) ?? emptyArray
                     : emptyArray;
 
@@ -1458,9 +1458,9 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                             author: get(accountRegistry.getAccountStore(parent.messages[0].author)),
                             truncatedContent: getTruncatedMessagesRangeContentForReplyPreview(get, {
                                 messages: parent.messages,
-                                startVersion: parent.startVersion,
+                                startContentVersion: parent.startContentVersion,
                                 startPos: parent.startPos,
-                                endVersion: parent.endVersion,
+                                endContentVersion: parent.endContentVersion,
                                 endPos: parent.endPos,
                                 messageNoun,
                                 accountRegistry,
@@ -1474,7 +1474,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                             author: get(accountRegistry.getAccountStore(parent.post.author)),
                             truncatedContent: getTruncatedPostContentForReplyPreview(get, {
                                 post: parent.post,
-                                version: parent.version,
+                                contentVersion: parent.contentVersion,
                                 startPos: parent.startPos,
                                 endPos: parent.endPos,
                                 accountRegistry,
@@ -1519,15 +1519,15 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         roomKey: parent.messages[0].getRoomKey(),
                         startIndex: parent.startIndex,
                         endIndex: parent.endIndex,
-                        start: {version: parent.startVersion, pos: parent.startPos},
-                        end: {version: parent.endVersion, pos: parent.endPos},
+                        start: {contentVersion: parent.startContentVersion, pos: parent.startPos},
+                        end: {contentVersion: parent.endContentVersion, pos: parent.endPos},
                     });
                     break;
                 }
                 case "PostRange": {
                     assertExists(onJumpToPostRange)({
                         postId: parent.post.id,
-                        version: parent.version,
+                        contentVersion: parent.contentVersion,
                         startPos: parent.startPos,
                         endPos: parent.endPos,
                     });

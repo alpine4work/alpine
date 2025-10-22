@@ -251,10 +251,10 @@ export function TaskCommentsView({
     );
 
     const updateMessageContent = useCallback(
-        (input: {messageIndex: number; version: number; steps: ReadonlyArray<Step>}) => {
+        (input: {messageIndex: number; contentVersion: number; steps: ReadonlyArray<Step>}) => {
             return procedures.updateCommentContent({
                 commentIndex: input.messageIndex,
-                version: input.version,
+                contentVersion: input.contentVersion,
                 steps: input.steps,
             });
         },

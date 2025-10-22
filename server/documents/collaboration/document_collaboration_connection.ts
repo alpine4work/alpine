@@ -496,7 +496,7 @@ export class DocumentCollaborationConnection {
 
         updateCommentContent: async (
             context,
-            {commentThreadId, commentIndex: messageIndex, steps, version},
+            {commentThreadId, commentIndex: messageIndex, steps, contentVersion},
         ) => {
             this._authorizeCommentAccess();
 
@@ -504,7 +504,7 @@ export class DocumentCollaborationConnection {
             return connection.updateMessageContent(context, {
                 messageIndex,
                 steps,
-                version,
+                contentVersion,
             });
         },
 
@@ -953,7 +953,7 @@ export class DocumentCollaborationConnection {
             },
             updateMessageContent: async (
                 context,
-                {roomKey, messageIndex: commentIndex, version, steps},
+                {roomKey, messageIndex: commentIndex, contentVersion, steps},
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
@@ -972,7 +972,7 @@ export class DocumentCollaborationConnection {
                     documentId,
                     commentThreadId,
                     commentIndex,
-                    version,
+                    contentVersion,
                     steps,
                 });
             },

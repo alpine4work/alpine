@@ -17,8 +17,8 @@ export type JumpToMessageRangeState<RoomKey extends string> = {
 };
 
 export type JumpMessageState = {
-    readonly start: {readonly version: number; readonly pos: number} | null;
-    readonly end: {readonly version: number; readonly pos: number} | null;
+    readonly start: {readonly contentVersion: number; readonly pos: number} | null;
+    readonly end: {readonly contentVersion: number; readonly pos: number} | null;
     readonly animation: {readonly startTime: Date} | null;
     readonly scheduleAnimation: () => void;
 };
@@ -27,8 +27,8 @@ export type JumpToMessageRangeOptions<RoomKey extends string> = {
     readonly roomKey: RoomKey;
     readonly startIndex: number;
     readonly endIndex: number;
-    readonly start: {readonly version: number; readonly pos: number} | null;
-    readonly end: {readonly version: number; readonly pos: number} | null;
+    readonly start: {readonly contentVersion: number; readonly pos: number} | null;
+    readonly end: {readonly contentVersion: number; readonly pos: number} | null;
 };
 
 // NOTE(calebmer): This function was forked into `useJumpToPostRange()`. Any

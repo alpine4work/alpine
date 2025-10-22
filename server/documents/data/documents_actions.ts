@@ -5105,13 +5105,13 @@ export function updateDocumentCommentContent(
         documentId,
         commentThreadId,
         commentIndex,
-        version,
+        contentVersion,
         steps,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ): Promise<{
@@ -5145,8 +5145,10 @@ export function updateDocumentCommentContent(
         if (commentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical comment content");
 
-        if (version !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError("Can’t update comment with mismatched version");
+        if (contentVersion !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError(
+                "Can’t update comment with mismatched content version",
+            );
 
         let content = commentItem.payload.content;
         const mapping = new Mapping();

@@ -151,7 +151,7 @@ export function getTruncatedPostContentForReplyPreview(
     get: <Value>(store: Store<Value>) => Value,
     {
         post,
-        version: fromVersion,
+        contentVersion: fromContentVersion,
         startPos,
         endPos,
         accountRegistry,
@@ -159,7 +159,7 @@ export function getTruncatedPostContentForReplyPreview(
         fileRegistry,
     }: {
         post: PostModel;
-        version: number;
+        contentVersion: number;
         startPos: number;
         endPos: number;
         accountRegistry: AccountRegistry;
@@ -167,11 +167,12 @@ export function getTruncatedPostContentForReplyPreview(
         fileRegistry: FileRegistry;
     },
 ): ReactNode {
-    const version = post.contentUpdate?.mappings.length ?? 0;
+    const contentVersion = post.contentUpdate?.mappings.length ?? 0;
 
     const mappings =
-        version > fromVersion
-            ? post.contentUpdate?.mappings.slice(-(version - fromVersion)) ?? emptyArray
+        contentVersion > fromContentVersion
+            ? post.contentUpdate?.mappings.slice(-(contentVersion - fromContentVersion)) ??
+              emptyArray
             : emptyArray;
 
     let actualStartPos = startPos;
@@ -202,9 +203,9 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
     get: <Value>(store: Store<Value>) => Value,
     {
         messages,
-        startVersion,
+        startContentVersion,
         startPos,
-        endVersion,
+        endContentVersion,
         endPos,
         messageNoun,
         accountRegistry,
@@ -212,9 +213,9 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
         fileRegistry,
     }: {
         messages: ReadonlyArray<MessageModel>;
-        startVersion: number;
+        startContentVersion: number;
         startPos: number;
-        endVersion: number;
+        endContentVersion: number;
         endPos: number;
         messageNoun: string;
         accountRegistry: AccountRegistry;
@@ -239,12 +240,12 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 break;
             }
             case "Content": {
-                const version = startMessage.payload.contentUpdate?.mappings.length ?? 0;
+                const contentVersion = startMessage.payload.contentUpdate?.mappings.length ?? 0;
 
                 const mappings =
-                    version > startVersion
+                    contentVersion > startContentVersion
                         ? startMessage.payload.contentUpdate?.mappings.slice(
-                              -(version - startVersion),
+                              -(contentVersion - startContentVersion),
                           ) ?? emptyArray
                         : emptyArray;
 
@@ -275,12 +276,12 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 break;
             }
             case "Content": {
-                const version = startMessage.payload.contentUpdate?.mappings.length ?? 0;
+                const contentVersion = startMessage.payload.contentUpdate?.mappings.length ?? 0;
 
                 const mappings =
-                    version > startVersion
+                    contentVersion > startContentVersion
                         ? startMessage.payload.contentUpdate?.mappings.slice(
-                              -(version - startVersion),
+                              -(contentVersion - startContentVersion),
                           ) ?? emptyArray
                         : emptyArray;
 
@@ -309,12 +310,12 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 break;
             }
             case "Content": {
-                const version = endMessage.payload.contentUpdate?.mappings.length ?? 0;
+                const contentVersion = endMessage.payload.contentUpdate?.mappings.length ?? 0;
 
                 const mappings =
-                    version > endVersion
+                    contentVersion > endContentVersion
                         ? endMessage.payload.contentUpdate?.mappings.slice(
-                              -(version - endVersion),
+                              -(contentVersion - endContentVersion),
                           ) ?? emptyArray
                         : emptyArray;
 

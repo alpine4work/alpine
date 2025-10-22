@@ -75,7 +75,7 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
         updateCommentContent: {
             input: {
                 commentIndex: Schema.integer,
-                version: Schema.integer,
+                contentVersion: Schema.integer,
                 steps: Schema.array(MessageContentStepSchema),
             },
             output: {},

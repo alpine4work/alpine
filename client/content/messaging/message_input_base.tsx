@@ -180,12 +180,12 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
         roomKey: RoomKey;
         startIndex: number;
         endIndex: number;
-        start: {version: number; pos: number} | null;
-        end: {version: number; pos: number} | null;
+        start: {contentVersion: number; pos: number} | null;
+        end: {contentVersion: number; pos: number} | null;
     }) => void;
     onJumpToPostRange?: (options: {
         postId: PostId;
-        version: number;
+        contentVersion: number;
         startPos: number;
         endPos: number;
     }) => void;
@@ -213,15 +213,15 @@ export type MessageContentPayloadParentWithMessages<
           readonly messages: NonEmptyReadonlyArray<Message>;
           readonly startIndex: number;
           readonly endIndex: number;
-          readonly startVersion: number;
-          readonly endVersion: number;
+          readonly startContentVersion: number;
+          readonly endContentVersion: number;
           readonly startPos: number;
           readonly endPos: number;
       }
     | {
           readonly type: "PostRange";
           readonly post: PostModel;
-          readonly version: number;
+          readonly contentVersion: number;
           readonly startPos: number;
           readonly endPos: number;
       };
@@ -417,11 +417,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 break;
             }
             case "MessagesRange": {
-                focusKey = `Replying:${parent.startIndex},${parent.endIndex},${parent.startVersion},${parent.endVersion},${parent.startPos},${parent.endPos}`;
+                focusKey = `Replying:${parent.startIndex},${parent.endIndex},${parent.startContentVersion},${parent.endContentVersion},${parent.startPos},${parent.endPos}`;
                 break;
             }
             case "PostRange": {
-                focusKey = `Replying:Post,${parent.version},${parent.startPos},${parent.endPos}`;
+                focusKey = `Replying:Post,${parent.contentVersion},${parent.startPos},${parent.endPos}`;
                 break;
             }
             default:
@@ -1500,12 +1500,17 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
               roomKey: RoomKey;
               startIndex: number;
               endIndex: number;
-              start: {version: number; pos: number} | null;
-              end: {version: number; pos: number} | null;
+              start: {contentVersion: number; pos: number} | null;
+              end: {contentVersion: number; pos: number} | null;
           }) => void)
         | undefined;
     onJumpToPostRange:
-        | ((options: {postId: PostId; version: number; startPos: number; endPos: number}) => void)
+        | ((options: {
+              postId: PostId;
+              contentVersion: number;
+              startPos: number;
+              endPos: number;
+          }) => void)
         | undefined;
     onParentClear: (() => void) | undefined;
     paddingX: Spacing | {desktop: Spacing; mobile: Spacing};
@@ -1537,9 +1542,9 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                             author: get(accountRegistry.getAccountStore(parent.messages[0].author)),
                             truncatedContent: getTruncatedMessagesRangeContentForReplyPreview(get, {
                                 messages: parent.messages,
-                                startVersion: parent.startVersion,
+                                startContentVersion: parent.startContentVersion,
                                 startPos: parent.startPos,
-                                endVersion: parent.endVersion,
+                                endContentVersion: parent.endContentVersion,
                                 endPos: parent.endPos,
                                 messageNoun,
                                 accountRegistry,
@@ -1553,7 +1558,7 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                             author: get(accountRegistry.getAccountStore(parent.post.author)),
                             truncatedContent: getTruncatedPostContentForReplyPreview(get, {
                                 post: parent.post,
-                                version: parent.version,
+                                contentVersion: parent.contentVersion,
                                 startPos: parent.startPos,
                                 endPos: parent.endPos,
                                 accountRegistry,
@@ -1591,15 +1596,15 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                         roomKey: parent.messages[0].getRoomKey(),
                         startIndex: parent.startIndex,
                         endIndex: parent.endIndex,
-                        start: {version: parent.startVersion, pos: parent.startPos},
-                        end: {version: parent.endVersion, pos: parent.endPos},
+                        start: {contentVersion: parent.startContentVersion, pos: parent.startPos},
+                        end: {contentVersion: parent.endContentVersion, pos: parent.endPos},
                     });
                     break;
                 }
                 case "PostRange": {
                     onJumpToPostRange?.({
                         postId: parent.post.id,
-                        version: parent.version,
+                        contentVersion: parent.contentVersion,
                         startPos: parent.startPos,
                         endPos: parent.endPos,
                     });

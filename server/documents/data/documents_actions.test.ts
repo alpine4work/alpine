@@ -12938,7 +12938,7 @@ describe("Comments", () => {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 1,
-                version: 0,
+                contentVersion: 0,
                 steps: [
                     new ReplaceStep(
                         0,
@@ -13292,7 +13292,7 @@ describe("Comments", () => {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 1,
-                version: 0,
+                contentVersion: 0,
                 steps: [
                     new ReplaceStep(
                         0,
@@ -13700,7 +13700,7 @@ describe("Comments", () => {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: comment.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [
                     new ReplaceStep(
                         0,

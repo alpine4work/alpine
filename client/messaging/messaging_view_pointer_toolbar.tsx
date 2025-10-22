@@ -712,7 +712,7 @@ function getMessagingViewPointerToolbarState<
 
             parent: {
                 type: "PostRange",
-                version: postRoom.contentUpdate?.mappings.length ?? 0,
+                contentVersion: postRoom.contentUpdate?.mappings.length ?? 0,
                 startPos,
                 endPos,
             },
@@ -778,10 +778,10 @@ function getMessagingViewPointerToolbarState<
         parent: {
             type: "MessagesRange",
             startIndex,
-            startVersion: startMessage.payload.contentUpdate?.mappings.length ?? 0,
+            startContentVersion: startMessage.payload.contentUpdate?.mappings.length ?? 0,
             startPos,
             endIndex,
-            endVersion: endMessage.payload.contentUpdate?.mappings.length ?? 0,
+            endContentVersion: endMessage.payload.contentUpdate?.mappings.length ?? 0,
             endPos,
         },
     };

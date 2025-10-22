@@ -14,7 +14,10 @@ export function validateMessageContentPayloadMessagesRangeParent(
     // `MessageContentPayloadParentSchema` validations. We `assert()` here to
     // double check.
     assert(parent.startIndex <= parent.endIndex);
-    assert(parent.startIndex !== parent.endIndex || parent.startVersion === parent.endVersion);
+    assert(
+        parent.startIndex !== parent.endIndex ||
+            parent.startContentVersion === parent.endContentVersion,
+    );
     assert(parent.startIndex !== parent.endIndex || parent.startPos <= parent.endPos);
 
     const startMessageItem = messageItems[0];
@@ -41,12 +44,14 @@ export function validateMessageContentPayloadMessagesRangeParent(
         throw new FailedPreconditionError("Message range ends in deleted message");
     }
 
-    if (parent.startVersion > (startMessageItem.payload.contentUpdate?.mappings.length ?? 0)) {
-        throw new FailedPreconditionError("Invalid message range start version");
+    if (
+        parent.startContentVersion > (startMessageItem.payload.contentUpdate?.mappings.length ?? 0)
+    ) {
+        throw new FailedPreconditionError("Invalid message range start content version");
     }
 
-    if (parent.endVersion > (endMessageItem.payload.contentUpdate?.mappings.length ?? 0)) {
-        throw new FailedPreconditionError("Invalid message range end version");
+    if (parent.endContentVersion > (endMessageItem.payload.contentUpdate?.mappings.length ?? 0)) {
+        throw new FailedPreconditionError("Invalid message range end content version");
     }
 
     // We don't currently validate `startPos` and `endPos` since if we're using a

@@ -32,11 +32,11 @@ export function updatePostContent(
     context: ServerSessionActionContext,
     {
         postId,
-        version,
+        contentVersion,
         steps,
     }: {
         postId: PostId;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ): Promise<{
@@ -60,8 +60,8 @@ export function updatePostContent(
         if (oldPostItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update posts you authored");
 
-        if (version !== (oldPostItem.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError("Can’t update post with mismatched version");
+        if (contentVersion !== (oldPostItem.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError("Can’t update post with mismatched content version");
 
         let content = oldPostItem.content;
         const mapping = new Mapping();

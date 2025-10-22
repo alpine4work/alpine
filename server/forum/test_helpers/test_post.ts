@@ -234,18 +234,18 @@ export class TestPost extends TestCommentRoomBase {
         context: TestSessionActionContext,
         {
             messageIndex,
-            version,
+            contentVersion,
             steps,
         }: {
             messageIndex: number;
-            version: number;
+            contentVersion: number;
             steps: ReadonlyArray<Step>;
         },
     ) {
         return updatePostCommentContent(context, {
             postId: this.id,
             commentIndex: messageIndex,
-            version,
+            contentVersion,
             steps,
         });
     }
@@ -380,7 +380,7 @@ export class TestPost extends TestCommentRoomBase {
 
         await updatePostContent(session.action(), {
             postId: this.id,
-            version: post.contentUpdate?.mappings.length ?? 0,
+            contentVersion: post.contentUpdate?.mappings.length ?? 0,
             steps: [
                 new ReplaceStep(0, post.content.content.size, new Slice(content.content, 0, 0)),
             ],

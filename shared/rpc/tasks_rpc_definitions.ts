@@ -202,7 +202,7 @@ export const updateTaskCommentContent = defineRpc({
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
-        version: Schema.integer,
+        contentVersion: Schema.integer,
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {

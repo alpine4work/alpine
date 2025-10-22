@@ -142,7 +142,7 @@ type UpdateMessageContentFunctionForTest<RoomKey extends string> = (
     options: {
         roomKey: RoomKey;
         messageIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ) => Promise<{
@@ -1502,7 +1502,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1542,7 +1542,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1553,7 +1553,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 1,
+                contentVersion: 1,
                 steps: [new ReplaceStep(5, 6, textSlice("3"))],
             });
 
@@ -1580,10 +1580,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 1,
+                    contentVersion: 1,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
-            ).rejects.toThrow(/mismatched version/);
+            ).rejects.toThrow(/mismatched content version/);
 
             expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
                 'doc(paragraph("test1"))',
@@ -1607,7 +1607,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1619,10 +1619,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("3"))],
                 }),
-            ).rejects.toThrow(/mismatched version/);
+            ).rejects.toThrow(/mismatched content version/);
 
             expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
                 'doc(paragraph("test2"))',
@@ -1646,7 +1646,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1658,10 +1658,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 2,
+                    contentVersion: 2,
                     steps: [new ReplaceStep(5, 6, textSlice("3"))],
                 }),
-            ).rejects.toThrow(/mismatched version/);
+            ).rejects.toThrow(/mismatched content version/);
 
             expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
                 'doc(paragraph("test2"))',
@@ -1673,7 +1673,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: getMissingRoomKey(),
                     messageIndex: 42,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(/not found/);
@@ -1686,7 +1686,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: 42,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -1724,7 +1724,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(PermissionDeniedError);
@@ -1780,7 +1780,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
@@ -1835,7 +1835,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1890,7 +1890,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1918,7 +1918,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 1,
+                    contentVersion: 1,
                     steps: [new ReplaceStep(5, 6, textSlice("3"))],
                 }),
             ).rejects.toThrow(PermissionDeniedError);
@@ -1974,7 +1974,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session4), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(PermissionDeniedError);
@@ -2002,7 +2002,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     updateMessageContent(context.action(session5), {
                         roomKey: room.key,
                         messageIndex: message.index,
-                        version: 0,
+                        contentVersion: 0,
                         steps: [new ReplaceStep(5, 6, textSlice("2"))],
                     }),
                 ).rejects.toThrow(PermissionDeniedError);
@@ -2061,7 +2061,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [
                         new ReplaceStep(
                             0,
@@ -2577,7 +2577,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(FailedPreconditionError);
@@ -6322,7 +6322,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -6490,7 +6490,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -6604,7 +6604,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 });
 
@@ -6676,7 +6676,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 });
 
@@ -6694,7 +6694,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 1,
+                    contentVersion: 1,
                     steps: [new ReplaceStep(5, 6, textSlice("3"))],
                 });
 
@@ -6713,7 +6713,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 2,
+                    contentVersion: 2,
                     steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
@@ -6750,7 +6750,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 });
 
@@ -6817,7 +6817,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message1.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
@@ -6835,7 +6835,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message2.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
@@ -6855,7 +6855,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
@@ -6906,7 +6906,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message1.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
@@ -7007,7 +7007,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
-                    version: 0,
+                    contentVersion: 0,
                     steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
@@ -7775,7 +7775,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -7793,7 +7793,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage5 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("1"))],
             });
 
@@ -7868,7 +7868,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage5 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("1"))],
             });
 
@@ -7886,7 +7886,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -8139,14 +8139,14 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -8269,14 +8269,14 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -8974,14 +8974,14 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -9731,10 +9731,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: 42,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: 42,
                         endPos: 4,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -9773,10 +9773,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: 42,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: 45,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -9820,10 +9820,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message1.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -9872,10 +9872,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message2.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -9919,10 +9919,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message2.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -9966,10 +9966,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message2.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -10004,7 +10004,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("4"))],
             });
 
@@ -10015,15 +10015,15 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 0,
-                        startVersion: 42,
+                        startContentVersion: 42,
                         endIndex: message1.index,
                         endPos: 2,
-                        endVersion: 42,
+                        endContentVersion: 42,
                     },
                     content: content4,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Invalid message range start version");
+            ).rejects.toThrow("Invalid message range start content version");
         });
 
         test("can’t create message with message range that starts with an invalid start version", async () => {
@@ -10053,7 +10053,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("4"))],
             });
 
@@ -10064,15 +10064,15 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 0,
-                        startVersion: 42,
+                        startContentVersion: 42,
                         endIndex: message2.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Invalid message range start version");
+            ).rejects.toThrow("Invalid message range start content version");
         });
 
         test("can’t create message with message range that ends with an invalid start version", async () => {
@@ -10102,7 +10102,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("4"))],
             });
 
@@ -10113,15 +10113,15 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message2.index,
                         startPos: 0,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message1.index,
                         endPos: 2,
-                        endVersion: 42,
+                        endContentVersion: 42,
                     },
                     content: content4,
                     fileIds: [],
                 }),
-            ).rejects.toThrow("Invalid message range end version");
+            ).rejects.toThrow("Invalid message range end content version");
         });
 
         test("can create message with message range parent", async () => {
@@ -10154,10 +10154,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message1.index,
                     startPos: 2,
-                    startVersion: 0,
+                    startContentVersion: 0,
                     endIndex: message2.index,
                     endPos: 2,
-                    endVersion: 0,
+                    endContentVersion: 0,
                 },
                 content: content4,
                 fileIds: [],
@@ -10191,7 +10191,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("4"))],
             });
 
@@ -10201,10 +10201,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message1.index,
                     startPos: 2,
-                    startVersion: 1,
+                    startContentVersion: 1,
                     endIndex: message2.index,
                     endPos: 2,
-                    endVersion: 0,
+                    endContentVersion: 0,
                 },
                 content: content4,
                 fileIds: [],
@@ -10238,7 +10238,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("4"))],
             });
 
@@ -10248,10 +10248,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message1.index,
                     startPos: 2,
-                    startVersion: 0,
+                    startContentVersion: 0,
                     endIndex: message2.index,
                     endPos: 2,
-                    endVersion: 1,
+                    endContentVersion: 1,
                 },
                 content: content4,
                 fileIds: [],
@@ -10291,10 +10291,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message1.index,
                     startPos: 42,
-                    startVersion: 0,
+                    startContentVersion: 0,
                     endIndex: message2.index,
                     endPos: 42,
-                    endVersion: 0,
+                    endContentVersion: 0,
                 },
                 content: content4,
                 fileIds: [],
@@ -10332,10 +10332,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 2,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message2.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -10381,10 +10381,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 2,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message3.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content1,
                     fileIds: [],
@@ -10429,10 +10429,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message2.index,
                     startPos: 2,
-                    startVersion: 0,
+                    startContentVersion: 0,
                     endIndex: message3.index,
                     endPos: 2,
-                    endVersion: 0,
+                    endContentVersion: 0,
                 },
                 content: content1,
                 fileIds: [],
@@ -10470,10 +10470,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 2,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message2.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content4,
                     fileIds: [],
@@ -10519,10 +10519,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message1.index,
                         startPos: 2,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message3.index,
                         endPos: 2,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content1,
                     fileIds: [],
@@ -10581,10 +10581,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message1.index,
                     startPos: 2,
-                    startVersion: 0,
+                    startContentVersion: 0,
                     endIndex: message2.index,
                     endPos: 2,
-                    endVersion: 0,
+                    endContentVersion: 0,
                 },
                 content: content4,
                 fileIds: [],
@@ -10622,10 +10622,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                             type: "MessagesRange",
                             startIndex: message1.index,
                             startPos: 2,
-                            startVersion: 0,
+                            startContentVersion: 0,
                             endIndex: message2.index,
                             endPos: 2,
-                            endVersion: 0,
+                            endContentVersion: 0,
                         },
                         content: content4,
                         hasContentUpdated: false,
@@ -10707,10 +10707,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                     type: "MessagesRange",
                     startIndex: message1.index,
                     startPos: 2,
-                    startVersion: 0,
+                    startContentVersion: 0,
                     endIndex: message2.index,
                     endPos: 2,
-                    endVersion: 0,
+                    endContentVersion: 0,
                 },
                 content: content4,
                 fileIds: [],
@@ -10748,10 +10748,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                             type: "MessagesRange",
                             startIndex: message1.index,
                             startPos: 2,
-                            startVersion: 0,
+                            startContentVersion: 0,
                             endIndex: message2.index,
                             endPos: 2,
-                            endVersion: 0,
+                            endContentVersion: 0,
                         },
                         content: content4,
                         hasContentUpdated: false,
@@ -10838,7 +10838,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     updateMessageContent(botAccount.action(getRoomBotScope(room.key)), {
                         roomKey: room.key,
                         messageIndex: message.index,
-                        version: 0,
+                        contentVersion: 0,
                         steps: [new ReplaceStep(5, 6, textSlice("2"))],
                     }),
                 ).rejects.toThrow(/^Can’t update clerical (message|comment) content$/);
@@ -12159,10 +12159,10 @@ export function testMessagingImplementation<RoomKey extends string>(
                         type: "MessagesRange",
                         startIndex: message.index,
                         startPos: 10,
-                        startVersion: 0,
+                        startContentVersion: 0,
                         endIndex: message.index,
                         endPos: 12,
-                        endVersion: 0,
+                        endContentVersion: 0,
                     },
                     content: content2,
                     fileIds: [],

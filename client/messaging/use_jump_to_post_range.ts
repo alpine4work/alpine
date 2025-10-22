@@ -17,7 +17,7 @@ export type JumpToPostRangeState = {
 
 export type JumpToPostRangeOptions = {
     readonly postId: PostId;
-    readonly version: number;
+    readonly contentVersion: number;
     readonly startPos: number;
     readonly endPos: number;
 };

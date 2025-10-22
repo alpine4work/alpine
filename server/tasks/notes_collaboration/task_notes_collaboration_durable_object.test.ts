@@ -661,8 +661,12 @@ testMessagingRealtimeImplementation<TaskId>(context, {
                 },
                 createMessage: ({parent, content, fileIds}) =>
                     connection.procedures.createComment({parent, content, fileIds}),
-                updateMessageContent: ({messageIndex: commentIndex, version, steps}) =>
-                    connection.procedures.updateCommentContent({commentIndex, version, steps}),
+                updateMessageContent: ({messageIndex: commentIndex, contentVersion, steps}) =>
+                    connection.procedures.updateCommentContent({
+                        commentIndex,
+                        contentVersion,
+                        steps,
+                    }),
                 deleteMessage: ({messageIndex: commentIndex}) =>
                     connection.procedures.deleteComment({commentIndex}),
                 startTypingInMessageInput: ({}) =>
@@ -696,11 +700,14 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             fileIds,
         });
     },
-    updateMessageContent(context, {roomKey: taskId, messageIndex: commentIndex, version, steps}) {
+    updateMessageContent(
+        context,
+        {roomKey: taskId, messageIndex: commentIndex, contentVersion, steps},
+    ) {
         return updateTaskCommentContent(context, {
             taskId,
             commentIndex,
-            version,
+            contentVersion,
             steps,
         });
     },

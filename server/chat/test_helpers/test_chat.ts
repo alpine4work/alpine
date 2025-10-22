@@ -128,18 +128,18 @@ export class TestChat extends TestMessageRoomBase {
         context: TestSessionActionContext,
         {
             messageIndex,
-            version,
+            contentVersion,
             steps,
         }: {
             messageIndex: number;
-            version: number;
+            contentVersion: number;
             steps: ReadonlyArray<Step>;
         },
     ) {
         return updateChatMessageContent(context, {
             chatId: this.id,
             messageIndex,
-            version,
+            contentVersion,
             steps,
         });
     }

@@ -62,7 +62,7 @@ export type CreateMessageProcedure = (input: {
 
 export type UpdateMessageContentProcedure = (input: {
     messageIndex: number;
-    version: number;
+    contentVersion: number;
     steps: ReadonlyArray<Step>;
 }) => Promise<{}>;
 
@@ -154,7 +154,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         updateMessageContent: {
             input: {
                 messageIndex: Schema.integer,
-                version: Schema.integer,
+                contentVersion: Schema.integer,
                 steps: Schema.array(MessageContentStepSchema),
             },
             output: {},

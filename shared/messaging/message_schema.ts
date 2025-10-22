@@ -26,8 +26,8 @@ export const MessageContentPayloadParentSchema = Schema.union({
         type: Schema.value("MessagesRange"),
         startIndex: Schema.integer.min(0),
         endIndex: Schema.integer.min(0), // `endIndex` is inclusive
-        startVersion: Schema.integer.min(0),
-        endVersion: Schema.integer.min(0),
+        startContentVersion: Schema.integer.min(0).originalPropertyKey("startVersion"),
+        endContentVersion: Schema.integer.min(0).originalPropertyKey("endVersion"),
         startPos: Schema.integer.min(0),
         endPos: Schema.integer.min(0),
     })
@@ -36,8 +36,10 @@ export const MessageContentPayloadParentSchema = Schema.union({
             range => range.startIndex <= range.endIndex,
         )
         .validation(
-            "`startVersion` is equal to `endVersion` if `startIndex` equals `endIndex`",
-            range => range.startIndex !== range.endIndex || range.startVersion === range.endVersion,
+            "`startContentVersion` is equal to `endContentVersion` if `startIndex` equals `endIndex`",
+            range =>
+                range.startIndex !== range.endIndex ||
+                range.startContentVersion === range.endContentVersion,
         )
         .validation(
             "`startPos` is less than or equal to `endPos` if `startIndex` equals `endIndex`",
@@ -48,7 +50,7 @@ export const MessageContentPayloadParentSchema = Schema.union({
     // other messaging surface has a post range parent.
     PostRange: Schema.object({
         type: Schema.value("PostRange"),
-        version: Schema.integer.min(0),
+        contentVersion: Schema.integer.min(0).originalPropertyKey("version"),
         startPos: Schema.integer.min(0),
         endPos: Schema.integer.min(0),
     }).validation(

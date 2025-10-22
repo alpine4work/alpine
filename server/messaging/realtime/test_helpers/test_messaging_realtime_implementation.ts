@@ -1731,7 +1731,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1825,7 +1825,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -1977,7 +1977,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await connection2.procedures.updateMessageContent({
                 messageIndex: message2.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -2179,7 +2179,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await connection2.procedures.updateMessageContent({
                 messageIndex: message2.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
@@ -2755,7 +2755,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await connection3.procedures.updateMessageContent({
                 messageIndex: initialMessage.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(0, 7, new Slice(updatedContent.content, 0, 0))],
             });
 
@@ -3202,7 +3202,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             const updateMessagePromise = connection3.procedures.updateMessageContent({
                 messageIndex: initialMessage.index,
-                version: 0,
+                contentVersion: 0,
                 steps: [new ReplaceStep(0, 7, new Slice(updatedContent.content, 0, 0))],
             });
 

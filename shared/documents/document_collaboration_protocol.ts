@@ -169,7 +169,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             input: {
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 commentIndex: Schema.integer,
-                version: Schema.integer,
+                contentVersion: Schema.integer,
                 steps: Schema.array(MessageContentStepSchema),
             },
             output: {},

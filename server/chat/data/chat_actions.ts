@@ -1971,12 +1971,12 @@ export function updateChatMessageContent(
     {
         chatId,
         messageIndex,
-        version,
+        contentVersion,
         steps,
     }: {
         chatId: ChatId;
         messageIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ): Promise<{
@@ -2004,8 +2004,10 @@ export function updateChatMessageContent(
         if (chatMessageItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical message content");
 
-        if (version !== (chatMessageItem.payload.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError("Can’t update message with mismatched version");
+        if (contentVersion !== (chatMessageItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError(
+                "Can’t update message with mismatched content version",
+            );
 
         let content = chatMessageItem.payload.content;
         const mapping = new Mapping();

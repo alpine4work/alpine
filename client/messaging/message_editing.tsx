@@ -31,7 +31,7 @@ export type MessageEditingState<RoomKey extends string> =
           readonly isEditing: true;
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
-          readonly version: number;
+          readonly contentVersion: number;
           readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
           // We use `LinkedList` for O(1) insertion whenever the content changes.
           readonly contentSteps: LinkedList<ReadonlyArray<Step>>;
@@ -92,7 +92,7 @@ function reduce<RoomKey extends string>(
                 isEditing: true,
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
-                version: action.messagePayload.contentUpdate?.mappings.length ?? 0,
+                contentVersion: action.messagePayload.contentUpdate?.mappings.length ?? 0,
                 contentEditorState: ContentEditorState.create(action.messagePayload.content, {
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. But on mobile, if the message is long, editing should start at the
@@ -206,7 +206,7 @@ export function useMessageEditing<RoomKey extends string>({
     onUpdateMessageContent: (options: {
         roomKey: RoomKey;
         messageIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     }) => Promise<void>;
     onDeleteMessage: (options: {roomKey: RoomKey; messageIndex: number}) => Promise<void>;
@@ -254,7 +254,7 @@ export function useMessageEditing<RoomKey extends string>({
         onUpdateMessageContent({
             roomKey: state.messageRoomKey,
             messageIndex: state.messageIndex,
-            version: state.version,
+            contentVersion: state.contentVersion,
             steps,
         }).then(
             () => {

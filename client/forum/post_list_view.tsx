@@ -676,10 +676,10 @@ function PostListView(
     // At the post list level for the same reasons message editing is at the post
     // list level.
     const {postEditing, modals: postEditingModals} = usePostEditing({
-        onUpdatePostContent: async ({postId, version, steps}) => {
+        onUpdatePostContent: async ({postId, contentVersion, steps}) => {
             const event = await updatePostContent(context, {
                 postId,
-                version,
+                contentVersion,
                 steps,
             });
 
@@ -697,13 +697,13 @@ function PostListView(
     // 2. We want only one message to be editable at a time.
     const {messageEditing, modals: messageEditingModals} = useMessageEditing<PostId>({
         messageNoun: "comment",
-        onUpdateMessageContent: async ({roomKey, messageIndex, version, steps}) => {
+        onUpdateMessageContent: async ({roomKey, messageIndex, contentVersion, steps}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
             if (!procedures) throw new InternalError("Post comment input isn’t mounted");
 
             await procedures.updateCommentContent({
                 commentIndex: messageIndex,
-                version,
+                contentVersion,
                 steps,
             });
         },
@@ -1826,7 +1826,7 @@ function PostListView(
                         assert(parent.type === "PostRange");
 
                         await navigate(
-                            `/s/${space.id}/posts/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.version}`,
+                            `/s/${space.id}/posts/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.contentVersion}`,
                         );
                         return;
                     }

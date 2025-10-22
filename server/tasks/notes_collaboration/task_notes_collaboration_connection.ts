@@ -279,11 +279,11 @@ export class TaskNotesCollaborationConnection {
                 fileIds,
             }),
 
-        updateCommentContent: (context, {commentIndex: messageIndex, steps, version}) =>
+        updateCommentContent: (context, {commentIndex: messageIndex, steps, contentVersion}) =>
             this._messagingConnection.updateMessageContent(context, {
                 messageIndex,
                 steps,
-                version,
+                contentVersion,
             }),
 
         deleteComment: (context, {commentIndex: messageIndex}) =>
@@ -401,12 +401,12 @@ const createMessage: CreateMessageFunction<TaskId> = (
 
 const updateMessageContent: UpdateMessageContentFunction<TaskId> = (
     context,
-    {roomKey: taskId, messageIndex: commentIndex, version, steps},
+    {roomKey: taskId, messageIndex: commentIndex, contentVersion, steps},
 ) => {
     return updateTaskCommentContent(context, {
         taskId,
         commentIndex,
-        version,
+        contentVersion,
         steps,
     });
 };

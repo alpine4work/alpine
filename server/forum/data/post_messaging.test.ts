@@ -171,12 +171,12 @@ testMessagingImplementation<PostId>(context, {
     },
     async updateMessageContent(
         context,
-        {roomKey: postId, messageIndex: commentIndex, version, steps},
+        {roomKey: postId, messageIndex: commentIndex, contentVersion, steps},
     ) {
         return updatePostCommentContent(context, {
             postId,
             commentIndex,
-            version,
+            contentVersion,
             steps,
         });
     },

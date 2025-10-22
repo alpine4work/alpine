@@ -591,13 +591,18 @@ function DocumentCommentThreadListView(
     // 2. We want only one message to be editable at a time.
     const {messageEditing, modals} = useMessageEditing<DocumentCommentRoomKey>({
         messageNoun: "comment",
-        onUpdateMessageContent: async ({roomKey, messageIndex: commentIndex, version, steps}) => {
+        onUpdateMessageContent: async ({
+            roomKey,
+            messageIndex: commentIndex,
+            contentVersion,
+            steps,
+        }) => {
             const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
             await procedures.updateCommentContent({
                 commentThreadId,
                 commentIndex,
-                version,
+                contentVersion,
                 steps,
             });
         },

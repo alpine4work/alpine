@@ -5330,12 +5330,12 @@ export function updateTaskCommentContent(
     {
         taskId,
         commentIndex,
-        version,
+        contentVersion,
         steps,
     }: {
         taskId: TaskId;
         commentIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ): Promise<{
@@ -5366,8 +5366,11 @@ export function updateTaskCommentContent(
         if (taskCommentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical comment content");
 
-        if (version !== (taskCommentItem.payload.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError("Can’t update comment with mismatched version");
+        if (contentVersion !== (taskCommentItem.payload.contentUpdate?.mappings.length ?? 0)) {
+            throw new FailedPreconditionError(
+                "Can’t update comment with mismatched content version",
+            );
+        }
 
         let content = taskCommentItem.payload.content;
         const mapping = new Mapping();

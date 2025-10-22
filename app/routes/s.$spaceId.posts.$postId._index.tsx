@@ -142,16 +142,16 @@ export default function PostRoute() {
         const parentString = searchParams.get("parent");
         if (!parentString) return null;
 
-        const [posString = "", versionString = ""] = parentString.split("@", 2);
+        const [posString = "", contentVersionString = ""] = parentString.split("@", 2);
         const [startPosString = "", endPosString = ""] = posString.split("-", 2);
 
-        const version = parseInt(versionString, 10);
+        const contentVersion = parseInt(contentVersionString, 10);
         const startPos = parseInt(startPosString, 10);
         const endPos = parseInt(endPosString, 10);
 
-        if (isNaN(version) || isNaN(startPos) || isNaN(endPos)) return null;
+        if (isNaN(contentVersion) || isNaN(startPos) || isNaN(endPos)) return null;
 
-        return {type: "PostRange", version, startPos, endPos};
+        return {type: "PostRange", contentVersion, startPos, endPos};
     });
 
     useEffect(() => {

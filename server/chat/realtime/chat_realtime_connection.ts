@@ -165,12 +165,12 @@ const createMessage: CreateMessageFunction<ChatId> = (
 
 const updateMessageContent: UpdateMessageContentFunction<ChatId> = (
     context,
-    {roomKey: chatId, messageIndex, version, steps},
+    {roomKey: chatId, messageIndex, contentVersion, steps},
 ) => {
     return updateChatMessageContent(context, {
         chatId,
         messageIndex,
-        version,
+        contentVersion,
         steps,
     });
 };

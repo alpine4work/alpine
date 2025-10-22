@@ -78,7 +78,7 @@ export const updateChatMessageContent = defineRpc({
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
-        version: Schema.integer,
+        contentVersion: Schema.integer,
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {

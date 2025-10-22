@@ -4434,11 +4434,11 @@ testMessagingImplementation<ChatId>(context, {
     async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
         return getChatMessagePayload(context, {chatId, messageIndex});
     },
-    async updateMessageContent(context, {roomKey: chatId, messageIndex, version, steps}) {
+    async updateMessageContent(context, {roomKey: chatId, messageIndex, contentVersion, steps}) {
         return updateChatMessageContent(context, {
             chatId,
             messageIndex,
-            version,
+            contentVersion,
             steps,
         });
     },

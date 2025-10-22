@@ -63,7 +63,7 @@ import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitio
 export type PostRealtimeProcedures = {
     updateCommentContent: (input: {
         commentIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     }) => Promise<{}>;
     deleteComment: (input: {commentIndex: number}) => Promise<{}>;

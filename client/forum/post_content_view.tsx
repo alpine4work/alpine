@@ -298,12 +298,13 @@ export function PostContentView({
         let from = jumpState.options.startPos;
         let to = jumpState.options.endPos;
 
-        const version = post.contentUpdate?.mappings.length ?? 0;
+        const contentVersion = post.contentUpdate?.mappings.length ?? 0;
 
         const mappings =
-            version > jumpState.options.version
-                ? post.contentUpdate?.mappings.slice(-(version - jumpState.options.version)) ??
-                  emptyArray
+            contentVersion > jumpState.options.contentVersion
+                ? post.contentUpdate?.mappings.slice(
+                      -(contentVersion - jumpState.options.contentVersion),
+                  ) ?? emptyArray
                 : emptyArray;
 
         for (const mapping of mappings) {

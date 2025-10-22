@@ -182,7 +182,7 @@ export function usePostEditing({
 }: {
     onUpdatePostContent: (options: {
         postId: PostId;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     }) => Promise<void>;
 }): {
@@ -227,7 +227,7 @@ export function usePostEditing({
 
         onUpdatePostContent({
             postId: state.postId,
-            version: state.contentVersion,
+            contentVersion: state.contentVersion,
             steps,
         }).then(
             () => {

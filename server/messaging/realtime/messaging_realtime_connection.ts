@@ -75,7 +75,7 @@ export type UpdateMessageContentFunction<RoomKey extends string> = (
     options: {
         roomKey: RoomKey;
         messageIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ) => Promise<{
@@ -582,11 +582,11 @@ export class MessagingRealtimeConnection<
         context: WorkerSessionActionContext,
         {
             messageIndex,
-            version,
+            contentVersion,
             steps,
         }: {
             messageIndex: number;
-            version: number;
+            contentVersion: number;
             steps: ReadonlyArray<Step>;
         },
     ): Promise<{}> {
@@ -595,7 +595,7 @@ export class MessagingRealtimeConnection<
         const {content, contentUpdate} = await this._updateMessageContent(context, {
             roomKey: this.roomKey,
             messageIndex,
-            version,
+            contentVersion,
             steps,
         });
 

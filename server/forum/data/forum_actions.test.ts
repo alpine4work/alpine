@@ -3087,7 +3087,7 @@ test("can backfill realtime updates in a channel", async () => {
 
     await updatePostContent(session.action(), {
         postId: post1.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
 
@@ -3227,7 +3227,7 @@ test("can backfill realtime updates in a channel", async () => {
 
     await updatePostContent(session.action(), {
         postId: post4.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
 
@@ -3756,7 +3756,7 @@ test("won’t backfill realtime updates when comment count changes", async () =>
 
     await updatePostContent(session.action(), {
         postId: post.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
 
@@ -3868,7 +3868,7 @@ test("can update a post’s contents", async () => {
 
     const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(session.action(), {
         postId: post.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(5, 6, textSlice("2"))],
     });
 
@@ -3898,7 +3898,7 @@ test("can update a post’s contents", async () => {
 
     const {contentUpdatedTime: contentUpdatedTime2} = await updatePostContent(session.action(), {
         postId: post.id,
-        version: 1,
+        contentVersion: 1,
         steps: [new ReplaceStep(5, 6, textSlice("3"))],
     });
 
@@ -3945,7 +3945,7 @@ test("can’t update a post’s contents with the wrong version", async () => {
 
     const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(session.action(), {
         postId: post.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(5, 6, textSlice("2"))],
     });
 
@@ -3960,10 +3960,10 @@ test("can’t update a post’s contents with the wrong version", async () => {
     await expect(
         updatePostContent(session.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
-    ).rejects.toThrow("Can’t update post with mismatched version");
+    ).rejects.toThrow("Can’t update post with mismatched content version");
 
     expect((await getPost(session.action(), post.id)).model).toEqual(
         expect.objectContaining({
@@ -4010,7 +4010,7 @@ test("can’t update another account’s post", async () => {
     await expect(
         updatePostContent(session2.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
         }),
     ).rejects.toThrow("Can only update posts you authored");
@@ -4077,7 +4077,7 @@ test("can’t update another space’s post", async () => {
     await expect(
         updatePostContent(otherSession.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
         }),
     ).rejects.toThrow(PermissionDeniedError);
@@ -4142,7 +4142,7 @@ test("can’t update a post with invalid content", async () => {
     await expect(
         updatePostContent(session.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [
                 new ReplaceStep(
                     0,
@@ -4223,7 +4223,7 @@ test("can’t update a post after losing channel access", async () => {
 
     await updatePostContent(session2.action(), {
         postId: post.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(5, 6, textSlice("2"))],
     });
 
@@ -4256,7 +4256,7 @@ test("can’t update a post after losing channel access", async () => {
     await expect(
         updatePostContent(session2.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
@@ -4290,7 +4290,7 @@ test("can’t update a post after losing channel access", async () => {
     await expect(
         updatePostContent(session2.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
@@ -4323,7 +4323,7 @@ test("can’t update a post after losing channel access", async () => {
 
     await updatePostContent(session2.action(), {
         postId: post.id,
-        version: 1,
+        contentVersion: 1,
         steps: [new ReplaceStep(5, 6, textSlice("3"))],
     });
 
@@ -4367,7 +4367,7 @@ test("if time hasn’t moved forward updating a post will set it to +1ms of the 
 
         await updatePostContent(session.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(5, 6, textSlice("2"))],
         });
 
@@ -4379,7 +4379,7 @@ test("if time hasn’t moved forward updating a post will set it to +1ms of the 
 
         await updatePostContent(session.action(), {
             postId: post.id,
-            version: 1,
+            contentVersion: 1,
             steps: [new ReplaceStep(5, 6, textSlice("3"))],
         });
 
@@ -4556,7 +4556,7 @@ test("broadcasts post realtime events to channel and post", async () => {
 
     await updatePostContent(otherSession.action(), {
         postId: post2.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
     await ProcessContextModule.waitForTestTasks();
@@ -4580,7 +4580,7 @@ test("broadcasts post realtime events to channel and post", async () => {
 
     await updatePostContent(session.action(), {
         postId: post3.id,
-        version: 0,
+        contentVersion: 0,
         steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
     await ProcessContextModule.waitForTestTasks();
@@ -7269,7 +7269,7 @@ describe("Notification subscribers", () => {
 
         await updatePostContent(session1.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
         });
 
@@ -7308,7 +7308,7 @@ describe("Notification subscribers", () => {
 
         await updatePostContent(session1.action(), {
             postId: post.id,
-            version: 0,
+            contentVersion: 0,
             steps: [
                 new ReplaceStep(
                     0,
@@ -9467,12 +9467,12 @@ test("can create post comment with post range parent", async () => {
     const post = await channel.createPost(session, "content 1");
 
     const comment = await post.createComment(session, "Hello, world!", {
-        parent: {type: "PostRange", version: 0, startPos: 2, endPos: 4},
+        parent: {type: "PostRange", contentVersion: 0, startPos: 2, endPos: 4},
     });
 
     expect((await comment.get()).payload.parent).toEqual({
         type: "PostRange",
-        version: 0,
+        contentVersion: 0,
         startPos: 2,
         endPos: 4,
     });
@@ -9489,12 +9489,12 @@ test("can create post comment with post range parent on later version", async ()
     await post.updateContent(session, "content 3");
 
     const comment = await post.createComment(session, "Hello, world!", {
-        parent: {type: "PostRange", version: 2, startPos: 2, endPos: 4},
+        parent: {type: "PostRange", contentVersion: 2, startPos: 2, endPos: 4},
     });
 
     expect((await comment.get()).payload.parent).toEqual({
         type: "PostRange",
-        version: 2,
+        contentVersion: 2,
         startPos: 2,
         endPos: 4,
     });
@@ -9512,9 +9512,9 @@ test("can’t create post comment with post range parent with invalid version", 
 
     await expect(
         post.createComment(session, "Hello, world!", {
-            parent: {type: "PostRange", version: 3, startPos: 2, endPos: 4},
+            parent: {type: "PostRange", contentVersion: 3, startPos: 2, endPos: 4},
         }),
-    ).rejects.toThrow("Invalid post range version");
+    ).rejects.toThrow("Invalid post range content version");
 });
 
 describe("getChannelAndMetadata", () => {

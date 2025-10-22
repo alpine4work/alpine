@@ -245,7 +245,7 @@ export const updatePostContent = defineRpc({
     name: "updatePostContent",
     input: {
         postId: Schema.id<PostId>(),
-        version: Schema.integer,
+        contentVersion: Schema.integer,
         steps: Schema.array(PostContentStepSchema),
     },
     output: {
@@ -338,7 +338,7 @@ export const updatePostCommentContent = defineRpc({
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
-        version: Schema.integer,
+        contentVersion: Schema.integer,
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {

@@ -185,18 +185,18 @@ export class TestTask extends TestCommentRoomBase {
         context: TestSessionActionContext,
         {
             messageIndex,
-            version,
+            contentVersion,
             steps,
         }: {
             messageIndex: number;
-            version: number;
+            contentVersion: number;
             steps: ReadonlyArray<Step>;
         },
     ) {
         return updateTaskCommentContent(context, {
             taskId: this.id,
             commentIndex: messageIndex,
-            version,
+            contentVersion,
             steps,
         });
     }

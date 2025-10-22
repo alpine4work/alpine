@@ -173,12 +173,12 @@ testMessagingImplementation<TaskId>(processContext, {
     },
     async updateMessageContent(
         context,
-        {roomKey: taskId, messageIndex: commentIndex, version, steps},
+        {roomKey: taskId, messageIndex: commentIndex, contentVersion, steps},
     ) {
         return updateTaskCommentContent(context, {
             taskId,
             commentIndex,
-            version,
+            contentVersion,
             steps,
         });
     },

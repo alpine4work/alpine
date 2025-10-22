@@ -194,8 +194,10 @@ export async function createPostComment(
                         const postItem = await postItemPromise;
                         if (!postItem) throw createPostNotFoundError(postId);
 
-                        if (parent.version > (postItem.contentUpdate?.mappings.length ?? 0)) {
-                            throw new FailedPreconditionError("Invalid post range version");
+                        if (
+                            parent.contentVersion > (postItem.contentUpdate?.mappings.length ?? 0)
+                        ) {
+                            throw new FailedPreconditionError("Invalid post range content version");
                         }
                         break;
                     }
@@ -799,12 +801,12 @@ export function updatePostCommentContent(
     {
         postId,
         commentIndex,
-        version,
+        contentVersion,
         steps,
     }: {
         postId: PostId;
         commentIndex: number;
-        version: number;
+        contentVersion: number;
         steps: ReadonlyArray<Step>;
     },
 ): Promise<{
@@ -862,8 +864,10 @@ export function updatePostCommentContent(
         if (commentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical comment content");
 
-        if (version !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError("Can’t update comment with mismatched version");
+        if (contentVersion !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError(
+                "Can’t update comment with mismatched content version",
+            );
 
         let content = commentItem.payload.content;
         const mapping = new Mapping();

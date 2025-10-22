@@ -252,7 +252,7 @@ export const updateDocumentCommentContent = defineRpc({
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         commentIndex: Schema.integer,
-        version: Schema.integer,
+        contentVersion: Schema.integer,
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {

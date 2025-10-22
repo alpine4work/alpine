@@ -147,11 +147,11 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         context: TestSessionActionContext,
         {
             messageIndex,
-            version,
+            contentVersion,
             steps,
         }: {
             messageIndex: number;
-            version: number;
+            contentVersion: number;
             steps: ReadonlyArray<Step>;
         },
     ) {
@@ -159,7 +159,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             documentId: this.document.id,
             commentThreadId: this.id,
             commentIndex: messageIndex,
-            version,
+            contentVersion,
             steps,
         });
     }
