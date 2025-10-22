@@ -120,7 +120,7 @@ export function NotificationDigestEmailTemplate({
     const preview = `You have ${printPrettySmallNumberSummary(
         digestContent.digestEntries.length + digestContent.remainingEntryCount,
         "update",
-    )}.`;
+    )}`;
 
     return (
         <BaseEmailTemplate
