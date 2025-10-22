@@ -20,7 +20,7 @@ import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search
 import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_actions.js";
-import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";

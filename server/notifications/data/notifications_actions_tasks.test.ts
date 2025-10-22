@@ -1,12 +1,12 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
+import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {
-    archiveInboxEntry,
-    getInboxEntries,
-    getInboxEntry,
     notificationEventProcessingTestCounter,
     processNotificationEvent,
-} from "~/server/notifications/data/notifications_actions.js";
+} from "~/server/notifications/data/process/process_notification_event.js";
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,

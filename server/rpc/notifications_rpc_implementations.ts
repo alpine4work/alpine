@@ -1,18 +1,16 @@
+import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
+import {subscribeToDigestNotificationsEmail} from "~/server/notifications/data/digest/subscribe_to_digest_notifications_email.js";
+import {unsubscribeFromDigestNotificationsEmail} from "~/server/notifications/data/digest/unsubscribe_from_digest_notifications_email.js";
+import {getInbox} from "~/server/notifications/data/get_inbox.js";
+import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {
-    archiveInboxEntry,
     backfillInboxEntries,
-    getInbox,
-    getInboxChannelPostsEntryPosts,
     getInboxEntries,
-    getInboxEntry,
-    observeInbox,
-    unarchiveInboxEntry,
-    unsubscribeFromEmailNotificationWithUrl,
-} from "~/server/notifications/data/notifications_actions.js";
-import {
-    subscribeToDigestNotificationsEmail,
-    unsubscribeFromDigestNotificationsEmail,
-} from "~/server/notifications/data/notifications_actions_digest.js";
+} from "~/server/notifications/data/get_inbox_entries.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
+import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
+import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
+import {unsubscribeFromEmailNotificationWithUrl} from "~/server/notifications/data/unsubscribe_from_email_notification_with_url.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/notifications_rpc_definitions.js";
 

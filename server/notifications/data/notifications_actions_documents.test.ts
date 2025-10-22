@@ -1,13 +1,13 @@
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {
-    getInboxEntries,
-    getInboxEntry,
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
     notificationEventProcessingTestCounter,
     processNotificationEvent,
-} from "~/server/notifications/data/notifications_actions.js";
+} from "~/server/notifications/data/process/process_notification_event.js";
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,

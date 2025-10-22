@@ -72,7 +72,7 @@ import {
 } from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getOwnAccount} from "~/server/accounts/accounts_actions.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {getInbox} from "~/server/notifications/data/notifications_actions.js";
+import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {

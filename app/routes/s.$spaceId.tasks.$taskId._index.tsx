@@ -33,7 +33,7 @@ import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/tasks/core/t
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments_view.js";
-import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";

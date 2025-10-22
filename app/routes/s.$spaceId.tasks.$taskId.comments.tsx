@@ -19,7 +19,7 @@ import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {getInboxEntry} from "~/server/notifications/data/notifications_actions.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskCommentsFromEnd} from "~/server/tasks/data/task_table.js";

@@ -30,10 +30,8 @@ import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_s
 import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {
-    getInboxDocumentNewCommentThreadsEntryCommentThreads,
-    getInboxEntry,
-} from "~/server/notifications/data/notifications_actions.js";
+import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/get_inbox_document_new_comment_threads_entry_comment_threads.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getSpellCheckIgnoredLints} from "~/server/spell_check/get_spell_check_ignored_lints.js";

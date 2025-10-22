@@ -7,8 +7,8 @@ import {
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
-import {processNotificationEvent} from "~/server/notifications/data/notifications_actions.js";
-import {processSendNotificationDigestJob} from "~/server/notifications/data/notifications_digest_jobs.js";
+import {processSendNotificationDigestJob} from "~/server/notifications/data/digest/notifications_digest_jobs.js";
+import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
 import {
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,

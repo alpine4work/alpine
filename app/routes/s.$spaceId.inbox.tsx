@@ -18,7 +18,7 @@ import {getDefaultRouteLayoutForPlatform} from "~/client/remix/route_layout_cont
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
-import {getInboxEntries} from "~/server/notifications/data/notifications_actions.js";
+import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {loadInitialPeekDataForServer} from "~/server/remix/load_initial_peek_data_for_server.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

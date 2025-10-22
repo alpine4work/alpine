@@ -6,21 +6,17 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import * as EmailContextModule from "~/server/emails/noop_email_context_module.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {isScheduleDateTime} from "~/server/notifications/core/schedule_date_time.js";
+import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
+import {computeDigestNotificationsNextScheduledDateTime} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time.js";
+import {getNotificationDigestContent} from "~/server/notifications/data/digest/get_notification_digest_content.js";
+import {isInboxEligibleForDigestNotification} from "~/server/notifications/data/digest/is_inbox_eligible_for_digest_notification.js";
+import {sendNotificationDigestForInbox} from "~/server/notifications/data/digest/send_notification_digest_for_inbox.js";
+import {sendScheduledDigestsForTime} from "~/server/notifications/data/digest/send_scheduled_digests_for_time.js";
 import {
     InboxTable,
-    internalInitialInboxGeneration,
-} from "~/server/notifications/data/internal/notifications_realtime_table.js";
-import {
-    archiveInboxEntry,
-    processNotificationEvent,
-} from "~/server/notifications/data/notifications_actions.js";
-import {
-    computeDigestNotificationsNextScheduledDateTime,
-    getNotificationDigestContent,
-    isInboxEligibleForDigestNotification,
-    sendNotificationDigestForInbox,
-    sendScheduledDigestsForTime,
-} from "~/server/notifications/data/notifications_actions_digest.js";
+    initialInboxGeneration,
+} from "~/server/notifications/data/internal/inbox_table.js";
+import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
 import {createNotificationsScenario} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -852,7 +848,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,
@@ -890,7 +886,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,
@@ -928,7 +924,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: new Date("2024-01-01T12:00:00Z"),
@@ -966,7 +962,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,
@@ -1004,7 +1000,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,
@@ -1044,7 +1040,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,
@@ -1082,7 +1078,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: new Date("2024-01-01T12:00:00Z"),
@@ -1128,7 +1124,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: new Date("2024-01-01T12:00:00Z"),
@@ -1181,7 +1177,7 @@ describe("sendNotificationDigestForInbox", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,
@@ -1440,7 +1436,7 @@ describe("sendScheduledDigestsForTime", () => {
             sortRangeType: "InboxAttributes",
             spaceId: space.id,
             accountId: session.account.id,
-            generation: internalInitialInboxGeneration,
+            generation: initialInboxGeneration,
             loudNotificationCount: 0,
             lastZeroEntryCountTime: null,
             digestNotificationsOptedOutTime: null,

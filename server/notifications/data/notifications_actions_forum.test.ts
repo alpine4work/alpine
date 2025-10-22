@@ -9,26 +9,28 @@ import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/te
 import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
+import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
+import {getInbox} from "~/server/notifications/data/get_inbox.js";
+import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {
-    archiveInboxEntry,
     backfillInboxEntries,
-    getInbox,
-    getInboxChannelPostsEntryPosts,
     getInboxEntries,
-    getInboxEntriesIndexForTest,
-    getInboxEntry,
+} from "~/server/notifications/data/get_inbox_entries.js";
+import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
+import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
+import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
+import {
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
     notificationEventProcessingTestCounter,
-    observeInbox,
     processNotificationEvent,
-    unarchiveInboxEntry,
-} from "~/server/notifications/data/notifications_actions.js";
+} from "~/server/notifications/data/process/process_notification_event.js";
 import {
     createNotificationsScenario,
     createTestInboxModel,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccount,
@@ -6113,8 +6115,6 @@ for (const [currentProcessingType, processingMultiple] of [
             );
 
             await ProcessContextModule.waitForTestTasks();
-
-            const InboxEntriesIndex = getInboxEntriesIndexForTest();
 
             expect(
                 await InboxEntriesIndex.realtimeQuery(context.action(scenario.session1), {

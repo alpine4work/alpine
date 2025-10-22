@@ -67,19 +67,19 @@ export type InboxAttributesItem = MergeObjectIntersection<
 >;
 
 export type InboxEntryItem = MergeObjectIntersection<
-    InboxTableTypes["Item"] & (typeof internalInboxEntryItemTypes)[number]
+    InboxTableTypes["Item"] & (typeof inboxEntryItemTypes)[number]
 >;
 
 export type InboxEntryItemKey = MergeObjectIntersection<
-    InboxTableTypes["ItemKey"] & (typeof internalInboxEntryItemTypes)[number]
+    InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
 >;
 
 /**
  * The initial generation of a new inbox.
  */
-export const internalInitialInboxGeneration = 0;
+export const initialInboxGeneration = 0;
 
-export const internalInboxEntryItemTypes = [
+const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "ChatEntry"},
     {partitionType: "Inbox", sortRangeType: "PostCommentsEntry"},
     {partitionType: "Inbox", sortRangeType: "ChannelPostsEntry"},
@@ -110,7 +110,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          *
                          * This should only ever increase! Never decrease.
                          */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
 
                         /**
                          * The number of loud notifications in this inbox. This should be a simple sum
@@ -303,7 +303,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
                         isArchived: Schema.boolean,
                         /** See the documentation on `generation` in `InboxEntriesIndex`. */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
                         /** See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item. */
@@ -360,7 +360,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
                         isArchived: Schema.boolean,
                         /** See the documentation on `generation` in `InboxEntriesIndex`. */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
                         /** See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item. */
@@ -439,7 +439,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
                         isArchived: Schema.boolean,
                         /** See the documentation on `generation` in `InboxEntriesIndex`. */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
 
@@ -490,7 +490,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
                         isArchived: Schema.boolean,
                         /** See the documentation on `generation` in `InboxEntriesIndex`. */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
                         /** See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item. */
@@ -549,7 +549,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
                         isArchived: Schema.boolean,
                         /** See the documentation on `generation` in `InboxEntriesIndex`. */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
 
@@ -605,7 +605,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
                         isArchived: Schema.boolean,
                         /** See the documentation on `generation` in `InboxEntriesIndex`. */
-                        generation: Schema.integer.min(internalInitialInboxGeneration),
+                        generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
                         /** See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item. */
@@ -1177,7 +1177,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
  */
 export const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
     name: "InboxEntries",
-    itemTypes: internalInboxEntryItemTypes,
+    itemTypes: inboxEntryItemTypes,
     partitionKeyAttributes: {
         spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
         accountId: DynamoKeyAttributeSchema.id<AccountId>(),

@@ -1,5 +1,5 @@
 import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
-import {getOurAccountInboxes} from "~/server/notifications/data/notifications_actions.js";
+import {getOurAccountInboxes} from "~/server/notifications/data/get_our_account_inboxes.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_actions.js";
 import {createSpace} from "~/server/spaces/create_space/create_space.js";
