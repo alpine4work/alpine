@@ -5,7 +5,6 @@ import {TestTaskContextModule} from "~/server/context/task_context_module_base.j
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
-import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     getSearchEntityIndexesForTest,
@@ -217,8 +216,7 @@ const testCaseByEntityType: Record<
                 prefix: `${authorShortName} in ${channel.initialName}: `,
                 access: channel.access,
                 updateTitle: async title => {
-                    await updatePostContent(session.action(), {
-                        postId: post.id,
+                    await post.updateContent(session, {
                         content: createSimplePostContent(title),
                     });
                 },

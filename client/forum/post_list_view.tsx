@@ -62,6 +62,7 @@ import {
     JumpToMessageRangeOptions,
     useJumpToMessageRange,
 } from "~/client/messaging/use_jump_to_message_range.js";
+import {useJumpToPostRange} from "~/client/messaging/use_jump_to_post_range.js";
 import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -70,7 +71,9 @@ import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
 } from "~/client/remix/spacing_scale_context.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {feedCreateSectionMinHeight} from "~/client/styles/feed_shared_styles.js";
 import {
     feedEntryHeight,
@@ -101,11 +104,13 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -148,7 +153,7 @@ export type PostListViewRef = {
     /**
      * Start editing the post with the provided `PostId`.
      */
-    startEditingPost(postId: PostId, currentContent: PostContentWithReferences): void;
+    startEditingPost(post: PostModel): void;
 };
 
 /**
@@ -178,6 +183,7 @@ function PostListView(
         navigationBar,
         withSafeAreaInsetTop = false,
         initialScrollForFirstPost,
+        initialParentByPostId = emptyMap,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -326,6 +332,11 @@ function PostListView(
          * How to initially scroll the first `<PostContentView>` component in our list.
          */
         initialScrollForFirstPost?: Memo<PostContentViewInitialScroll> | null;
+
+        /**
+         * Initial message input parent for some post in the list.
+         */
+        initialParentByPostId?: ReadonlyMap<PostId, MessageContentPayloadParent>;
     },
     ref: Ref<PostListViewRef>,
 ) {
@@ -333,6 +344,8 @@ function PostListView(
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -610,7 +623,7 @@ function PostListView(
     }, [posts, tryLoadingMoreData]);
 
     const loadInitialPostComments = useEvent(
-        async (item: PostListPostContentItem): Promise<void> => {
+        async (item: Pick<PostListPostContentItem, "post" | "postComments">): Promise<void> => {
             // If we're already loading, don't try to load more comments.
             if (isLoadingRef.current) return;
             isLoadingRef.current = true;
@@ -663,10 +676,11 @@ function PostListView(
     // At the post list level for the same reasons message editing is at the post
     // list level.
     const {postEditing, modals: postEditingModals} = usePostEditing({
-        onUpdatePostContent: async ({postId, content}) => {
+        onUpdatePostContent: async ({postId, version, steps}) => {
             const event = await updatePostContent(context, {
                 postId,
-                content,
+                version,
+                steps,
             });
 
             onPostRealtimeEventTransaction(event);
@@ -705,7 +719,7 @@ function PostListView(
 
     // Manages which comment `<PostCommentInput>` is currently replying to.
     const [inputParentByPostId, setInputParentByPostId] =
-        useState<ReadonlyMap<PostId, MessageContentPayloadParent>>(emptyMap);
+        useState<ReadonlyMap<PostId, MessageContentPayloadParent>>(initialParentByPostId);
 
     const [isShowingAllContentByPostId, setIsShowingAllContentByPostId] =
         useState<ReadonlyMap<PostId, true>>(emptyMap);
@@ -725,12 +739,32 @@ function PostListView(
         });
     }
 
-    const {jumpState, jumpToMessageRange} = useJumpToMessageRange<PostId>({
+    const {jumpState: jumpToMessageRangeState, jumpToMessageRange} = useJumpToMessageRange<PostId>({
         viewRef,
         tryLoadingMoreData,
         scrollToIndexForMessageIndex: (postId, index) =>
             assertExists(posts.getPostByIdIfExists(postId)).getPostCommentIndex(index),
     });
+
+    const {jumpState: jumpToPostRangeState, jumpToPostRange} = useJumpToPostRange({
+        viewRef,
+        scrollToIndexForPost: postId =>
+            assertExists(posts.getPostByIdIfExists(postId)).postContentItemIndex,
+    });
+
+    // If we're jumping to a post while a post's content is closed then
+    // open the content so we can see what the jump animation is trying to
+    // highlight!
+    if (
+        jumpToPostRangeState &&
+        isShowingAllContentByPostId.get(jumpToPostRangeState.options.postId) !== true
+    ) {
+        setIsShowingAllContentByPostId(oldIsShowingAllContentByPostId => {
+            const newIsShowingAllContentByPostId = new Map(oldIsShowingAllContentByPostId);
+            newIsShowingAllContentByPostId.set(jumpToPostRangeState.options.postId, true);
+            return newIsShowingAllContentByPostId;
+        });
+    }
 
     const postEditingDispatch = postEditing.dispatch;
 
@@ -738,11 +772,12 @@ function PostListView(
         ref,
         () => ({
             jumpToPostCommentRange: jumpToMessageRange,
-            startEditingPost: (postId, currentContent) => {
+            startEditingPost: post => {
                 postEditingDispatch({
                     type: "StartEditing",
-                    postId,
-                    currentContent,
+                    postId: post.id,
+                    contentVersion: post.contentUpdate?.mappings.length ?? 0,
+                    content: post.content,
                     platform,
                 });
             },
@@ -1180,6 +1215,11 @@ function PostListView(
                                                 ? initialScrollForFirstPost ?? null
                                                 : null
                                         }
+                                        jumpState={
+                                            jumpToPostRangeState?.options.postId === item.post.id
+                                                ? jumpToPostRangeState
+                                                : null
+                                        }
                                         idBase={idBase}
                                         onTogglePostComments={() => {
                                             if (item.postCommentsState === "Closed") {
@@ -1275,19 +1315,24 @@ function PostListView(
                                     nextMessage={nextComment}
                                     messages={item.postComments}
                                     messageEditing={messageEditing}
+                                    // Pass in the post so we can render the `PostRange` content in replies.
+                                    postRoom={item.post}
                                     jumpState={
                                         item.postComment &&
                                         !item.postComment.isOptimistic &&
-                                        jumpState &&
-                                        jumpState.options.startIndex <= item.postComment.index &&
-                                        item.postComment.index <= jumpState.options.endIndex
-                                            ? jumpState.messages[
+                                        jumpToMessageRangeState &&
+                                        jumpToMessageRangeState.options.startIndex <=
+                                            item.postComment.index &&
+                                        item.postComment.index <=
+                                            jumpToMessageRangeState.options.endIndex
+                                            ? jumpToMessageRangeState.messages[
                                                   item.postComment.index -
-                                                      jumpState.options.startIndex
+                                                      jumpToMessageRangeState.options.startIndex
                                               ]!
                                             : null
                                     }
                                     onJumpToMessageRange={jumpToMessageRange}
+                                    onJumpToPostRange={jumpToPostRange}
                                     onReplyToMessage={() => {
                                         if (item.postComment.isOptimistic) return;
                                         const postCommentIndex = item.postComment.index;
@@ -1516,6 +1561,7 @@ function PostListView(
                                 });
                             }}
                             onJumpToPostCommentRange={jumpToMessageRange}
+                            onJumpToPostRange={jumpToPostRange}
                             onDeletePostComment={async postCommentIndex => {
                                 const procedures = proceduresByPostIdRef.current.get(item.post.id);
                                 if (!procedures)
@@ -1730,6 +1776,7 @@ function PostListView(
             postEditing,
             shouldNotShowChannelId,
             initialScrollForFirstPost,
+            jumpToPostRangeState,
             idBase,
             isShowingAllContentByPostId,
             onOptimisticPostRealtimeEventTransaction,
@@ -1737,8 +1784,9 @@ function PostListView(
             loadInitialPostComments,
             messageEditing,
             fileAttachmentTargetByPostId,
-            jumpState,
+            jumpToMessageRangeState,
             jumpToMessageRange,
+            jumpToPostRange,
             header,
             inputParentByPostId,
             inputRefByPostId,
@@ -1747,6 +1795,92 @@ function PostListView(
             platform,
             onUpdatePostComments,
         ],
+    );
+
+    const messagingPointerToolbar = (
+        <MessagingViewPointerToolbar<PostId, PostCommentModel>
+            viewRef={viewRef}
+            getMessagesByRoomKey={useCallback(
+                (postId: string) => posts.getPostByIdIfExists(postId)?.postComments ?? null,
+                [posts],
+            )}
+            getPostByRoomKey={useCallback(
+                (postId: string) => posts.getPostByIdIfExists(postId)?.post ?? null,
+                [posts],
+            )}
+            onReplyToMessagesRange={async (postId, parent) => {
+                const postResult = posts.getPostByIdIfExists(postId);
+                if (postResult === null) return;
+
+                const {post, postCommentsState, postComments} = postResult;
+
+                // NOTE(calebmer): This code is copied from the code to open comments in
+                // `<PostContentView>`. Similarly we check if the initial comments are loaded
+                // and if they're not we'll go load them then wait for a bit before opening
+                // comments.
+                if (postCommentsState === "Closed") {
+                    if (routeLayout === "narrow") {
+                        // If we're replying via message pointer toolbar in a narrow route with closed
+                        // comments then we're in a channel peek which only shows the post content.
+                        // Never post comments. So we should only ever see `PostRange` here.
+                        assert(parent.type === "PostRange");
+
+                        await navigate(
+                            `/s/${space.id}/posts/${postId}?parent=${parent.startPos}-${parent.endPos}@${parent.version}`,
+                        );
+                        return;
+                    }
+
+                    const initialLoadMessageCount = getInitialLoadMessageCount(getClientInfo());
+
+                    let areAllInitialMessagesLoaded = true;
+                    for (
+                        let index = 0;
+                        index <
+                        Math.min(
+                            postComments.getMessageCountExcludingOptimisticMessages(),
+                            initialLoadMessageCount,
+                        );
+                        index++
+                    ) {
+                        if (postComments.getItem(index).type !== "Loaded") {
+                            areAllInitialMessagesLoaded = false;
+                            break;
+                        }
+                    }
+
+                    // Open comments immediately if:
+                    //
+                    // 1. There are more comments then our initial load request would fetch; AND
+                    // 2. All of those comments are loaded.
+                    //
+                    // We want to load comments again when we have less than the initial load count
+                    // because maybe some users added comments while the comment section was closed?
+                    const shouldOpenCommentsImmediately =
+                        postComments.getMessageCountExcludingOptimisticMessages() >=
+                            initialLoadMessageCount && areAllInitialMessagesLoaded;
+
+                    if (!shouldOpenCommentsImmediately) {
+                        const postCommentsPromise = loadInitialPostComments({post, postComments});
+
+                        // Open post comments once we get our data back. But if the data is taking a
+                        // long time to load, open post comments after a delay.
+                        await Promise.race([
+                            postCommentsPromise,
+                            wait(delayLoadingIndicatorLimitMs),
+                        ]);
+                    }
+
+                    onTogglePostComments(postId);
+                }
+
+                setInputParentByPostId(inputParentByPostId => {
+                    const newInputParentByPostId = new Map(inputParentByPostId);
+                    newInputParentByPostId.set(postId, parent);
+                    return newInputParentByPostId;
+                });
+            }}
+        />
     );
 
     return (
@@ -1767,15 +1901,30 @@ function PostListView(
                                     null
                                 }
                                 contentEditorState={postEditing.state.contentEditorState}
-                                onContentEditorStateChange={contentEditorState =>
+                                onContentEditorStateChange={(contentEditorState, transaction) =>
                                     postEditing.dispatch({
                                         type: "ContentEditorStateChange",
                                         contentEditorState,
+                                        transaction,
                                     })
                                 }
                                 initialContent={postEditing.state.initialContent}
                                 onCloseWithAnimation={onCloseWithAnimation}
-                                onPostRealtimeEventTransaction={onPostRealtimeEventTransaction}
+                                onSave={async () => {
+                                    const savePromiseResolver = createPromiseResolver();
+
+                                    postEditing.dispatch({
+                                        type: "SaveEditedContent",
+                                        savePromiseResolver,
+                                        // We want to cancel editing ourselves after the close
+                                        // animation completes from calling `onCloseWithAnimation`.
+                                        dontCancelEditing: true,
+                                    });
+
+                                    await savePromiseResolver.promise;
+
+                                    onCloseWithAnimation();
+                                }}
                             />
                         );
                     }}
@@ -1917,23 +2066,7 @@ function PostListView(
                                     </>
                                 )}
                                 {extraChildren}
-                                <MessagingViewPointerToolbar<PostId, PostCommentModel>
-                                    viewRef={viewRef}
-                                    getMessagesByRoomKey={useCallback(
-                                        postId =>
-                                            posts.getPostByIdIfExists(postId)?.postComments ?? null,
-                                        [posts],
-                                    )}
-                                    onReplyToMessagesRange={(postId, parent) => {
-                                        setInputParentByPostId(inputParentByPostId => {
-                                            const newInputParentByPostId = new Map(
-                                                inputParentByPostId,
-                                            );
-                                            newInputParentByPostId.set(postId, parent);
-                                            return newInputParentByPostId;
-                                        });
-                                    }}
-                                />
+                                {messagingPointerToolbar}
                             </>
                         }
                         extraChildrenOutsideContentElement={({contentHeight}) =>
@@ -2028,6 +2161,7 @@ function PostListView(
                                         });
                                     }}
                                     onJumpToPostCommentRange={jumpToMessageRange}
+                                    onJumpToPostRange={jumpToPostRange}
                                     onDeletePostComment={async postCommentIndex => {
                                         const procedures = proceduresByPostIdRef.current.get(
                                             lastPostContentItem.post.id,

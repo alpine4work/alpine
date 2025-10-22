@@ -1,13 +1,20 @@
+import {Transaction} from "prosemirror-state";
+import {Step} from "prosemirror-transform";
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {trimContentEnd} from "~/shared/content/trim_content.js";
+import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {
+    LinkedList,
+    forEachLinkedList,
+    reverseLinkedList,
+} from "~/shared/helpers/immutable/linked_list.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
@@ -18,7 +25,10 @@ export type PostEditingState =
     | ({
           readonly isEditing: true;
           readonly postId: PostId;
+          readonly contentVersion: number;
           readonly contentEditorState: ContentEditorState<PostContentWithReferences>;
+          // We use `LinkedList` for O(1) insertion whenever the content changes.
+          readonly contentSteps: LinkedList<ReadonlyArray<Step>>;
           readonly initialContent: PostContent;
           readonly confirmationDialog: "Save" | null;
       } & (
@@ -27,6 +37,7 @@ export type PostEditingState =
             }
           | {
                 readonly isSaving: true;
+                readonly dontCancelEditing: boolean;
                 readonly isAwaitingSaveRef: MutableRefObject<boolean>;
                 readonly savePromiseResolver: PromiseResolver<void> | null;
             }
@@ -36,12 +47,14 @@ export type PostEditingAction =
     | {
           readonly type: "StartEditing";
           readonly postId: PostId;
-          readonly currentContent: PostContentWithReferences;
+          readonly contentVersion: number;
+          readonly content: PostContentWithReferences;
           readonly platform: Platform;
       }
     | {
           readonly type: "ContentEditorStateChange";
           readonly contentEditorState: ContentEditorState<PostContentWithReferences>;
+          readonly transaction: Transaction;
       }
     | {
           readonly type: "CancelEditing";
@@ -55,6 +68,7 @@ export type PostEditingAction =
       }
     | {
           readonly type: "SaveEditedContent";
+          readonly dontCancelEditing?: boolean;
           readonly savePromiseResolver?: PromiseResolver<void>;
       }
     | {
@@ -68,12 +82,14 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             return {
                 isEditing: true,
                 postId: action.postId,
-                contentEditorState: ContentEditorState.create(action.currentContent, {
+                contentVersion: action.contentVersion,
+                contentEditorState: ContentEditorState.create(action.content, {
                     // Put the selection at the start of the post so the cursor is visible when we
                     // enter edit mode and we don't have to scroll.
                     selection: "start",
                 }),
-                initialContent: action.currentContent.doc,
+                contentSteps: null,
+                initialContent: action.content.doc,
                 isSaving: false,
                 confirmationDialog: null,
             };
@@ -84,6 +100,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             return {
                 ...state,
                 contentEditorState: action.contentEditorState,
+                contentSteps: {value: action.transaction.steps, next: state.contentSteps},
             };
         }
         case "CancelEditing": {
@@ -122,6 +139,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
             return {
                 ...state,
                 isSaving: true,
+                dontCancelEditing: action.dontCancelEditing ?? false,
                 isAwaitingSaveRef: {current: false},
                 savePromiseResolver: action.savePromiseResolver ?? null,
             };
@@ -160,9 +178,13 @@ export type PostEditing = {
  * make a change here, you might want to make a change there as well.
  */
 export function usePostEditing({
-    onUpdatePostContent: _onUpdatePostContent,
+    onUpdatePostContent: onUpdatePostContentFromProps,
 }: {
-    onUpdatePostContent: (options: {postId: PostId; content: PostContent}) => Promise<void>;
+    onUpdatePostContent: (options: {
+        postId: PostId;
+        version: number;
+        steps: ReadonlyArray<Step>;
+    }) => Promise<void>;
 }): {
     postEditing: PostEditing;
     modals: ReactNode;
@@ -173,7 +195,7 @@ export function usePostEditing({
         (state: PostEditingState, action: PostEditingAction) => PostEditingState
     >(reduce, {isEditing: false});
 
-    const onUpdatePostContent = useEvent(_onUpdatePostContent);
+    const onUpdatePostContent = useEvent(onUpdatePostContentFromProps);
 
     useEffect(() => {
         if (!state.isEditing || !state.isSaving) return;
@@ -182,16 +204,36 @@ export function usePostEditing({
         // eslint-disable-next-line react-compiler/react-compiler
         state.isAwaitingSaveRef.current = true;
 
-        const {savePromiseResolver} = state;
+        const {dontCancelEditing, savePromiseResolver} = state;
+
+        const doc = state.contentEditorState.getDoc();
+        const trimPos = trimContentFragmentEndPos(doc.content);
+        const trimTransaction =
+            trimPos !== null ? state.contentEditorState.delete(trimPos)[1] : null;
+
+        const steps: Array<Step> = [];
+
+        forEachLinkedList(reverseLinkedList(state.contentSteps), additionalSteps => {
+            for (const step of additionalSteps) {
+                steps.push(step);
+            }
+        });
+
+        if (trimTransaction !== null) {
+            for (const step of trimTransaction.steps) {
+                steps.push(step);
+            }
+        }
 
         onUpdatePostContent({
             postId: state.postId,
-            content: trimContentEnd(state.contentEditorState.getDoc()),
+            version: state.contentVersion,
+            steps,
         }).then(
             () => {
                 savePromiseResolver?.resolve();
 
-                dispatch({type: "FinishedSavingContent", shouldCancelEditing: true});
+                dispatch({type: "FinishedSavingContent", shouldCancelEditing: !dontCancelEditing});
             },
             error => {
                 // Expect the promise resolver to handle the error.

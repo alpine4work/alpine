@@ -23,6 +23,7 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
+import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -84,6 +85,7 @@ export function PostCommentInput(props: {
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
     onJumpToPostCommentRange: (options: JumpToMessageRangeOptions<PostId>) => void;
+    onJumpToPostRange: (options: JumpToPostRangeOptions) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
     onPostRealtimeEventTransaction: Memo<
@@ -220,6 +222,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         parent,
         onParentClear,
         onJumpToPostCommentRange,
+        onJumpToPostRange,
         onDeletePostComment,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
@@ -326,9 +329,11 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             }}
             fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={postCommentEditing}
+            postRoom={post}
             parent={parent}
             onParentClear={onParentClear}
             onJumpToMessageRange={onJumpToPostCommentRange}
+            onJumpToPostRange={onJumpToPostRange}
             onDeleteMessage={onDeletePostComment}
             onShowTypingIndicator={() => {
                 // Don't show an error updating typing indicators to the user. We will see an

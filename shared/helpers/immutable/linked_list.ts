@@ -19,6 +19,37 @@ export type NonEmptyLinkedList<Item> = {
 };
 
 /**
+ * Reverse a linked list. Same as `Array.reverse()` but for linked lists.
+ */
+export function reverseLinkedList<Item>(list: LinkedList<Item>): LinkedList<Item> {
+    let newList: LinkedList<Item> = null;
+
+    while (list !== null) {
+        newList = {value: list.value, next: newList};
+        list = list.next;
+    }
+
+    return newList;
+}
+
+/**
+ * Iterate through each item in a linked list. Same as `Array.forEach()` but
+ * for linked lists.
+ */
+export function forEachLinkedList<Item>(
+    list: LinkedList<Item>,
+    forEach: (item: Item, index: number) => void,
+) {
+    let index = 0;
+
+    while (list !== null) {
+        forEach(list.value, index);
+        list = list.next;
+        index++;
+    }
+}
+
+/**
  * Reduces a linked list into a single value. Same as `Array.reduce()` but for
  * linked lists.
  */

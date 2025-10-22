@@ -415,7 +415,7 @@ function MessageStreamViewContentPart({
 
     return (
         <ContentView
-            className={messagingStyles.contentClassName}
+            className={messagingStyles.withPointerToolbarClassName}
             data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
             data-index={!message.isOptimistic ? message.index : undefined}
             content={{doc, references}}

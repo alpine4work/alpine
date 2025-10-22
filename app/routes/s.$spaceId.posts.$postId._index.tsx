@@ -1,4 +1,5 @@
-import {useSearchParams} from "react-router-dom";
+import {useEffect} from "react";
+import {ShouldRevalidateFunction, useSearchParams} from "react-router-dom";
 import {
     deserializePostIdForLoader,
     deserializeSpaceIdForLoader,
@@ -22,6 +23,7 @@ import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -86,8 +88,31 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
     },
 ]);
 
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+    defaultShouldRevalidate,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
+
+    currentUrl.searchParams.delete("scroll");
+    nextUrl.searchParams.delete("scroll");
+
+    currentUrl.searchParams.delete("parent");
+    nextUrl.searchParams.delete("parent");
+
+    // The client removes the `create` and `focus` search params. Don't revalidate
+    // when the client does this.
+    if (currentUrl.toString() === nextUrl.toString()) {
+        return false;
+    }
+
+    return defaultShouldRevalidate;
+};
+
 export default function PostRoute() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const {post, initialPostComments, initialOtherReferencedPostComments, inboxEntry} =
         useLoaderDataWithSchema(LoaderSchema);
 
@@ -113,6 +138,31 @@ export default function PostRoute() {
         return null;
     });
 
+    const initialParent = useConstant((): MessageContentPayloadParent | null => {
+        const parentString = searchParams.get("parent");
+        if (!parentString) return null;
+
+        const [posString = "", versionString = ""] = parentString.split("@", 2);
+        const [startPosString = "", endPosString = ""] = posString.split("-", 2);
+
+        const version = parseInt(versionString, 10);
+        const startPos = parseInt(startPosString, 10);
+        const endPos = parseInt(endPosString, 10);
+
+        if (isNaN(version) || isNaN(startPos) || isNaN(endPos)) return null;
+
+        return {type: "PostRange", version, startPos, endPos};
+    });
+
+    useEffect(() => {
+        if (searchParams.has("scroll") || searchParams.has("parent")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("scroll");
+            newSearchParams.delete("parent");
+            setSearchParams(newSearchParams, {replace: true});
+        }
+    }, [searchParams, setSearchParams]);
+
     // Spending time with a post accrues affinity points to the channel the post
     // was made in. If you're reading a post and its comments this probably means
     // the topic of the post (the channel) is relevant to you as well.
@@ -131,6 +181,7 @@ export default function PostRoute() {
             initialPostComments={initialPostComments}
             initialOtherReferencedPostComments={initialOtherReferencedPostComments}
             initialScroll={initialScroll}
+            initialParent={initialParent}
         />
     );
 

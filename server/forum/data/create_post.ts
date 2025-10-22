@@ -86,7 +86,7 @@ export async function createPost(
         createdTime: new Date(Date.now()),
         authorId: context.actor.getAccountId(),
         content,
-        contentUpdatedTime: null,
+        contentUpdate: null,
         commentsSummary: {
             nextCommentIndex: 0,
             lastChangeTime: null,

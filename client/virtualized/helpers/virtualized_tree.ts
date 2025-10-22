@@ -183,6 +183,7 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
      */
     protected _getPreviousItemCount(iterator: TreeIterator<NodeOrderKey, Node>): number {
         if (!iterator.node) return 0;
+
         let itemCount = this._getSubtreeItemCount(
             this._isNodeByOrderKeyReversed ? iterator.node.right : iterator.node.left,
         );
@@ -191,7 +192,11 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
         for (let i = iterator._stack.length - 2; i >= 0; i--) {
             const parentNode = iterator._stack[i]!;
 
-            if (parentNode.key < beforeOrderKey) {
+            if (
+                this._isNodeByOrderKeyReversed
+                    ? parentNode.key > beforeOrderKey
+                    : parentNode.key < beforeOrderKey
+            ) {
                 itemCount += this._getNodeItemCount(parentNode.value);
                 itemCount += this._getSubtreeItemCount(
                     this._isNodeByOrderKeyReversed ? parentNode.right : parentNode.left,

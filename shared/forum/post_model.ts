@@ -3,6 +3,7 @@ import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schem
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -27,7 +28,10 @@ export class PostModel extends Model(
         createdTime: Schema.date,
         author: AccountModel.schema,
         content: PostContentWithReferencesSchema,
-        contentUpdatedTime: Schema.date.nullable(),
+        contentUpdate: Schema.object({
+            time: Schema.date,
+            mappings: Schema.array(ProsemirrorMappingSchema),
+        }).nullable(),
 
         /**
          * The total number of comments on the post.

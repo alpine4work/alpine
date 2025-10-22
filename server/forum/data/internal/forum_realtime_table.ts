@@ -1,3 +1,4 @@
+import {Mapping} from "prosemirror-transform";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
@@ -48,6 +49,7 @@ import {
     MessageContentSchema,
     emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
@@ -227,8 +229,19 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         /** The contents of this post. */
                         content: PostContentSchema,
 
-                        /** The last time at which the post's content was updated. */
-                        contentUpdatedTime: Schema.date.nullable().default(null),
+                        /**
+                         * The last time at which the post's content was updated. Also contains
+                         * `mappings` to help move positions referencing content in the post from an
+                         * old version of the post to a new version of the post.
+                         */
+                        contentUpdate: Schema.object({
+                            time: Schema.date,
+                            mappings: Schema.array(ProsemirrorMappingSchema).default(emptyArray),
+                        })
+                            .wrapOriginalPropertyInObject("time", {mappings: []})
+                            .originalPropertyKey("contentUpdatedTime")
+                            .nullable()
+                            .default(null),
 
                         /**
                          * Information regarding the post's comments. Nested in an object so we can
@@ -664,7 +677,10 @@ async function createPostModelFromItem(
         readonly channelId: ChannelId;
         readonly authorId: AccountId;
         readonly content: PostContent;
-        readonly contentUpdatedTime: Date | null;
+        readonly contentUpdate: {
+            readonly time: Date;
+            readonly mappings: ReadonlyArray<Mapping>;
+        } | null;
         readonly commentsSummary: {
             readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
             readonly lastChangeTime: Date | null;
@@ -707,7 +723,7 @@ async function createPostModelFromItem(
             doc: item.content,
             references: contentReferences,
         },
-        contentUpdatedTime: item.contentUpdatedTime,
+        contentUpdate: item.contentUpdate,
         commentCount: reduceIterable(
             item.commentsSummary.commentCountByAuthorId.values(),
             (commentCount, authorCommentCount) => commentCount + authorCommentCount,

@@ -5,7 +5,6 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
-import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     fallbackGetSearchEntityBaseIfPossibleTestCounter,
@@ -2337,31 +2336,28 @@ test("post mention updates if post updates", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: post.id,
-        content: assertPostContent(
-            schema.node("doc", {}, [
-                schema.node("paragraph", {}, [
-                    schema.text("The quick brown fox jumps over the lazy "),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Document:${document1.id}`,
-                        }),
+    await post.updateContent(session, {
+        content: schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("The quick brown fox jumps over the lazy "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document1.id}`,
                     }),
-                    schema.text(
-                        ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the lazy lazy ",
-                    ),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Document:${document2.id}`,
-                        }),
+                }),
+                schema.text(
+                    ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the lazy lazy ",
+                ),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document2.id}`,
                     }),
-                    schema.text(". The quick brown fox jumps over the lazy dog."),
-                ]),
+                }),
+                schema.text(". The quick brown fox jumps over the lazy dog."),
             ]),
-        ),
+        ]),
     });
 
     await runAllTimersAndWaitForTestTasks();
@@ -2388,31 +2384,28 @@ test("post mention updates if post updates", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: post.id,
-        content: assertPostContent(
-            schema.node("doc", {}, [
-                schema.node("paragraph", {}, [
-                    schema.text("The quick brown FOX FOX jumps over the lazy "),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Document:${document1.id}`,
-                        }),
+    await post.updateContent(session, {
+        content: schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("The quick brown FOX FOX jumps over the lazy "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document1.id}`,
                     }),
-                    schema.text(
-                        ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the LAZY LAZY ",
-                    ),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Document:${document2.id}`,
-                        }),
+                }),
+                schema.text(
+                    ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the LAZY LAZY ",
+                ),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document2.id}`,
                     }),
-                    schema.text(". The quick brown fox jumps over the lazy dog."),
-                ]),
+                }),
+                schema.text(". The quick brown fox jumps over the lazy dog."),
             ]),
-        ),
+        ]),
     });
 
     await runAllTimersAndWaitForTestTasks();
@@ -2454,21 +2447,18 @@ test("can index post with cyclic mention", async () => {
         `Post:${post.id}`,
     );
 
-    await updatePostContent(session.action(), {
-        postId: post.id,
-        content: assertPostContent(
-            schema.node("doc", {}, [
-                schema.node("paragraph", {}, [
-                    schema.text("Qux: "),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Post:${post.id}`,
-                        }),
+    await post.updateContent(session, {
+        content: schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Qux: "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${post.id}`,
                     }),
-                ]),
+                }),
             ]),
-        ),
+        ]),
     });
 
     const {unpause} = await pausePromise;
@@ -2561,22 +2551,19 @@ test("can index post with cyclic mention", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: post.id,
-        content: assertPostContent(
-            schema.node("doc", {}, [
-                schema.node("paragraph", {}, [
-                    schema.text("Qux: "),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Post:${post.id}`,
-                        }),
+    await post.updateContent(session, {
+        content: schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Qux: "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${post.id}`,
                     }),
-                    schema.text(" (test)"),
-                ]),
+                }),
+                schema.text(" (test)"),
             ]),
-        ),
+        ]),
     });
 
     await runAllTimersAndWaitForTestTasks();
@@ -2601,22 +2588,19 @@ test("can index post with cyclic mention", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: post.id,
-        content: assertPostContent(
-            schema.node("doc", {}, [
-                schema.node("paragraph", {}, [
-                    schema.text("Qux: "),
-                    schema.node("mention", {
-                        mention: cast<ContentMention>({
-                            type: "SearchEntity",
-                            entityId: `Post:${post.id}`,
-                        }),
+    await post.updateContent(session, {
+        content: schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Qux: "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${post.id}`,
                     }),
-                    schema.text(" (test 2)"),
-                ]),
+                }),
+                schema.text(" (test 2)"),
             ]),
-        ),
+        ]),
     });
 
     await runAllTimersAndWaitForTestTasks();
@@ -2697,8 +2681,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         ]),
     );
 
-    await updatePostContent(session.action(), {
-        postId: postA.id,
+    await postA.updateContent(session, {
         content: assertPostContent(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
@@ -2908,8 +2891,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: postA.id,
+    await postA.updateContent(session, {
         content: assertPostContent(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
@@ -2995,8 +2977,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: postA.id,
+    await postA.updateContent(session, {
         content: assertPostContent(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
@@ -3082,8 +3063,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         },
     });
 
-    await updatePostContent(session.action(), {
-        postId: postB.id,
+    await postB.updateContent(session, {
         content: assertPostContent(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [

@@ -8,6 +8,8 @@
 // `createPost()` should go into `create_post.test.ts`.
 
 import {addMinutes} from "date-fns";
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep} from "prosemirror-transform";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -130,6 +132,11 @@ const testContent3 = createSimplePostContent("test3");
 
 const testMessageContent1 = createSimpleMessageContent("test1");
 const testMessageContent2 = createSimpleMessageContent("test2");
+
+function textSlice(text: string) {
+    if (text.length === 0) return Slice.empty;
+    return new Slice(Fragment.from(PostContentProsemirrorSchema.text(text)), 0, 0);
+}
 
 test("can’t create a channel for a different space", async () => {
     const space = await TestSpace.create(context);
@@ -1940,7 +1947,7 @@ test("can get the first few posts in a channel", async () => {
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -1989,7 +1996,7 @@ test("can get the first few posts in a channel", async () => {
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2015,7 +2022,7 @@ test("can get the first few posts in a channel", async () => {
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2064,7 +2071,7 @@ test("can get the first few posts in a channel", async () => {
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2090,7 +2097,7 @@ test("can get the first few posts in a channel", async () => {
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2116,7 +2123,7 @@ test("can get the first few posts in a channel", async () => {
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2182,7 +2189,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2208,7 +2215,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2234,7 +2241,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2260,7 +2267,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2286,7 +2293,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2333,7 +2340,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2359,7 +2366,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2385,7 +2392,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2432,7 +2439,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2458,7 +2465,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2484,7 +2491,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2510,7 +2517,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2557,7 +2564,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2583,7 +2590,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2609,7 +2616,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2635,7 +2642,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2661,7 +2668,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2708,7 +2715,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2734,7 +2741,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2760,7 +2767,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2807,7 +2814,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2833,7 +2840,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session3.get(),
                     content: expect.objectContaining({doc: testContent3}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2880,7 +2887,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session1.get(),
                     content: expect.objectContaining({doc: testContent1}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -2906,7 +2913,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     createdTime: expect.any(Date),
                     author: await session2.get(),
                     content: expect.objectContaining({doc: testContent2}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -3080,7 +3087,8 @@ test("can backfill realtime updates in a channel", async () => {
 
     await updatePostContent(session.action(), {
         postId: post1.id,
-        content: createSimplePostContent("Updated test content 1"),
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
 
     const post1b = (await getPost(session.action(), post1.id)).model;
@@ -3219,7 +3227,8 @@ test("can backfill realtime updates in a channel", async () => {
 
     await updatePostContent(session.action(), {
         postId: post4.id,
-        content: createSimplePostContent("Updated test content 2"),
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
 
     const post4b = (await getPost(session.action(), post4.id)).model;
@@ -3747,7 +3756,8 @@ test("won’t backfill realtime updates when comment count changes", async () =>
 
     await updatePostContent(session.action(), {
         postId: post.id,
-        content: createSimplePostContent("Updated test content"),
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -3848,7 +3858,7 @@ test("can update a post’s contents", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -3858,7 +3868,8 @@ test("can update a post’s contents", async () => {
 
     const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(session.action(), {
         postId: post.id,
-        content: testContent2,
+        version: 0,
+        steps: [new ReplaceStep(5, 6, textSlice("2"))],
     });
 
     expect((await getPost(session.action(), post.id)).model).toEqual(
@@ -3877,7 +3888,7 @@ test("can update a post’s contents", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent2}),
-            contentUpdatedTime: contentUpdatedTime1,
+            contentUpdate: expect.objectContaining({time: contentUpdatedTime1}),
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -3887,7 +3898,8 @@ test("can update a post’s contents", async () => {
 
     const {contentUpdatedTime: contentUpdatedTime2} = await updatePostContent(session.action(), {
         postId: post.id,
-        content: testContent3,
+        version: 1,
+        steps: [new ReplaceStep(5, 6, textSlice("3"))],
     });
 
     expect((await getPost(session.action(), post.id)).model).toEqual(
@@ -3906,11 +3918,58 @@ test("can update a post’s contents", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent3}),
-            contentUpdatedTime: contentUpdatedTime2,
+            contentUpdate: expect.objectContaining({time: contentUpdatedTime2}),
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
             previewCommentAuthors: [],
+        }),
+    );
+});
+
+test("can’t update a post’s contents with the wrong version", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+
+    const post = await channel.createPost(session, testContent1);
+
+    expect((await getPost(session.action(), post.id)).model).toEqual(
+        expect.objectContaining({
+            version: 0,
+            content: expect.objectContaining({doc: testContent1}),
+            contentUpdate: null,
+        }),
+    );
+
+    const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(session.action(), {
+        postId: post.id,
+        version: 0,
+        steps: [new ReplaceStep(5, 6, textSlice("2"))],
+    });
+
+    expect((await getPost(session.action(), post.id)).model).toEqual(
+        expect.objectContaining({
+            version: 1,
+            content: expect.objectContaining({doc: testContent2}),
+            contentUpdate: expect.objectContaining({time: contentUpdatedTime1}),
+        }),
+    );
+
+    await expect(
+        updatePostContent(session.action(), {
+            postId: post.id,
+            version: 0,
+            steps: [new ReplaceStep(5, 6, textSlice("3"))],
+        }),
+    ).rejects.toThrow("Can’t update post with mismatched version");
+
+    expect((await getPost(session.action(), post.id)).model).toEqual(
+        expect.objectContaining({
+            version: 1,
+            content: expect.objectContaining({doc: testContent2}),
+            contentUpdate: expect.objectContaining({time: contentUpdatedTime1}),
         }),
     );
 });
@@ -3940,7 +3999,7 @@ test("can’t update another account’s post", async () => {
             createdTime: expect.any(Date),
             author: await session1.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -3951,7 +4010,8 @@ test("can’t update another account’s post", async () => {
     await expect(
         updatePostContent(session2.action(), {
             postId: post.id,
-            content: testContent2,
+            version: 0,
+            steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
         }),
     ).rejects.toThrow("Can only update posts you authored");
 
@@ -3971,7 +4031,7 @@ test("can’t update another account’s post", async () => {
             createdTime: expect.any(Date),
             author: await session1.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4006,7 +4066,7 @@ test("can’t update another space’s post", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4017,7 +4077,8 @@ test("can’t update another space’s post", async () => {
     await expect(
         updatePostContent(otherSession.action(), {
             postId: post.id,
-            content: testContent2,
+            version: 0,
+            steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4037,7 +4098,7 @@ test("can’t update another space’s post", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4070,7 +4131,7 @@ test("can’t update a post with invalid content", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4081,15 +4142,26 @@ test("can’t update a post with invalid content", async () => {
     await expect(
         updatePostContent(session.action(), {
             postId: post.id,
-            content: assertPostContent(
-                PostContentProsemirrorSchema.nodes.doc.create({}, [
-                    PostContentProsemirrorSchema.nodes.unorderedListItem.create({}, [
-                        PostContentProsemirrorSchema.text("Hello, world!"),
-                    ]),
-                ]),
-            ),
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    0,
+                    testContent1.content.size,
+                    new Slice(
+                        Fragment.from(
+                            PostContentProsemirrorSchema.nodes.unorderedListItem.create({}, [
+                                PostContentProsemirrorSchema.text("Hello, world!"),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
         }),
-    ).rejects.toThrow(InvalidArgumentError);
+    ).rejects.toThrow(
+        "Invalid content for node `unorderedListItem`, expected content to match `paragraph+`",
+    );
 
     expect((await getPost(session.action(), post.id)).model).toEqual(
         expect.objectContaining({
@@ -4107,7 +4179,7 @@ test("can’t update a post with invalid content", async () => {
             createdTime: expect.any(Date),
             author: await session.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4141,7 +4213,7 @@ test("can’t update a post after losing channel access", async () => {
             createdTime: expect.any(Date),
             author: await session2.get(),
             content: expect.objectContaining({doc: testContent1}),
-            contentUpdatedTime: null,
+            contentUpdate: null,
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4151,7 +4223,8 @@ test("can’t update a post after losing channel access", async () => {
 
     await updatePostContent(session2.action(), {
         postId: post.id,
-        content: testContent2,
+        version: 0,
+        steps: [new ReplaceStep(5, 6, textSlice("2"))],
     });
 
     expect((await getPost(session1.action(), post.id)).model).toEqual(
@@ -4170,7 +4243,7 @@ test("can’t update a post after losing channel access", async () => {
             createdTime: expect.any(Date),
             author: await session2.get(),
             content: expect.objectContaining({doc: testContent2}),
-            contentUpdatedTime: expect.any(Date),
+            contentUpdate: expect.objectContaining({time: expect.any(Date)}),
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4183,7 +4256,8 @@ test("can’t update a post after losing channel access", async () => {
     await expect(
         updatePostContent(session2.action(), {
             postId: post.id,
-            content: testContent3,
+            version: 0,
+            steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
@@ -4203,7 +4277,7 @@ test("can’t update a post after losing channel access", async () => {
             createdTime: expect.any(Date),
             author: await session2.get(),
             content: expect.objectContaining({doc: testContent2}),
-            contentUpdatedTime: expect.any(Date),
+            contentUpdate: expect.objectContaining({time: expect.any(Date)}),
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4216,7 +4290,8 @@ test("can’t update a post after losing channel access", async () => {
     await expect(
         updatePostContent(session2.action(), {
             postId: post.id,
-            content: testContent3,
+            version: 0,
+            steps: [new ReplaceStep(5, 6, textSlice("3"))],
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
@@ -4236,7 +4311,7 @@ test("can’t update a post after losing channel access", async () => {
             createdTime: expect.any(Date),
             author: await session2.get(),
             content: expect.objectContaining({doc: testContent2}),
-            contentUpdatedTime: expect.any(Date),
+            contentUpdate: expect.objectContaining({time: expect.any(Date)}),
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4248,7 +4323,8 @@ test("can’t update a post after losing channel access", async () => {
 
     await updatePostContent(session2.action(), {
         postId: post.id,
-        content: testContent3,
+        version: 1,
+        steps: [new ReplaceStep(5, 6, textSlice("3"))],
     });
 
     expect((await getPost(session1.action(), post.id)).model).toEqual(
@@ -4267,7 +4343,7 @@ test("can’t update a post after losing channel access", async () => {
             createdTime: expect.any(Date),
             author: await session2.get(),
             content: expect.objectContaining({doc: testContent3}),
-            contentUpdatedTime: expect.any(Date),
+            contentUpdate: expect.objectContaining({time: expect.any(Date)}),
             commentCount: 0,
             lastCommentChangeTime: null,
             commentAuthorCount: 0,
@@ -4291,24 +4367,26 @@ test("if time hasn’t moved forward updating a post will set it to +1ms of the 
 
         await updatePostContent(session.action(), {
             postId: post.id,
-            content: testContent2,
+            version: 0,
+            steps: [new ReplaceStep(5, 6, textSlice("2"))],
         });
 
         {
             const updatedPost = (await getPost(session.action(), post.id)).model;
             assert(updatedPost);
-            expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime));
+            expect(updatedPost.contentUpdate?.time).toEqual(new Date(mockTime));
         }
 
         await updatePostContent(session.action(), {
             postId: post.id,
-            content: testContent3,
+            version: 1,
+            steps: [new ReplaceStep(5, 6, textSlice("3"))],
         });
 
         {
             const updatedPost = (await getPost(session.action(), post.id)).model;
             assert(updatedPost);
-            expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime + 1));
+            expect(updatedPost.contentUpdate?.time).toEqual(new Date(mockTime + 1));
         }
     } finally {
         Date.now = originalDateNow;
@@ -4478,7 +4556,8 @@ test("broadcasts post realtime events to channel and post", async () => {
 
     await updatePostContent(otherSession.action(), {
         postId: post2.id,
-        content: createSimplePostContent("Post 2 (updated)"),
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
     await ProcessContextModule.waitForTestTasks();
 
@@ -4501,7 +4580,8 @@ test("broadcasts post realtime events to channel and post", async () => {
 
     await updatePostContent(session.action(), {
         postId: post3.id,
-        content: createSimplePostContent("Post 3 (updated)"),
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
     });
     await ProcessContextModule.waitForTestTasks();
 
@@ -7189,13 +7269,8 @@ describe("Notification subscribers", () => {
 
         await updatePostContent(session1.action(), {
             postId: post.id,
-            content: assertPostContent(
-                PostContentProsemirrorSchema.node("doc", {}, [
-                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                        PostContentProsemirrorSchema.text("Hello, world!"),
-                    ]),
-                ]),
-            ),
+            version: 0,
+            steps: [new ReplaceStep(1, 1, textSlice("Updated "))],
         });
 
         expect(
@@ -7233,21 +7308,30 @@ describe("Notification subscribers", () => {
 
         await updatePostContent(session1.action(), {
             postId: post.id,
-            content: assertPostContent(
-                PostContentProsemirrorSchema.node("doc", {}, [
-                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                        PostContentProsemirrorSchema.text("Hello, "),
-                        PostContentProsemirrorSchema.node("mention", {
-                            mention: cast<ContentMention>({
-                                type: "Account",
-                                accountId: session2.account.id,
-                                isShort: false,
-                            }),
-                        }),
-                        PostContentProsemirrorSchema.text("!"),
-                    ]),
-                ]),
-            ),
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    0,
+                    15,
+                    new Slice(
+                        Fragment.from(
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello, "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
         });
 
         expect(
@@ -8761,7 +8845,7 @@ test("can get post realtime event", async () => {
                     channel: expect.objectContaining({id: channel.id}),
                     author: expect.objectContaining({id: session.account.id}),
                     content: expect.objectContaining({doc: createSimplePostContent("foo")}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,
@@ -9079,7 +9163,7 @@ test("can get channel realtime event for post", async () => {
                     channel: expect.objectContaining({id: channel.id}),
                     author: expect.objectContaining({id: session.account.id}),
                     content: expect.objectContaining({doc: createSimplePostContent("foo")}),
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     commentCount: 0,
                     lastCommentChangeTime: null,
                     commentAuthorCount: 0,

@@ -8097,6 +8097,24 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "contentUpdate": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "mappings": {
+                                                    "valueSchema": {
+                                                        "type": "Array",
+                                                        "itemSchema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "96bba2b8"
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "commentsSummary": {
                                         "valueSchema": {
                                             "type": "Object",

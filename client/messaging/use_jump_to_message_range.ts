@@ -10,7 +10,7 @@ import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
-export type JumpToMessageState<RoomKey extends string> = {
+export type JumpToMessageRangeState<RoomKey extends string> = {
     readonly key: symbol;
     readonly options: JumpToMessageRangeOptions<RoomKey>;
     readonly messages: ReadonlyArray<JumpMessageState>;
@@ -31,6 +31,9 @@ export type JumpToMessageRangeOptions<RoomKey extends string> = {
     readonly end: {readonly version: number; readonly pos: number} | null;
 };
 
+// NOTE(calebmer): This function was forked into `useJumpToPostRange()`. Any
+// changes to this function maybe should be made to
+// `useJumpToPostRange()` too.
 export function useJumpToMessageRange<RoomKey extends string>({
     viewRef,
     tryLoadingMoreData,
@@ -42,7 +45,7 @@ export function useJumpToMessageRange<RoomKey extends string>({
     ) => {isLoading: false} | {isLoading: true; promise: Promise<void>};
     scrollToIndexForMessageIndex: (roomKey: RoomKey, messageIndex: number) => number | null;
 }): {
-    jumpState: JumpToMessageState<RoomKey> | null;
+    jumpState: JumpToMessageRangeState<RoomKey> | null;
     jumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
 } {
     // State regarding the jump we're performing. Including scheduling for the jump
@@ -50,7 +53,7 @@ export function useJumpToMessageRange<RoomKey extends string>({
     //
     // 1. A user clicks on a message reply to jump to it
     // 2. A user loads a page with a message index in the URL we need to jump to
-    const [jumpState, setJumpState] = useState<JumpToMessageState<RoomKey> | null>(null);
+    const [jumpState, setJumpState] = useState<JumpToMessageRangeState<RoomKey> | null>(null);
 
     const isJumpingToMessageRangeRef = useRef(false);
 
@@ -112,7 +115,7 @@ export function useJumpToMessageRange<RoomKey extends string>({
             });
         };
 
-        const initialJumpState: JumpToMessageState<RoomKey> = {
+        const initialJumpState: JumpToMessageRangeState<RoomKey> = {
             key: jumpStateKey,
             options,
             messages: createArrayWithLength(

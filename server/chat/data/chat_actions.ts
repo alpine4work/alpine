@@ -64,6 +64,7 @@ import {
     ErrorBase,
     FailedPreconditionError,
     InternalError,
+    InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
@@ -767,6 +768,11 @@ function sendChatMessageForAccount(
 
                         validateMessageContentPayloadMessagesRangeParent(parent, messageItems);
                         break;
+                    }
+                    case "PostRange": {
+                        throw new InvalidArgumentError(
+                            "Post range parent can only be used with post comments",
+                        );
                     }
                     default:
                         throw exhaustive(parent);

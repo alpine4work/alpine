@@ -9,9 +9,13 @@ import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/messa
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {
+    LinkedList,
+    forEachLinkedList,
+    reverseLinkedList,
+} from "~/shared/helpers/immutable/linked_list.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {
     MessageContent,
@@ -29,7 +33,8 @@ export type MessageEditingState<RoomKey extends string> =
           readonly messageIndex: number;
           readonly version: number;
           readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
-          readonly contentSteps: ReadonlyArray<Step>;
+          // We use `LinkedList` for O(1) insertion whenever the content changes.
+          readonly contentSteps: LinkedList<ReadonlyArray<Step>>;
           readonly initialContent: MessageContent;
           readonly confirmationDialog: "Save" | "Delete" | null;
           readonly returnFocusAfterEditing: (() => void) | null;
@@ -94,7 +99,7 @@ function reduce<RoomKey extends string>(
                     // start of the message so the cursor is visible.
                     selection: action.platform === "mobile" ? "start" : "end",
                 }),
-                contentSteps: emptyArray,
+                contentSteps: null,
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,
                 isSaving: false,
@@ -107,7 +112,7 @@ function reduce<RoomKey extends string>(
             return {
                 ...state,
                 contentEditorState: action.state,
-                contentSteps: state.contentSteps.concat(action.transaction.steps),
+                contentSteps: {value: action.transaction.steps, next: state.contentSteps},
             };
         }
         case "CancelEditing": {
@@ -194,7 +199,7 @@ export type MessageEditing<RoomKey extends string> = {
  */
 export function useMessageEditing<RoomKey extends string>({
     messageNoun,
-    onUpdateMessageContent: _onUpdateMessageContent,
+    onUpdateMessageContent: onUpdateMessageContentFromProps,
     onDeleteMessage,
 }: {
     messageNoun: string;
@@ -218,7 +223,7 @@ export function useMessageEditing<RoomKey extends string>({
         ) => MessageEditingState<RoomKey>
     >(reduce, {isEditing: false});
 
-    const onUpdateMessageContent = useEvent(_onUpdateMessageContent);
+    const onUpdateMessageContent = useEvent(onUpdateMessageContentFromProps);
 
     useEffect(() => {
         if (!state.isEditing || !state.isSaving) return;
@@ -232,14 +237,25 @@ export function useMessageEditing<RoomKey extends string>({
         const trimTransaction =
             trimPos !== null ? state.contentEditorState.delete(trimPos)[1] : null;
 
+        const steps: Array<Step> = [];
+
+        forEachLinkedList(reverseLinkedList(state.contentSteps), additionalSteps => {
+            for (const step of additionalSteps) {
+                steps.push(step);
+            }
+        });
+
+        if (trimTransaction !== null) {
+            for (const step of trimTransaction.steps) {
+                steps.push(step);
+            }
+        }
+
         onUpdateMessageContent({
             roomKey: state.messageRoomKey,
             messageIndex: state.messageIndex,
             version: state.version,
-            steps:
-                trimTransaction !== null
-                    ? [...state.contentSteps, ...trimTransaction.steps]
-                    : state.contentSteps,
+            steps,
         }).then(
             () => {
                 state.savePromiseResolver?.resolve();

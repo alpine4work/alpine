@@ -26,6 +26,11 @@ export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferenc
     );
     if (!isShowingAllContent && !isContentSnippetTruncated) setIsShowingAllContent(true);
 
+    // If we're running a `jumpAnimation` while content is closed then open the
+    // content so we can see what the jump animation is trying to highlight!
+    if (!isShowingAllContent && isContentSnippetTruncated && props.jumpAnimation)
+        setIsShowingAllContent(true);
+
     return (
         <ContentViewWithSeeMoreToggleBase
             {...props}

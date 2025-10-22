@@ -1,4 +1,4 @@
-import {Memo, useCallback, useEffect, useRef} from "react";
+import {Memo, useCallback, useEffect, useMemo, useRef} from "react";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {PostContentViewInitialScroll} from "~/client/forum/post_content_view.js";
@@ -12,6 +12,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 export type PostViewInitialScroll =
     | PostContentViewInitialScroll
@@ -22,14 +23,18 @@ export function PostView({
     initialPostComments,
     initialOtherReferencedPostComments,
     initialScroll,
+    initialParent,
 }: {
     initialPost: DynamoGeneralRealtimeItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
     initialScroll: Memo<PostViewInitialScroll> | null;
+    initialParent?: MessageContentPayloadParent | null;
 }) {
     const {currentAccount} = useSpaceContext();
     const navigate = useNavigate();
+
+    const postId = initialPost.model.id;
 
     const postListRef = useRef<PostListViewRef>(null);
     const hasInitializedRef = useRef(false);
@@ -45,13 +50,13 @@ export function PostView({
 
         if (initialScroll?.type === "Comment")
             postList.jumpToPostCommentRange({
-                roomKey: initialPost.model.id,
+                roomKey: postId,
                 startIndex: initialScroll.commentIndex,
                 endIndex: initialScroll.commentIndex,
                 start: null,
                 end: null,
             });
-    }, [initialPost.model.id, initialScroll]);
+    }, [initialScroll, postId]);
 
     const [postsFromState, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
         PostBasicList.new({
@@ -66,7 +71,7 @@ export function PostView({
     );
 
     let posts = postsFromState;
-    let postResult = posts.getPostByIdIfExists(initialPost.model.id);
+    let postResult = posts.getPostByIdIfExists(postId);
 
     if (!postResult) {
         const newPosts = PostBasicList.new({
@@ -82,7 +87,7 @@ export function PostView({
         setPosts(() => newPosts);
         posts = newPosts;
 
-        postResult = newPosts.getPostById(initialPost.model.id);
+        postResult = newPosts.getPostById(postId);
     }
 
     const navigationBar = useNavigationBar({
@@ -102,10 +107,7 @@ export function PostView({
             post: postResult.post,
             navigate,
             onStartEditingPost: () => {
-                assertExists(postListRef.current).startEditingPost(
-                    postResult.post.id,
-                    postResult.post.content,
-                );
+                assertExists(postListRef.current).startEditingPost(postResult.post);
             },
         }),
     });
@@ -164,6 +166,10 @@ export function PostView({
             )}
             navigationBar={navigationBar}
             initialScrollForFirstPost={initialScroll?.type === "Comment" ? null : initialScroll}
+            initialParentByPostId={useMemo(() => {
+                if (!initialParent) return;
+                return new Map([[postId, initialParent]]);
+            }, [initialParent, postId])}
         />
     );
 }

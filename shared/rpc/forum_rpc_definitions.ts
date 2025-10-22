@@ -15,7 +15,7 @@ import {
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {DynamoGeneralRealtimeChannelOrPostEventSchema} from "~/shared/forum/channel_realtime_protocol.js";
-import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {PostContentSchema, PostContentStepSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {DynamoGeneralRealtimePostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -245,7 +245,8 @@ export const updatePostContent = defineRpc({
     name: "updatePostContent",
     input: {
         postId: Schema.id<PostId>(),
-        content: PostContentSchema,
+        version: Schema.integer,
+        steps: Schema.array(PostContentStepSchema),
     },
     output: {
         contentUpdatedTime: Schema.date,

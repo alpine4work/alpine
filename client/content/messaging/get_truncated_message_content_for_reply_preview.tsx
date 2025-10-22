@@ -6,6 +6,7 @@ import {printContentSingleLineTextSnippetPreservingMarksForClient} from "~/clien
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {
     ContentReferences,
+    ContentWithReferences,
     emptyContentReferences,
     mergeContentReferences,
 } from "~/shared/content/content_references.js";
@@ -17,6 +18,8 @@ import {
     italicClassName,
     strikeClassName,
 } from "~/shared/design/core/constant_class_names.js";
+import {assertPostContent} from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -39,7 +42,7 @@ function getTruncatedMessageContentForReplyPreviewBase(
         searchEntityRegistry,
         fileRegistry,
     }: {
-        content: MessageContentWithReferences;
+        content: ContentWithReferences;
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
@@ -142,6 +145,57 @@ export function getTruncatedMessageContentForReplyPreview(
         default:
             throw exhaustive(message.payload);
     }
+}
+
+export function getTruncatedPostContentForReplyPreview(
+    get: <Value>(store: Store<Value>) => Value,
+    {
+        post,
+        version: fromVersion,
+        startPos,
+        endPos,
+        accountRegistry,
+        searchEntityRegistry,
+        fileRegistry,
+    }: {
+        post: PostModel;
+        version: number;
+        startPos: number;
+        endPos: number;
+        accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
+        fileRegistry: FileRegistry;
+    },
+): ReactNode {
+    const version = post.contentUpdate?.mappings.length ?? 0;
+
+    const mappings =
+        version > fromVersion
+            ? post.contentUpdate?.mappings.slice(-(version - fromVersion)) ?? emptyArray
+            : emptyArray;
+
+    let actualStartPos = startPos;
+    let actualEndPos = endPos;
+
+    for (const mapping of mappings) {
+        actualStartPos = mapping.map(actualStartPos, 1);
+        actualEndPos = mapping.map(actualEndPos, -1);
+    }
+
+    return getTruncatedMessageContentForReplyPreviewBase(get, {
+        content: {
+            doc: assertPostContent(
+                post.content.doc.cut(
+                    clamp(0, actualStartPos, post.content.doc.content.size),
+                    clamp(0, actualEndPos, post.content.doc.content.size),
+                ),
+            ),
+            references: post.content.references,
+        },
+        accountRegistry,
+        searchEntityRegistry,
+        fileRegistry,
+    });
 }
 
 export function getTruncatedMessagesRangeContentForReplyPreview(

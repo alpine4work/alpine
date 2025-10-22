@@ -1,3 +1,4 @@
+import {Mapping} from "prosemirror-transform";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
@@ -21,6 +22,7 @@ export async function getPostContentAndChannelPreview(
     createdTime: Date;
     authorId: AccountId;
     content: PostContent;
+    contentUpdate: {time: Date; mappings: ReadonlyArray<Mapping>} | null;
     channel: ChannelPreviewModel;
 }> {
     const postResult = await getPostContentAndChannelPreviewIfPossible(context, postId, options);
@@ -38,6 +40,7 @@ export async function getPostContentAndChannelPreviewIfExists(
     createdTime: Date;
     authorId: AccountId;
     content: PostContent;
+    contentUpdate: {time: Date; mappings: ReadonlyArray<Mapping>} | null;
     channel: ChannelPreviewModel;
 } | null> {
     const postResult = await getPostContentAndChannelPreviewIfPossible(context, postId, options);
@@ -56,6 +59,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
         createdTime: Date;
         authorId: AccountId;
         content: PostContent;
+        contentUpdate: {time: Date; mappings: ReadonlyArray<Mapping>} | null;
         channel: ChannelPreviewModel;
     },
     ErrorBase
@@ -78,6 +82,7 @@ export async function getPostContentAndChannelPreviewIfPossible(
             createdTime: postItem.createdTime,
             authorId: postItem.authorId,
             content: postItem.content,
+            contentUpdate: postItem.contentUpdate,
             channel: channelResult.value,
         },
     };

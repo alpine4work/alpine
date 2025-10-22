@@ -5638,6 +5638,11 @@ export async function createTaskComment(
                         validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
                         break;
                     }
+                    case "PostRange": {
+                        throw new InvalidArgumentError(
+                            "Post range parent can only be used with post comments",
+                        );
+                    }
                     default:
                         throw exhaustive(parent);
                 }

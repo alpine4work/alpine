@@ -114,6 +114,7 @@ export async function createPostComment(
                     "spaceId",
                     "channelId",
                     "authorId",
+                    "contentUpdate",
                     "commentsSummary",
                     "updateLockVersion",
                 ],
@@ -187,6 +188,15 @@ export async function createPostComment(
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
+                        break;
+                    }
+                    case "PostRange": {
+                        const postItem = await postItemPromise;
+                        if (!postItem) throw createPostNotFoundError(postId);
+
+                        if (parent.version > (postItem.contentUpdate?.mappings.length ?? 0)) {
+                            throw new FailedPreconditionError("Invalid post range version");
+                        }
                         break;
                     }
                     default:

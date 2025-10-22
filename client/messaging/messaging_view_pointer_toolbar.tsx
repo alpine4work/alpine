@@ -17,8 +17,11 @@ import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
@@ -28,14 +31,16 @@ export function MessagingViewPointerToolbar<
 >({
     viewRef,
     getMessagesByRoomKey,
+    getPostByRoomKey = null,
     onReplyToMessagesRange,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
     getMessagesByRoomKey: Memo<(roomKey: string) => MessageList<Message> | null>;
+    getPostByRoomKey?: Memo<(roomKey: string) => PostModel | null> | null;
     onReplyToMessagesRange: (
         roomKey: RoomKey,
-        parent: MessageContentPayloadParent & {type: "MessagesRange"},
-    ) => void;
+        parent: Extract<MessageContentPayloadParent, {type: "MessagesRange" | "PostRange"}>,
+    ) => MaybePromise<void>;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const platform = usePlatform();
@@ -45,9 +50,7 @@ export function MessagingViewPointerToolbar<
 
     // If set to `null` then we hide the toolbar without animation. If `isVisible`
     // is set to false then we animate out using the location from `coords`.
-    const [state, setState] = useState<MessagingViewPointerToolbarState<RoomKey, Message> | null>(
-        null,
-    );
+    const [state, setState] = useState<MessagingViewPointerToolbarState<RoomKey> | null>(null);
 
     useEffect(() => {
         if (isInitialAppRender) return;
@@ -59,6 +62,7 @@ export function MessagingViewPointerToolbar<
             const state = getMessagingViewPointerToolbarState<RoomKey, Message>(
                 view,
                 getMessagesByRoomKey,
+                getPostByRoomKey,
             );
 
             if (event?.type !== "selectionchange") {
@@ -86,7 +90,7 @@ export function MessagingViewPointerToolbar<
             document.removeEventListener("selectionchange", handleSelectionChange);
             window.removeEventListener("resize", handleSelectionChange);
         };
-    }, [getMessagesByRoomKey, isInitialAppRender, platform, viewRef]);
+    }, [getMessagesByRoomKey, getPostByRoomKey, isInitialAppRender, platform, viewRef]);
 
     // NOTE(calebmer): This state is copied from `<ContentEditorPointerToolbar>`.
     {
@@ -234,19 +238,7 @@ export function MessagingViewPointerToolbar<
                     <MessagingViewPointerToolbarButton
                         icon={<ArrowArcRight />}
                         label="Reply"
-                        onPress={() => {
-                            onReplyToMessagesRange(state.roomKey, {
-                                type: "MessagesRange",
-                                startIndex: state.startIndex,
-                                startVersion:
-                                    state.startMessage.payload.contentUpdate?.mappings.length ?? 0,
-                                startPos: state.startPos,
-                                endIndex: state.endIndex,
-                                endVersion:
-                                    state.endMessage.payload.contentUpdate?.mappings.length ?? 0,
-                                endPos: state.endPos,
-                            });
-                        }}
+                        onPress={() => onReplyToMessagesRange(state.roomKey, state.parent)}
                     />
                 </Box>
             }
@@ -276,14 +268,27 @@ function MessagingViewPointerToolbarButton({
     label: string;
     dividerLeft?: boolean;
     dividerRight?: boolean;
-    onPress: () => void;
+    onPress: () => MaybePromise<void>;
 }) {
     const localRef = useRef<HTMLDivElement>(null);
+
+    const [isPending, setIsPending] = useState(false);
 
     const {pressProps, isPressed} = usePress({
         ref: localRef,
         preventFocusOnPress: true,
-        onPress,
+        onPress: () => {
+            if (isPending) return;
+
+            const result = onPress();
+
+            // If `onPress` returns a promise then don't allow another press until the
+            // promise is resolved.
+            if (isPromiseLike(result)) {
+                setIsPending(true);
+                void result.finally(() => setIsPending(false));
+            }
+        },
     });
 
     const {hoverProps, isHovered} = useHover({});
@@ -367,13 +372,13 @@ function getMessagingViewPointerToolbarStateBase(
         selection.focusNode instanceof Element
             ? selection.focusNode
             : selection.focusNode.parentElement
-    )?.closest(`.${messagingStyles.contentClassName}`);
+    )?.closest(`.${messagingStyles.withPointerToolbarClassName}`);
 
     const anchorContentElement = (
         selection.anchorNode instanceof Element
             ? selection.anchorNode
             : selection.anchorNode.parentElement
-    )?.closest(`.${messagingStyles.contentClassName}`);
+    )?.closest(`.${messagingStyles.withPointerToolbarClassName}`);
 
     // Selection doesn't start or end in the `<MessageView>`.
     if (!focusContentElement && !anchorContentElement) return null;
@@ -439,7 +444,7 @@ function getMessagingViewPointerToolbarStateBase(
         }
 
         endContentElement = (endNode instanceof Element ? endNode : endNode.parentElement)?.closest(
-            `.${messagingStyles.contentClassName}`,
+            `.${messagingStyles.withPointerToolbarClassName}`,
         );
 
         // Make sure the element exists and that it's not inside a different messaging
@@ -621,18 +626,14 @@ function previousLeafNode(node: Node): Node | null {
     return null;
 }
 
-type MessagingViewPointerToolbarState<
-    RoomKey extends string,
-    Message extends MessageModel<RoomKey>,
-> = MessagingViewPointerToolbarStateBase & {
-    readonly roomKey: RoomKey;
-    readonly startIndex: number;
-    readonly startPos: number;
-    readonly startMessage: Message;
-    readonly endIndex: number;
-    readonly endPos: number;
-    readonly endMessage: Message;
-};
+type MessagingViewPointerToolbarState<RoomKey extends string> =
+    MessagingViewPointerToolbarStateBase & {
+        readonly roomKey: RoomKey;
+        readonly parent: Extract<
+            MessageContentPayloadParent,
+            {type: "MessagesRange" | "PostRange"}
+        >;
+    };
 
 function getMessagingViewPointerToolbarState<
     RoomKey extends string,
@@ -640,7 +641,8 @@ function getMessagingViewPointerToolbarState<
 >(
     view: VirtualizedScrollViewRef,
     getMessagesByRoomKey: (roomKey: string) => MessageList<Message> | null,
-): MessagingViewPointerToolbarState<RoomKey, Message> | null {
+    getPostByRoomKey: ((roomKey: string) => PostModel | null) | null,
+): MessagingViewPointerToolbarState<RoomKey> | null {
     const offsetParent = view.getContentElement();
 
     const state = getMessagingViewPointerToolbarStateBase(offsetParent);
@@ -668,6 +670,44 @@ function getMessagingViewPointerToolbarState<
 
     // `startIndex` must be less than or equal to `endIndex`.
     if (startIndex > endIndex) return null;
+
+    // If both `startIndex` and `endIndex` are -1 then we're referencing a post's
+    // content so we should use the `PostRange` parent type.
+    if (startIndex === -1 || endIndex === -1) {
+        // Both `startIndex` and `endIndex` must be -1.
+        if (startIndex !== -1 || endIndex !== -1) return null;
+
+        if (getPostByRoomKey === null) return null;
+        const postRoom = getPostByRoomKey(startRoomKey);
+        if (postRoom === null) return null;
+
+        const startPos = assertExists(
+            getContentViewPosFromDom(
+                state.startContentElement,
+                state.startNode,
+                state.startOffset,
+            )?.[0],
+        );
+
+        const endPos = assertExists(
+            getContentViewPosFromDom(state.endContentElement, state.endNode, state.endOffset)?.[1],
+        );
+
+        return {
+            ...state,
+
+            // Safe to consider this a `RoomKey` since `getMessagesByRoomKey()` returned a
+            // non-null `MessageList` for this value.
+            roomKey: startRoomKey as RoomKey,
+
+            parent: {
+                type: "PostRange",
+                version: postRoom.contentUpdate?.mappings.length ?? 0,
+                startPos,
+                endPos,
+            },
+        };
+    }
 
     const messages = getMessagesByRoomKey(startRoomKey);
     if (messages === null) return null;
@@ -725,11 +765,14 @@ function getMessagingViewPointerToolbarState<
         // non-null `MessageList` for this value.
         roomKey: startRoomKey as RoomKey,
 
-        startIndex,
-        startPos,
-        startMessage,
-        endIndex,
-        endPos,
-        endMessage,
+        parent: {
+            type: "MessagesRange",
+            startIndex,
+            startVersion: startMessage.payload.contentUpdate?.mappings.length ?? 0,
+            startPos,
+            endIndex,
+            endVersion: endMessage.payload.contentUpdate?.mappings.length ?? 0,
+            endPos,
+        },
     };
 }

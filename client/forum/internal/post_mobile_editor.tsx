@@ -1,9 +1,9 @@
 import classNames from "classnames";
+import {Transaction} from "prosemirror-state";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {
@@ -22,14 +22,11 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {postContentViewInnerMarginY} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {trimContentEnd} from "~/shared/content/trim_content.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function PostMobileEditor({
     post: postFromProps,
@@ -37,23 +34,20 @@ export function PostMobileEditor({
     onContentEditorStateChange: onChange,
     initialContent,
     onCloseWithAnimation,
-    onPostRealtimeEventTransaction,
+    onSave,
 }: {
     post: PostModel | null;
     contentEditorState: ContentEditorState<PostContentWithReferences>;
     onContentEditorStateChange: (
         contentEditorState: ContentEditorState<PostContentWithReferences>,
+        transaction: Transaction,
     ) => void;
     initialContent: PostContent;
     onCloseWithAnimation: () => void;
-    onPostRealtimeEventTransaction: (event: {
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-    }) => void;
+    onSave: () => Promise<void>;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const platform = usePlatform();
-    const context = useAppContext();
 
     const [postFromState, setPost] = useState(postFromProps);
     let post = assertExists(
@@ -101,15 +95,7 @@ export function PostMobileEditor({
             withoutMinWidth={true}
             isDisabled={!hasContentChanged || isContentEmpty(state.getDoc())}
             pressErrorTitle="Couldn’t save post"
-            onPress={async () => {
-                const event = await updatePostContent(context, {
-                    postId: post.id,
-                    content: trimContentEnd(state.getDoc()),
-                });
-
-                onPostRealtimeEventTransaction(event);
-                onCloseWithAnimation();
-            }}
+            onPress={onSave}
         >
             Save
         </Button>

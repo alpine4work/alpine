@@ -31,13 +31,16 @@ import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/messa
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
+import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -76,9 +79,11 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     withAttachFileBeforeCreateMessage?: boolean;
     messageEditing: MessageEditing<RoomKey>;
+    postRoom?: PostModel;
     parent: MessageContentPayloadParent | null;
     onParentClear: () => void;
     onJumpToMessageRange: (options: JumpToMessageRangeOptions<RoomKey>) => void;
+    onJumpToPostRange?: (options: JumpToPostRangeOptions) => void;
     onDeleteMessage: (messageIndex: number) => Promise<void>;
     onShowTypingIndicator: () => void;
     onHideTypingIndicator: () => void;
@@ -115,9 +120,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         fileAttachmentTarget,
         withAttachFileBeforeCreateMessage = false,
         messageEditing,
+        postRoom,
         parent: parentWithoutMessages,
         onParentClear,
         onJumpToMessageRange,
+        onJumpToPostRange,
         onDeleteMessage,
         onShowTypingIndicator,
         onHideTypingIndicator,
@@ -173,10 +180,20 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     messages: assertNonEmptyReadonlyArray(parentMessages),
                 };
             }
+            case "PostRange": {
+                if (!postRoom) {
+                    throw new InternalError("Post range parent may only be used in a post room");
+                }
+
+                return {
+                    ...parentWithoutMessages,
+                    post: postRoom,
+                };
+            }
             default:
                 throw exhaustive(parentWithoutMessages);
         }
-    }, [messages, parentWithoutMessages]);
+    }, [messages, parentWithoutMessages, postRoom]);
 
     const [{key: inputKey, state: inputState, files: inputFiles}, actuallySetInputState] =
         useState<{
@@ -486,6 +503,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 parent={parent}
                 onParentClear={onParentClear}
                 onJumpToMessageRange={onJumpToMessageRange}
+                onJumpToPostRange={onJumpToPostRange}
                 onShowTypingIndicator={onShowTypingIndicator}
                 onHideTypingIndicator={onHideTypingIndicator}
                 isBottomBar={!isNotBottomBar}

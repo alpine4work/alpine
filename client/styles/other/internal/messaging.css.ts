@@ -41,4 +41,4 @@ export const backdropFadeOutClassName = style({
     animation: `${backdropFadeOutKeyframes} ${backdropFadeAnimationDurationMs}ms ease-in both`,
 });
 
-export const contentClassName = style({});
+export const withPointerToolbarClassName = style({});

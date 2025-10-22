@@ -1,5 +1,5 @@
-import {Node} from "prosemirror-model";
-import {Step} from "prosemirror-transform";
+import {Node, Slice} from "prosemirror-model";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {
     TestAccountActionContext,
     TestContext,
@@ -10,6 +10,7 @@ import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_po
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getPost} from "~/server/forum/data/get_post.js";
+import {getPostContentAndChannelPreview} from "~/server/forum/data/get_post_content_and_channel_preview.js";
 import {
     createPostComment,
     deletePostComment,
@@ -24,7 +25,6 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
-    PostContent,
     PostContentProsemirrorSchema,
     assertPostContent,
     createSimplePostContent,
@@ -266,11 +266,18 @@ export class TestPost extends TestCommentRoomBase {
             files = emptyArray,
             attachFiles: originalAttachFiles = emptyArray,
         }: {
-            content: PostContent | string;
+            content: Node | string;
             files?: ReadonlyArray<TestFile>;
             attachFiles?: ReadonlyArray<TestFile>;
         },
     ) {
+        const post = await getPostContentAndChannelPreview(
+            // Use a system action since if there's a `PermissionDeniedError` we want it
+            // thrown from `updatePostContent()` instead of here.
+            this.space.systemAction(),
+            this.id,
+        );
+
         if (typeof content === "string") {
             content = createSimplePostContent(content);
         }
@@ -326,7 +333,10 @@ export class TestPost extends TestCommentRoomBase {
 
         await updatePostContent(session.action(), {
             postId: this.id,
-            content,
+            version: post.contentUpdate?.mappings.length ?? 0,
+            steps: [
+                new ReplaceStep(0, post.content.content.size, new Slice(content.content, 0, 0)),
+            ],
         });
     }
 }

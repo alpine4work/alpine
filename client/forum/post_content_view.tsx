@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {ChatCircle, ChatCircleDots, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
@@ -28,6 +29,7 @@ import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_wi
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {JumpToPostRangeState} from "~/client/messaging/use_jump_to_post_range.js";
 import {ReactionButton} from "~/client/reactions/reaction_button.js";
 import {ReactionParty} from "~/client/reactions/reaction_party.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
@@ -55,6 +57,7 @@ import {
 import {
     colorSchemeVars,
     contentStyles,
+    messagingStyles,
     navigationBarStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -75,6 +78,7 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -105,6 +109,7 @@ export function PostContentView({
     postEditing,
     isPostView,
     initialScroll,
+    jumpState,
     idBase,
     onTogglePostComments,
     onLoadInitialPostComments,
@@ -120,6 +125,7 @@ export function PostContentView({
     shouldShowChannel: boolean;
     isPostView: boolean;
     initialScroll: PostContentViewInitialScroll | null;
+    jumpState: JumpToPostRangeState | null;
     idBase: string;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
@@ -278,6 +284,36 @@ export function PostContentView({
         });
     }, [initialScroll, post.content.doc]);
 
+    // Schedule the jump animation to run once `<MessageView>` mounts.
+    useEffect(() => {
+        if (!jumpState) return;
+        jumpState.scheduleAnimation();
+    }, [jumpState]);
+
+    // If we're highlighting this message then get the correct `from` and `to`
+    // positions based on the versioning information we have for the highlight.
+    const jumpAnimation = useMemo(() => {
+        if (!jumpState?.animation) return null;
+
+        let from = jumpState.options.startPos;
+        let to = jumpState.options.endPos;
+
+        const version = post.contentUpdate?.mappings.length ?? 0;
+
+        const mappings =
+            version > jumpState.options.version
+                ? post.contentUpdate?.mappings.slice(-(version - jumpState.options.version)) ??
+                  emptyArray
+                : emptyArray;
+
+        for (const mapping of mappings) {
+            from = mapping.map(from, 1);
+            to = mapping.map(to, -1);
+        }
+
+        return {from, to, startTime: jumpState.animation.startTime};
+    }, [jumpState, post.contentUpdate?.mappings]);
+
     return (
         <Box
             data-testid={
@@ -317,7 +353,8 @@ export function PostContentView({
                                     postEditing.dispatch({
                                         type: "StartEditing",
                                         postId: post.id,
-                                        currentContent: post.content,
+                                        contentVersion: post.contentUpdate?.mappings.length ?? 0,
+                                        content: post.content,
                                         platform,
                                     });
                                 },
@@ -346,21 +383,37 @@ export function PostContentView({
                     !postSnippet ? (
                         <ContentView
                             content={post.content}
-                            contentUpdatedTime={post.contentUpdatedTime}
+                            contentUpdatedTime={post.contentUpdate?.time ?? null}
                             fileAttachmentTarget={fileAttachmentTarget}
-                            className={sprinkles({padding: postContentViewInnerMarginY})}
+                            className={classNames(
+                                messagingStyles.withPointerToolbarClassName,
+                                sprinkles({padding: postContentViewInnerMarginY}),
+                            )}
                             style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
+                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're
+                            // referencing a post and not a post comment.
+                            data-room={post.id}
+                            data-index={-1}
+                            jumpAnimation={jumpAnimation}
                         />
                     ) : (
                         <ContentViewWithSeeMoreToggleBase
-                            contentUpdatedTime={post.contentUpdatedTime}
+                            contentUpdatedTime={post.contentUpdate?.time ?? null}
                             fileAttachmentTarget={fileAttachmentTarget}
-                            className={sprinkles({padding: postContentViewInnerMarginY})}
+                            className={classNames(
+                                messagingStyles.withPointerToolbarClassName,
+                                sprinkles({padding: postContentViewInnerMarginY}),
+                            )}
                             style={{paddingTop: isPostView ? postViewContentPaddingTop : undefined}}
                             content={post.content}
                             contentSnippet={postSnippet}
                             isShowingAllContent={isShowingAllContent}
                             onIsShowingAllContentChange={onIsShowingAllContentChange}
+                            // `data-index` of -1 tells `<MessagingViewPointerToolbar>` that we're
+                            // referencing a post and not a post comment.
+                            data-room={post.id}
+                            data-index={-1}
+                            jumpAnimation={jumpAnimation}
                         />
                     )
                 ) : (
@@ -369,7 +422,7 @@ export function PostContentView({
                         isPostView={isPostView}
                         postEditingForThisPost={postEditingForThisPost}
                         fileAttachmentTarget={fileAttachmentTarget}
-                        lastContentUpdatedTime={post.contentUpdatedTime}
+                        lastContentUpdatedTime={post.contentUpdate?.time ?? null}
                         onScrollToIfNotVisible={onScrollToIfNotVisible}
                     />
                 )}
@@ -848,6 +901,7 @@ function PostContentViewEditor({
                             postEditingForThisPost.dispatch({
                                 type: "ContentEditorStateChange",
                                 contentEditorState,
+                                transaction,
                             });
                         }}
                         // On mobile, don't allow interactions when unfocused. We're already in an

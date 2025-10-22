@@ -58,6 +58,8 @@ const postContentSchemas = createSchemaForProsemirrorSchema(PostContentProsemirr
 export const PostContentSchema =
     postContentSchemas.TopNodeType as Schema<any> as Schema<PostContent>;
 
+export const PostContentStepSchema = postContentSchemas.createStepSchema();
+
 export const emptyPostContent = PostContentProsemirrorSchema.node("doc", {}, [
     PostContentProsemirrorSchema.node("paragraph"),
 ]) as PostContent;

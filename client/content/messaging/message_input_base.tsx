@@ -40,6 +40,7 @@ import {
 import {
     getTruncatedMessageContentForReplyPreview,
     getTruncatedMessagesRangeContentForReplyPreview,
+    getTruncatedPostContentForReplyPreview,
 } from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/internal/message_input_mobile_keyboard_toolbar.js";
 import {MessageInputFileEntityPreview} from "~/client/content/messaging/message_input_file_entity_preview.js";
@@ -125,6 +126,7 @@ import {
     getFileImageContentTypes,
     getFileVideoContentTypes,
 } from "~/shared/files/file_content_type.js";
+import {PostModel} from "~/shared/forum/post_model.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -132,6 +134,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -180,6 +183,12 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
         start: {version: number; pos: number} | null;
         end: {version: number; pos: number} | null;
     }) => void;
+    onJumpToPostRange?: (options: {
+        postId: PostId;
+        version: number;
+        startPos: number;
+        endPos: number;
+    }) => void;
     onShowTypingIndicator?: () => void;
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
@@ -206,6 +215,13 @@ export type MessageContentPayloadParentWithMessages<
           readonly endIndex: number;
           readonly startVersion: number;
           readonly endVersion: number;
+          readonly startPos: number;
+          readonly endPos: number;
+      }
+    | {
+          readonly type: "PostRange";
+          readonly post: PostModel;
+          readonly version: number;
           readonly startPos: number;
           readonly endPos: number;
       };
@@ -248,6 +264,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         parent: parentProp,
         onParentClear,
         onJumpToMessageRange,
+        onJumpToPostRange,
         onShowTypingIndicator,
         onHideTypingIndicator,
         "data-testid": dataTestId,
@@ -401,6 +418,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             }
             case "MessagesRange": {
                 focusKey = `Replying:${parent.startIndex},${parent.endIndex},${parent.startVersion},${parent.endVersion},${parent.startPos},${parent.endPos}`;
+                break;
+            }
+            case "PostRange": {
+                focusKey = `Replying:Post,${parent.version},${parent.startPos},${parent.endPos}`;
                 break;
             }
             default:
@@ -844,6 +865,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 messageNoun={messageNoun}
                                 parent={parent}
                                 onJumpToMessageRange={onJumpToMessageRange}
+                                onJumpToPostRange={onJumpToPostRange}
                                 onParentClear={onParentClear}
                                 paddingX={screenPaddingX}
                             />
@@ -1467,6 +1489,7 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
     messageNoun,
     parent,
     onJumpToMessageRange,
+    onJumpToPostRange,
     onParentClear,
     paddingX,
 }: {
@@ -1480,6 +1503,9 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
               start: {version: number; pos: number} | null;
               end: {version: number; pos: number} | null;
           }) => void)
+        | undefined;
+    onJumpToPostRange:
+        | ((options: {postId: PostId; version: number; startPos: number; endPos: number}) => void)
         | undefined;
     onParentClear: (() => void) | undefined;
     paddingX: Spacing | {desktop: Spacing; mobile: Spacing};
@@ -1522,6 +1548,20 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                             }),
                         };
                     }
+                    case "PostRange": {
+                        return {
+                            author: get(accountRegistry.getAccountStore(parent.post.author)),
+                            truncatedContent: getTruncatedPostContentForReplyPreview(get, {
+                                post: parent.post,
+                                version: parent.version,
+                                startPos: parent.startPos,
+                                endPos: parent.endPos,
+                                accountRegistry,
+                                searchEntityRegistry,
+                                fileRegistry,
+                            }),
+                        };
+                    }
                     default:
                         throw exhaustive(parent);
                 }
@@ -1553,6 +1593,15 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
                         endIndex: parent.endIndex,
                         start: {version: parent.startVersion, pos: parent.startPos},
                         end: {version: parent.endVersion, pos: parent.endPos},
+                    });
+                    break;
+                }
+                case "PostRange": {
+                    onJumpToPostRange?.({
+                        postId: parent.post.id,
+                        version: parent.version,
+                        startPos: parent.startPos,
+                        endPos: parent.endPos,
                     });
                     break;
                 }

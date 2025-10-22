@@ -21,6 +21,7 @@ export const MessageContentPayloadParentSchema = Schema.union({
         type: Schema.value("Message"),
         index: Schema.integer,
     }),
+
     MessagesRange: Schema.object({
         type: Schema.value("MessagesRange"),
         startIndex: Schema.integer.min(0),
@@ -42,6 +43,18 @@ export const MessageContentPayloadParentSchema = Schema.union({
             "`startPos` is less than or equal to `endPos` if `startIndex` equals `endIndex`",
             range => range.startIndex !== range.endIndex || range.startPos <= range.endPos,
         ),
+
+    // Only post comments can have a post range parent. We throw an error if any
+    // other messaging surface has a post range parent.
+    PostRange: Schema.object({
+        type: Schema.value("PostRange"),
+        version: Schema.integer.min(0),
+        startPos: Schema.integer.min(0),
+        endPos: Schema.integer.min(0),
+    }).validation(
+        "`startPos` is is less than or equal to `endPos`",
+        range => range.startPos <= range.endPos,
+    ),
 });
 
 export function* iterateMessageContentPayloadParentIndexes(
@@ -56,6 +69,9 @@ export function* iterateMessageContentPayloadParentIndexes(
             for (let index = parent.startIndex; index <= parent.endIndex; index++) {
                 yield index;
             }
+            break;
+        }
+        case "PostRange": {
             break;
         }
         default:

@@ -19,6 +19,7 @@ import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/ha
 import {
     getTruncatedMessageContentForReplyPreview,
     getTruncatedMessagesRangeContentForReplyPreview,
+    getTruncatedPostContentForReplyPreview,
 } from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageContentPayloadParentWithMessages} from "~/client/content/messaging/message_input_base.js";
 import {MessageViewFiles} from "~/client/content/messaging/message_view_files.js";
@@ -51,6 +52,7 @@ import {
     JumpMessageState,
     JumpToMessageRangeOptions,
 } from "~/client/messaging/use_jump_to_message_range.js";
+import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
@@ -103,8 +105,10 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
+import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -150,8 +154,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     nextMessage,
     messages,
     messageEditing,
+    postRoom,
     jumpState,
     onJumpToMessageRange,
+    onJumpToPostRange,
     onReplyToMessage: onReplyToMessageProp,
     onDeleteMessage,
     getMessageUrl,
@@ -168,9 +174,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     nextMessage: Message | OptimisticMessageModel | null;
     messages: MessageList<Message>;
     messageEditing: MessageEditing<RoomKey>;
+    postRoom?: PostModel;
     disableExpensiveFeaturesDuringScroll: boolean;
     jumpState: JumpMessageState | null;
     onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
+    onJumpToPostRange?: Memo<(options: JumpToPostRangeOptions) => void>;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
@@ -296,10 +304,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
                 return {...parent, messages: assertNonEmptyReadonlyArray(parentMessages)};
             }
+            case "PostRange": {
+                if (!postRoom) {
+                    throw new InternalError("Post range parent may only be used in a post room");
+                }
+
+                return {...parent, post: postRoom};
+            }
             default:
                 throw exhaustive(parent);
         }
-    }, [message, messages]);
+    }, [message.payload, messages, postRoom]);
 
     const messageEditingForThisMessage =
         // If we're on a mobile device (with keyboard toolbars) then instead of editing
@@ -361,12 +376,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // time the optimistic placement is the correct end state.
         delayLoadingIndicatorLimitMs * 2,
     );
-
-    // Schedule the jump animation to run once `<MessageView>` mounts.
-    useEffect(() => {
-        if (!jumpState) return;
-        jumpState.scheduleAnimation();
-    }, [jumpState]);
 
     const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
@@ -795,6 +804,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [canPrimaryInputHover, events, isEditingThisMessage, isReadOnly, message.payload]);
 
+    // Schedule the jump animation to run once `<MessageView>` mounts.
+    useEffect(() => {
+        if (!jumpState) return;
+        jumpState.scheduleAnimation();
+    }, [jumpState]);
+
     // If we're highlighting this message then get the correct `from` and `to`
     // positions based on the versioning information we have for the highlight.
     const jumpAnimation = useMemo(() => {
@@ -934,7 +949,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             <ContentView
                 data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
                 data-index={!message.isOptimistic ? message.index : undefined}
-                className={messagingStyles.contentClassName}
+                className={messagingStyles.withPointerToolbarClassName}
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdate?.time}
                 withUserSelectNone={!canPrimaryInputHover}
@@ -1001,9 +1016,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 messageNoun={messageNoun}
                 parent={parent}
                 onJumpToMessageRange={onJumpToMessageRange}
+                onJumpToPostRange={onJumpToPostRange}
             />
         );
-    }, [messageNoun, onJumpToMessageRange, parent]);
+    }, [messageNoun, onJumpToMessageRange, onJumpToPostRange, parent]);
 
     const timestampDividerNode = useMemo(() => {
         if (!shouldShowTimestampBeforeMessage) return null;
@@ -1408,11 +1424,13 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     messageNoun,
     parent,
     onJumpToMessageRange,
+    onJumpToPostRange,
 }: {
     parentMessageRef: RefObject<HTMLDivElement>;
     messageNoun: string;
     parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
     onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
+    onJumpToPostRange: Memo<(options: JumpToPostRangeOptions) => void> | undefined;
 }) {
     const spacingScale = useSpacingScale();
     const accountRegistry = useAccountRegistry();
@@ -1451,6 +1469,20 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                             }),
                         };
                     }
+                    case "PostRange": {
+                        return {
+                            author: get(accountRegistry.getAccountStore(parent.post.author)),
+                            truncatedContent: getTruncatedPostContentForReplyPreview(get, {
+                                post: parent.post,
+                                version: parent.version,
+                                startPos: parent.startPos,
+                                endPos: parent.endPos,
+                                accountRegistry,
+                                searchEntityRegistry,
+                                fileRegistry,
+                            }),
+                        };
+                    }
                     default:
                         throw exhaustive(parent);
                 }
@@ -1463,6 +1495,11 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
     const parentMessageOffsetRem = parseRemLength(messageViewRailGap) / 2;
     const parentMessageAccountAvatarSizeRem = parseRemLength(messageViewParentAccountAvatarSize);
+
+    assert(
+        parent.type !== "PostRange" || onJumpToPostRange !== undefined,
+        "If the parent is `PostRange` then `onJumpToPostRange` must be provided",
+    );
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
@@ -1484,6 +1521,15 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         endIndex: parent.endIndex,
                         start: {version: parent.startVersion, pos: parent.startPos},
                         end: {version: parent.endVersion, pos: parent.endPos},
+                    });
+                    break;
+                }
+                case "PostRange": {
+                    assertExists(onJumpToPostRange)({
+                        postId: parent.post.id,
+                        version: parent.version,
+                        startPos: parent.startPos,
+                        endPos: parent.endPos,
                     });
                     break;
                 }
