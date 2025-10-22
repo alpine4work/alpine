@@ -1134,7 +1134,6 @@ Resources:
                 Mode: OFF
             ScheduleExpression: rate(3 minutes)
             ScheduleExpressionTimezone: Etc/UTC
-            StartDate: 2025-10-01T00:00:00.000Z
             State: ENABLED
             Target:
                 Arn:
@@ -1157,9 +1156,8 @@ Resources:
         Properties:
             FlexibleTimeWindow:
                 Mode: OFF
-            ScheduleExpression: rate(1 hour)
+            ScheduleExpression: cron(58 * * * ? *)
             ScheduleExpressionTimezone: Etc/UTC
-            StartDate: 2025-10-01T00:00:00.000Z
             State: ENABLED
             Target:
                 Arn:

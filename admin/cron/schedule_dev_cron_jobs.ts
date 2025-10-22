@@ -2,6 +2,7 @@ import {SQSClient, SendMessageCommand} from "@aws-sdk/client-sqs";
 import cron from "node-cron";
 import {cronJobs} from "~/admin/cron/cron_jobs.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -24,15 +25,23 @@ export function scheduleDevCronJobs({
 
     for (const cronJob of cronJobs) {
         let cronExpression;
-        switch (cronJob.rate.type) {
-            case "Minutes":
-                cronExpression = `*/${cronJob.rate.minutes} * * * *`;
-                break;
-            case "Hours":
-                cronExpression = `* */${cronJob.rate.hours} * * *`;
-                break;
-            default:
-                throw exhaustive(cronJob.rate);
+        if (cronJob.rate) {
+            switch (cronJob.rate.type) {
+                case "Minutes":
+                    cronExpression = `*/${cronJob.rate.minutes} * * * *`;
+                    break;
+                case "Hours":
+                    cronExpression = `0 */${cronJob.rate.hours} * * *`;
+                    break;
+                default:
+                    throw exhaustive(cronJob.rate);
+            }
+        } else if (cronJob.cron) {
+            cronExpression = `${cronJob.cron.minute ?? "*"} ${cronJob.cron.hour ?? "*"} ${
+                cronJob.cron.day ?? "*"
+            } ${cronJob.cron.month ?? "*"} ${cronJob.cron.weekDay ?? "*"}`;
+        } else {
+            throw new InvalidArgumentError("Invalid cron job configuration");
         }
 
         cron.schedule(cronExpression, () => {

@@ -288,7 +288,8 @@ export async function notifyInboxOfTimeZoneChange(
 // more than one instance of this function and give it a sort key range on `accountId`.
 /**
  * Spawns `SendNotificationDigest` jobs to send scheduled digest notifications for all accounts that
- * are scheduled to receive a digest at the given time.
+ * are scheduled to receive a digest at the next closest future hour.
+ * For example, if digestTime is at 7:00-7:59, it will send digests for 8:00.
  */
 export async function sendScheduledDigestsForTime(
     context: Context<{jobs: JobsContextModule} & Omit<ServerActionContextModules, "actor">>,

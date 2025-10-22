@@ -2,25 +2,30 @@ import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_desc
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
-export type CronJob = {
+type CronJobBase = {
     readonly name: string;
-    readonly rate: CronJobRate;
     readonly job: MaintenanceJobDescription;
-    readonly start: Date;
 };
-
-// When a rate runs is based on its start time. This start time will set rates to run at the top of
-// the hour.
-const defaultStartTime = new Date("2025-10-01T00:00:00.000Z");
 
 // Annoyingly the [AWS cron syntax][1] and the [`node-cron` syntax][2] (based
 // on [crontab syntax][3], which is the standard) are different. AWS has a
-// sixth required year field. `node-cron` also supports 6 fields but if there
-// are 6 fields it interprets the first field as seconds.
+// year field, plus additional wildcard values that are not supported by `node-cron`.
 //
-// [1]: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-cron-expressions.html
+// [1]: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html
 // [2]: https://www.npmjs.com/package/node-cron
 // [3]: https://www.gnu.org/software/mcron/manual/html_node/Crontab-file.html
+export type CronJob = CronJobBase &
+    (
+        | {
+              readonly rate: CronJobRate;
+              readonly cron?: never;
+          }
+        | {
+              readonly cron: CronJobCron;
+              readonly rate?: never;
+          }
+    );
+
 export type CronJobRate =
     | {
           readonly type: "Minutes";
@@ -30,6 +35,14 @@ export type CronJobRate =
           readonly type: "Hours";
           readonly hours: number;
       };
+
+export type CronJobCron = {
+    readonly minute?: string;
+    readonly hour?: string;
+    readonly day?: string;
+    readonly month?: string;
+    readonly weekDay?: string;
+};
 
 /**
  * Cron jobs are maintenance jobs we send to our SQS job queue on a schedule
@@ -49,16 +62,19 @@ export const cronJobs: ReadonlyArray<CronJob> = [
     // `TaskRealtimeService` may save task data in-memory that is incorrect.
     {
         name: "RetryUnprocessedTaskActionTransactions",
-        rate: {type: "Minutes", minutes: 3},
         job: {type: "RetryUnprocessedTaskActionTransactions"},
-        start: defaultStartTime,
+        rate: {type: "Minutes", minutes: 3},
     },
 
+    // Enqueue scheduled notification digests. We want users to receive their notification digest as
+    // close to the scheduled time as possible, so this runs at 2 minutes before the hour to allow for
+    // processing time.
     {
         name: "EnqueueScheduledNotificationDigests",
-        rate: {type: "Hours", hours: 1},
+        cron: {
+            minute: "58",
+        },
         job: {type: "EnqueueScheduledNotificationDigests"},
-        start: defaultStartTime,
     },
 ];
 
