@@ -456,7 +456,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+    broadcastEventTransaction: async (context, eventTransaction) => {
         // Split up event transactions so we send everything in a `ChannelId` to
         // that channel and nothing else. We have to split for security: if two
         // channels are updated in the same transaction, a user connected to

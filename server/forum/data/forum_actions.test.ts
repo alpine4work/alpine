@@ -123,6 +123,10 @@ import {
     emptyMessageContent,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
+import {
+    ServerSynchronizationCheckpoint,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestContext();
 
@@ -268,7 +272,7 @@ test("can’t get a channel that does not exist", async () => {
     await expect(
         backfillChannelAndMetadata(session.action(), {
             channelId: badChannelId,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).rejects.toThrow(NotFoundError);
     await expect(authorizeChannelAccess(session.action(), badChannelId, "View")).rejects.toThrow(
@@ -316,7 +320,7 @@ test("can’t get a channel for a different space", async () => {
     await expect(
         backfillChannelAndMetadata(otherSession.action(), {
             channelId: channel.id,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(authorizeChannelAccess(otherSession.action(), channel.id, "View")).rejects.toThrow(
@@ -360,7 +364,7 @@ test("can’t get a private channel", async () => {
     await expect(
         backfillChannelAndMetadata(session3.action(), {
             channelId: channel.id,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).resolves.toBeTruthy();
     await expect(
@@ -399,7 +403,7 @@ test("can’t get a private channel", async () => {
     await expect(
         backfillChannelAndMetadata(session1.action(), {
             channelId: channel.id,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).resolves.toBeTruthy();
     await expect(
@@ -435,7 +439,7 @@ test("can’t get a private channel", async () => {
     await expect(
         backfillChannelAndMetadata(session2.action(), {
             channelId: channel.id,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).resolves.toBeTruthy();
     await expect(
@@ -478,7 +482,7 @@ test("can’t get a private channel", async () => {
     await expect(
         backfillChannelAndMetadata(session3.action(), {
             channelId: channel.id,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).rejects.toThrow("Actor doesn’t have `View` access level");
     await expect(authorizeChannelAccess(session3.action(), channel.id, "View")).rejects.toThrow(
@@ -525,7 +529,7 @@ test("can get a channel", async () => {
     await expect(
         backfillChannelAndMetadata(session.action(), {
             channelId: channel.id,
-            readTime: new Date(),
+            checkpoint: generateServerSynchronizationCheckpoint(),
         }),
     ).resolves.toBeTruthy();
     await expect(
@@ -1888,7 +1892,7 @@ test("can get channel posts when there are none", async () => {
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -1919,7 +1923,7 @@ test("can get the first few posts in a channel", async () => {
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -1968,7 +1972,7 @@ test("can get the first few posts in a channel", async () => {
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2043,7 +2047,7 @@ test("can get the first few posts in a channel", async () => {
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2161,7 +2165,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     expect(channelPostsResult).toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2312,7 +2316,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2411,7 +2415,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2536,7 +2540,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2687,7 +2691,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2786,7 +2790,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2859,7 +2863,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     ).resolves.toEqual({
         indexName: "ChannelPosts",
         partitionKey: expect.any(String),
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2930,7 +2934,7 @@ test("can backfill realtime updates in a channel", async () => {
     const session = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const readTime1 = new Date();
+    const checkpoint1 = generateServerSynchronizationCheckpoint();
 
     const channel1 = await TestChannel.create(session);
     const channel2 = await TestChannel.create(session);
@@ -2942,7 +2946,7 @@ test("can backfill realtime updates in a channel", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const readTime2 = addMinutes(
+    const checkpoint2: ServerSynchronizationCheckpoint = addMinutes(
         new Date(),
         dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
     );
@@ -2962,7 +2966,7 @@ test("can backfill realtime updates in a channel", async () => {
     await expect(
         backfillChannelPosts(otherSession.action(), {
             channelId: channel1.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -2974,11 +2978,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3020,11 +3024,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3066,22 +3070,22 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3096,11 +3100,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3142,11 +3146,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3188,11 +3192,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3217,11 +3221,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3236,11 +3240,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3282,11 +3286,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3328,11 +3332,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3357,11 +3361,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3390,11 +3394,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3450,11 +3454,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3496,11 +3500,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3539,11 +3543,11 @@ test("can backfill realtime updates in a channel", async () => {
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3570,7 +3574,7 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const readTime1 = new Date();
+    const checkpoint1 = generateServerSynchronizationCheckpoint();
 
     const channel = await TestChannel.create(session);
 
@@ -3578,7 +3582,7 @@ test("won’t backfill realtime updates when comment count changes", async () =>
 
     await ProcessContextModule.waitForTestTasks();
 
-    const readTime2 = addMinutes(new Date(), 3);
+    const checkpoint2: ServerSynchronizationCheckpoint = addMinutes(new Date(), 3);
 
     const post1a = (await getPost(session.action(), post.id)).model;
 
@@ -3588,11 +3592,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3614,11 +3618,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3634,11 +3638,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime1,
+            checkpoint: checkpoint1,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3660,11 +3664,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3680,11 +3684,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3703,11 +3707,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3726,11 +3730,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3746,11 +3750,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3762,7 +3766,7 @@ test("won’t backfill realtime updates when comment count changes", async () =>
 
     await ProcessContextModule.waitForTestTasks();
 
-    const readTime3 = addMinutes(
+    const checkpoint3: ServerSynchronizationCheckpoint = addMinutes(
         new Date(),
         dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
     );
@@ -3777,11 +3781,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime2,
+            checkpoint: checkpoint2,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [
             {
                 type: "PutItem",
@@ -3803,11 +3807,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime3,
+            checkpoint: checkpoint3,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 
@@ -3825,11 +3829,11 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(
         await backfillChannelPosts(session.action(), {
             channelId: channel.id,
-            readTime: readTime3,
+            checkpoint: checkpoint3,
         }),
     ).toEqual({
         type: "Available",
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         eventTransaction: [],
     });
 });
@@ -7884,7 +7888,7 @@ test("creating a post with files adds to the channel’s post files", async () =
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -7933,7 +7937,7 @@ test("creating a post with files adds to the channel’s post files", async () =
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -7986,7 +7990,7 @@ test("creating a post with files adds to the channel’s post files", async () =
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8052,7 +8056,7 @@ test("creating a post with files adds to the channel’s post files", async () =
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8129,7 +8133,7 @@ test("creating a post with files adds to the channel’s post files", async () =
     });
 
     expect(lastResult).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8211,7 +8215,7 @@ test("creating a post with files adds to the channel’s post files", async () =
             afterItemKey: lastResult.items[2]?.key,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: lastResult.partitionKey,
         startItemKey: null,
         endItemKey: null,
@@ -8262,7 +8266,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8311,7 +8315,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8365,7 +8369,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8429,7 +8433,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8493,7 +8497,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8554,7 +8558,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,
@@ -8607,7 +8611,7 @@ test("updating a post with files changes the channel's post files", async () => 
             postFilesLimit: 100,
         }),
     ).toEqual({
-        readTime: expect.any(Date),
+        checkpoint: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
         endItemKey: null,

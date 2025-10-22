@@ -121,3 +121,87 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
 
     return [stateWithDependencies.state, setState];
 }
+
+/**
+ * Same as `useStateWithDependencies()` but slightly more efficient because we
+ * don't return the `setState` function.
+ *
+ * This is pretty similar to `useMemo()` but with a few important differences:
+ *
+ * 1. You can be confident React won't blow away the memoized value. React may
+ *    recompute memo at any time. In `<StrictMode>` React in fact calls the
+ *    memoizer function twice to make sure you don't do stateful things with
+ *    your memo. So if you need to create a stateful resource, this hook is
+ *    more reliable.
+ *
+ * 2. You have access to the previous value when computing your new value. This
+ *    is nice if you need to reuse parts of a previous value. Accumulating some
+ *    new value over time.
+ *
+ * 3. You're free to capture "stale" props in the initializer function and
+ *    they'll be saved to state. Useful if you want to capture some initial
+ *    prop into state and you don't want to re-compute your state if that prop
+ *    changes.
+ */
+export function useStateWithDependenciesWithoutDispatch<
+    State,
+    const Dependencies extends DependencyList,
+>(
+    initializeState:
+        | State
+        | ((
+              dependencies: BlockInference<Dependencies>,
+              previousState: BlockInference<State> | undefined,
+              previousDependencies: BlockInference<Dependencies> | undefined,
+          ) => State),
+    dependencies: Dependencies,
+): State {
+    const [stateWithDependencies, setStateWithDependencies] = useState<{
+        dependencies: Dependencies;
+        state: State;
+    }>(() => ({
+        dependencies,
+        state:
+            typeof initializeState === "function"
+                ? (
+                      initializeState as (
+                          dependencies: Dependencies,
+                          previousState: State | undefined,
+                          previousDependencies: Dependencies | undefined,
+                      ) => State
+                  )(dependencies, undefined, undefined)
+                : initializeState,
+    }));
+
+    const areDependenciesEqual =
+        stateWithDependencies.dependencies.length === dependencies.length &&
+        stateWithDependencies.dependencies.every((dependency, index) =>
+            Object.is(dependency, dependencies[index]),
+        );
+
+    if (!areDependenciesEqual) {
+        const newStateWithDependencies = {
+            dependencies,
+            state:
+                typeof initializeState === "function"
+                    ? (
+                          initializeState as (
+                              dependencies: Dependencies,
+                              previousState: State | undefined,
+                              previousDependencies: Dependencies | undefined,
+                          ) => State
+                      )(
+                          dependencies,
+                          stateWithDependencies.state,
+                          stateWithDependencies.dependencies,
+                      )
+                    : initializeState,
+        };
+
+        setStateWithDependencies(newStateWithDependencies);
+
+        return newStateWithDependencies.state;
+    }
+
+    return stateWithDependencies.state;
+}

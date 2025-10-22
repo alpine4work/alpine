@@ -130,7 +130,7 @@ export function PostView({
             )}
             shouldBeConnectedToChannelRealtime={false}
             onPostRealtimeEventTransaction={useCallback(
-                ({eventTransaction}) => {
+                eventTransaction => {
                     setPosts(posts => posts.handleEventTransaction(eventTransaction));
                 },
                 [setPosts],
@@ -141,7 +141,7 @@ export function PostView({
                         // Once `promise` resolves, use the event transaction from `promise` to update
                         // the posts instead of our optimistic updater.
                         if (promiseValue) {
-                            return posts.handleEventTransaction(promiseValue.eventTransaction);
+                            return posts.handleEventTransaction(promiseValue);
                         }
 
                         const oldPostItem = posts.getPostRealtimeItemIfExists(postId);

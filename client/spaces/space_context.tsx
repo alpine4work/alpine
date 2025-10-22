@@ -10,6 +10,7 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {MyAccountEvent} from "~/shared/notifications/my_account_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/spaces/space_error_messages.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 /**
  * Context available when we are in a space route. Throws an error if we are
@@ -78,6 +79,9 @@ export function useSpaceContextAndRequireSpaceAccess(): Replace<
 export function useMyAccountWebSocket(): {
     readonly isConnected: boolean;
     readonly subscribeToEvents: Memo<(subscriber: (event: MyAccountEvent) => void) => () => void>;
+    readonly subscribeToPongs: Memo<
+        (subscriber: (message: WebSocketPongMessage) => void) => () => void
+    >;
 } {
     const myAccountWebSocketContext = useContext(MyAccountWebSocketContext);
     if (!myAccountWebSocketContext) {

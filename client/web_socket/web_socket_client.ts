@@ -14,6 +14,7 @@ import {
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
 } from "~/shared/web_socket/web_socket_protocol.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
@@ -224,9 +225,11 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
      * check with `isDisconnected` in state.
      */
     public connect(): void {
-        const previousState = this._state.getSnapshot();
-        assert(previousState.type === "Disconnected", "WebSocket is already connected");
-        let pendingProcedures = previousState.pendingProcedures;
+        let pendingProcedures: Array<{
+            readonly name: string;
+            readonly input: unknown;
+            readonly outputPromiseResolver: PromiseResolver<unknown>;
+        }>;
 
         let reconnectAttempts = 0;
 
@@ -420,17 +423,25 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             }
         };
 
-        if (document.visibilityState === "visible") {
-            connect();
-        } else {
-            this._state.set({
-                type: "DocumentNotVisible",
-                pendingProcedures,
-                disconnect: transition => {
-                    actuallyDisconnect(transition);
-                    return Promise.resolve();
-                },
-            });
+        // Actually connect (by calling `connect()`) after defining all the
+        // functions we need.
+        {
+            const previousState = this._state.getSnapshot();
+            assert(previousState.type === "Disconnected", "WebSocket is already connected");
+            pendingProcedures = previousState.pendingProcedures;
+
+            if (document.visibilityState === "visible") {
+                connect();
+            } else {
+                this._state.set({
+                    type: "DocumentNotVisible",
+                    pendingProcedures,
+                    disconnect: transition => {
+                        actuallyDisconnect(transition);
+                        return Promise.resolve();
+                    },
+                });
+            }
         }
     }
 
@@ -525,6 +536,43 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             switch (state.type) {
                 case "Connected":
                     unsubscribeFromEvents = state.connection.subscribeToEvents(listener);
+                    break;
+                case "Connecting":
+                case "WaitingToReconnect":
+                case "Error":
+                case "DocumentNotVisible":
+                case "Disconnected":
+                    break;
+                default:
+                    throw exhaustive(state);
+            }
+        };
+
+        const unsubscribeFromState = this._state.subscribe(stateListener);
+
+        stateListener();
+
+        return () => {
+            unsubscribeFromState();
+            unsubscribeFromEvents?.();
+        };
+    }
+
+    /**
+     * Subscribe to pong messages from our WebSocket.
+     */
+    public subscribeToPongs(listener: (message: WebSocketPongMessage) => void): () => void {
+        let unsubscribeFromEvents: (() => void) | null = null;
+
+        const stateListener = () => {
+            unsubscribeFromEvents?.();
+            unsubscribeFromEvents = null;
+
+            const state = this._state.getSnapshot();
+
+            switch (state.type) {
+                case "Connected":
+                    unsubscribeFromEvents = state.connection.subscribeToPongs(listener);
                     break;
                 case "Connecting":
                 case "WaitingToReconnect":

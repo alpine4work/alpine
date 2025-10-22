@@ -37,6 +37,7 @@ import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const createChannel = defineRpc({
     name: "createChannel",
@@ -60,7 +61,6 @@ export const updateChannelName = defineRpc({
         name: Schema.string,
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(
             createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
         ),
@@ -74,7 +74,6 @@ export const updateChannelDescription = defineRpc({
         description: MessageContentSchema,
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(
             createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
         ),
@@ -89,7 +88,6 @@ export const updateChannelNameAndDescription = defineRpc({
         description: MessageContentSchema,
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(
             createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
         ),
@@ -104,7 +102,6 @@ export const updateChannelAccessPolicy = defineRpc({
         notification: ShareNotificationSchema.nullable(),
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(
             createDynamoGeneralRealtimeEventSchema(ChannelOrMetadataModelSchema),
         ),
@@ -122,7 +119,6 @@ export const addAccountGrantsToChannelAccessPolicy = defineRpc({
         notification: ShareNotificationSchema.nullable(),
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(
             createDynamoGeneralRealtimeEventSchema(ChannelOrMetadataModelSchema),
         ),
@@ -155,7 +151,7 @@ export const backfillChannelAndMetadata = defineRpc({
     name: "backfillChannelAndMetadata",
     input: {
         channelId: Schema.id<ChannelId>(),
-        readTime: Schema.date,
+        checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
         backfillChannelResult: createDynamoGeneralRealtimeBackfillResultSchema(
@@ -205,7 +201,7 @@ export const backfillChannelPosts = defineRpc({
     name: "backfillChannelPosts",
     input: {
         channelId: Schema.id<ChannelId>(),
-        readTime: Schema.date,
+        checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
         backfillPostsResult: createDynamoGeneralRealtimeBackfillResultSchema(PostModel.schema()),
@@ -218,7 +214,6 @@ export const getPostWithStrongReadConsistency = defineRpc({
         postId: Schema.id<PostId>(),
     },
     output: {
-        readTime: Schema.date,
         post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
     },
 });
@@ -236,7 +231,6 @@ export const createPost = defineRpc({
             spaceId: Schema.id<SpaceId>(),
             createdTime: Schema.date,
         }),
-        readTime: Schema.date,
         eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(PostModel.schema())),
     },
 });
@@ -250,7 +244,6 @@ export const updatePostContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
-        readTime: Schema.date,
         eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(PostModel.schema())),
     },
 });
@@ -413,7 +406,6 @@ export const getPostRealtimeEvent = defineRpc({
         eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
     },
 });
@@ -425,7 +417,6 @@ export const getChannelRealtimeEvent = defineRpc({
         eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
     },
 });
@@ -440,7 +431,6 @@ export const setPostReaction = defineRpc({
         }),
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
     },
 });
@@ -451,7 +441,6 @@ export const deletePostReaction = defineRpc({
         postId: Schema.id<PostId>(),
     },
     output: {
-        readTime: Schema.date,
         eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
     },
 });

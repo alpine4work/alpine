@@ -26,6 +26,5 @@ const DynamoGeneralRealtimeSpellCheckIgnoredEventSchema = createDynamoGeneralRea
 );
 
 export const SpellCheckIgnoredLintRealtimeTransactionSchema = Schema.object({
-    readTime: Schema.date,
     eventTransaction: Schema.array(DynamoGeneralRealtimeSpellCheckIgnoredEventSchema),
 });

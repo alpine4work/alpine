@@ -27,12 +27,11 @@ export async function addAccountGrantsToChannelAccessPolicy(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
-        readTime: Date;
-        eventTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
-        >;
-    }>;
+    getDynamoGeneralRealtimeEventTransaction: (
+        context: ServerActionContext,
+    ) => Promise<
+        ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
+    >;
 }> {
     return updateChannelAccessPolicyBase(context, {
         channelId,

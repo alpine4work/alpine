@@ -144,6 +144,7 @@ import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notificatio
 import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
@@ -484,7 +485,7 @@ export async function getInboxEntry(
 }
 
 /**
- * Backfill any inbox entry updates between now and `readTime`. Use when you
+ * Backfill any inbox entry updates between now and `checkpoint`. Use when you
  * connect to realtime after reading data to make sure you haven't missed
  * any updates.
  *
@@ -492,7 +493,7 @@ export async function getInboxEntry(
  */
 export async function backfillInboxEntries(
     context: ServerSessionActionContext,
-    {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
+    {spaceId, checkpoint}: {spaceId: SpaceId; checkpoint: ServerSynchronizationCheckpoint},
 ): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
     const accountId = context.actor.getAccountId();
 
@@ -505,7 +506,7 @@ export async function backfillInboxEntries(
 
     return InboxEntriesIndex.backfillRealtimeQuery(context, {
         partitionKey: {spaceId, accountId},
-        readTime,
+        checkpoint,
     });
 }
 

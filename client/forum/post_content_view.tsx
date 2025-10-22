@@ -133,10 +133,7 @@ export function PostContentView({
     isShowingAllContent: boolean;
     onIsShowingAllContentChange: (isShowingAllContent: boolean) => void;
     onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<{
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-        }>,
+        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -454,10 +451,7 @@ function PostContentViewFooter({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
     onOptimisticPostRealtimeEventTransaction: (
-        promise: Promise<{
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-        }>,
+        promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
@@ -505,7 +499,9 @@ function PostContentViewFooter({
                 <ReactionButton
                     reactions={post.reactions}
                     onSetReaction={reaction => {
-                        const promise = setPostReaction(context, {postId: post.id, reaction});
+                        const promise = setPostReaction(context, {postId: post.id, reaction}).then(
+                            ({eventTransaction}) => eventTransaction,
+                        );
 
                         promise.catch(error => {
                             reporter.displayError("Couldn’t like post", error);
@@ -518,7 +514,9 @@ function PostContentViewFooter({
                         });
                     }}
                     onDeleteReaction={() => {
-                        const promise = deletePostReaction(context, {postId: post.id});
+                        const promise = deletePostReaction(context, {postId: post.id}).then(
+                            ({eventTransaction}) => eventTransaction,
+                        );
 
                         promise.catch(error => {
                             reporter.displayError("Couldn’t remove like from post", error);

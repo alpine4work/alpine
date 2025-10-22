@@ -249,10 +249,7 @@ function PostListView(
          *   realtime updates from `ChannelRealtimeService`.
          */
         onPostRealtimeEventTransaction: Memo<
-            (event: {
-                readTime: Date;
-                eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-            }) => void
+            (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>) => void
         >;
 
         /**
@@ -266,10 +263,7 @@ function PostListView(
          */
         onOptimisticPostRealtimeEventTransaction: Memo<
             (
-                promise: Promise<{
-                    readTime: Date;
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-                }>,
+                promise: Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>,
                 postId: PostId,
                 update: (post: PostModel) => PostModel,
             ) => void
@@ -683,7 +677,7 @@ function PostListView(
                 steps,
             });
 
-            onPostRealtimeEventTransaction(event);
+            onPostRealtimeEventTransaction(event.eventTransaction);
         },
     });
 

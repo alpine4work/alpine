@@ -10,6 +10,7 @@ import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestContext();
 
@@ -115,7 +116,7 @@ test("can delete and undelete items", async () => {
                 },
             },
         },
-        broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+        broadcastEventTransaction: async (context, eventTransaction) => {
             eventTransactions.push(
                 await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
             );
@@ -1755,7 +1756,7 @@ test("can delete and undelete items (with transactions)", async () => {
                 },
             },
         },
-        broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+        broadcastEventTransaction: async (context, eventTransaction) => {
             eventTransactions.push(
                 await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
             );
@@ -3274,7 +3275,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                     },
                 },
             },
-            broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+            broadcastEventTransaction: async (context, eventTransaction) => {
                 eventTransactions.push(
                     await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
                 );
@@ -3323,7 +3324,7 @@ test("can update a property that’s in an index’s partition key and a put eve
 
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
 
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         expect(
             await TestIndex.realtimeQuery(space.systemAction(), {
@@ -3331,7 +3332,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -3362,7 +3363,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -3401,22 +3402,22 @@ test("can update a property that’s in an index’s partition key and a put eve
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
@@ -3521,7 +3522,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -3563,7 +3564,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -3591,11 +3592,11 @@ test("can update a property that’s in an index’s partition key and a put eve
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [
                 {
                     type: "PutItem",
@@ -3625,11 +3626,11 @@ test("can update a property that’s in an index’s partition key and a put eve
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [
                 {
                     type: "DeleteItem",
@@ -3708,7 +3709,7 @@ test("can delete an item with a property in an index’s partition key that can 
                     },
                 },
             },
-            broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+            broadcastEventTransaction: async (context, eventTransaction) => {
                 eventTransactions.push(
                     await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
                 );
@@ -3757,7 +3758,7 @@ test("can delete an item with a property in an index’s partition key that can 
 
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
 
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         expect(
             await TestIndex.realtimeQuery(space.systemAction(), {
@@ -3765,7 +3766,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -3796,7 +3797,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -3835,22 +3836,22 @@ test("can delete an item with a property in an index’s partition key that can 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
@@ -3901,7 +3902,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -3932,7 +3933,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -3960,22 +3961,22 @@ test("can delete an item with a property in an index’s partition key that can 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [
                 {
                     type: "DeleteItem",
@@ -4053,7 +4054,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                     },
                 },
             },
-            broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+            broadcastEventTransaction: async (context, eventTransaction) => {
                 eventTransactions.push(
                     await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
                 );
@@ -4102,7 +4103,7 @@ test("can update a property that’s in an index’s partition key and a put eve
 
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
 
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         expect(
             await TestIndex.realtimeQuery(space.systemAction(), {
@@ -4110,7 +4111,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -4141,7 +4142,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -4180,22 +4181,22 @@ test("can update a property that’s in an index’s partition key and a put eve
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
@@ -4305,7 +4306,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -4347,7 +4348,7 @@ test("can update a property that’s in an index’s partition key and a put eve
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -4375,11 +4376,11 @@ test("can update a property that’s in an index’s partition key and a put eve
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [
                 {
                     type: "PutItem",
@@ -4409,11 +4410,11 @@ test("can update a property that’s in an index’s partition key and a put eve
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [
                 {
                     type: "DeleteItem",
@@ -4492,7 +4493,7 @@ test("can delete an item with a property in an index’s partition key that can 
                     },
                 },
             },
-            broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+            broadcastEventTransaction: async (context, eventTransaction) => {
                 eventTransactions.push(
                     await runAllPromises(eventTransaction.map(({getEvent}) => getEvent(context))),
                 );
@@ -4541,7 +4542,7 @@ test("can delete an item with a property in an index’s partition key that can 
 
         import.meta.jest.advanceTimersByTime(1000 * 60 * 60);
 
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         expect(
             await TestIndex.realtimeQuery(space.systemAction(), {
@@ -4549,7 +4550,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -4580,7 +4581,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -4619,22 +4620,22 @@ test("can delete an item with a property in an index’s partition key that can 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
@@ -4691,7 +4692,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5F",
             startCursorBound: null,
@@ -4722,7 +4723,7 @@ test("can delete an item with a property in an index’s partition key that can 
                 limit: "All",
             }),
         ).toEqual({
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             indexName: "Index",
             partitionKey: "V--------5N",
             startCursorBound: null,
@@ -4750,22 +4751,22 @@ test("can delete an item with a property in an index’s partition key that can 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 100},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [],
         });
 
         expect(
             await TestIndex.backfillRealtimeQuery(space.systemAction(), {
                 partitionKey: {attribute1: 102},
-                readTime,
+                checkpoint,
             }),
         ).toEqual({
             type: "Available",
-            readTime: expect.any(Date),
+            checkpoint: expect.any(Date),
             eventTransaction: [
                 {
                     type: "DeleteItem",

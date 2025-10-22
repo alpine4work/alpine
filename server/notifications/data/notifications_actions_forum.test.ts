@@ -63,6 +63,7 @@ import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/no
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
@@ -6124,7 +6125,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     limit: "All",
                 }),
             ).toEqual({
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 indexName: "InboxEntries",
                 partitionKey: expect.any(String),
                 startCursorBound: null,
@@ -6290,7 +6291,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     limit: "All",
                 }),
             ).toEqual({
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 indexName: "InboxEntries",
                 partitionKey: expect.any(String),
                 startCursorBound: expect.any(String),
@@ -6411,7 +6412,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     limit: "All",
                 }),
             ).toEqual({
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 indexName: "InboxEntries",
                 partitionKey: expect.any(String),
                 startCursorBound: expect.any(String),
@@ -6508,7 +6509,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     limit: "All",
                 }),
             ).toEqual({
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 indexName: "InboxEntries",
                 partitionKey: expect.any(String),
                 startCursorBound: null,
@@ -6652,7 +6653,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     limit: "All",
                 }),
             ).toEqual({
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 indexName: "InboxEntries",
                 partitionKey: expect.any(String),
                 startCursorBound: null,
@@ -10591,11 +10592,11 @@ for (const [currentProcessingType, processingMultiple] of [
             expect(
                 await backfillInboxEntries(context.action(scenario.session3), {
                     spaceId: scenario.space.id,
-                    readTime: new Date(),
+                    checkpoint: generateServerSynchronizationCheckpoint(),
                 }),
             ).toEqual({
                 type: "Available",
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 eventTransaction: [
                     {
                         type: "PutItem",
@@ -10627,7 +10628,7 @@ for (const [currentProcessingType, processingMultiple] of [
             await expect(
                 backfillInboxEntries(context.action(scenario.session3), {
                     spaceId: scenario.otherSpace.id,
-                    readTime: new Date(),
+                    checkpoint: generateServerSynchronizationCheckpoint(),
                 }),
             ).rejects.toThrow(PermissionDeniedError);
         });
@@ -10649,11 +10650,11 @@ for (const [currentProcessingType, processingMultiple] of [
             expect(
                 await backfillInboxEntries(context.action(scenario.session3), {
                     spaceId: scenario.space.id,
-                    readTime: subMinutes(new Date(), 30),
+                    checkpoint: subMinutes(generateServerSynchronizationCheckpoint(), 30),
                 }),
             ).toEqual({
                 type: "Available",
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 eventTransaction: [
                     {
                         type: "PutItem",
@@ -10685,11 +10686,11 @@ for (const [currentProcessingType, processingMultiple] of [
             expect(
                 await backfillInboxEntries(context.action(scenario.session3), {
                     spaceId: scenario.space.id,
-                    readTime: addMinutes(new Date(), 30),
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 30),
                 }),
             ).toEqual({
                 type: "Available",
-                readTime: expect.any(Date),
+                checkpoint: expect.any(Date),
                 eventTransaction: [],
             });
         });
@@ -11892,7 +11893,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     [
                         session2.account.id,
                         {
-                            readTime: expect.any(Date),
                             eventTransaction: [
                                 {
                                     type: "PutItem",
@@ -11942,7 +11942,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     [
                         session3.account.id,
                         {
-                            readTime: expect.any(Date),
                             eventTransaction: [
                                 {
                                     type: "PutItem",
@@ -12110,7 +12109,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     [
                         session2.account.id,
                         {
-                            readTime: expect.any(Date),
                             eventTransaction: [
                                 {
                                     type: "PutItem",
@@ -12162,7 +12160,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     [
                         session3.account.id,
                         {
-                            readTime: expect.any(Date),
                             eventTransaction: [
                                 {
                                     type: "PutItem",

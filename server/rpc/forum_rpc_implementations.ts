@@ -53,7 +53,7 @@ export default implementRpcs(definitions, {
                 context,
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction(context);
+            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
         },
     },
 
@@ -64,7 +64,7 @@ export default implementRpcs(definitions, {
                 context,
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction(context);
+            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
         },
     },
 
@@ -73,7 +73,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {getDynamoGeneralRealtimeEventTransaction} =
                 await updateChannelNameAndDescription(context, input);
-            return getDynamoGeneralRealtimeEventTransaction(context);
+            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
         },
     },
 
@@ -84,7 +84,7 @@ export default implementRpcs(definitions, {
                 context.actor.authorizeSession(),
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction(context);
+            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
         },
     },
 
@@ -96,7 +96,7 @@ export default implementRpcs(definitions, {
                     context.actor.authorizeSession(),
                     input,
                 );
-            return getDynamoGeneralRealtimeEventTransaction(context);
+            return {eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context)};
         },
     },
 
@@ -174,13 +174,11 @@ export default implementRpcs(definitions, {
     getPostWithStrongReadConsistency: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const readTime = new Date();
-
             const post = await getPost(context.actor.authorizeSession(), input.postId, {
                 consistency: "Strong",
             });
 
-            return {readTime, post};
+            return {post};
         },
     },
 
@@ -195,7 +193,7 @@ export default implementRpcs(definitions, {
                     spaceId,
                     createdTime,
                 },
-                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
+                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
             };
         },
     },
@@ -207,7 +205,7 @@ export default implementRpcs(definitions, {
                 await updatePostContent(context.actor.authorizeSession(), input);
             return {
                 contentUpdatedTime,
-                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
+                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
             };
         },
     },
@@ -325,59 +323,51 @@ export default implementRpcs(definitions, {
     getPostRealtimeEvent: {
         visibility: ["PostRealtimeService"],
         execute: async (context, input) => {
-            const readTime = new Date();
-
             const eventTransaction = await getPostRealtimeEvent(
                 context.actor.authorizeSession(),
                 input.postId,
                 input.eventTransaction,
             );
 
-            return {readTime, eventTransaction};
+            return {eventTransaction};
         },
     },
 
     getChannelRealtimeEvent: {
         visibility: ["ChannelRealtimeService"],
         execute: async (context, input) => {
-            const readTime = new Date();
-
             const eventTransaction = await getChannelRealtimeEvent(
                 context.actor.authorizeSession(),
                 input.channelId,
                 input.eventTransaction,
             );
 
-            return {readTime, eventTransaction};
+            return {eventTransaction};
         },
     },
 
     setPostReaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const readTime = new Date();
-
             const {getDynamoGeneralRealtimeEvent} = await setPostReaction(
                 context.actor.authorizeSession(),
                 input.postId,
                 input.reaction,
             );
 
-            return {readTime, eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
+            return {eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
         },
     },
 
     deletePostReaction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const readTime = new Date();
-
             const {getDynamoGeneralRealtimeEvent} = await deletePostReaction(
                 context.actor.authorizeSession(),
                 input.postId,
             );
 
-            return {readTime, eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
+            return {eventTransaction: [await getDynamoGeneralRealtimeEvent(context)]};
         },
     },
 });

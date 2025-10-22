@@ -133,7 +133,7 @@ class MyAccountDurableObject {
 
                 await this._authorizer.authorizeMyAccountAccess(context, this._accountId);
 
-                const {readTime, eventTransaction} =
+                const {eventTransaction} =
                     MyAccountBroadcastInboxRealtimeEventTransactionSchema.deserialize(
                         await request.json(),
                     );
@@ -141,7 +141,6 @@ class MyAccountDurableObject {
                 // Forward the event transaction to all our connected clients...
                 this._webSocketServer.sendEventToAll(context, {
                     type: "InboxRealtimeEventTransaction",
-                    readTime,
                     eventTransaction,
                 });
 

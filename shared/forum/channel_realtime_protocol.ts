@@ -35,7 +35,6 @@ export const ChannelRealtimeProtocol = defineWebSocketProtocol({
     events: {
         RealtimeEventTransaction: Schema.object({
             type: Schema.value("RealtimeEventTransaction"),
-            readTime: Schema.date,
             eventTransaction: Schema.array(DynamoGeneralRealtimeChannelOrPostEventSchema),
         }),
     },

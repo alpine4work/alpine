@@ -8,7 +8,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
@@ -239,7 +239,7 @@ export function TaskRealtimeClientContextProvider({
     // `AccountRegistry` but we want to guarantee `currentAccount` is in
     // `AccountRegistry` and also prevent garbage collection of `currentAccount`
     // from `AccountRegistry`.
-    useStateWithDependencies(
+    useStateWithDependenciesWithoutDispatch(
         ([accountRegistry, currentAccount]) => {
             if (!currentAccount) return;
             return accountRegistry.getAccountStore(currentAccount);

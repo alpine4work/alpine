@@ -40,6 +40,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,
@@ -983,6 +984,8 @@ class WebSocketServerConnectionWrapper<
                                         JSON.stringify(
                                             this._messageFromServerSchema.serialize({
                                                 type: messageType,
+                                                checkpoint:
+                                                    generateServerSynchronizationCheckpoint(),
                                             }),
                                         ),
                                     );

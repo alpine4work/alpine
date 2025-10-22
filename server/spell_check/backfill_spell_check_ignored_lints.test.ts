@@ -6,6 +6,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestContext();
 
@@ -14,7 +15,7 @@ describe("backfillSpellCheckIgnoredLints", () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const id = generateId<DocumentId>();
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         await createDocument(session.action(), {
             id,
@@ -23,7 +24,7 @@ describe("backfillSpellCheckIgnoredLints", () => {
 
         const result = await backfillSpellCheckIgnoredLints(session.action(), {
             entityId: `Document:${id}`,
-            readTime,
+            checkpoint,
         });
 
         assert(result.type === "Available");
@@ -36,7 +37,7 @@ describe("backfillSpellCheckIgnoredLints", () => {
         const space2 = await TestSpace.create(context);
         const session2 = await space2.createSession();
         const id = generateId<DocumentId>();
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         await createDocument(session1.action(), {
             id,
@@ -46,7 +47,7 @@ describe("backfillSpellCheckIgnoredLints", () => {
         await expect(
             backfillSpellCheckIgnoredLints(session2.action(), {
                 entityId: `Document:${id}`,
-                readTime,
+                checkpoint,
             }),
         ).rejects.toThrow(PermissionDeniedError);
     });

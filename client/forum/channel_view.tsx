@@ -90,7 +90,7 @@ export function ChannelView({
 
     const channelId = initialChannelResult.items[0].model.id;
 
-    const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
+    const {isConnected, subscribeToEvents, subscribeToPongs, toggleShouldConnect} = useWebSocket(
         "ChannelRealtimeService",
         ChannelRealtimeProtocol,
         `/api/durable-objects/channels/${channelId}`,
@@ -99,15 +99,16 @@ export function ChannelView({
     const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} =
         useDynamoGeneralRealtimeQuery(initialChannelResult, {
             isConnected,
+            subscribeToPongs,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event)),
+                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
                 [subscribeToEvents],
             ),
             backfillQuery: useCallback(
-                async ({readTime}) => {
+                async checkpoint => {
                     const {backfillChannelResult} = await backfillChannelAndMetadata(context, {
                         channelId,
-                        readTime,
+                        checkpoint,
                     });
                     return backfillChannelResult;
                 },
@@ -181,12 +182,16 @@ export function ChannelView({
         },
         {
             isConnected,
-            subscribeToEvents,
+            subscribeToPongs,
+            subscribeToEvents: useCallback(
+                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                [subscribeToEvents],
+            ),
             backfillQuery: useCallback(
-                async ({readTime}) => {
+                async checkpoint => {
                     const {backfillPostsResult} = await backfillChannelPosts(context, {
                         channelId,
-                        readTime,
+                        checkpoint,
                     });
                     return backfillPostsResult;
                 },
@@ -218,9 +223,7 @@ export function ChannelView({
             if (event.channelId !== channel.id) return;
 
             setPosts(posts =>
-                posts.updateQuery(query =>
-                    query.handleEventTransaction(event.readTime, event.eventTransaction),
-                ),
+                posts.updateQuery(query => query.handleEventTransaction(event.eventTransaction)),
             );
         });
     }, [channel.id, setPosts]);
@@ -280,7 +283,7 @@ export function ChannelView({
 
                             // Immediately apply a realtime event transaction to update our channel in case
                             // our realtime WebSocket connection is slow.
-                            handleEventForChannel(event);
+                            handleEventForChannel(event.eventTransaction);
                         }}
                     />
                 ) : (
@@ -336,7 +339,7 @@ export function ChannelView({
                     notification,
                 });
 
-                handleEventForChannel(event);
+                handleEventForChannel(event.eventTransaction);
             },
             onCopyLink: handleCopyLink,
             accessLevelText: channelAccessLevelText,
@@ -421,7 +424,7 @@ export function ChannelView({
 
                 // Immediately apply a realtime event transaction to update our channel in case
                 // our realtime WebSocket connection is slow.
-                handleEventForChannel(event);
+                handleEventForChannel(event.eventTransaction);
             },
             onAddAccountGrantsToAccessPolicy: async ({accountGrantById, notification}) => {
                 const event = await addAccountGrantsToChannelAccessPolicy(context, {
@@ -430,7 +433,7 @@ export function ChannelView({
                     notification,
                 });
 
-                handleEventForChannel(event);
+                handleEventForChannel(event.eventTransaction);
             },
         }),
         [
@@ -475,13 +478,10 @@ export function ChannelView({
                 }}
                 shouldBeConnectedToChannelRealtime={true}
                 onPostRealtimeEventTransaction={useCallback(
-                    event => {
+                    eventTransaction => {
                         setPosts(posts =>
                             posts.updateQuery(query =>
-                                query.handleEventTransaction(
-                                    event.readTime,
-                                    event.eventTransaction,
-                                ),
+                                query.handleEventTransaction(eventTransaction),
                             ),
                         );
                     },
@@ -494,10 +494,7 @@ export function ChannelView({
                             // the posts instead of our optimistic updater.
                             if (promiseValue) {
                                 return posts.updateQuery(query =>
-                                    query.handleEventTransaction(
-                                        promiseValue.readTime,
-                                        promiseValue.eventTransaction,
-                                    ),
+                                    query.handleEventTransaction(promiseValue),
                                 );
                             }
 
@@ -515,12 +512,9 @@ export function ChannelView({
                             };
 
                             return posts.updateQuery(query =>
-                                query.handleEventTransaction(
-                                    // Don't increase the read time for this optimistic update. If we need to
-                                    // backfill the query we should backfill from the last read.
-                                    query.getReadTime(),
-                                    [{type: "PutItem", item: newPostItem, indexes: new Map()}],
-                                ),
+                                query.handleEventTransaction([
+                                    {type: "PutItem", item: newPostItem, indexes: new Map()},
+                                ]),
                             );
                         });
                     },
@@ -553,15 +547,18 @@ export function ChannelView({
                             initialName={channel.name}
                             initialDescription={channel.description}
                             onSave={async ({name, description}) => {
-                                const event = await updateChannelNameAndDescription(context, {
-                                    channelId,
-                                    name,
-                                    description,
-                                });
+                                const {eventTransaction} = await updateChannelNameAndDescription(
+                                    context,
+                                    {
+                                        channelId,
+                                        name,
+                                        description,
+                                    },
+                                );
 
                                 // Immediately apply a realtime event transaction to update our channel in case
                                 // our realtime WebSocket connection is slow.
-                                handleEventForChannel(event);
+                                handleEventForChannel(eventTransaction);
                             }}
                             onCloseWithAnimation={() => onCloseWithAnimation()}
                         />

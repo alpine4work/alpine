@@ -9,6 +9,7 @@ import {DynamoIndexCursor, DynamoIndexPartitionKey} from "~/shared/dynamo/dynamo
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export function getChannelPostsIndexName(): string {
     return ChannelPostsIndex.name;
@@ -52,13 +53,13 @@ export async function getChannelPosts(
  */
 export async function backfillChannelPosts(
     context: ServerActionContext,
-    {channelId, readTime}: {channelId: ChannelId; readTime: Date},
+    {channelId, checkpoint}: {channelId: ChannelId; checkpoint: ServerSynchronizationCheckpoint},
 ): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
         authorizeChannelAccess(context, channelId, "View"),
         ChannelPostsIndex.backfillRealtimeQuery(context, {
             partitionKey: {channelId},
-            readTime,
+            checkpoint,
         }),
     ]);
 

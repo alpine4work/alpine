@@ -62,6 +62,10 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
 import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
+import {
+    ServerSynchronizationCheckpoint,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export type DynamoGeneralRealtimeTableSchemaGetTypes<
     Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
@@ -383,7 +387,6 @@ export class DynamoGeneralRealtimeTableSchema<
     >;
     private readonly _broadcastEventTransactionCallback: (
         context: ServerActionContext,
-        readTime: Date,
         eventTransaction: ReadonlyArray<{
             itemKey: Types["ItemKey"];
             eventStub: DynamoGeneralRealtimeEventStub;
@@ -488,7 +491,6 @@ export class DynamoGeneralRealtimeTableSchema<
          */
         broadcastEventTransaction: (
             context: ServerActionContext,
-            readTime: Date,
             eventTransaction: ReadonlyArray<{
                 itemKey: DynamoTableSchemaTypes.Partition.ItemKeyTypes<PartitionsConfig>;
                 eventStub: DynamoGeneralRealtimeEventStub;
@@ -568,7 +570,6 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
         broadcastEventTransaction: (
             context: ServerActionContext,
-            readTime: Date,
             eventTransaction: ReadonlyArray<{
                 itemKey: Types["ItemKey"];
                 eventStub: DynamoGeneralRealtimeEventStub;
@@ -644,7 +645,6 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     private _broadcastActionTransaction(
         context: ServerActionContext,
-        readTime: Date,
         actionTransaction: ReadonlyArray<
             DynamoGeneralRealtimeAction<Types["ItemKey"], ModelMap[string][string]>
         >,
@@ -765,7 +765,7 @@ export class DynamoGeneralRealtimeTableSchema<
             //
             // That way a strong consistency read of events in DynamoDB will give you all
             // events sent before the start of the read.
-            await this._broadcastEventTransactionCallback(context, readTime, eventTransaction);
+            await this._broadcastEventTransactionCallback(context, eventTransaction);
         });
     }
 
@@ -948,16 +948,6 @@ export class DynamoGeneralRealtimeTableSchema<
 
         const action = this._createPutItemAction({oldItem: null, newItem: item});
 
-        // We backfill realtime updates to `readTime` so the `readTime` of our event
-        // transaction should be before the data is written from the database to avoid
-        // missing realtime updates.
-        //
-        // Consider an update that happens after this write but before clients receive
-        // an event for this write. If we measure `readTime` time when the client
-        // receives the event and we try backfilling to `readTime` we will miss
-        // the write.
-        const readTime = new Date();
-
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             await this._table.createItem(context, item, options);
         } else {
@@ -974,7 +964,7 @@ export class DynamoGeneralRealtimeTableSchema<
             ]);
         }
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
+        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
 
         return {getEvent: action.getEvent};
     }
@@ -1064,19 +1054,9 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        // We backfill realtime updates to `readTime` so the `readTime` of our event
-        // transaction should be before the data is written from the database to avoid
-        // missing realtime updates.
-        //
-        // Consider an update that happens after this write but before clients receive
-        // an event for this write. If we measure `readTime` time when the client
-        // receives the event and we try backfilling to `readTime` we will miss
-        // the write.
-        const readTime = new Date();
-
         await this._table.directlyUpdateItem(context, newItem, {condition});
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
+        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
 
         return {getEvent: action.getEvent};
     }
@@ -1239,16 +1219,6 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        // We backfill realtime updates to `readTime` so the `readTime` of our event
-        // transaction should be before the data is written from the database to avoid
-        // missing realtime updates.
-        //
-        // Consider an update that happens after this write but before clients receive
-        // an event for this write. If we measure `readTime` time when the client
-        // receives the event and we try backfilling to `readTime` we will miss
-        // the write.
-        const readTime = new Date();
-
         await DynamoTableSchema.executeTransaction(context, [
             this._table.transactionDeleteItem(item, {condition}),
             this._table.transactionCreateOrReplaceItem(
@@ -1262,7 +1232,7 @@ export class DynamoGeneralRealtimeTableSchema<
             ),
         ]);
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
+        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
     }
 
     /**
@@ -1356,16 +1326,6 @@ export class DynamoGeneralRealtimeTableSchema<
 
         const action = this._createPutItemAction({oldItem: null, newItem: item});
 
-        // We backfill realtime updates to `readTime` so the `readTime` of our event
-        // transaction should be before the data is written from the database to avoid
-        // missing realtime updates.
-        //
-        // Consider an update that happens after this write but before clients receive
-        // an event for this write. If we measure `readTime` time when the client
-        // receives the event and we try backfilling to `readTime` we will miss
-        // the write.
-        const readTime = new Date();
-
         await DynamoTableSchema.executeTransaction(context, [
             this._table.transactionDeleteItem(
                 cast<DynamoGeneralRealtimePrivateGraveyardPartitionItem>({
@@ -1379,7 +1339,7 @@ export class DynamoGeneralRealtimeTableSchema<
             this._table.transactionCreateOrReplaceItem(item),
         ]);
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, readTime, [action]));
+        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
 
         return {getEvent: action.getEvent};
     }
@@ -1414,15 +1374,6 @@ export class DynamoGeneralRealtimeTableSchema<
             Array<DynamoGeneralRealtimeAction<any, any>>
         >();
 
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is written from the database to avoid missing realtime updates.
-        //
-        // Consider an update that happens after this write but before clients receive
-        // an event for this write. If we measure `readTime` time when the client
-        // receives the event and we try backfilling to `readTime` we will miss
-        // the write.
-        const readTime = new Date();
-
         await DynamoTableSchema.executeTransaction(
             context,
             entries.flatMap(entry => {
@@ -1437,7 +1388,7 @@ export class DynamoGeneralRealtimeTableSchema<
         context.process.waitUntil(async () => {
             await runAllPromises(
                 mapIterable(actionsBySchema, ([schema, events]) =>
-                    schema._broadcastActionTransaction(context, readTime, events),
+                    schema._broadcastActionTransaction(context, events),
                 ),
             );
         });
@@ -2165,9 +2116,7 @@ export class DynamoGeneralRealtimeTableSchema<
             );
         }
 
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is read from the database to avoid missing realtime updates.
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         const paginateItemKeyString =
             paginate.type === "FromStart" ? paginate.afterItemKey : paginate.beforeItemKey;
@@ -2210,7 +2159,7 @@ export class DynamoGeneralRealtimeTableSchema<
             : null;
 
         return {
-            readTime,
+            checkpoint,
             partitionKey: this._table.serializeOpaqueItemPartitionKey(partitionKey),
             startItemKey,
             endItemKey,
@@ -2283,9 +2232,9 @@ export class DynamoGeneralRealtimeTableSchema<
             );
         }
 
-        // We backfill realtime updates to `readTime` so it should be before the data
+        // We backfill realtime updates to `checkpoint` so it should be before the data
         // is read from the database to avoid missing realtime updates.
-        const readTime = new Date();
+        const checkpoint = generateServerSynchronizationCheckpoint();
 
         const paginateItemKeyString =
             paginate.type === "FromStart" ? paginate.afterItemKey : paginate.beforeItemKey;
@@ -2394,7 +2343,7 @@ export class DynamoGeneralRealtimeTableSchema<
         }
 
         return {
-            readTime,
+            checkpoint,
             partitionKey: this._table.serializeOpaqueItemPartitionKey(partitionKey),
             startItemKey,
             endItemKey,
@@ -2420,7 +2369,10 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public backfillRealtimeQuery<const PartitionKey extends Types["PartitionKey"]>(
         context: ServerActionContext,
-        {partitionKey, readTime}: {partitionKey: PartitionKey; readTime: Date},
+        {
+            partitionKey,
+            checkpoint,
+        }: {partitionKey: PartitionKey; checkpoint: ServerSynchronizationCheckpoint},
     ): Promise<
         DynamoGeneralRealtimeBackfillResult<
             ModelMap[PartitionKey["partitionType"]][keyof ModelMap[PartitionKey["partitionType"]]]
@@ -2430,7 +2382,7 @@ export class DynamoGeneralRealtimeTableSchema<
 
         return this._backfillRealtimeQuery(context, {
             realtimeKey: partitionKeyString,
-            readTime,
+            checkpoint,
             source: {
                 type: "Table",
                 partitionKey: partitionKeyString,
@@ -2611,9 +2563,9 @@ export class DynamoGeneralRealtimeTableSchema<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
-                // We backfill realtime updates to `readTime` so it should be before the data
+                // We backfill realtime updates to `checkpoint` so it should be before the data
                 // is read from the database to avoid missing realtime updates.
-                const readTime = new Date();
+                const checkpoint = generateServerSynchronizationCheckpoint();
 
                 const cursor =
                     paginate.type === "FromStart" ? paginate.afterCursor : paginate.beforeCursor;
@@ -2698,7 +2650,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 }
 
                 return {
-                    readTime,
+                    checkpoint,
                     indexName: config.name,
                     partitionKey: Index.serializeOpaquePartitionKey(partitionKey),
                     startCursorBound,
@@ -2719,7 +2671,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 };
             },
 
-            backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
+            backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
                 return this._backfillRealtimeQuery(context, {
@@ -2732,7 +2684,7 @@ export class DynamoGeneralRealtimeTableSchema<
                               ...partitionKey,
                           })
                         : `${config.name}:${partitionKeyString}`,
-                    readTime,
+                    checkpoint,
                     source: {
                         type: "Index",
                         name: config.name,
@@ -2929,9 +2881,9 @@ export class DynamoGeneralRealtimeTableSchema<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
-                // We backfill realtime updates to `readTime` so it should be before the data
+                // We backfill realtime updates to `checkpoint` so it should be before the data
                 // is read from the database to avoid missing realtime updates.
-                const readTime = new Date();
+                const checkpoint = generateServerSynchronizationCheckpoint();
 
                 const cursor =
                     paginate.type === "FromStart" ? paginate.afterCursor : paginate.beforeCursor;
@@ -3021,7 +2973,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 }
 
                 return {
-                    readTime,
+                    checkpoint,
                     indexName: config.name,
                     partitionKey: Index.serializeOpaquePartitionKey(partitionKey),
                     startCursorBound,
@@ -3042,7 +2994,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 };
             },
 
-            backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
+            backfillRealtimeQuery: (context, {partitionKey, checkpoint}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
                 return this._backfillRealtimeQuery(context, {
@@ -3055,7 +3007,7 @@ export class DynamoGeneralRealtimeTableSchema<
                               ...partitionKey,
                           })
                         : `${config.name}:${partitionKeyString}`,
-                    readTime,
+                    checkpoint,
                     source: {
                         type: "Index",
                         name: config.name,
@@ -3210,11 +3162,11 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContext,
         {
             realtimeKey,
-            readTime,
+            checkpoint,
             source,
         }: {
             realtimeKey: string;
-            readTime: Date;
+            checkpoint: ServerSynchronizationCheckpoint;
             source:
                 | {
                       type: "Table";
@@ -3227,17 +3179,17 @@ export class DynamoGeneralRealtimeTableSchema<
                   };
         },
     ): Promise<DynamoGeneralRealtimeBackfillResult<any>> {
-        // `readTime` may be for an eventually consistent read. Eventually consistent
+        // `checkpoint` may be for an eventually consistent read. Eventually consistent
         // reads may contain stale data. So here we backfill events that happened a
-        // short window before our `readTime` in case the read returned stale data.
+        // short window before our `checkpoint` in case the read returned stale data.
         //
         // [DynamoDB says][1] reads are usually consistent "within one second or less".
         // So three minutes should be a sufficient window for backfilling realtime
-        // events before the read time.
+        // events before the checkpoint.
         //
         // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
-        readTime = subMinutes(
-            readTime,
+        checkpoint = subMinutes(
+            checkpoint,
             dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
         );
 
@@ -3251,12 +3203,12 @@ export class DynamoGeneralRealtimeTableSchema<
         // If our read happened before the expiration time, we may be missing some
         // events that happened between the read and now. The client should fully
         // reload their query in response.
-        if (isDatePossiblyLessThanWithUncertaintyWindow(readTime, expiredEventsTime))
+        if (isDatePossiblyLessThanWithUncertaintyWindow(checkpoint, expiredEventsTime))
             return {type: "Unavailable"};
 
-        // We backfill realtime updates to `newReadTime` so it should be before the
+        // We backfill realtime updates to `newCheckpoint` so it should be before the
         // data is read from the database to avoid missing realtime updates.
-        const newReadTime = new Date();
+        const newCheckpoint = generateServerSynchronizationCheckpoint();
 
         // We send only one event per item key in our backfill. The client does not
         // need to see the update history for an item. Only the latest value...
@@ -3277,7 +3229,7 @@ export class DynamoGeneralRealtimeTableSchema<
             },
             startSortKey: {
                 sortRangeType: "Events",
-                eventTime: readTime,
+                eventTime: checkpoint,
             },
             limit: "All",
             // Use a strong read consistency when backfilling events!
@@ -3405,7 +3357,7 @@ export class DynamoGeneralRealtimeTableSchema<
             ),
         );
 
-        return {type: "Available", readTime: newReadTime, eventTransaction};
+        return {type: "Available", checkpoint: newCheckpoint, eventTransaction};
     }
 
     /**
@@ -3528,7 +3480,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      */
     backfillRealtimeQuery(
         context: ServerActionContext,
-        options: {partitionKey: IndexPartitionKey; readTime: Date},
+        options: {partitionKey: IndexPartitionKey; checkpoint: ServerSynchronizationCheckpoint},
     ): Promise<DynamoGeneralRealtimeBackfillResult<Model>>;
 
     /**

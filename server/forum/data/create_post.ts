@@ -65,10 +65,9 @@ export async function createPost(
     id: PostId;
     spaceId: SpaceId;
     createdTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-    }>;
+    getDynamoGeneralRealtimeEventTransaction: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
 }> {
     const {spaceId} = await authorizeChannelAccess(context, channelId, "Edit");
 
@@ -124,8 +123,6 @@ export async function createPost(
             });
         }),
     );
-
-    const readTime = new Date();
 
     let result: {
         getEvent: (
@@ -374,9 +371,6 @@ export async function createPost(
         id: postId,
         spaceId,
         createdTime: postItem.createdTime,
-        getDynamoGeneralRealtimeEventTransaction: async context => ({
-            readTime,
-            eventTransaction: [await result.getEvent(context)],
-        }),
+        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
     };
 }

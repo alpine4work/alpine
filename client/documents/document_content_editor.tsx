@@ -281,6 +281,7 @@ export function DocumentContentEditor({
         procedures,
         subscribeToCommentThreadEvents,
         subscribeToSpellCheckIgnoredLintEvents,
+        subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId,
         ensureCreateDocument,
     } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
@@ -296,6 +297,7 @@ export function DocumentContentEditor({
         initialSpellCheckIgnoredLints,
         isConnected,
         subscribeToSpellCheckIgnoredLintEvents,
+        subscribeToPongs,
     });
 
     useDevConsoleTool(
@@ -1835,13 +1837,16 @@ export function DocumentContentEditor({
                                 // TODO(#spell-check): Load and pass in actual ignored lints
                                 spellCheckIgnoredLints={[]}
                                 onSpellCheckIgnoreLint={async ({key, kind}) => {
-                                    const event = await createSpellCheckIgnoredLint(context, {
-                                        entityId: `Document:${documentId}`,
-                                        key,
-                                        kind,
-                                    });
+                                    const {eventTransaction} = await createSpellCheckIgnoredLint(
+                                        context,
+                                        {
+                                            entityId: `Document:${documentId}`,
+                                            key,
+                                            kind,
+                                        },
+                                    );
 
-                                    handleEventForSpellCheckIgnoredLint(event);
+                                    handleEventForSpellCheckIgnoredLint(eventTransaction);
                                 }}
                             />
                         </GlobalKeyDownEvent>

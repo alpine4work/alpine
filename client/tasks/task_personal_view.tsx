@@ -21,7 +21,10 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {
+    useStateWithDependencies,
+    useStateWithDependenciesWithoutDispatch,
+} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -180,7 +183,7 @@ export function TaskPersonalView({
     const dndContext = useDndContext();
     const isDragging = !!dndContext.active;
 
-    const [draggingData] = useStateWithDependencies(
+    const draggingData = useStateWithDependenciesWithoutDispatch(
         ([isDragging]) => {
             if (!isDragging) return null;
 

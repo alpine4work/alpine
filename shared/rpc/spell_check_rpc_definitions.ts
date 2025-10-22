@@ -7,6 +7,7 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckEntityIdSchema} from "~/shared/spell_check/spell_check_entity_id.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const getSpellCheckIgnoredLints = defineRpc({
     name: "getSpellCheckIgnoredLints",
@@ -24,7 +25,7 @@ export const backfillSpellCheckIgnoredLints = defineRpc({
     name: "backfillSpellCheckIgnoredLints",
     input: {
         entityId: SpellCheckEntityIdSchema,
-        readTime: Schema.date,
+        checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
         result: createDynamoGeneralRealtimeBackfillResultSchema(
@@ -44,6 +45,5 @@ export const createSpellCheckIgnoredLint = defineRpc({
         eventTransaction: Schema.array(
             createDynamoGeneralRealtimeEventSchema(SpellCheckIgnoredLintModel.schema()),
         ),
-        readTime: Schema.date,
     },
 });

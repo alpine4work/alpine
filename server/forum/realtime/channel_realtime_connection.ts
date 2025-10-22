@@ -35,14 +35,13 @@ export class ChannelRealtimeConnection {
         context: WorkerSessionActionContext,
         eventStub: ChannelRealtimeEventStub,
     ): Promise<ChannelRealtimeEvent> {
-        const {readTime, eventTransaction} = await getChannelRealtimeEvent(context, {
+        const {eventTransaction} = await getChannelRealtimeEvent(context, {
             channelId: this._channelId,
             eventTransaction: eventStub.eventTransaction,
         });
 
         return {
             type: eventStub.type,
-            readTime,
             eventTransaction,
         };
     }

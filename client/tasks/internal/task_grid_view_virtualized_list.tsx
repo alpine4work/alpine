@@ -24,7 +24,10 @@ import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {
+    useStateWithDependencies,
+    useStateWithDependenciesWithoutDispatch,
+} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -573,7 +576,7 @@ export function useTaskGridViewVirtualizedList(
     const dndContext = useDndContext();
     const isDragging = !!dndContext.active;
 
-    const [draggingData] = useStateWithDependencies(
+    const draggingData = useStateWithDependenciesWithoutDispatch(
         ([isDragging]) => {
             if (!isDragging) return null;
 

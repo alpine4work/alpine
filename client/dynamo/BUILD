@@ -12,9 +12,11 @@ ts_project(
         "//:node_modules/react",
         "//client/context",
         "//client/helpers",
+        "//client/web_socket",
         "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/web_socket",
     ],
 )

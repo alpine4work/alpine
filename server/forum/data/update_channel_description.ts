@@ -21,14 +21,11 @@ export async function updateChannelDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
-    }>;
+    getDynamoGeneralRealtimeEventTransaction: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>>;
 }> {
     let spaceId: SpaceId | null = null;
-
-    const readTime = new Date();
 
     const result = await ForumRealtimeTable.updateItem(
         context,
@@ -59,9 +56,6 @@ export async function updateChannelDescription(
     });
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async context => ({
-            readTime,
-            eventTransaction: [await result.getEvent(context)],
-        }),
+        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
     };
 }

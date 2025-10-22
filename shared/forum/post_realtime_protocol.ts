@@ -117,7 +117,6 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
 
         RealtimeEventTransaction: Schema.object({
             type: Schema.value("RealtimeEventTransaction"),
-            readTime: Schema.date,
             eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),
         }),
     },

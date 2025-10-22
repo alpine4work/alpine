@@ -3,7 +3,7 @@ import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {getClientInfo, useBrowserId} from "~/client/remix/client_info_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -374,7 +374,7 @@ export function useTaskGridViewExpansionState({
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
     // When `query` changes we need to reset our state.
-    const [stateManager] = useStateWithDependencies<
+    const stateManager = useStateWithDependenciesWithoutDispatch<
         TaskGridViewExpansionStateManager | null,
         [TaskClientQuery | null]
     >(

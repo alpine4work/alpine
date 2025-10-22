@@ -60,7 +60,6 @@ test("can broadcast realtime events as session actor", async () => {
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),
@@ -77,7 +76,6 @@ test("can broadcast realtime events as system actor", async () => {
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),
@@ -96,7 +94,6 @@ test("can broadcast realtime events as session actor after initialization", asyn
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),
@@ -115,7 +112,6 @@ test("can broadcast realtime events as system actor after initialization", async
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),
@@ -133,7 +129,6 @@ test("can’t broadcast realtime events from session actor from `AppClient`", as
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -150,7 +145,6 @@ test("can’t broadcast realtime events from session actor from `AppClient`", as
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -169,7 +163,6 @@ test("can’t broadcast realtime events from system actor from `TaskRealtimeServ
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -188,7 +181,6 @@ test("can not broadcast realtime events as wrong space", async () => {
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -209,7 +201,6 @@ test("can not broadcast realtime events as wrong space after initialization", as
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -229,7 +220,6 @@ test("can not broadcast realtime events as wrong space multiple times after init
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),
@@ -245,7 +235,6 @@ test("can not broadcast realtime events as wrong space multiple times after init
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -262,7 +251,6 @@ test("can not broadcast realtime events as wrong space multiple times after init
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -278,7 +266,6 @@ test("can not broadcast realtime events as wrong space multiple times after init
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),
@@ -294,7 +281,6 @@ test("can not broadcast realtime events as wrong space multiple times after init
                     "content-type": "application/json",
                 },
                 body: JSON.stringify({
-                    readTime: new Date(),
                     eventTransaction: [],
                 }),
             }),
@@ -310,7 +296,6 @@ test("can not broadcast realtime events as wrong space multiple times after init
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                readTime: new Date(),
                 eventTransaction: [],
             }),
         }),

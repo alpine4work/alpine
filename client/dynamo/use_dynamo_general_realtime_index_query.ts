@@ -7,6 +7,8 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 /**
  * Keep a query from our DynamoDB realtime framework up-to-date on the client.
@@ -29,6 +31,13 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
         isConnected: boolean;
 
         /**
+         * Subscribe to pong messages from our WebSocket. As long as we're receiving
+         * pong events (which include `ServerSynchronizationCheckpoint`s) the client can
+         * be certain its content is up-to-date.
+         */
+        subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
+
+        /**
          * Subscribe to realtime events that may affect this item. The event source may
          * also be sending events unrelated to our item, this hook will filter out
          * unrelated updates.
@@ -38,10 +47,9 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (event: {
-                    readTime: Date;
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
-                }) => void,
+                subscriber: (
+                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+                ) => void,
             ) => () => void
         >;
 
@@ -58,7 +66,9 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
          * user doesn't miss any realtime updates.
          */
         backfillQuery: Memo<
-            (options: {readTime: Date}) => Promise<DynamoGeneralRealtimeBackfillResult<Model>>
+            (
+                checkpoint: ServerSynchronizationCheckpoint,
+            ) => Promise<DynamoGeneralRealtimeBackfillResult<Model>>
         >;
 
         /**
@@ -71,10 +81,7 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
 ): {
     query: DynamoGeneralRealtimeIndexQuery<Model>;
     handleEvent: Memo<
-        (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
-        }) => void
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
     >;
 } {
     const [query, setQuery] = useState(() =>
@@ -104,6 +111,7 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
     },
     {
         isConnected,
+        subscribeToPongs,
         subscribeToEvents,
         backfillQuery,
         reloadQuery,
@@ -116,6 +124,13 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
         isConnected: boolean;
 
         /**
+         * Subscribe to pong messages from our WebSocket. As long as we're receiving
+         * pong events (which include `ServerSynchronizationCheckpoint`s) the client can
+         * be certain its content is up-to-date.
+         */
+        subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
+
+        /**
          * Subscribe to realtime events that may affect this item. The event source may
          * also be sending events unrelated to our item, this hook will filter out
          * unrelated updates.
@@ -125,10 +140,9 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
          */
         subscribeToEvents: Memo<
             (
-                subscriber: (event: {
-                    readTime: Date;
-                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
-                }) => void,
+                subscriber: (
+                    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+                ) => void,
             ) => () => void
         >;
 
@@ -145,7 +159,9 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
          * user doesn't miss any realtime updates.
          */
         backfillQuery: Memo<
-            (options: {readTime: Date}) => Promise<DynamoGeneralRealtimeBackfillResult<Model>>
+            (
+                checkpoint: ServerSynchronizationCheckpoint,
+            ) => Promise<DynamoGeneralRealtimeBackfillResult<Model>>
         >;
 
         /**
@@ -158,22 +174,14 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
 ): {
     query: DynamoGeneralRealtimeIndexQuery<Model, Extra>;
     handleEvent: Memo<
-        (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
-        }) => void
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
     >;
 } {
     const setErrorState = useErrorState();
 
     const handleEvent = useCallback(
-        (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
-        }) => {
-            onUpdateQuery(query =>
-                query.handleEventTransaction(event.readTime, event.eventTransaction),
-            );
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
+            onUpdateQuery(query => query.handleEventTransaction(eventTransaction));
         },
         [onUpdateQuery],
     );
@@ -182,6 +190,12 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
     useEffect(() => {
         return subscribeToEvents(handleEvent);
     }, [handleEvent, subscribeToEvents]);
+
+    // Whenever we get a pong from the WebSocket, update our checkpoint since data
+    // is up-to-date up until this checkpoint.
+    useEffect(() => {
+        return subscribeToPongs(({checkpoint}) => query.setMutableCheckpoint(checkpoint));
+    }, [query, subscribeToPongs]);
 
     // Whenever we connect, we need to backfill changes from when we initially read
     // inbox entries until now. That way if any realtime events happened during
@@ -197,18 +211,17 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
         if (wasConnectedRef.current) return;
         wasConnectedRef.current = true;
 
-        backfillQuery({
-            readTime: query.getReadTime(),
-        }).then(
+        backfillQuery(query.getMutableCheckpoint()).then(
             backfillResult => {
                 switch (backfillResult.type) {
                     case "Available": {
-                        onUpdateQuery(query =>
-                            query.handleEventTransaction(
-                                backfillResult.readTime,
+                        onUpdateQuery(query => {
+                            const newQuery = query.handleEventTransaction(
                                 backfillResult.eventTransaction,
-                            ),
-                        );
+                            );
+                            newQuery.setMutableCheckpoint(backfillResult.checkpoint);
+                            return newQuery;
+                        });
                         break;
                     }
                     case "Unavailable": {
@@ -217,11 +230,11 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
                         reloadQuery().then(
                             result => {
                                 // Bit of a hack. Set this to false so that when the effect re-runs because we
-                                // got a new query we send a new backfill request with the `readTime` of our
+                                // got a new query we send a new backfill request with the checkpoint of our
                                 // reset query.
                                 //
-                                // By resetting the query we lose realtime event history. So it's kinda like we
-                                // were disconnected from realtime up until this point.
+                                // By resetting the query we abandon any realtime events we've seen. So it's
+                                // kinda like we were disconnected from realtime up until this point.
                                 wasConnectedRef.current = false;
 
                                 onUpdateQuery(() => DynamoGeneralRealtimeIndexQuery.new(result));

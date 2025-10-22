@@ -19,7 +19,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {noAccessLevelText, removeAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/navigation/internal/get_default_share_overlay_account_input_access_level.js";
@@ -450,7 +450,7 @@ export function ShareOverlayAccountGrants({
     // level. So we sort accounts by their initial access level, not their current
     // access level. Which is why we have this state here. This state creates a map
     // of account grants keyed by the initial access policy we saw for the grant.
-    const [accountGrantByIdByInitialAccessLevel] = useStateWithDependencies<
+    const accountGrantByIdByInitialAccessLevel = useStateWithDependenciesWithoutDispatch<
         ReadonlyMap<AccessLevel, ReadonlyMap<AccountId, AccessPolicyAccountGrant>>,
         [AccessPolicy["accountGrantById"]]
     >(

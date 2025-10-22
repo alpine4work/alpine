@@ -121,7 +121,7 @@ export function FeedView({
                 }}
                 shouldBeConnectedToChannelRealtime={false}
                 onPostRealtimeEventTransaction={useCallback(
-                    ({eventTransaction}) => {
+                    eventTransaction => {
                         setFeed(feed => feed.handleEventTransaction(eventTransaction));
                     },
                     [setFeed],
@@ -132,7 +132,7 @@ export function FeedView({
                             // Once `promise` resolves, use the event transaction from `promise` to update
                             // the posts instead of our optimistic updater.
                             if (promiseValue) {
-                                return feed.handleEventTransaction(promiseValue.eventTransaction);
+                                return feed.handleEventTransaction(promiseValue);
                             }
 
                             const oldPostItem = feed.getPostRealtimeItemIfExists(postId);

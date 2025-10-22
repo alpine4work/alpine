@@ -89,10 +89,7 @@ export function PostCommentInput(props: {
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
     onPostRealtimeEventTransaction: Memo<
-        (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-        }) => void
+        (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>) => void
     >;
 }) {
     const {currentAccount} = useSpaceContext();
@@ -191,7 +188,7 @@ function usePostCommentInputRealtime({
                             // If we'll receive post update events from our channel realtime durable
                             // connection then don't handle them here.
                             if (!shouldBeConnectedToChannelRealtime) {
-                                onPostRealtimeEventTransaction(event);
+                                onPostRealtimeEventTransaction(event.eventTransaction);
                             }
                             break;
                         }
@@ -258,20 +255,17 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         lastReloadedPostIdRef.current = post.id;
 
         getPostWithStrongReadConsistency(context, {postId: post.id}).then(
-            ({readTime, post}) => {
-                onPostRealtimeEventTransaction({
-                    readTime,
-                    eventTransaction: [
-                        {
-                            type: "PutItem",
-                            item: post,
-                            // NOTE(calebmer): Right now when `shouldBeConnectedToChannelRealtime` is false
-                            // we're updating an individual post instead of posts backed by an index
-                            // query. So we don't need `indexes` for now.
-                            indexes: new Map(),
-                        },
-                    ],
-                });
+            ({post}) => {
+                onPostRealtimeEventTransaction([
+                    {
+                        type: "PutItem",
+                        item: post,
+                        // NOTE(calebmer): Right now when `shouldBeConnectedToChannelRealtime` is false
+                        // we're updating an individual post instead of posts backed by an index
+                        // query. So we don't need `indexes` for now.
+                        indexes: new Map(),
+                    },
+                ]);
             },
             error => {
                 reporter.logErrorWithoutDisplaying("Failed to reload realtime item", error);

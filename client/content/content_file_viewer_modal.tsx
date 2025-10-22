@@ -8,7 +8,7 @@ import {
     loadContentFileViewerData,
 } from "~/client/content/internal/load_content_file_viewer_data.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -96,7 +96,7 @@ export function ContentFileViewerModal({
         return fileRegistry.startMaintainingFile(() => context, fileReference, attachmentTarget);
     }, [attachmentTarget, context, fileReference, fileRegistry]);
 
-    const [loaderDataPromiseResolver] = useStateWithDependencies(
+    const loaderDataPromiseResolver = useStateWithDependenciesWithoutDispatch(
         () => createPromiseImmediateResolver<ContentFileViewerLoaderData | null>(),
         [fileId],
     );

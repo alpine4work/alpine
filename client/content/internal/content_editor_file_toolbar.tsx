@@ -21,7 +21,7 @@ import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {overlayFadeOutAnimationDurationMs, sprinkles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -570,7 +570,7 @@ function ContentEditorFileToolbarButton({
 
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
-    const [isPressedAndActive] = useStateWithDependencies(
+    const isPressedAndActive = useStateWithDependenciesWithoutDispatch(
         ([isPressed]) => isPressed && isActive,
         [isPressed],
     );

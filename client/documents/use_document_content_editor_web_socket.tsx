@@ -64,6 +64,7 @@ import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model
 import {nullStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 type DocumentContentEditorWebSocketClientState =
     | {
@@ -93,10 +94,9 @@ export type SubscribeToCommentThreadEventsFunction = Memo<
 
 export type SubscribeToSpellCheckIgnoredLintEventsFunction = Memo<
     (
-        subscriber: (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>;
-        }) => void,
+        subscriber: (
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>,
+        ) => void,
     ) => () => void
 >;
 
@@ -144,6 +144,7 @@ export function useDocumentContentEditorWebSocket(
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     subscribeToSpellCheckIgnoredLintEvents: SubscribeToSpellCheckIgnoredLintEventsFunction;
+    subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
     ensureCreateDocument: () => Promise<void>;
 } {
     const {currentAccount, space} = useSpaceContext();
@@ -593,6 +594,13 @@ export function useDocumentContentEditorWebSocket(
             subscriber => {
                 if (clientState.type === "NotExists") return () => {};
                 return clientState.client.subscribeToSpellCheckIgnoredLints(subscriber);
+            },
+            [clientState],
+        ),
+        subscribeToPongs: useCallback(
+            subscriber => {
+                if (clientState.type === "NotExists") return () => {};
+                return clientState.client.subscribeToPongs(subscriber);
             },
             [clientState],
         ),

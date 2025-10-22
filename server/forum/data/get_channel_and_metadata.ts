@@ -24,6 +24,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 /**
  * Get a `ChannelModel` and post files in the channel all at once. Executes a
  * realtime query so the data can be kept up-to-date in realtime.
@@ -188,10 +189,10 @@ export async function backfillChannelAndMetadata(
     context: ServerActionContext,
     {
         channelId,
-        readTime,
+        checkpoint,
     }: {
         channelId: ChannelId;
-        readTime: Date;
+        checkpoint: ServerSynchronizationCheckpoint;
     },
 ): Promise<DynamoGeneralRealtimeBackfillResult<ChannelOrMetadataModel>> {
     const [, result] = await runAllPromises([
@@ -199,7 +200,7 @@ export async function backfillChannelAndMetadata(
 
         ForumRealtimeTable.backfillRealtimeQuery(context, {
             partitionKey: {partitionType: "Channel", channelId},
-            readTime,
+            checkpoint,
         }),
     ]);
 

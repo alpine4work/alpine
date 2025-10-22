@@ -76,7 +76,7 @@ export function ChannelFilesView({
 
     const channelId = initialChannelResult.items[0].model.id;
 
-    const {isConnected, subscribeToEvents} = useWebSocket(
+    const {isConnected, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChannelRealtimeService",
         ChannelRealtimeProtocol,
         `/api/durable-objects/channels/${channelId}`,
@@ -87,15 +87,16 @@ export function ChannelFilesView({
         handleLoadMore: handleLoadMoreIntoChannelAndMetadataQuery,
     } = useDynamoGeneralRealtimeQuery(initialChannelResult, {
         isConnected,
+        subscribeToPongs,
         subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event)),
+            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
             [subscribeToEvents],
         ),
         backfillQuery: useCallback(
-            async ({readTime}) => {
+            async checkpoint => {
                 const {backfillChannelResult} = await backfillChannelAndMetadata(context, {
                     channelId,
-                    readTime,
+                    checkpoint,
                 });
                 return backfillChannelResult;
             },

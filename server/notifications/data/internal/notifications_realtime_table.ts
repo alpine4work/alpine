@@ -1091,7 +1091,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+    broadcastEventTransaction: async (context, eventTransaction) => {
         // Split up event transactions by unique `SpaceId` and `AccountId`
         // combinations. By splitting a transaction it may not be applied atomically.
         // We split by `AccountId` since events need to go to different durable
@@ -1134,7 +1134,6 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             serviceName: "MyAccountService",
                             route: "/api/durable-objects/my-account/:accountId/broadcast-inbox-realtime-event-transaction",
                             body: MyAccountBroadcastInboxRealtimeEventTransactionSchema.serialize({
-                                readTime,
                                 eventTransaction,
                             }),
                         },

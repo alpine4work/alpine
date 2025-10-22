@@ -8,6 +8,7 @@ import {
     DynamoItemKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 function testItemKey(string: string): DynamoItemKey {
     return string as DynamoItemKey;
@@ -39,11 +40,11 @@ function testItems<Model>(
 
 test("initializes an empty query", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -57,11 +58,11 @@ test("initializes an empty query", () => {
 
 test("initializes a query with items from start", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -125,11 +126,11 @@ test("initializes a query with items from start", () => {
 
 test("initializes a query with items from end", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromEnd",
             beforeCursor: null,
@@ -193,11 +194,11 @@ test("initializes a query with items from end", () => {
 
 test("initializes a query with items from start and a next page", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -264,11 +265,11 @@ test("initializes a query with items from start and a next page", () => {
 
 test("initializes a query with items from end and a previous page", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromEnd",
             beforeCursor: null,
@@ -335,11 +336,11 @@ test("initializes a query with items from end and a previous page", () => {
 
 test("items update after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -400,7 +401,7 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -450,7 +451,7 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -500,7 +501,7 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -553,11 +554,11 @@ test("items update after receiving a realtime event", () => {
 
 test("items update after receiving a realtime event out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -618,7 +619,7 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -668,7 +669,7 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -718,7 +719,7 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -771,11 +772,11 @@ test("items update after receiving a realtime event out-of-order", () => {
 
 test("items move after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -836,7 +837,7 @@ test("items move after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -886,7 +887,7 @@ test("items move after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -939,11 +940,11 @@ test("items move after receiving a realtime event", () => {
 
 test("items move after receiving a realtime event out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -1004,7 +1005,7 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1054,7 +1055,7 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1104,7 +1105,7 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1157,11 +1158,11 @@ test("items move after receiving a realtime event out-of-order", () => {
 
 test("items move out of bounds after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: "Zz",
         endCursorBound: "a3",
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -1222,7 +1223,7 @@ test("items move out of bounds after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1262,7 +1263,7 @@ test("items move out of bounds after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1295,11 +1296,11 @@ test("items move out of bounds after receiving a realtime event", () => {
 
 test("items move out of bounds and stays out of bounds after receiving an out-of-order realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: "Zz",
         endCursorBound: "a3",
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -1360,7 +1361,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1400,7 +1401,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1430,7 +1431,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1460,7 +1461,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1493,11 +1494,11 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
 
 test("item created within the query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -1558,7 +1559,7 @@ test("item created within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1621,11 +1622,11 @@ test("item created within the query", () => {
 
 test("item created then moved out of bounds within the query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -1686,7 +1687,7 @@ test("item created then moved out of bounds within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1746,7 +1747,7 @@ test("item created then moved out of bounds within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1799,11 +1800,11 @@ test("item created then moved out of bounds within the query", () => {
 
 test("item created then moved out of bounds within the query received out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -1864,7 +1865,7 @@ test("item created then moved out of bounds within the query received out-of-ord
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1914,7 +1915,7 @@ test("item created then moved out of bounds within the query received out-of-ord
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -1967,11 +1968,11 @@ test("item created then moved out of bounds within the query received out-of-ord
 
 test("item moving in and out of bounds", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -2032,7 +2033,7 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -2072,7 +2073,7 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -2122,7 +2123,7 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -2165,11 +2166,11 @@ test("item moving in and out of bounds", () => {
 
 test("item moving in and out of bounds received out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -2230,7 +2231,7 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -2270,7 +2271,7 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -2310,7 +2311,7 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -2353,11 +2354,11 @@ test("item moving in and out of bounds received out-of-order", () => {
 
 test("can load more at the end of a query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -2422,7 +2423,6 @@ test("can load more at the end of a query", () => {
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -2521,7 +2521,6 @@ test("can load more at the end of a query", () => {
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -2649,11 +2648,11 @@ test("can load more at the end of a query", () => {
 
 test("can load more at the start of a query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromEnd",
             beforeCursor: null,
@@ -2718,7 +2717,6 @@ test("can load more at the start of a query", () => {
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -2817,7 +2815,6 @@ test("can load more at the start of a query", () => {
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -2945,11 +2942,11 @@ test("can load more at the start of a query", () => {
 
 test("can load more at the end of a query that overlaps a bit with the previous query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -3014,7 +3011,6 @@ test("can load more at the end of a query that overlaps a bit with the previous 
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -3118,11 +3114,11 @@ test("can load more at the end of a query that overlaps a bit with the previous 
 
 test("can load more at the end in a way that doesn’t overlap with the last query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -3187,7 +3183,6 @@ test("can load more at the end in a way that doesn’t overlap with the last que
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -3252,11 +3247,11 @@ test("can load more at the end in a way that doesn’t overlap with the last que
 
 test("can load more at the start of a query that overlaps a bit with the previous query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromEnd",
             beforeCursor: null,
@@ -3321,7 +3316,6 @@ test("can load more at the start of a query that overlaps a bit with the previou
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -3425,11 +3419,11 @@ test("can load more at the start of a query that overlaps a bit with the previou
 
 test("can load more at the start in a way that doesn’t overlap with the last query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromEnd",
             beforeCursor: null,
@@ -3494,7 +3488,6 @@ test("can load more at the start in a way that doesn’t overlap with the last q
     ]);
 
     query = query.loadMore({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
@@ -3559,11 +3552,11 @@ test("can load more at the start in a way that doesn’t overlap with the last q
 
 test("item is removed if partition key changes after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -3624,7 +3617,7 @@ test("item is removed if partition key changes after receiving a realtime event"
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -3664,7 +3657,7 @@ test("item is removed if partition key changes after receiving a realtime event"
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -3697,11 +3690,11 @@ test("item is removed if partition key changes after receiving a realtime event"
 
 test("item is removed if partition key changes after receiving an out-of-order realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -3762,7 +3755,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -3802,7 +3795,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -3832,7 +3825,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -3862,7 +3855,7 @@ test("item is removed if partition key changes after receiving an out-of-order r
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -3895,11 +3888,11 @@ test("item is removed if partition key changes after receiving an out-of-order r
 
 test("item is deleted after receiving a delete realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -3960,7 +3953,7 @@ test("item is deleted after receiving a delete realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -3994,7 +3987,7 @@ test("item is deleted after receiving a delete realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4021,11 +4014,11 @@ test("item is deleted after receiving a delete realtime event", () => {
 
 test("item is deleted after receiving an out-of-order delete realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -4086,7 +4079,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4120,7 +4113,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4144,7 +4137,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -4174,7 +4167,7 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -4207,11 +4200,11 @@ test("item is deleted after receiving an out-of-order delete realtime event", ()
 
 test("item is deleted after receiving a delete realtime event after being created by a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -4256,7 +4249,7 @@ test("item is deleted after receiving a delete realtime event after being create
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -4306,7 +4299,7 @@ test("item is deleted after receiving a delete realtime event after being create
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4343,11 +4336,11 @@ test("item is deleted after receiving a delete realtime event after being create
 
 test("item is deleted after receiving an out-of-order delete realtime event after being created by a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -4392,7 +4385,7 @@ test("item is deleted after receiving an out-of-order delete realtime event afte
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4426,7 +4419,7 @@ test("item is deleted after receiving an out-of-order delete realtime event afte
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -4469,11 +4462,11 @@ test("item is deleted after receiving an out-of-order delete realtime event afte
 
 test("can undelete deleted item after receiving a delete realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -4534,7 +4527,7 @@ test("can undelete deleted item after receiving a delete realtime event", () => 
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4568,7 +4561,7 @@ test("can undelete deleted item after receiving a delete realtime event", () => 
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -4621,11 +4614,11 @@ test("can undelete deleted item after receiving a delete realtime event", () => 
 
 test("can delete an undeleted deleted item after receiving a delete realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -4686,7 +4679,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4720,7 +4713,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {
@@ -4770,7 +4763,7 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4807,11 +4800,11 @@ test("can delete an undeleted deleted item after receiving a delete realtime eve
 
 test("can delete an undeleted deleted item after receiving an out-of-order delete realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
-        readTime: new Date(),
         indexName: "Test",
         partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         pageInfo: {
             type: "FromStart",
             afterCursor: null,
@@ -4872,7 +4865,7 @@ test("can delete an undeleted deleted item after receiving an out-of-order delet
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4906,7 +4899,7 @@ test("can delete an undeleted deleted item after receiving an out-of-order delet
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "DeleteItem",
             item: {
@@ -4940,7 +4933,7 @@ test("can delete an undeleted deleted item after receiving an out-of-order delet
         },
     ]);
 
-    query = query.handleEventTransaction(new Date(), [
+    query = query.handleEventTransaction([
         {
             type: "PutItem",
             item: {

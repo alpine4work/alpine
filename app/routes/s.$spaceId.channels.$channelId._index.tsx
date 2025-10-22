@@ -57,6 +57,10 @@ import {isId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpoint,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
@@ -82,6 +86,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     let created:
         | {
+              checkpoint: ServerSynchronizationCheckpoint;
               getDynamoGeneralRealtimeItem: (
                   context: ServerActionContext,
               ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
@@ -90,13 +95,15 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     if (createSearchParam !== null) {
         try {
+            const checkpoint = generateServerSynchronizationCheckpoint();
+
             const {getDynamoGeneralRealtimeItem} = await createChannel(context, {
                 spaceId,
                 channelId,
                 name: createSearchParam,
             });
 
-            created = {getDynamoGeneralRealtimeItem};
+            created = {checkpoint, getDynamoGeneralRealtimeItem};
         } catch (error) {
             if (!isDynamoConditionCheckError(error)) {
                 throw error;
@@ -130,7 +137,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                   getAccount(context, spaceId, context.actor.getAccountId()),
               ]).then(
                   ([item, account]): DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel> => ({
-                      readTime: new Date(),
+                      checkpoint: created.checkpoint,
                       partitionKey: getChannelAndMetadataPartitionKey(channelId),
                       startItemKey: null,
                       endItemKey: null,
@@ -162,7 +169,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         // posts yet:
         created
             ? cast<DynamoGeneralRealtimeIndexQueryResult<PostModel>>({
-                  readTime: new Date(),
+                  checkpoint: created.checkpoint,
                   indexName: getChannelPostsIndexName(),
                   partitionKey: getChannelPostsPartitionKey(channelId),
                   startCursorBound: null,

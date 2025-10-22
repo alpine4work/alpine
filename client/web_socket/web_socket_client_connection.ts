@@ -22,6 +22,7 @@ import {
 import {
     WebSocketMessageFromClient,
     WebSocketMessageFromServer,
+    WebSocketPongMessage,
     createWebSocketMessageFromClientSchema,
     createWebSocketMessageFromServerSchema,
 } from "~/shared/web_socket/web_socket_schema.js";
@@ -81,6 +82,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _events = new EventEmitter<WebSocketProtocolEventType<Protocol>>();
+    private readonly _pongs = new EventEmitter<WebSocketPongMessage>();
     private readonly _openPromiseResolver = createPromiseResolver();
     private readonly _softClosePromiseResolver = createPromiseResolver();
     private readonly _closePromiseResolver = createPromiseResolver();
@@ -293,6 +295,12 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                     break;
                 }
                 case "Pong": {
+                    // If we get an event in our `SoftClosedWhileWaitingForProcedureResponses`
+                    // state, don't save it as our new checkpoint.
+                    if (this._state.type === "Open") {
+                        this._pongs.emit(message);
+                    }
+
                     pingTimeout?.clear();
                     pingTimeout = createTimeout(sendPing, webSocketExpirationTimeoutMs / 2);
 
@@ -390,6 +398,15 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
         handler: (event: WebSocketProtocolEventType<Protocol>) => void,
     ): () => void {
         return this._events.subscribe(handler);
+    }
+
+    /**
+     * Listen for pong messages received from the socket.
+     *
+     * Will only fire when the socket is connected.
+     */
+    public subscribeToPongs(handler: (message: WebSocketPongMessage) => void): () => void {
+        return this._pongs.subscribe(handler);
     }
 
     /**

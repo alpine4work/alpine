@@ -4,6 +4,7 @@ import {SpellCheckTable} from "~/server/spell_check/internal/spell_check_table.j
 import {DynamoGeneralRealtimeBackfillResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {SpellCheckEntityId} from "~/shared/spell_check/spell_check_entity_id.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
  * Backfill any realtime updates to catch up our client after it's been
@@ -13,17 +14,17 @@ export async function backfillSpellCheckIgnoredLints(
     context: ServerActionContext,
     {
         entityId,
-        readTime,
+        checkpoint,
     }: {
         entityId: SpellCheckEntityId;
-        readTime: Date;
+        checkpoint: ServerSynchronizationCheckpoint;
     },
 ): Promise<DynamoGeneralRealtimeBackfillResult<SpellCheckIgnoredLintModel>> {
     await authorizeSpellCheckEntityIdAccess(context, entityId, "View");
 
     const result = await SpellCheckTable.backfillRealtimeQuery(context, {
         partitionKey: {partitionType: "IgnoredLint", spellCheckEntityId: entityId},
-        readTime,
+        checkpoint,
     });
 
     return result;

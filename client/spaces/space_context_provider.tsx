@@ -37,7 +37,7 @@ export function SpaceContextProvider({
         assert(currentAccount.id === currentAccountWithoutSpace?.id);
     }
 
-    const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
+    const {isConnected, subscribeToEvents, subscribeToPongs, toggleShouldConnect} = useWebSocket(
         "MyAccountService",
         MyAccountProtocol,
         currentAccount !== null ? `/api/durable-objects/my-account/${currentAccount.id}` : null,
@@ -57,8 +57,8 @@ export function SpaceContextProvider({
         >
             <MyAccountWebSocketContext.Provider
                 value={useMemo(
-                    () => ({isConnected, subscribeToEvents}),
-                    [isConnected, subscribeToEvents],
+                    () => ({isConnected, subscribeToEvents, subscribeToPongs}),
+                    [isConnected, subscribeToEvents, subscribeToPongs],
                 )}
             >
                 {children}

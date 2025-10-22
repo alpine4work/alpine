@@ -68,7 +68,7 @@ export const SpellCheckTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    broadcastEventTransaction: async (context, readTime, eventTransaction) => {
+    broadcastEventTransaction: async (context, eventTransaction) => {
         const eventTransactionBySpellCheckEntityId = new Map<
             SpellCheckEntityId,
             Array<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>
@@ -119,7 +119,6 @@ export const SpellCheckTable = DynamoGeneralRealtimeTableSchema.new({
                         serviceName: assertExists(serviceName),
                         route: assertExists(route),
                         body: SpellCheckIgnoredLintRealtimeTransactionSchema.serialize({
-                            readTime,
                             eventTransaction,
                         }),
                     });

@@ -121,7 +121,6 @@ export type DocumentCollaborationEventStub =
       }
     | {
           readonly type: "SpellCheckRealtimeEventTransaction";
-          readonly readTime: Date;
           readonly eventTransaction: ReadonlyArray<
               DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>
           >;

@@ -57,7 +57,7 @@ import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {
@@ -1105,7 +1105,7 @@ function ContentEditorPointerToolbarButton({
 
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
-    const [isPressedAndActive] = useStateWithDependencies(
+    const isPressedAndActive = useStateWithDependenciesWithoutDispatch(
         ([isPressed]) => isPressed && isActive,
         [isPressed],
     );

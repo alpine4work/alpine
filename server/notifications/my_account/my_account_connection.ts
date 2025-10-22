@@ -13,7 +13,6 @@ import {
 
 export type MyAccountEventStub = {
     readonly type: "InboxRealtimeEventTransaction";
-    readonly readTime: Date;
     // We have the full event (references and all) in the stub because when
     // `AppService` creates the event they create it with the inbox recipient's
     // permissions.

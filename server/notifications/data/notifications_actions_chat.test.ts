@@ -4778,7 +4778,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     [
                         session2.account.id,
                         {
-                            readTime: expect.any(Date),
                             eventTransaction: [
                                 {
                                     type: "PutItem",
@@ -4824,7 +4823,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     [
                         session3.account.id,
                         {
-                            readTime: expect.any(Date),
                             eventTransaction: [
                                 {
                                     type: "PutItem",

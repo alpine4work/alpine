@@ -1,6 +1,6 @@
 import {MutableRefObject, RefObject, useEffect} from "react";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {TaskUndoActions} from "~/client/tasks/core/create_task_undo_actions_if_possible.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {undoMergeTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
@@ -51,7 +51,7 @@ export type TaskUndoStackEntry<Extra = unknown> =
 export function useTaskUndoStackState<Extra = unknown>({
     stateKey,
 }: {stateKey?: string | undefined} = emptyObject) {
-    const [undoState] = useStateWithDependencies(
+    const undoState = useStateWithDependenciesWithoutDispatch(
         () => ({
             undoStackRef: cast<
                 MutableRefObject<

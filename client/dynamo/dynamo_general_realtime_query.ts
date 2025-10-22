@@ -14,6 +14,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 type DynamoGeneralRealtimeQueryLoadedPageInfo =
     | {
@@ -61,23 +62,6 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * item with this key exists then it'll be included in the query.
      */
     private readonly _endItemKey: DynamoItemKey | null;
-
-    /**
-     * Approximate point in time at which the query is up-to-date. When we connect
-     * to realtime we will ask for changes to the query between this time and the
-     * current time. This should catch us up on any realtime changes we missed
-     * while not connected to realtime.
-     *
-     * We say this is an approximate time since whenever we load new data or see a
-     * new realtime event we will increase this value to the latest time. However,
-     * realtime events may arrive out-of-order. So we may have missed an event
-     * before our `readTime`.
-     *
-     * The server doesn't trust `readTime` and gives us events in a short window
-     * earlier than `readTime` to accommodate for race conditions or stale
-     * eventually consistent reads.
-     */
-    private readonly _readTime: Date;
 
     /**
      * All items we currently know about in our query in order. Items are ordered
@@ -138,19 +122,55 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      */
     private readonly _loadedPageInfo: DynamoGeneralRealtimeQueryLoadedPageInfo | null;
 
+    /**
+     * This is a mutable piece of state inside our otherwise immutable data type.
+     * A functional programming sin! However, we do it since it's practical.
+     *
+     * The `ServerSynchronizationCheckpoint` tells us how up-to-date our client's
+     * realtime data is based on what's on the server. When we backfill realtime
+     * events we send our checkpoint to the server and the server will return all
+     * realtime events that happened between the checkpoint and now. So for example
+     * if our WebSocket disconnects for two minutes because the user lost internet,
+     * when the WebSocket reconnects we'll send the last checkpoint we had from the
+     * server (which is the time two minutes ago) and receive all realtime events
+     * we missed while we were disconnected.
+     *
+     * The `ServerSynchronizationCheckpoint` is set:
+     *
+     * 1. When we initially load data.
+     *
+     * 2. Every `Ping`/`Pong` message from our WebSocket server. Since while we're
+     *    connected to the WebSocket server we know we're seeing all realtime
+     *    events. As soon as the WebSocket disconnects (and we stop receiving
+     *    `Pong` messages) our client data may be falling out-of-date with the
+     *    server since there's realtime events we're not seeing.
+     *
+     * We ping the WebSocket server every minute. If this were an immutable
+     * property on the list we'd end up re-rendering the entire view
+     * depending on this list once per minute. Which feels inefficient. Especially
+     * if the user is actively interacting with the view and we block some other
+     * update.
+     *
+     * Instead, we update a mutable property on the data type. This makes the data
+     * type "impure" in a functional programming sense but it's fine, we're not
+     * caching and reusing these objects. Making this a mutable property may be a
+     * premature optimization but mutability just doesn't seem like a big
+     * deal here.
+     */
+    private _mutableCheckpoint: ServerSynchronizationCheckpoint;
+
     private constructor({
         partitionKey,
         startItemKey,
         endItemKey,
-        readTime,
         itemByKey,
         deletedItemByKey,
         loadedPageInfo,
+        mutableCheckpoint,
     }: {
         partitionKey: DynamoItemPartitionKey;
         startItemKey: DynamoItemKey | null;
         endItemKey: DynamoItemKey | null;
-        readTime: Date;
         itemByKey: Tree<
             DynamoItemKey,
             DynamoGeneralRealtimeItem<Model> & {
@@ -160,6 +180,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         >;
         deletedItemByKey: ImmutableMap<DynamoItemKey, {readonly version: number}>;
         loadedPageInfo: DynamoGeneralRealtimeQueryLoadedPageInfo | null;
+        mutableCheckpoint: ServerSynchronizationCheckpoint;
     }) {
         // Run some data validity assertions to verify assumptions about our data in
         // development and test environments but not in production since these
@@ -185,14 +206,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         this._partitionKey = partitionKey;
         this._startItemKey = startItemKey;
         this._endItemKey = endItemKey;
-        this._readTime = readTime;
         this._itemByKey = itemByKey;
         this._deletedItemByKey = deletedItemByKey;
         this._loadedPageInfo = loadedPageInfo;
-    }
-
-    public getReadTime() {
-        return this._readTime;
+        this._mutableCheckpoint = mutableCheckpoint;
     }
 
     /**
@@ -271,10 +288,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             partitionKey: result.partitionKey,
             startItemKey,
             endItemKey,
-            readTime: result.readTime,
             itemByKey,
             deletedItemByKey: ImmutableMap.empty(),
             loadedPageInfo,
+            mutableCheckpoint: result.checkpoint,
         });
     }
 
@@ -283,7 +300,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * new query result overlaps with data we already have.
      */
     public loadMore(
-        result: DynamoGeneralRealtimeQueryResult<Model>,
+        result: Omit<DynamoGeneralRealtimeQueryResult<Model>, "checkpoint">,
     ): DynamoGeneralRealtimeQuery<Model, Extra> {
         return DynamoGeneralRealtimeQuery._loadMore(this, result);
     }
@@ -291,14 +308,13 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     // Use a static method so we can reassign `this` within the function.
     private static _loadMore<Model, Extra>(
         query: DynamoGeneralRealtimeQuery<Model, Extra>,
-        result: DynamoGeneralRealtimeQueryResult<Model>,
+        result: Omit<DynamoGeneralRealtimeQueryResult<Model>, "checkpoint">,
     ): DynamoGeneralRealtimeQuery<Model, Extra> {
         if (query._partitionKey !== result.partitionKey) {
             throw new InternalError("Tried to load more data from a different table partition");
         }
 
         query = query._putItems(
-            result.readTime,
             filterMapIterable(result.items, item => {
                 const isInRange =
                     (query._startItemKey === null || item.key >= query._startItemKey) &&
@@ -387,10 +403,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             partitionKey: query._partitionKey,
             startItemKey: query._startItemKey,
             endItemKey: query._endItemKey,
-            readTime: query._readTime,
             itemByKey: query._itemByKey,
             deletedItemByKey: query._deletedItemByKey,
             loadedPageInfo,
+            mutableCheckpoint: query._mutableCheckpoint,
         });
     }
 
@@ -399,7 +415,6 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
      * query. Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
-        readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ): DynamoGeneralRealtimeQuery<Model, Extra> {
         const partitionKeyBytes = decodeBase64(
@@ -408,7 +423,6 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         );
 
         return this._putItems(
-            readTime,
             filterMapIterable(eventTransaction, event => {
                 switch (event.type) {
                     case "PutItem": {
@@ -484,7 +498,6 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     private _putItems(
-        readTime: Date,
         itemEntries: Iterable<
             | {
                   isDeleted: false;
@@ -577,11 +590,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
         }
 
         // Optimization: If nothing changed, don't create a new instance.
-        if (
-            itemByKey === this._itemByKey &&
-            deletedItemByKey === this._deletedItemByKey &&
-            readTime <= this._readTime
-        ) {
+        if (itemByKey === this._itemByKey && deletedItemByKey === this._deletedItemByKey) {
             return this;
         }
 
@@ -589,10 +598,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             partitionKey: this._partitionKey,
             startItemKey: this._startItemKey,
             endItemKey: this._endItemKey,
-            readTime: readTime > this._readTime ? readTime : this._readTime,
             itemByKey,
             deletedItemByKey,
             loadedPageInfo: this._loadedPageInfo,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -950,6 +959,24 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
     }
 
     /**
+     * Get the current mutable checkpoint property.
+     */
+    public getMutableCheckpoint(): ServerSynchronizationCheckpoint {
+        return this._mutableCheckpoint;
+    }
+
+    /**
+     * Set the mutable checkpoint property on this query object. Noops if the
+     * provided `checkpoint` is older than the current checkpoint.
+     */
+    public setMutableCheckpoint(checkpoint: ServerSynchronizationCheckpoint): void {
+        this._mutableCheckpoint =
+            this._mutableCheckpoint.getTime() < checkpoint.getTime()
+                ? checkpoint
+                : this._mutableCheckpoint;
+    }
+
+    /**
      * Set the `extra` property for the provided item. The `extra` property allows
      * the client to attach some extra client-only data to an item in the query.
      * For instance, channels attach the realtime comment data of a post in the
@@ -982,10 +1009,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             partitionKey: this._partitionKey,
             startItemKey: this._startItemKey,
             endItemKey: this._endItemKey,
-            readTime: this._readTime,
             itemByKey,
             deletedItemByKey: this._deletedItemByKey,
             loadedPageInfo: this._loadedPageInfo,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -1025,10 +1052,10 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
             partitionKey: this._partitionKey,
             startItemKey: this._startItemKey,
             endItemKey: this._endItemKey,
-            readTime: this._readTime,
             itemByKey,
             deletedItemByKey: this._deletedItemByKey,
             loadedPageInfo: this._loadedPageInfo,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 }

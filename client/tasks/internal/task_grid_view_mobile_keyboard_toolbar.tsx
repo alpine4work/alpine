@@ -25,7 +25,7 @@ import {
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -587,7 +587,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
 
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
-    const [isPressedAndActive] = useStateWithDependencies(
+    const isPressedAndActive = useStateWithDependenciesWithoutDispatch(
         ([isPressed]) => isPressed && isActive,
         [isPressed],
     );

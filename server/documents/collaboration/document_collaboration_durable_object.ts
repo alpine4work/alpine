@@ -293,14 +293,13 @@ class DocumentCollaborationDurableObject {
                 );
             }
             case "BroadcastSpellCheckRealtimeEventTransaction": {
-                const {eventTransaction, readTime} =
+                const {eventTransaction} =
                     SpellCheckIgnoredLintRealtimeTransactionSchema.deserialize(
                         await request.json(),
                     );
 
                 this._webSocketServer.sendEventToAll(context, {
                     type: "SpellCheckRealtimeEventTransaction",
-                    readTime,
                     eventTransaction,
                 });
                 return new Response();

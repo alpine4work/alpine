@@ -167,7 +167,7 @@ export function PostCreator({
             onPress={async () => {
                 if (!channel) return;
 
-                const {post, readTime, eventTransaction} = await createPost(context, {
+                const {post, eventTransaction} = await createPost(context, {
                     channelId: channel.id,
                     draftId,
                     content: trimContent(state.getDoc()),
@@ -179,7 +179,6 @@ export function PostCreator({
                 // is slow.
                 optimisticCreatePostEventEmitter.emit({
                     channelId: channel.id,
-                    readTime,
                     eventTransaction,
                 });
 

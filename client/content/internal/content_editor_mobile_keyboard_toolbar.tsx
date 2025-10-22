@@ -43,7 +43,7 @@ import {
 } from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -467,7 +467,7 @@ function ContentEditorMobileKeyboardToolbarButton({
 
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
-    const [isPressedAndActive] = useStateWithDependencies(
+    const isPressedAndActive = useStateWithDependenciesWithoutDispatch(
         ([isPressed]) => isPressed && isActive,
         [isPressed],
     );

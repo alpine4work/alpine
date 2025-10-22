@@ -197,14 +197,13 @@ export class PostRealtimeConnection {
                 };
             }
             case "RealtimeEventTransaction": {
-                const {readTime, eventTransaction} = await getPostRealtimeEvent(context, {
+                const {eventTransaction} = await getPostRealtimeEvent(context, {
                     postId: this._postId,
                     eventTransaction: eventStub.eventTransaction,
                 });
 
                 return {
                     type: "RealtimeEventTransaction",
-                    readTime,
                     eventTransaction,
                 };
             }

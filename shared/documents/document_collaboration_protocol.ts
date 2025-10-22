@@ -385,7 +385,6 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
 
         SpellCheckRealtimeEventTransaction: Schema.object({
             type: Schema.value("SpellCheckRealtimeEventTransaction"),
-            readTime: Schema.date,
             eventTransaction: Schema.array(
                 createDynamoGeneralRealtimeEventSchema(SpellCheckIgnoredLintModel.schema()),
             ),

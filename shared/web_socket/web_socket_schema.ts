@@ -5,6 +5,10 @@ import {Schema} from "~/shared/schema/schema.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 import {
+    ServerSynchronizationCheckpoint,
+    ServerSynchronizationCheckpointSchema,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
@@ -89,9 +93,7 @@ export type WebSocketMessageFromServer<Protocol extends WebSocketProtocolBase> =
           readonly type: "Event";
           readonly event: WebSocketProtocolEventType<Protocol>;
       }
-    | {
-          readonly type: "Pong";
-      }
+    | WebSocketPongMessage
     | {
           readonly type: "ClosingWithError";
           readonly error: unknown;
@@ -99,6 +101,11 @@ export type WebSocketMessageFromServer<Protocol extends WebSocketProtocolBase> =
     | {
           readonly type: "SoftCloseWhileWaitingForProcedureResponses";
       };
+
+export type WebSocketPongMessage = {
+    readonly type: "Pong";
+    readonly checkpoint: ServerSynchronizationCheckpoint;
+};
 
 export const WebSocketClosingWithErrorMessageSchema = Schema.object({
     type: Schema.value("ClosingWithError"),
@@ -144,6 +151,7 @@ export function createWebSocketMessageFromServerSchema<Protocol extends WebSocke
         }),
         Pong: Schema.object({
             type: Schema.value("Pong"),
+            checkpoint: ServerSynchronizationCheckpointSchema,
         }),
         ClosingWithError: WebSocketClosingWithErrorMessageSchema,
         SoftCloseWhileWaitingForProcedureResponses: Schema.object({

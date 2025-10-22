@@ -14,10 +14,9 @@ export async function createSpellCheckIgnoredLint(
     key: string,
     kind: string,
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>;
-    }>;
+    getDynamoGeneralRealtimeEventTransaction: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>>;
 }> {
     await authorizeSpellCheckEntityIdAccess(context, spellCheckEntityId, "Edit");
 
@@ -34,11 +33,7 @@ export async function createSpellCheckIgnoredLint(
         creatorId,
     });
 
-    const readTime = new Date();
     return {
-        getDynamoGeneralRealtimeEventTransaction: async context => ({
-            readTime,
-            eventTransaction: [await getEvent(context)],
-        }),
+        getDynamoGeneralRealtimeEventTransaction: async context => [await getEvent(context)],
     };
 }

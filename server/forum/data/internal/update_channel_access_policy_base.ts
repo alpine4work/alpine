@@ -33,14 +33,13 @@ export async function updateChannelAccessPolicyBase(
         notification: ShareNotification | null;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
-        readTime: Date;
-        eventTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
-        >;
-    }>;
+    getDynamoGeneralRealtimeEventTransaction: (
+        context: ServerActionContext,
+    ) => Promise<
+        ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>>
+    >;
 }> {
-    const readTime = new Date();
+    const currentTime = new Date();
 
     const {channelItem, shouldAddFeedCandidateEntry, getDynamoGeneralRealtimeEventTransaction} =
         await context.dynamo.retryTransaction(
@@ -51,12 +50,11 @@ export async function updateChannelAccessPolicyBase(
                 shouldAddFeedCandidateEntry: boolean;
                 getDynamoGeneralRealtimeEventTransaction: (
                     context: ServerActionContext,
-                ) => Promise<{
-                    readTime: Date;
-                    eventTransaction: ReadonlyArray<
+                ) => Promise<
+                    ReadonlyArray<
                         DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
-                    >;
-                }>;
+                    >
+                >;
             }> => {
                 const channelItem = await ForumRealtimeTable.getItemIfExists(context, {
                     partitionType: "Channel",
@@ -107,10 +105,9 @@ export async function updateChannelAccessPolicyBase(
                         channelItem,
                         shouldAddFeedCandidateEntry:
                             newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                        getDynamoGeneralRealtimeEventTransaction: async context => ({
-                            readTime,
-                            eventTransaction: [await getEvent(context)],
-                        }),
+                        getDynamoGeneralRealtimeEventTransaction: async context => [
+                            await getEvent(context),
+                        ],
                     };
                 } else {
                     const contributorsItem = (await ForumRealtimeTable.getItemIfExists(context, {
@@ -143,15 +140,13 @@ export async function updateChannelAccessPolicyBase(
                         channelItem,
                         shouldAddFeedCandidateEntry:
                             newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
-                        getDynamoGeneralRealtimeEventTransaction: async context => ({
-                            readTime,
-                            eventTransaction: (await getEventTransaction(
+                        getDynamoGeneralRealtimeEventTransaction: async context =>
+                            (await getEventTransaction(
                                 context,
                                 ForumRealtimeTable,
                             )) as ReadonlyArray<
                                 DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
                             >,
-                        }),
                     };
                 }
             },
@@ -162,7 +157,7 @@ export async function updateChannelAccessPolicyBase(
             await addFeedCandidateEntry(context, channelItem.spaceId, {
                 type: "Channel",
                 channelId,
-                sharedTime: readTime,
+                sharedTime: currentTime,
                 sharerId: context.actor.getAccountId(),
                 creatorId: channelItem.creatorId,
                 event: "SharedWithAccessPolicyDefaultGrant",

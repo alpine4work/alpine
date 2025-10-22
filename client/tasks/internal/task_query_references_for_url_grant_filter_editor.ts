@@ -1,5 +1,5 @@
 import {useMemo} from "react";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -97,7 +97,7 @@ export function useTaskQueryReferencesForUrlGrantFilterEditor(
         ),
     );
 
-    const [references] = useStateWithDependencies<
+    const references = useStateWithDependenciesWithoutDispatch<
         TaskQueryReferencesForUrlGrantFilterEditor | null,
         [TaskQueryReferencesForUrlGrantFilterEditor | null]
     >(

@@ -10,6 +10,10 @@ import {
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+import {
+    ServerSynchronizationCheckpoint,
+    ServerSynchronizationCheckpointSchema,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
  * The result of reading an individual item from a realtime DynamoDB table.
@@ -65,13 +69,13 @@ export function createDynamoGeneralRealtimeItemSchema<Model>(
  */
 export type DynamoGeneralRealtimeQueryResult<Model> = {
     /**
-     * When did the read for this data start? When we connect to realtime on the
-     * client we should load all changes between the `readTime` and the current
-     * time in case the query updated while we were disconnected from realtime. In
-     * practice we read from `readTime - 3min` to the current time to handle clock
-     * skew and eventually consistent reads.
+     * At what point in time is this data up-to-date? When we connect to realtime
+     * on the client we should load all changes between the `checkpoint` and the
+     * current time in case the query updated while we were disconnected from
+     * realtime. In practice we read from `checkpoint - 3min` to the current time
+     * to handle clock skew and eventually consistent reads.
      */
-    readonly readTime: Date;
+    readonly checkpoint: ServerSynchronizationCheckpoint;
 
     /**
      * The partition key this query result is for. A query can only cover one
@@ -125,7 +129,7 @@ export function createDynamoGeneralRealtimeQuerySchema<Model>(
     const ModelSchema: Schema<any> = _ModelSchema;
 
     return Schema.object({
-        readTime: Schema.date,
+        checkpoint: ServerSynchronizationCheckpointSchema,
         partitionKey: DynamoItemPartitionKeySchema,
         startItemKey: DynamoItemKeySchema.nullable(),
         endItemKey: DynamoItemKeySchema.nullable(),
@@ -164,13 +168,13 @@ export function createDynamoGeneralRealtimeQuerySchema<Model>(
  */
 export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
     /**
-     * When did the read for this data start? When we connect to realtime on the
-     * client we should load all changes between the `readTime` and the current
-     * time in case the query updated while we were disconnected from realtime. In
-     * practice we read from `readTime - 3min` to the current time to handle clock
-     * skew and eventually consistent reads.
+     * At what point in time is this data up-to-date? When we connect to realtime
+     * on the client we should load all changes between the `checkpoint` and the
+     * current time in case the query updated while we were disconnected from
+     * realtime. In practice we read from `checkpoint - 3min` to the current time
+     * to handle clock skew and eventually consistent reads.
      */
-    readonly readTime: Date;
+    readonly checkpoint: ServerSynchronizationCheckpoint;
 
     /**
      * What is the name of the index that provides the order for this query? You
@@ -243,7 +247,7 @@ export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
     const ModelSchema: Schema<any> = _ModelSchema;
 
     return Schema.object({
-        readTime: Schema.date,
+        checkpoint: ServerSynchronizationCheckpointSchema,
         indexName: Schema.string,
         partitionKey: DynamoIndexPartitionKeySchema,
         startCursorBound: Schema.string.nullable(),
@@ -373,7 +377,7 @@ export type DynamoGeneralRealtimeBackfillResult<Model> =
       }
     | {
           readonly type: "Available";
-          readonly readTime: Date;
+          readonly checkpoint: ServerSynchronizationCheckpoint;
           readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>;
       };
 
@@ -389,7 +393,7 @@ export function createDynamoGeneralRealtimeBackfillResultSchema<Model>(
         }),
         Available: Schema.object({
             type: Schema.value("Available"),
-            readTime: Schema.date,
+            checkpoint: ServerSynchronizationCheckpointSchema,
             eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(ModelSchema)),
         }),
     });

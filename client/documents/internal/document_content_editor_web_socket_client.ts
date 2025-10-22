@@ -35,6 +35,7 @@ import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 export type DocumentContentEditorWebSocketClientProcedures = Pick<
     WebSocketClientProcedures<
@@ -724,15 +725,18 @@ export class DocumentContentEditorWebSocketClient {
     }
 
     public subscribeToSpellCheckIgnoredLints(
-        subscriber: (event: {
-            readTime: Date;
-            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>;
-        }) => void,
+        subscriber: (
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<SpellCheckIgnoredLintModel>>,
+        ) => void,
     ) {
         return this._client.subscribeToEvents(event => {
             if (event.type === "SpellCheckRealtimeEventTransaction") {
-                subscriber({eventTransaction: event.eventTransaction, readTime: event.readTime});
+                subscriber(event.eventTransaction);
             }
         });
+    }
+
+    public subscribeToPongs(subscriber: (message: WebSocketPongMessage) => void) {
+        return this._client.subscribeToPongs(subscriber);
     }
 }

@@ -29,7 +29,7 @@ import {
 } from "~/client/content/state/indent_and_dedent_list_item_commands.js";
 import {Box} from "~/client/design/box.js";
 import {mobileBottomBarKeyboardToolbarHeight} from "~/client/design/mobile_bottom_bar.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -316,7 +316,7 @@ function MessageInputMobileKeyboardToolbarButton({
 
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
-    const [isPressedAndActive] = useStateWithDependencies(
+    const isPressedAndActive = useStateWithDependenciesWithoutDispatch(
         ([isPressed]) => isPressed && isActive,
         [isPressed],
     );

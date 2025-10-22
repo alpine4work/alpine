@@ -13,6 +13,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const getInboxWithStrongReadConsistency = defineRpc({
     name: "getInboxWithStrongReadConsistency",
@@ -52,7 +53,7 @@ export const backfillInboxEntries = defineRpc({
     name: "backfillInboxEntries",
     input: {
         spaceId: Schema.id<SpaceId>(),
-        readTime: Schema.date,
+        checkpoint: ServerSynchronizationCheckpointSchema,
     },
     output: {
         backfillEntriesResult:

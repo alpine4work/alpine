@@ -41,14 +41,11 @@ export function updatePostContent(
     },
 ): Promise<{
     contentUpdatedTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: (context: ServerActionContext) => Promise<{
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-    }>;
+    getDynamoGeneralRealtimeEventTransaction: (
+        context: ServerActionContext,
+    ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const readTime = new Date();
-
         const oldPostItem = await ForumRealtimeTable.getItem(context, {
             partitionType: "Post",
             sortRangeType: "Attributes",
@@ -205,10 +202,9 @@ export function updatePostContent(
 
         return {
             contentUpdatedTime,
-            getDynamoGeneralRealtimeEventTransaction: async context => ({
-                readTime,
-                eventTransaction: [await result.getEvent(context)],
-            }),
+            getDynamoGeneralRealtimeEventTransaction: async context => [
+                await result.getEvent(context),
+            ],
         };
     });
 }

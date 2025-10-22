@@ -20,13 +20,11 @@ export const MyAccountProtocol = defineWebSocketProtocol({
     events: {
         InboxRealtimeEventTransaction: Schema.object({
             type: Schema.value("InboxRealtimeEventTransaction"),
-            readTime: Schema.date,
             eventTransaction: Schema.array(DynamoGeneralRealtimeInboxItemEventSchema),
         }),
     },
 });
 
 export const MyAccountBroadcastInboxRealtimeEventTransactionSchema = Schema.object({
-    readTime: Schema.date,
     eventTransaction: Schema.array(DynamoGeneralRealtimeInboxItemEventSchema),
 });

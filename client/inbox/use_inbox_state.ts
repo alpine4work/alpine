@@ -109,7 +109,7 @@ export function useInboxState(props: {
     const context = useAppContext();
     const reporter = useReporter();
     const {space} = useSpaceContext();
-    const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
+    const {isConnected, subscribeToEvents, subscribeToPongs} = useMyAccountWebSocket();
 
     const [
         {
@@ -173,20 +173,19 @@ export function useInboxState(props: {
                     update: (
                         query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
                     ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-                ) =>
-                    dispatch({
-                        type: "Update",
-                        update,
-                        withAnimation: true,
-                    }),
+                ) => dispatch({type: "Update", update, withAnimation: true}),
                 [],
             ),
         },
         {
             isConnected,
-            subscribeToEvents,
+            subscribeToPongs,
+            subscribeToEvents: useCallback(
+                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                [subscribeToEvents],
+            ),
             backfillQuery: useCallback(
-                async ({readTime}) => {
+                async checkpoint => {
                     // Also observe the inbox when we successfully connect to realtime. When we're
                     // connected to realtime this also incidentally means the page is visible.
                     //
@@ -201,7 +200,7 @@ export function useInboxState(props: {
 
                     const {backfillEntriesResult} = await backfillInboxEntries(context, {
                         spaceId: space.id,
-                        readTime,
+                        checkpoint,
                     });
                     return backfillEntriesResult;
                 },

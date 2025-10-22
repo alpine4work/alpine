@@ -3,6 +3,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
@@ -17,6 +18,7 @@ import {
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
 } from "~/shared/web_socket/web_socket_protocol.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 const webSocketErrorDialogKey = Symbol("webSocketError");
 const webSocketErrorDialogEventEmitter = new EventEmitter();
@@ -48,6 +50,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
     subscribeToEvents: Memo<
         (subscriber: (event: WebSocketProtocolEventType<Protocol>) => void) => () => void
     >;
+    subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
     toggleShouldConnect: () => void;
 } {
     const context = useAppContext();
@@ -57,11 +60,13 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
         contextRef.current = context;
     });
 
-    const client = useMemo(() => {
-        if (!url) return null;
-        // eslint-disable-next-line react-compiler/react-compiler
-        return new WebSocketClient(() => contextRef.current, serviceName, protocol, url);
-    }, [protocol, serviceName, url]);
+    const client = useStateWithDependenciesWithoutDispatch(
+        ([protocol, serviceName, url]) => {
+            if (!url) return null;
+            return new WebSocketClient(() => contextRef.current, serviceName, protocol, url);
+        },
+        [protocol, serviceName, url],
+    );
 
     const clientState = useStore(client?.state ?? null);
 
@@ -100,6 +105,10 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
         }, [client, protocol.procedureSchemas]),
         subscribeToEvents: useCallback(
             subscriber => client?.subscribeToEvents(subscriber) ?? noop,
+            [client],
+        ),
+        subscribeToPongs: useCallback(
+            subscriber => client?.subscribeToPongs(subscriber) ?? noop,
             [client],
         ),
         toggleShouldConnect,

@@ -35,7 +35,7 @@ export default implementRpcs(definitions, {
             );
 
             return {
-                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
+                eventTransaction: await getDynamoGeneralRealtimeEventTransaction(context),
             };
         },
     },
