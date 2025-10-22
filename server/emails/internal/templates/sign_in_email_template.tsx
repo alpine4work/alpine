@@ -1,4 +1,4 @@
-import {Container, Link, Preview, Section} from "@react-email/components";
+import {Container, Link, Section} from "@react-email/components";
 import {EmailText} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
 import {EmailFooter} from "~/server/emails/internal/templates/email_footer.js";
@@ -36,13 +36,12 @@ export function SignInEmailTemplate({
 }) {
     assert(/^[a-zA-Z0-9]{6}$/.test(code), "Expected code to be six characters");
 
+    const title = shouldDangerouslyIncludeCodeInSubject
+        ? `Your sign in code is ${code}`
+        : "Your sign in code";
+
     return (
-        <BaseEmailTemplate>
-            <Preview data-email-preview="true">
-                {shouldDangerouslyIncludeCodeInSubject
-                    ? `Your sign in code is ${code}`
-                    : "Your sign in code"}
-            </Preview>
+        <BaseEmailTemplate title={title}>
             <Container>
                 <Section>
                     <EmailText>You requested a sign in code. Your code is:</EmailText>

@@ -40,6 +40,7 @@ const LoaderSchema = Schema.object({
                 title: Schema.string,
                 html: Schema.string,
                 htmlTitle: Schema.string,
+                preview: Schema.string.optional(),
             }),
         }),
         Schema.object({
@@ -74,10 +75,19 @@ export async function loader({params, context}: LoaderArgs) {
     const emailPreviewResult = await captureResultPromise(async () => {
         const renderedEmail = await emailTemplatePreview.render(context.tracer);
 
+        // HACK: HTML parsing with regex is bad, but for our internal dev testing,
+        // I think we can be a lil' ok with it. Let's find the preview by the data-email-preview
+        // tag on a div. We assume the preview is text only (as it's also enforced by TS).
+        // NOTE: this will break if the preview contains a "<" currently.
+        const previewMatch = renderedEmail.html.match(
+            /<div([^>]*)data-email-preview="true"([^>]*)>([^<]+)/,
+        );
+
         return {
             title: emailTemplatePreview.title,
             html: await pretty(renderedEmail.html),
             htmlTitle: renderedEmail.title,
+            preview: previewMatch ? previewMatch[3]!.trim() : undefined,
         };
     });
 
@@ -177,8 +187,18 @@ export default function EmailPreviewPage() {
                     borderBottom="grey-10"
                 >
                     {emailPreviewResult.ok && (
-                        <Box fontStyle="semi-bold" fontSize="200">
-                            {emailPreviewResult.value.htmlTitle}
+                        <Box
+                            fontStyle="semi-bold"
+                            fontSize="200"
+                            display="flex"
+                            alignItems="center"
+                        >
+                            {emailPreviewResult.value.htmlTitle}{" "}
+                            {emailPreviewResult.value.preview && (
+                                <Box paddingLeft="2" color="grey-60">
+                                    {emailPreviewResult.value.preview}
+                                </Box>
+                            )}
                         </Box>
                     )}
                     <Box flexGrow="1" />

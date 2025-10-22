@@ -12,6 +12,7 @@ import {colors} from "~/shared/design/core/colors.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -116,6 +117,11 @@ export function NotificationDigestEmailTemplate({
         title = `What’s been happening in ${spaceName}`;
     }
 
+    const preview = `You have ${printPrettySmallNumberSummary(
+        digestContent.digestEntries.length + digestContent.remainingEntryCount,
+        "update",
+    )}.`;
+
     return (
         <BaseEmailTemplate
             baseUrl={baseUrl}
@@ -136,7 +142,8 @@ export function NotificationDigestEmailTemplate({
                     }
                 }
             `}
-            preview={title}
+            title={title}
+            preview={preview}
             /* eslint-enable string-quotes */
         >
             <Section>

@@ -1,4 +1,4 @@
-import {Button, Link, Preview, Section} from "@react-email/components";
+import {Button, Link, Section} from "@react-email/components";
 import {EmailText, emailFontStyles} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
 import {EmailFooter} from "~/server/emails/internal/templates/email_footer.js";
@@ -13,9 +13,10 @@ export function SpaceInviteEmailTemplate({
     spaceUrl: string;
     spaceName: string;
 }) {
+    const title = `Welcome to ${spaceName} on Alpine!`;
+
     return (
-        <BaseEmailTemplate>
-            <Preview>{`Welcome to ${spaceName} on Alpine!`}</Preview>
+        <BaseEmailTemplate title={title}>
             <EmailText fontStyle="bold">Hi there,</EmailText>{" "}
             <EmailText>
                 You’ve been invited to join{" "}

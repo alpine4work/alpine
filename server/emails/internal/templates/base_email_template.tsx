@@ -4,6 +4,7 @@ import {EmailFont} from "~/server/emails/internal/components/email_font.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 // NOTE: There's lots of weirdness here that doesn't follow normal CSS/HTML practices because email clients
 // behave in strange ways. Style blocks are broken up so we can ensure we're under 8192 characters per block,
@@ -15,14 +16,17 @@ import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 export function BaseEmailTemplate({
     children,
     globalStyles,
+    title,
     preview,
     baseUrl = "https://alpine.inc",
 }: {
     children: React.ReactNode;
     globalStyles?: string;
+    title: string;
     preview?: string;
     baseUrl?: string;
 }) {
+    assert(title.length > 0, "Expected title to be non-empty");
     const lightColorsCssClasses = Object.entries(colorsWithShade).map(
         ([shade, color]) => `&.${shade} { color: ${color} !important; }`,
     );
@@ -147,10 +151,14 @@ export function BaseEmailTemplate({
                         `,
                     }}
                 />
-                {preview && <title>{preview}</title>}
+                <title>{title}</title>
             </Head>
             <Body className="body">
-                {preview && <Preview>{preview}</Preview>}
+                {/* We use data-email-preview as a tag to debug the preview text in our
+                    internal tooling. It's a standard tag used by other email clients
+                    for debugging purposes. It is not a formal standard.
+                */}
+                {preview && <Preview data-email-preview="true">{preview}</Preview>}
                 <Container>
                     <Section style={{paddingTop: "1em", paddingBottom: "1em"}}>
                         <div
