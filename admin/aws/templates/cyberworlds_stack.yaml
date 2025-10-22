@@ -1103,7 +1103,7 @@ Resources:
                         Ref: SesKinesisFirehoseStreamLogGroupC79C70AD
                     LogStreamName:
                         Ref: SesKinesisFirehoseStreamLogGroupS3DestinationEAC69861
-                Prefix: ses/email-events/!{timestamp:yyyy/MM/dd}/
+                Prefix: ses/email-events/
                 RoleARN:
                     Fn::GetAtt:
                         - SesKinesisFirehoseStreamS3DestinationRole062C7787

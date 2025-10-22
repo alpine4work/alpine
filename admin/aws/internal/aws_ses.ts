@@ -28,7 +28,7 @@ export class AwsSes extends Construct {
 
         const kinesisFirehoseStream = new DeliveryStream(this, "KinesisFirehoseStream", {
             destination: new S3Bucket(loggingBucket, {
-                dataOutputPrefix: "ses/email-events/!{timestamp:yyyy/MM/dd}/",
+                dataOutputPrefix: "ses/email-events/",
             }),
             deliveryStreamName: "EmailEventsStream",
             encryption: StreamEncryption.awsOwnedKey(),
