@@ -421,7 +421,7 @@ export function checkSchemaBackwardsCompatibility(
     }
 }
 
-export function checkPropertySchemaBackwardsCompatibility(
+function checkPropertySchemaBackwardsCompatibility(
     key: string,
     lastPropertySchema: SchemaSerializedObjectValuePropertyDescription,
     nextPropertySchema: SchemaSerializedObjectValuePropertyDescription,

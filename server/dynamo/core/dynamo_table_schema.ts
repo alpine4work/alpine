@@ -1864,6 +1864,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 const propertyValue = propertySchema.deserializeProperty(
                     serializedItem,
                     serializedKey,
+                    propertyKey,
                 );
                 if (propertyValue !== objectSchemaMissingPropertySymbol) {
                     item[propertyKey] = propertyValue;
@@ -3143,8 +3144,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         const serializedKey = propertySchema.serializedKey ?? attribute;
         const serializedObject: {[key: string]: SchemaSerializedValue} = {};
-        propertySchema.serializeProperty(serializedObject, serializedKey, attributeValue);
-        const serializedValue = serializedObject[serializedKey];
+        propertySchema.serializeProperty(
+            serializedObject,
+            serializedKey,
+            attributeValue,
+            attribute,
+        );
+
+        // We don't support optional properties or properties that serialize to
+        // multiple keys (e.g. `wrapOriginalPropertyInObject()`) in
+        // `transactionDirectlyUpdateItemAttribute()`. We only support attributes
+        // that serialize to a single property.
+        const serializedObjectEntries = Object.entries(serializedObject);
+        assert(serializedObjectEntries.length === 1);
+        assert(serializedObjectEntries[0]![0] === serializedKey);
+        const serializedValue = serializedObjectEntries[0]![1];
 
         const expressionAttributeValues: {[key: string]: AttributeValue} = {};
 

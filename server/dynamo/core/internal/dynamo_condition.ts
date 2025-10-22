@@ -416,7 +416,7 @@ class DynamoConditionAttributeExpression<
         // the default value when the attribute doesn't exist.
         let defaultValue: DynamoConditionExpressionCompilationDefault;
         try {
-            const value = propertySchema.deserializeProperty({}, this._key);
+            const value = propertySchema.deserializeProperty({}, serializedKey, this._key);
             if (value === objectSchemaMissingPropertySymbol) {
                 defaultValue = {hasDefault: false};
             } else {

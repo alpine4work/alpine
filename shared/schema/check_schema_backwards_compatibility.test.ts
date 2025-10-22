@@ -1602,3 +1602,130 @@ test("object can become union with default type when there’s a type value", ()
         sampleValues: [],
     });
 });
+
+test("property can become object with `wrapOriginalPropertyInObject()`", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({foo: Schema.integer}),
+        nextSchema: Schema.object({
+            foo: Schema.object({
+                a: Schema.integer,
+                b: Schema.integer,
+            }).wrapOriginalPropertyInObject("a", {b: 2}),
+        }),
+        sampleValues: [{foo: 1}],
+    });
+});
+
+test("renamed property can become object with `wrapOriginalPropertyInObject()`", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({foo: Schema.integer}),
+        nextSchema: Schema.object({
+            qux: Schema.object({foo: Schema.integer, b: Schema.integer})
+                .wrapOriginalPropertyInObject("foo", {b: 2})
+                .originalPropertyKey("foo"),
+        }),
+        sampleValues: [{foo: 1}],
+    });
+});
+
+test("property that became object with `wrapOriginalPropertyInObject()` checks backwards compatibility in other properties", () => {
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({
+            foo: Schema.object({
+                a: Schema.integer,
+                b: Schema.integer,
+            }).wrapOriginalPropertyInObject("a", {b: 2}),
+        }),
+        nextSchema: Schema.object({
+            foo: Schema.object({
+                a: Schema.integer,
+                b: Schema.string,
+            }).wrapOriginalPropertyInObject("a", {b: "hello"}),
+        }),
+        sampleValues: [{foo: {a: 1, b: 2}}],
+    });
+});
+
+test("property can become union with `wrapOriginalPropertyInUnionVariant()`", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({foo: Schema.integer}),
+        nextSchema: Schema.object({
+            foo: Schema.union({
+                X: Schema.object({
+                    type: Schema.value("X"),
+                    a: Schema.integer,
+                    b: Schema.integer,
+                }),
+                Y: Schema.object({
+                    type: Schema.value("Y"),
+                    c: Schema.integer,
+                    d: Schema.integer,
+                }),
+            }).wrapOriginalPropertyInUnionVariant("X", "a", {b: 2}),
+        }),
+        sampleValues: [{foo: 1}],
+    });
+});
+
+test("renamed property can become union with `wrapOriginalPropertyInUnionVariant()`", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({foo: Schema.integer}),
+        nextSchema: Schema.object({
+            qux: Schema.union({
+                X: Schema.object({
+                    type: Schema.value("X"),
+                    a: Schema.integer,
+                    b: Schema.integer,
+                }),
+                Y: Schema.object({
+                    type: Schema.value("Y"),
+                    c: Schema.integer,
+                    d: Schema.integer,
+                }),
+            })
+                .wrapOriginalPropertyInUnionVariant("X", "a", {b: 2})
+                .originalPropertyKey("foo"),
+        }),
+        sampleValues: [{foo: 1}],
+    });
+});
+
+test("property that became object with `wrapOriginalPropertyInUnionVariant()` checks backwards compatibility in other properties", () => {
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({
+            foo: Schema.union({
+                X: Schema.object({
+                    type: Schema.value("X"),
+                    a: Schema.integer,
+                    b: Schema.integer,
+                }),
+                Y: Schema.object({
+                    type: Schema.value("Y"),
+                    c: Schema.integer,
+                    d: Schema.integer,
+                }),
+            }).wrapOriginalPropertyInUnionVariant("X", "a", {b: 2}),
+        }),
+        nextSchema: Schema.object({
+            foo: Schema.union({
+                X: Schema.object({
+                    type: Schema.value("X"),
+                    a: Schema.integer,
+                    b: Schema.string,
+                }),
+                Y: Schema.object({
+                    type: Schema.value("Y"),
+                    c: Schema.integer,
+                    d: Schema.integer,
+                }),
+            }).wrapOriginalPropertyInUnionVariant("X", "a", {b: "hello"}),
+        }),
+        sampleValues: [{foo: {type: "X", a: 1, b: 2}}],
+    });
+});

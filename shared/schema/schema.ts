@@ -15,13 +15,15 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Optionalize} from "~/shared/helpers/types/optionalize.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id, isId} from "~/shared/id/id.js";
-import {checkPropertySchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
+import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {
     SchemaSerializedObjectValuePropertyDescription,
     SchemaSerializedValueDescription,
@@ -803,6 +805,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      *
      * This runs in the opposite order of `transform()`. It runs before all other
      * deserialization and after all other serialization.
+     *
+     * You shouldn't mutate the underlying values in this function. Instead return
+     * new values!
      */
     public migration({
         serialize,
@@ -1086,6 +1091,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                             serializedValueBase,
                             serializedKey,
                             (value as any)[key],
+                            key,
                         );
                     }
 
@@ -1314,15 +1320,28 @@ export class ObjectSchema<Value> extends Schema<Value> {
         propertySchemaByKey: ReadonlyMap<string, ObjectPropertySchema<unknown, unknown>>,
         validations: ReadonlyArray<{message: string; validate: (value: Value) => boolean}> | null,
     ) {
-        const getDescription = (): SchemaSerializedValueDescription => ({
-            type: "Object",
-            propertySchemaByKey: Object.fromEntries(
-                Array.from(propertySchemaByKey, ([key, schema]) => [
-                    schema.serializedKey ?? key,
-                    schema.getDescription(),
-                ]),
-            ),
-        });
+        const getDescription = (): SchemaSerializedValueDescription => {
+            const propertySchemaDescriptionByKey: {
+                [key: string]: SchemaSerializedObjectValuePropertyDescription;
+            } = {};
+
+            for (const [key, schema] of propertySchemaByKey) {
+                const descriptions = schema.getDescription(schema.serializedKey ?? key, key);
+                for (const [key, description] of descriptions) {
+                    assert(
+                        !hasOwnProperty(propertySchemaDescriptionByKey, key),
+                        quote`Duplicate property key ${key}`,
+                    );
+                    // @ts-expect-error
+                    propertySchemaDescriptionByKey[key] = description;
+                }
+            }
+
+            return {
+                type: "Object",
+                propertySchemaByKey: propertySchemaDescriptionByKey,
+            };
+        };
 
         const serializeInto = (value: Value, target: {[key: string]: SchemaSerializedValue}) => {
             if (validations !== null) {
@@ -1334,7 +1353,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
             for (const [key, schema] of propertySchemaByKey) {
                 const serializedKey = schema.serializedKey ?? key;
-                schema.serializeProperty(target, serializedKey, (value as any)[key]);
+                schema.serializeProperty(target, serializedKey, (value as any)[key], key);
             }
         };
 
@@ -1353,6 +1372,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
                 const keyValue = schema.deserializeProperty(
                     value as any as SchemaSerializedObjectValue,
                     serializedKey,
+                    key,
                 );
 
                 if (keyValue !== objectSchemaMissingPropertySymbol) {
@@ -1459,10 +1479,10 @@ export class ObjectSchema<Value> extends Schema<Value> {
      * Takes two object schemas and creates a new object schema with both of their
      * properties.
      *
-     * If you have the same key in both schema, then we check that the old property
-     * is backwards compatible with the new property. That way, you can use `this`
-     * schema to deserialize values from the merged schema since `this` schema is
-     * a supertype of the merged schema.
+     * If you have the same key in both schemas, then we check that the old
+     * property is backwards compatible with the new property. That way, you can
+     * use `this` schema to deserialize values from the merged schema since `this`
+     * schema is a supertype of the merged schema.
      */
     public merge<OtherValue>(
         otherSchema: ObjectSchema<OtherValue>,
@@ -1473,10 +1493,25 @@ export class ObjectSchema<Value> extends Schema<Value> {
             const oldPropertySchema = propertySchemaByKey.get(key);
 
             if (oldPropertySchema) {
-                checkPropertySchemaBackwardsCompatibility(
-                    key,
-                    newPropertySchema.getDescription(),
-                    oldPropertySchema.getDescription(),
+                checkSchemaBackwardsCompatibility(
+                    {
+                        type: "Object",
+                        propertySchemaByKey: Object.fromEntries(
+                            newPropertySchema.getDescription(
+                                newPropertySchema.serializedKey ?? key,
+                                key,
+                            ),
+                        ),
+                    },
+                    {
+                        type: "Object",
+                        propertySchemaByKey: Object.fromEntries(
+                            oldPropertySchema.getDescription(
+                                oldPropertySchema.serializedKey ?? key,
+                                key,
+                            ),
+                        ),
+                    },
                 );
             }
 
@@ -1541,6 +1576,78 @@ export class ObjectSchema<Value> extends Schema<Value> {
             null,
         );
     }
+
+    /**
+     * Schema combinator for running a migration that turns a property value
+     * into an object.
+     *
+     * So for example, you can turn the following schema:
+     *
+     * ```ts
+     * Schema.object({
+     *     foo: Schema.integer,
+     * });
+     * ```
+     *
+     * ...into an object where `foo` is now represented by the property `a`:
+     *
+     * ```ts
+     * Schema.object({
+     *     foo: Schema.object({
+     *         a: Schema.integer,
+     *         b: Schema.string.nullable(),
+     *     }).wrapOriginalPropertyInObject("a", {b: null}),
+     * });
+     * ```
+     *
+     * Useful if you want to add more data alongside some other property in
+     * your schema.
+     *
+     * The serialized object looks like this:
+     *
+     * ```json
+     * {
+     *     "foo": 42,
+     *     "foo2": {"b": "hello"},
+     * }
+     * ```
+     *
+     * The property `a` stays at the old position `foo` (so old code can
+     * deserialize the object) whereas the new property is added to a new object
+     * `foo2`.
+     *
+     * If you use `originalPropertyKey()` to rename the property at the same time
+     * like this:
+     *
+     * ```ts
+     * Schema.object({
+     *     bar: Schema.object({
+     *         a: Schema.integer,
+     *         b: Schema.string.nullable(),
+     *     })
+     *         .wrapOriginalPropertyInObject("a", {b: null})
+     *         .originalPropertyKey("foo"),
+     * });
+     * ```
+     *
+     * ...then the serialized object looks like this:
+     *
+     * ```json
+     * {
+     *     "foo": 42,
+     *     "bar": {"b": "hello"},
+     * }
+     * ```
+     *
+     * The second object with new properties has the new property key whereas the
+     * old object has the old property key.
+     */
+    public wrapOriginalPropertyInObject<const Key extends keyof Value & string>(
+        key: Key,
+        defaultObject: DistributiveOmit<Value, Key>,
+    ) {
+        return ObjectPropertySchema._wrapOriginalPropertyInObject(this, key, defaultObject);
+    }
 }
 
 export class ObjectPropertySchema<Value, SchemaValue extends Value> {
@@ -1552,20 +1659,13 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
      */
     public readonly serializedKey: string | null;
 
-    private readonly _getDescription: () => SchemaSerializedObjectValuePropertyDescription;
-    private _description: SchemaSerializedObjectValuePropertyDescription | null = null;
-
     /**
      * Get the description of the serialized property written by this schema.
-     *
-     * Computed lazily and then cached so you get the same value every time you
-     * call this function. Lazily computed since we don't always know the
-     * description of a schema during initialization.
      */
-    public getDescription(): SchemaSerializedObjectValuePropertyDescription {
-        if (this._description === null) this._description = this._getDescription();
-        return this._description;
-    }
+    public readonly getDescription: (
+        key: string,
+        schemaKey: string,
+    ) => ReadonlyArray<readonly [string, SchemaSerializedObjectValuePropertyDescription]>;
 
     /**
      * The schema for our underlying value. Useful for static analysis.
@@ -1584,6 +1684,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         object: {[key: string]: SchemaSerializedValue | undefined},
         key: string,
         value: Value,
+        schemaKey: string,
     ) => void;
 
     /**
@@ -1598,7 +1699,23 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     public readonly deserializeProperty: (
         object: SchemaSerializedObjectValue,
         key: string,
+        schemaKey: string,
     ) => Value | typeof objectSchemaMissingPropertySymbol;
+
+    /**
+     * If the property is determined to be missing by a missing property combinator
+     * (`optional()` and `default()`) then they run this function to figure out
+     * what value to use. If this function returns
+     * `objectSchemaMissingPropertySymbol` then we use whatever behavior was
+     * defined by the missing property combinator.
+     */
+    private readonly _deserializeMissingProperty:
+        | ((
+              object: SchemaSerializedObjectValue,
+              key: string,
+              schemaKey: string,
+          ) => Value | typeof objectSchemaMissingPropertySymbol)
+        | null;
 
     /**
      * Validates that any constraints for the schema are met beyond the
@@ -1615,27 +1732,41 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         getDescription,
         serializeProperty,
         deserializeProperty,
+        deserializeMissingProperty,
         validateProperty,
     }: {
         serializedKey: string | null;
         valueSchema: Schema<SchemaValue>;
-        getDescription: () => SchemaSerializedObjectValuePropertyDescription;
+        getDescription: (
+            key: string,
+            schemaKey: string,
+        ) => ReadonlyArray<readonly [string, SchemaSerializedObjectValuePropertyDescription]>;
         serializeProperty: (
             object: {[key: string]: SchemaSerializedValue | undefined},
             key: string,
             value: Value,
+            schemaKey: string,
         ) => void;
         deserializeProperty: (
             object: SchemaSerializedObjectValue,
             key: string,
+            schemaKey: string,
         ) => Value | typeof objectSchemaMissingPropertySymbol;
+        deserializeMissingProperty:
+            | ((
+                  object: SchemaSerializedObjectValue,
+                  key: string,
+                  schemaKey: string,
+              ) => Value | typeof objectSchemaMissingPropertySymbol)
+            | null;
         validateProperty: ((value: Value) => void) | null;
     }) {
         this.serializedKey = serializedKey;
         this.valueSchema = valueSchema;
-        this._getDescription = getDescription;
+        this.getDescription = getDescription;
         this.serializeProperty = serializeProperty;
         this.deserializeProperty = deserializeProperty;
+        this._deserializeMissingProperty = deserializeMissingProperty;
         this.validateProperty = validateProperty;
     }
 
@@ -1646,10 +1777,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         return new ObjectPropertySchema({
             serializedKey: null,
             valueSchema: schema,
-            getDescription: () => ({
-                valueSchema: schema.getDescription(),
-                optional: false,
-            }),
+            getDescription: key => [[key, {valueSchema: schema.getDescription(), optional: false}]],
             serializeProperty: (object, key, value) => {
                 object[key] = schema.serialize(value);
             },
@@ -1663,6 +1791,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                     schema.deserialize(value),
                 );
             },
+            deserializeMissingProperty: null,
             validateProperty: schema.validate,
         });
     }
@@ -1671,23 +1800,46 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     public optional(): ObjectPropertySchema<Value | undefined, SchemaValue> {
         const {validateProperty} = this;
 
-        return new ObjectPropertySchema({
+        const deserializeMissingProperty = this._deserializeMissingProperty;
+
+        return new ObjectPropertySchema<Value | undefined, SchemaValue>({
             serializedKey: this.serializedKey,
             valueSchema: this.valueSchema,
-            getDescription: () => ({
-                ...this.getDescription(),
-                optional: true,
-            }),
-            serializeProperty: (object, key, value) => {
-                if (value === undefined) return;
-                this.serializeProperty(object, key, value);
-            },
-            deserializeProperty: (object, key) => {
-                if (!hasOwnProperty(object, key) || object[key] === undefined)
-                    return objectSchemaMissingPropertySymbol;
+            getDescription: (key, schemaKey) => {
+                const descriptions = this.getDescription(key, schemaKey);
 
-                return this.deserializeProperty(object, key);
+                return descriptions.map(description => {
+                    if (description[0] !== key) return description;
+                    return [description[0], {...description[1], optional: true}];
+                });
             },
+            serializeProperty: (object, key, value, schemaKey) => {
+                if (value === undefined) return;
+                this.serializeProperty(object, key, value, schemaKey);
+            },
+            deserializeProperty:
+                deserializeMissingProperty === null
+                    ? (object, key, schemaKey) => {
+                          if (!hasOwnProperty(object, key) || object[key] === undefined) {
+                              return objectSchemaMissingPropertySymbol;
+                          }
+
+                          return this.deserializeProperty(object, key, schemaKey);
+                      }
+                    : (object, key, schemaKey) => {
+                          if (!hasOwnProperty(object, key) || object[key] === undefined) {
+                              const deserializedValue = deserializeMissingProperty(
+                                  object,
+                                  key,
+                                  schemaKey,
+                              );
+
+                              return deserializedValue;
+                          }
+
+                          return this.deserializeProperty(object, key, schemaKey);
+                      },
+            deserializeMissingProperty: null,
             validateProperty: validateProperty
                 ? value => {
                       if (value !== undefined) {
@@ -1703,21 +1855,98 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         // Validate that the default value actually matches our schema.
         this.validateProperty?.(defaultValue);
 
+        const deserializeMissingProperty = this._deserializeMissingProperty;
+
         return new ObjectPropertySchema({
             serializedKey: this.serializedKey,
             valueSchema: this.valueSchema,
-            getDescription: () => ({
-                ...this.getDescription(),
-                optional: true,
-            }),
-            serializeProperty: (object, key, value) => {
-                this.serializeProperty(object, key, value);
+            getDescription: (key, schemaKey) => {
+                const descriptions = this.getDescription(key, schemaKey);
+
+                return descriptions.map(description => {
+                    if (description[0] !== key) return description;
+                    return [description[0], {...description[1], optional: true}];
+                });
             },
-            deserializeProperty: (object, key) => {
-                if (!hasOwnProperty(object, key) || object[key] === undefined) return defaultValue;
-                return this.deserializeProperty(object, key);
+            serializeProperty: (object, key, value, schemaKey) => {
+                this.serializeProperty(object, key, value, schemaKey);
             },
+            deserializeProperty:
+                deserializeMissingProperty === null
+                    ? (object, key, schemaKey) => {
+                          if (!hasOwnProperty(object, key) || object[key] === undefined) {
+                              return defaultValue;
+                          }
+
+                          return this.deserializeProperty(object, key, schemaKey);
+                      }
+                    : (object, key, schemaKey) => {
+                          if (!hasOwnProperty(object, key) || object[key] === undefined) {
+                              const deserializedValue = deserializeMissingProperty(
+                                  object,
+                                  key,
+                                  schemaKey,
+                              );
+
+                              if (deserializedValue !== objectSchemaMissingPropertySymbol)
+                                  return deserializedValue;
+
+                              return defaultValue;
+                          }
+
+                          return this.deserializeProperty(object, key, schemaKey);
+                      },
+            deserializeMissingProperty: null,
             validateProperty: this.validateProperty,
+        });
+    }
+
+    /**
+     * Same behavior as `Schema.nullable()` but can be used with an
+     * `ObjectPropertySchema`.
+     */
+    public nullable(): ObjectPropertySchema<Value | null, SchemaValue> {
+        const {validateProperty} = this;
+
+        return new ObjectPropertySchema<Value | null, SchemaValue>({
+            serializedKey: this.serializedKey,
+            valueSchema: this.valueSchema,
+            getDescription: (key, schemaKey) => {
+                const descriptions = this.getDescription(key, schemaKey);
+
+                return descriptions.map(description => {
+                    if (description[0] !== key) return description;
+                    return [
+                        description[0],
+                        {
+                            ...description[1],
+                            valueSchema: {type: "Nullable", schema: description[1].valueSchema},
+                        },
+                    ];
+                });
+            },
+            serializeProperty: (object, key, value, schemaKey) => {
+                if (value === null) {
+                    object[key] = null;
+                    return;
+                }
+                this.serializeProperty(object, key, value, schemaKey);
+            },
+            deserializeProperty: (object, key, schemaKey) => {
+                if (object[key] === null) {
+                    return null;
+                }
+
+                return this.deserializeProperty(object, key, schemaKey);
+            },
+            deserializeMissingProperty: this._deserializeMissingProperty,
+            validateProperty: validateProperty
+                ? value => {
+                      if (value !== null) {
+                          validateProperty(value);
+                      }
+                  }
+                : null,
         });
     }
 
@@ -1728,10 +1957,244 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
         return new ObjectPropertySchema({
             serializedKey: originalKey,
             valueSchema: this.valueSchema,
-            getDescription: () => this.getDescription(),
+            getDescription: this.getDescription,
             serializeProperty: this.serializeProperty,
             deserializeProperty: this.deserializeProperty,
+            deserializeMissingProperty: this._deserializeMissingProperty,
             validateProperty: this.validateProperty,
+        });
+    }
+
+    /**
+     * Should only be called by `ObjectSchema.wrapOriginalPropertyInObject()`.
+     */
+    public static _wrapOriginalPropertyInObject<Value, Key extends keyof Value & string>(
+        objectSchema: ObjectSchema<Value>,
+        key: Key,
+        defaultObject: DistributiveOmit<Value, Key>,
+    ): ObjectPropertySchema<Value, Value> {
+        assert(!hasOwnProperty(defaultObject, key));
+
+        const propertySchema = assertExists(objectSchema.propertySchemaByKey.get(key));
+        const objectSchemaWithoutKey = objectSchema.omit([key]);
+
+        return new ObjectPropertySchema({
+            serializedKey: null,
+            valueSchema: objectSchema,
+            getDescription: (serializedKey, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                const descriptions = propertySchema.getDescription(serializedKey, schemaKey);
+
+                return [
+                    ...descriptions,
+                    [
+                        serializedKey2,
+                        {
+                            valueSchema: objectSchemaWithoutKey.getDescription(),
+                            optional: true,
+                        },
+                    ],
+                ];
+            },
+            serializeProperty: (wrapperObject, serializedKey, value, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                wrapperObject[serializedKey2] = objectSchemaWithoutKey.serialize(value);
+
+                propertySchema.serializeProperty(
+                    wrapperObject,
+                    serializedKey,
+                    (value as any)[key],
+                    schemaKey,
+                );
+            },
+            deserializeProperty: (serializedWrapperObject, serializedKey, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                const serializedObject = hasOwnProperty(serializedWrapperObject, serializedKey2)
+                    ? serializedWrapperObject[serializedKey2]
+                    : undefined;
+
+                const value = propertySchema.deserializeProperty(
+                    serializedWrapperObject,
+                    serializedKey,
+                    schemaKey,
+                );
+
+                if (serializedObject === undefined) {
+                    if (value === objectSchemaMissingPropertySymbol) {
+                        return defaultObject as Value;
+                    } else {
+                        return {...defaultObject, [key]: value} as Value;
+                    }
+                } else {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "ObjectProperty", key: serializedKey2},
+                        () => {
+                            const object = objectSchemaWithoutKey.deserialize(serializedObject);
+                            if (value === objectSchemaMissingPropertySymbol) {
+                                return object as Value;
+                            } else {
+                                return {...object, [key]: value} as Value;
+                            }
+                        },
+                    );
+                }
+            },
+            deserializeMissingProperty: null,
+            validateProperty: objectSchema.validate,
+        });
+    }
+
+    /**
+     * Should only be called by `UnionSchema.wrapOriginalPropertyInUnionVariant()`.
+     */
+    public static _wrapOriginalPropertyInUnionVariant<
+        Value extends {readonly type: string},
+        Type extends Value["type"],
+        Key extends keyof Extract<Value, {readonly type: Type}> & string,
+    >(
+        unionSchema: UnionSchema<Value>,
+        type: Type,
+        key: Key,
+        defaultObject: DistributiveOmit<Extract<Value, {readonly type: Type}>, Key | "type">,
+    ): ObjectPropertySchema<Value, Value> {
+        // We assume the variant type is on the `type` property for the serialized and
+        // deserialized objects.
+        assert(unionSchema.hasDefaultSerializedTypeKey);
+        assert(unionSchema.hasDefaultDeserializedTypeKey);
+
+        assert(!hasOwnProperty(defaultObject, key));
+        assert(!hasOwnProperty(defaultObject, "type"));
+
+        const variantSchema = assertExists(unionSchema.variantSchemaByType.get(type));
+        const variantObjectSchema = variantSchema.schema;
+        assert(variantObjectSchema instanceof ObjectSchema);
+        const propertySchema = assertExists(variantObjectSchema.propertySchemaByKey.get(key));
+        const variantObjectSchemaWithoutKey = variantObjectSchema.omit([key]);
+
+        return new ObjectPropertySchema({
+            serializedKey: null,
+            valueSchema: unionSchema,
+            getDescription: (serializedKey, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                // Both `serializedKey` and `serializedKey2` are optional properties but you
+                // must have one or the other (and sometimes both) to correctly deserialize
+                // this schema.
+                const descriptions = propertySchema
+                    .getDescription(serializedKey, schemaKey)
+                    .map(description => {
+                        if (description[0] !== serializedKey) return description;
+                        return [description[0], {...description[1], optional: true}] as const;
+                    });
+
+                return [
+                    ...descriptions,
+                    [
+                        serializedKey2,
+                        {
+                            valueSchema: variantObjectSchemaWithoutKey.getDescription(),
+                            optional: true,
+                        },
+                    ],
+                ];
+            },
+            serializeProperty: (wrapperObject, serializedKey, value, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                if (value.type !== type) {
+                    wrapperObject[serializedKey2] = unionSchema.serialize(value);
+                } else {
+                    wrapperObject[serializedKey2] = variantObjectSchemaWithoutKey.serialize(
+                        value as any,
+                    );
+
+                    propertySchema.serializeProperty(
+                        wrapperObject,
+                        serializedKey,
+                        (value as any)[key],
+                        schemaKey,
+                    );
+                }
+            },
+            deserializeProperty: (serializedWrapperObject, serializedKey, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                const serializedObject = hasOwnProperty(serializedWrapperObject, serializedKey2)
+                    ? serializedWrapperObject[serializedKey2]
+                    : undefined;
+
+                if (
+                    serializedObject !== undefined &&
+                    isObject(serializedObject) &&
+                    serializedObject.type !== type
+                ) {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "ObjectProperty", key: serializedKey2},
+                        () => unionSchema.deserialize(serializedObject),
+                    );
+                }
+
+                const value = propertySchema.deserializeProperty(
+                    serializedWrapperObject,
+                    serializedKey,
+                    schemaKey,
+                );
+
+                if (serializedObject === undefined) {
+                    if (value === objectSchemaMissingPropertySymbol) {
+                        return {...defaultObject, type} as any as Value;
+                    } else {
+                        return {...defaultObject, type, [key]: value} as any as Value;
+                    }
+                } else {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "ObjectProperty", key: serializedKey2},
+                        () => {
+                            const object =
+                                variantObjectSchemaWithoutKey.deserialize(serializedObject);
+                            if (value === objectSchemaMissingPropertySymbol) {
+                                return object as Value;
+                            } else {
+                                return {...object, [key]: value} as Value;
+                            }
+                        },
+                    );
+                }
+            },
+            deserializeMissingProperty: (serializedWrapperObject, serializedKey, schemaKey) => {
+                const serializedKey2 =
+                    schemaKey !== serializedKey ? schemaKey : `${serializedKey}2`;
+
+                const serializedObject = hasOwnProperty(serializedWrapperObject, serializedKey2)
+                    ? serializedWrapperObject[serializedKey2]
+                    : undefined;
+
+                // If the migrated property is missing but we have a secondary union object
+                // property that's a different type then the one we're migrating to then
+                // deserialize the secondary union object.
+                if (
+                    serializedObject !== undefined &&
+                    isObject(serializedObject) &&
+                    serializedObject.type !== type
+                ) {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "ObjectProperty", key: serializedKey2},
+                        () => unionSchema.deserialize(serializedObject),
+                    );
+                }
+
+                return objectSchemaMissingPropertySymbol;
+            },
+            validateProperty: unionSchema.validate,
         });
     }
 }
@@ -1845,6 +2308,18 @@ export class UnionSchema<Value> extends Schema<Value> {
     private readonly _serializedTypeKey: string;
 
     /**
+     * Do we have the default `type` serialized key or something custom?
+     */
+    public get hasDefaultSerializedTypeKey(): boolean {
+        return this._serializedTypeKey === "type";
+    }
+
+    /**
+     * Do we have the default `type` deserialized key or something custom?
+     */
+    public readonly hasDefaultDeserializedTypeKey: boolean;
+
+    /**
      * Serialize the value. Will always serialize into an object value.
      */
     public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
@@ -1852,6 +2327,7 @@ export class UnionSchema<Value> extends Schema<Value> {
     private constructor({
         variantSchemaByType,
         serializedTypeKey,
+        hasDefaultDeserializedTypeKey,
         getDescription,
         serialize,
         deserialize,
@@ -1859,6 +2335,7 @@ export class UnionSchema<Value> extends Schema<Value> {
     }: {
         variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<Value>>;
         serializedTypeKey: string;
+        hasDefaultDeserializedTypeKey: boolean;
         getDescription: () => SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
@@ -1872,6 +2349,7 @@ export class UnionSchema<Value> extends Schema<Value> {
         });
         this.variantSchemaByType = variantSchemaByType;
         this._serializedTypeKey = serializedTypeKey;
+        this.hasDefaultDeserializedTypeKey = hasDefaultDeserializedTypeKey;
     }
 
     /**
@@ -1974,6 +2452,7 @@ export class UnionSchema<Value> extends Schema<Value> {
         return new UnionSchema<SchemaType<Config[keyof Config]>>({
             variantSchemaByType: schemaByType,
             serializedTypeKey,
+            hasDefaultDeserializedTypeKey: getType === undefined && deserializedTypeKey === "type",
             getDescription: () => ({
                 type: "Union",
                 typeKey: serializedTypeKey,
@@ -2052,6 +2531,7 @@ export class UnionSchema<Value> extends Schema<Value> {
         return new UnionSchema<Value>({
             variantSchemaByType: this.variantSchemaByType,
             serializedTypeKey: this._serializedTypeKey,
+            hasDefaultDeserializedTypeKey: this.hasDefaultDeserializedTypeKey,
             getDescription: () => ({
                 ...this.getDescription(),
                 defaultTypeValue: type,
@@ -2080,6 +2560,28 @@ export class UnionSchema<Value> extends Schema<Value> {
             },
             validate: this.validate,
         });
+    }
+
+    /**
+     * Same as `ObjectSchema.wrapOriginalPropertyInObject()` but for unions. See
+     * the documentation on `ObjectSchema.wrapOriginalPropertyInObject()`.
+     */
+    public wrapOriginalPropertyInUnionVariant<
+        Value extends {readonly type: string},
+        const Type extends Value["type"],
+        const Key extends keyof Extract<Value, {readonly type: Type}> & string,
+    >(
+        this: UnionSchema<Value>,
+        type: Type,
+        key: Key,
+        defaultObject: DistributiveOmit<Extract<Value, {readonly type: Type}>, Key | "type">,
+    ) {
+        return ObjectPropertySchema._wrapOriginalPropertyInUnionVariant(
+            this,
+            type,
+            key,
+            defaultObject,
+        );
     }
 }
 
