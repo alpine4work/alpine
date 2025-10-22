@@ -10301,6 +10301,235 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
+        test("can’t create message with message range parent that contains two messages and the last one has a parent", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message1.index},
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 2,
+                        startVersion: 0,
+                        endIndex: message2.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range can’t contain message with parent");
+        });
+
+        test("can’t create message with message range parent that contains three messages and the middle one has a parent", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message1.index},
+                content: content2,
+                fileIds: [],
+            });
+
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content4,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 2,
+                        startVersion: 0,
+                        endIndex: message3.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content1,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range can’t contain message with parent");
+        });
+
+        test("can create message with message range parent that contains two messages and the first one has a parent", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: {type: "Message", index: message1.index},
+                content: content2,
+                fileIds: [],
+            });
+
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content4,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: {
+                    type: "MessagesRange",
+                    startIndex: message2.index,
+                    startPos: 2,
+                    startVersion: 0,
+                    endIndex: message3.index,
+                    endPos: 2,
+                    endVersion: 0,
+                },
+                content: content1,
+                fileIds: [],
+            });
+        });
+
+        test("can’t create message with message range parent that contains two messages and the last one has a different author", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            const message2 = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 2,
+                        startVersion: 0,
+                        endIndex: message2.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content4,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range can’t contain messages from different authors");
+        });
+
+        test("can’t create message with message range parent that contains three messages and the middle one has a different author", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message1 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parent: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            const message3 = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content4,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session2), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        startPos: 2,
+                        startVersion: 0,
+                        endIndex: message3.index,
+                        endPos: 2,
+                        endVersion: 0,
+                    },
+                    content: content1,
+                    fileIds: [],
+                }),
+            ).rejects.toThrow("Message range can’t contain messages from different authors");
+        });
+
         test("loading messages from end when a message includes message range parent includes all messages in the range", async () => {
             const room = await createRoom(context.action(session1), space.id);
 

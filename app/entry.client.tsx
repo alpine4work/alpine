@@ -4,6 +4,7 @@ import {hydrateRoot} from "react-dom/client";
 import {AppRemixBrowser} from "~/app/router/app_remix_browser.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
+import {registerAlwaysClearSelectionOnMouseDown} from "~/client/design/register_always_clear_selection_on_mouse_down.js";
 import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
 import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
 import {subscribeToColorSchemeChange} from "~/client/helpers/color_scheme.js";
@@ -30,6 +31,8 @@ declare global {
 globalThis.__remixErrorSchema = ErrorSchema;
 
 async function main() {
+    registerAlwaysClearSelectionOnMouseDown();
+
     // Used by `s.$spaceId.inbox.tsx` to load routes rendered in the peek before
     // React hydration starts (which will need the route module code).
     if (window.__remixLoadExtraRouteIds) {

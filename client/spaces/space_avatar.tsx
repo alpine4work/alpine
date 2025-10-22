@@ -35,7 +35,7 @@ function InternalSpaceAvatar({
         theme,
     );
 
-    const backgroundColor = avatarContent ? avatarContentBackgroundColor : "grey-30-const";
+    const backgroundColor = avatarContent ? avatarContentBackgroundColor : undefined;
 
     return (
         <Box

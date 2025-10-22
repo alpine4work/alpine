@@ -1222,6 +1222,7 @@ export const fileNearBlackClassName = style({
     selectors: {
         [`${darkColorSchemeSelector} &${fileTransparentBackgroundClassName}`]: {
             backgroundColor: colors["grey-0"],
+            vars: {[backgroundColorVar]: colors["grey-0"]},
         },
     },
 });
@@ -1230,6 +1231,7 @@ export const fileNearWhiteClassName = style({
     selectors: {
         [`${lightColorSchemeSelector} &${fileTransparentBackgroundClassName}`]: {
             backgroundColor: colors["grey-100"],
+            vars: {[backgroundColorVar]: colors["grey-100"]},
         },
     },
 });
@@ -1238,6 +1240,7 @@ export const fileEntityClassName = style({
     borderRadius: spacing["1.5"],
     backgroundColor: colorSchemeVars["grey-0"],
     boxShadow: elevationVars["elevation-5-without-border"],
+    vars: {[backgroundColorVar]: colorSchemeVars["grey-0"]},
 });
 
 // If the user's pointer is down and they're dragging to change the selection

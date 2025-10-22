@@ -37,7 +37,10 @@ import {
     MessageInputFile,
     addMessageInputFiles,
 } from "~/client/content/messaging/add_message_input_files.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {
+    getTruncatedMessageContentForReplyPreview,
+    getTruncatedMessagesRangeContentForReplyPreview,
+} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/internal/message_input_mobile_keyboard_toolbar.js";
 import {MessageInputFileEntityPreview} from "~/client/content/messaging/message_input_file_entity_preview.js";
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
@@ -126,6 +129,7 @@ import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -166,8 +170,8 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
         state: {isEditing: true; messageIndex: number};
         dispatch: (action: {type: "CancelEditing"}) => void;
     } | null;
-    replyingToMessage?: Message | null;
-    onClearReplyingToMessage?: () => void;
+    parent?: MessageContentPayloadParentWithMessages<RoomKey, Message> | null;
+    onParentClear?: () => void;
     onJumpToMessage?: (message: Message) => void;
     onShowTypingIndicator?: () => void;
     onHideTypingIndicator?: () => void;
@@ -179,6 +183,25 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
     onArrowUpKeyDown?: (event: KeyboardEvent) => void;
 };
+
+export type MessageContentPayloadParentWithMessages<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> =
+    | {
+          readonly type: "Message";
+          readonly message: Message;
+      }
+    | {
+          readonly type: "MessagesRange";
+          readonly messages: ReadonlyArray<Message>;
+          readonly startIndex: number;
+          readonly endIndex: number;
+          readonly startVersion: number;
+          readonly endVersion: number;
+          readonly startPos: number;
+          readonly endPos: number;
+      };
 
 const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
     RoomKey extends string,
@@ -215,8 +238,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         isNativeMobileRefocusHackDisabled,
         fileAttachmentTarget,
         messageEditingForThisInput = null,
-        replyingToMessage: replyingToMessageProp,
-        onClearReplyingToMessage,
+        parent: parentProp,
+        onParentClear,
         onJumpToMessage,
         onShowTypingIndicator,
         onHideTypingIndicator,
@@ -262,7 +285,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     const events = useEvents({
         clear: () => {
-            onClearReplyingToMessage?.();
+            onParentClear?.();
             messageEditingForThisInput?.dispatch({type: "CancelEditing"});
 
             const [newState, transaction] = state.delete();
@@ -351,7 +374,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     const isEditingMessage = !!messageEditingForThisInput;
 
-    const replyingToMessage = !isEditingMessage ? replyingToMessageProp : null;
+    const parent = !isEditingMessage ? parentProp : null;
 
     const onBeforeFocusFromReplyOrEditingChange = useEvent(
         onBeforeFocusFromReplyOrEditingChangeProp,
@@ -359,12 +382,25 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     // Focus the message input whenever the message we're replying to changes. Or
     // if we start editing the message.
-    const focusKey =
-        replyingToMessage?.index !== undefined
-            ? `Replying:${replyingToMessage?.index}`
-            : isEditingMessage
-            ? `Editing:${messageEditingForThisInput.state.messageIndex}`
-            : null;
+    let focusKey: string | null = null;
+
+    if (isEditingMessage) {
+        focusKey = `Editing:${messageEditingForThisInput.state.messageIndex}`;
+    } else if (parent) {
+        switch (parent.type) {
+            case "Message": {
+                focusKey = `Replying:${parent.message.index}`;
+                break;
+            }
+            case "MessagesRange": {
+                focusKey = `Replying:${parent.startIndex},${parent.endIndex},${parent.startVersion},${parent.endVersion},${parent.startPos},${parent.endPos}`;
+                break;
+            }
+            default:
+                throw exhaustive(parent);
+        }
+    }
+
     const lastFocusKeyRef = useRef<Key | null>(null);
     useEffect(() => {
         if (lastFocusKeyRef.current === focusKey) return;
@@ -717,7 +753,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     }
                 }}
             >
-                {(isEditingMessage || replyingToMessage) && (
+                {(isEditingMessage || parent) && (
                     <Box
                         pointerEvents="none"
                         position="absolute"
@@ -796,12 +832,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             </Box>
                         )}
-                        {replyingToMessage && (
-                            <MessageInputReplyingToMessage
+                        {parent && (
+                            <MessageInputParent
                                 messageNoun={messageNoun}
-                                replyingToMessage={replyingToMessage}
+                                parent={parent}
                                 onJumpToMessage={onJumpToMessage}
-                                onClearReplyingToMessage={onClearReplyingToMessage}
+                                onParentClear={onParentClear}
                                 paddingX={screenPaddingX}
                             />
                         )}
@@ -1420,20 +1456,16 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     );
 }
 
-function MessageInputReplyingToMessage<
-    RoomKey extends string,
-    Message extends MessageModel<RoomKey>,
->({
+function MessageInputParent<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun,
-    replyingToMessage,
-    onJumpToMessage,
-    onClearReplyingToMessage,
+    parent,
+    onParentClear,
     paddingX,
 }: {
     messageNoun: string;
-    replyingToMessage: Message;
+    parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
     onJumpToMessage: ((message: Message) => void) | undefined;
-    onClearReplyingToMessage: (() => void) | undefined;
+    onParentClear: (() => void) | undefined;
     paddingX: Spacing | {desktop: Spacing; mobile: Spacing};
 }) {
     const platform = usePlatform();
@@ -1442,20 +1474,45 @@ function MessageInputReplyingToMessage<
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
 
-    const truncatedContent = useStore(
-        useMemo(
-            () =>
-                computeStore(get =>
-                    getTruncatedMessageContentForReplyPreview(get, {
-                        message: replyingToMessage,
-                        messageNoun,
-                        accountRegistry,
-                        searchEntityRegistry,
-                        fileRegistry,
-                    }),
-                ),
-            [accountRegistry, fileRegistry, messageNoun, replyingToMessage, searchEntityRegistry],
-        ),
+    const {author, truncatedContent} = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                switch (parent.type) {
+                    case "Message": {
+                        return {
+                            author: get(accountRegistry.getAccountStore(parent.message.author)),
+                            truncatedContent: getTruncatedMessageContentForReplyPreview(get, {
+                                messagePayload: parent.message.payload,
+                                messageNoun,
+                                accountRegistry,
+                                searchEntityRegistry,
+                                fileRegistry,
+                            }),
+                        };
+                    }
+                    case "MessagesRange": {
+                        return {
+                            author: get(
+                                accountRegistry.getAccountStore(parent.messages[0]!.author),
+                            ),
+                            truncatedContent: getTruncatedMessagesRangeContentForReplyPreview(get, {
+                                messages: parent.messages,
+                                startVersion: parent.startVersion,
+                                startPos: parent.startPos,
+                                endVersion: parent.endVersion,
+                                endPos: parent.endPos,
+                                messageNoun,
+                                accountRegistry,
+                                searchEntityRegistry,
+                                fileRegistry,
+                            }),
+                        };
+                    }
+                    default:
+                        throw exhaustive(parent);
+                }
+            });
+        }, [accountRegistry, fileRegistry, messageNoun, parent, searchEntityRegistry]),
     );
 
     const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
@@ -1464,7 +1521,7 @@ function MessageInputReplyingToMessage<
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            onJumpToMessage?.(replyingToMessage);
+            // TODO(calebmer): Will reimplement this in the next PR
         },
     });
 
@@ -1552,7 +1609,7 @@ function MessageInputReplyingToMessage<
                         >
                             <AccountAvatar
                                 size={messageViewParentAccountAvatarSize}
-                                account={replyingToMessage.author}
+                                account={author}
                             />
                         </Box>
                         <Box
@@ -1577,8 +1634,7 @@ function MessageInputReplyingToMessage<
                                 textOverflow: "ellipsis",
                             }}
                         >
-                            <AccountShortName account={replyingToMessage.author} />:{" "}
-                            {truncatedContent}
+                            <AccountShortName account={author} />: {truncatedContent}
                         </Box>
                     </Box>
                     <Box
@@ -1597,7 +1653,7 @@ function MessageInputReplyingToMessage<
                             size="xs"
                             description="Cancel reply"
                             tooltipPlacement="top"
-                            onPress={onClearReplyingToMessage}
+                            onPress={onParentClear}
                             // Not focusable so clicking on this button doesn't unfocus
                             // the input.
                             isFocusable={false}

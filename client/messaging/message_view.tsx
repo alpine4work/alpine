@@ -26,7 +26,11 @@ import {ContentBlockWidthContextProvider} from "~/client/content/content_block_w
 import {ContentView} from "~/client/content/content_view.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {
+    getTruncatedMessageContentForReplyPreview,
+    getTruncatedMessagesRangeContentForReplyPreview,
+} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {MessageContentPayloadParentWithMessages} from "~/client/content/messaging/message_input_base.js";
 import {MessageViewFiles} from "~/client/content/messaging/message_view_files.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
@@ -51,6 +55,7 @@ import {
     MessageViewEditorRef,
 } from "~/client/messaging/internal/message_view_editor.js";
 import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message.js";
+import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -84,6 +89,7 @@ import {
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
+    messagingStyles,
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
     wiggleAnimation,
@@ -111,6 +117,7 @@ import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
@@ -125,8 +132,6 @@ import {computeStore} from "~/shared/store/compute_store.js";
  */
 export const bufferedMessageViewHeight: RemLength = "4rem";
 
-const mergeMessageMinuteLimit = 5;
-
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
 // fast. Manually use the `sprinkles()` function instead. This reduces the
@@ -140,31 +145,6 @@ const mergeMessageMinuteLimit = 5;
 //
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
-
-/**
- * Should two messages merge together?
- */
-function shouldMergeMessages<RoomKey extends string>(
-    message1: MessageModel<RoomKey> | OptimisticMessageModel,
-    message2: MessageModel<RoomKey> | OptimisticMessageModel,
-): boolean {
-    // Don't merge optimistic requests with an error.
-    if (message1.isOptimistic && message1.optimisticRequestErrorState.hasError) return false;
-    if (message2.isOptimistic && message2.optimisticRequestErrorState.hasError) return false;
-
-    // Never merge clerical messages. We may change the account name in a clerical
-    // message. We don't want the modified account name to be lost when merging
-    // with the previous message or considered to apply to later messages.
-    if (message1.payload.type === "Content" && message1.payload.clerical) return false;
-    if (message2.payload.type === "Content" && message2.payload.clerical) return false;
-
-    return (
-        message1.author.id === message2.author.id &&
-        Math.abs(differenceInMinutes(message1.createdTime, message2.createdTime)) <
-            mergeMessageMinuteLimit &&
-        (message2.payload.type !== "Content" || message2.payload.parent === null)
-    );
-}
 
 export function MessageView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
@@ -301,13 +281,32 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return marginBottom;
     }, [isLastMessage, message.payload, nextMessage, shouldMergeWithNextMessage]);
 
-    const parentMessage =
-        message.payload.type === "Content" && message.payload.parent?.type === "Message"
-            ? assertExists(
-                  messages.getLoadedMessageIfExists(message.payload.parent.index),
-                  "Parent message should have been loaded",
-              )
-            : null;
+    const parent = useMemo((): MessageContentPayloadParentWithMessages<RoomKey, Message> | null => {
+        if (message.payload.type !== "Content" || !message.payload.parent) return null;
+
+        const {parent} = message.payload;
+
+        switch (parent.type) {
+            case "Message": {
+                const message = messages.getLoadedMessageIfExists(parent.index);
+                if (!message) return null;
+                return {type: "Message", message};
+            }
+            case "MessagesRange": {
+                const parentMessages: Array<Message> = [];
+
+                for (let index = parent.startIndex; index <= parent.endIndex; index++) {
+                    const message = messages.getLoadedMessageIfExists(index);
+                    if (!message) return null;
+                    parentMessages.push(message);
+                }
+
+                return {...parent, messages: parentMessages};
+            }
+            default:
+                throw exhaustive(parent);
+        }
+    }, [message, messages]);
 
     const messageEditingForThisMessage =
         // If we're on a mobile device (with keyboard toolbars) then instead of editing
@@ -565,8 +564,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             return contextMenuActions;
         },
     });
-
-    const hasParentMessage = !!parentMessage;
 
     const [showTouchReplyIcon, setShowTouchReplyIcon] = useState(false);
     const [touchMenuState, setTouchMenuState] = useState<{
@@ -833,14 +830,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             contentContainerElement.removeEventListener("touchmove", handleTouchMove);
             contentContainerElement.removeEventListener("touchcancel", handleTouchCancel);
         };
-    }, [
-        canPrimaryInputHover,
-        events,
-        hasParentMessage,
-        isEditingThisMessage,
-        isReadOnly,
-        message.payload,
-    ]);
+    }, [canPrimaryInputHover, events, isEditingThisMessage, isReadOnly, message.payload]);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
@@ -927,10 +917,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <ContentView
+                className={messagingStyles.contentClassName}
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdate?.time}
                 withUserSelectNone={!canPrimaryInputHover}
                 getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
+                data-index={!message.isOptimistic ? message.index : undefined}
             />
         );
     }, [
@@ -983,17 +976,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [message.payload, messageNoun, spacingScale]);
 
     const parentMessageNode = useMemo(() => {
-        if (!parentMessage) return null;
+        if (!parent) return null;
 
         return (
             <MessageViewParent
                 parentMessageRef={parentMessageRef}
                 messageNoun={messageNoun}
-                parentMessage={parentMessage}
+                parent={parent}
                 onJumpToMessage={onJumpToMessage}
             />
         );
-    }, [messageNoun, onJumpToMessage, parentMessage]);
+    }, [messageNoun, onJumpToMessage, parent]);
 
     const timestampDividerNode = useMemo(() => {
         if (!shouldShowTimestampBeforeMessage) return null;
@@ -1399,12 +1392,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 function MessageViewParent<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     parentMessageRef,
     messageNoun,
-    parentMessage,
-    onJumpToMessage,
+    parent,
 }: {
     parentMessageRef: RefObject<HTMLDivElement>;
     messageNoun: string;
-    parentMessage: Message;
+    parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
     onJumpToMessage: Memo<(message: Message) => void>;
 }) {
     const spacingScale = useSpacingScale();
@@ -1412,20 +1404,45 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
 
-    const truncatedContent = useStore(
-        useMemo(
-            () =>
-                computeStore(get =>
-                    getTruncatedMessageContentForReplyPreview(get, {
-                        message: parentMessage,
-                        messageNoun,
-                        accountRegistry,
-                        searchEntityRegistry,
-                        fileRegistry,
-                    }),
-                ),
-            [accountRegistry, fileRegistry, messageNoun, parentMessage, searchEntityRegistry],
-        ),
+    const {author, truncatedContent} = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                switch (parent.type) {
+                    case "Message": {
+                        return {
+                            author: get(accountRegistry.getAccountStore(parent.message.author)),
+                            truncatedContent: getTruncatedMessageContentForReplyPreview(get, {
+                                messagePayload: parent.message.payload,
+                                messageNoun,
+                                accountRegistry,
+                                searchEntityRegistry,
+                                fileRegistry,
+                            }),
+                        };
+                    }
+                    case "MessagesRange": {
+                        return {
+                            author: get(
+                                accountRegistry.getAccountStore(parent.messages[0]!.author),
+                            ),
+                            truncatedContent: getTruncatedMessagesRangeContentForReplyPreview(get, {
+                                messages: parent.messages,
+                                startVersion: parent.startVersion,
+                                startPos: parent.startPos,
+                                endVersion: parent.endVersion,
+                                endPos: parent.endPos,
+                                messageNoun,
+                                accountRegistry,
+                                searchEntityRegistry,
+                                fileRegistry,
+                            }),
+                        };
+                    }
+                    default:
+                        throw exhaustive(parent);
+                }
+            });
+        }, [accountRegistry, fileRegistry, messageNoun, parent, searchEntityRegistry]),
     );
 
     const marginTop = "2";
@@ -1436,7 +1453,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            onJumpToMessage(parentMessage);
+            // TODO(calebmer): Will reimplement this in the next PR
         },
     });
 
@@ -1521,10 +1538,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                     })}
                     style={{top: `${messageViewParentAvatarOffsetYRem}rem`}}
                 >
-                    <AccountAvatar
-                        size={messageViewParentAccountAvatarSize}
-                        account={parentMessage.author}
-                    />
+                    <AccountAvatar size={messageViewParentAccountAvatarSize} account={author} />
                 </div>
                 <div
                     className={sprinkles({
@@ -1550,7 +1564,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         textOverflow: "ellipsis",
                     }}
                 >
-                    <AccountShortName account={parentMessage.author} />: {truncatedContent}
+                    <AccountShortName account={author} />: {truncatedContent}
                 </div>
             </div>
         </FocusRing>

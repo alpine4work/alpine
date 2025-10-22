@@ -57,6 +57,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
+import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -112,6 +113,7 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -701,8 +703,8 @@ function PostListView(
     });
 
     // Manages which comment `<PostCommentInput>` is currently replying to.
-    const [replyingToPostCommentIndexByPostId, setReplyingToPostCommentIndexByPostId] =
-        useState<ReadonlyMap<PostId, number>>(emptyMap);
+    const [inputParentByPostId, setInputParentByPostId] =
+        useState<ReadonlyMap<PostId, MessageContentPayloadParent>>(emptyMap);
 
     const [isShowingAllContentByPostId, setIsShowingAllContentByPostId] =
         useState<ReadonlyMap<PostId, true>>(emptyMap);
@@ -1338,17 +1340,16 @@ function PostListView(
                                         if (item.postComment.isOptimistic) return;
                                         const postCommentIndex = item.postComment.index;
 
-                                        setReplyingToPostCommentIndexByPostId(
-                                            replyingToPostCommentIndexByPostId => {
-                                                const newReplyingToPostCommentIndexByPostId =
-                                                    new Map(replyingToPostCommentIndexByPostId);
-                                                newReplyingToPostCommentIndexByPostId.set(
-                                                    item.post.id,
-                                                    postCommentIndex,
-                                                );
-                                                return newReplyingToPostCommentIndexByPostId;
-                                            },
-                                        );
+                                        setInputParentByPostId(inputParentByPostId => {
+                                            const newInputParentByPostId = new Map(
+                                                inputParentByPostId,
+                                            );
+                                            newInputParentByPostId.set(item.post.id, {
+                                                type: "Message",
+                                                index: postCommentIndex,
+                                            });
+                                            return newInputParentByPostId;
+                                        });
                                     }}
                                     onDeleteMessage={async () => {
                                         const procedures = proceduresByPostIdRef.current.get(
@@ -1427,11 +1428,7 @@ function PostListView(
                                         // -2 instead of -1 since when `isPostView` is true we don't
                                         // actually render the final comment input item in `posts`.
                                         index === posts.getItemCount() - 2 && (
-                                            <div
-                                                style={{
-                                                    height: messagingViewMarginBottom,
-                                                }}
-                                            />
+                                            <div style={{height: messagingViewMarginBottom}} />
                                         )}
                                 </div>
                                 {asideSpacer}
@@ -1534,13 +1531,7 @@ function PostListView(
                     // of this component.
                     assert(routeLayout !== "narrow");
 
-                    const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
-                        item.post.id,
-                    );
-                    const replyingToPostComment =
-                        replyingToPostCommentIndex !== undefined
-                            ? item.postComments.getLoadedMessageIfExists(replyingToPostCommentIndex)
-                            : null;
+                    const inputParent = inputParentByPostId.get(item.post.id) ?? null;
 
                     // This is defined out here so that it doesn't re-rerender every time the
                     // `render()` function is called since it's referentially stable.
@@ -1564,17 +1555,13 @@ function PostListView(
                                 onUpdatePostComments(item.post.id, update)
                             }
                             postCommentEditing={messageEditing}
-                            replyingToPostComment={replyingToPostComment}
-                            onClearReplyingToPostComment={() => {
-                                setReplyingToPostCommentIndexByPostId(
-                                    replyingToPostCommentIndexByPostId => {
-                                        const newReplyingToPostCommentIndexByPostId = new Map(
-                                            replyingToPostCommentIndexByPostId,
-                                        );
-                                        newReplyingToPostCommentIndexByPostId.delete(item.post.id);
-                                        return newReplyingToPostCommentIndexByPostId;
-                                    },
-                                );
+                            parent={inputParent}
+                            onParentClear={() => {
+                                setInputParentByPostId(inputParentByPostId => {
+                                    const newInputParentByPostId = new Map(inputParentByPostId);
+                                    newInputParentByPostId.delete(item.post.id);
+                                    return newInputParentByPostId;
+                                });
                             }}
                             onJumpToPostComment={handleJumpToPostComment}
                             onDeletePostComment={async postCommentIndex => {
@@ -1801,7 +1788,7 @@ function PostListView(
             highlightPostComment,
             handleJumpToPostComment,
             header,
-            replyingToPostCommentIndexByPostId,
+            inputParentByPostId,
             inputRefByPostId,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
@@ -1978,6 +1965,23 @@ function PostListView(
                                     </>
                                 )}
                                 {extraChildren}
+                                <MessagingViewPointerToolbar<PostId, PostCommentModel>
+                                    viewRef={viewRef}
+                                    getMessagesByRoomKey={useCallback(
+                                        postId =>
+                                            posts.getPostByIdIfExists(postId)?.postComments ?? null,
+                                        [posts],
+                                    )}
+                                    onReplyToMessagesRange={(postId, parent) => {
+                                        setInputParentByPostId(inputParentByPostId => {
+                                            const newInputParentByPostId = new Map(
+                                                inputParentByPostId,
+                                            );
+                                            newInputParentByPostId.set(postId, parent);
+                                            return newInputParentByPostId;
+                                        });
+                                    }}
+                                />
                             </>
                         }
                         extraChildrenOutsideContentElement={({contentHeight}) =>
@@ -2029,14 +2033,8 @@ function PostListView(
                                 posts.getPostContentItemIfExists(header ? 1 : 0),
                             );
 
-                            const replyingToPostCommentIndex =
-                                replyingToPostCommentIndexByPostId.get(lastPostContentItem.post.id);
-                            const replyingToPostComment =
-                                replyingToPostCommentIndex !== undefined
-                                    ? lastPostContentItem.postComments.getLoadedMessageIfExists(
-                                          replyingToPostCommentIndex,
-                                      )
-                                    : null;
+                            const inputParent =
+                                inputParentByPostId.get(lastPostContentItem.post.id) ?? null;
 
                             return (
                                 <PostCommentInput
@@ -2065,18 +2063,17 @@ function PostListView(
                                     onUpdatePostComments={update =>
                                         onUpdatePostComments(lastPostContentItem.post.id, update)
                                     }
-                                    replyingToPostComment={replyingToPostComment}
-                                    onClearReplyingToPostComment={() => {
-                                        setReplyingToPostCommentIndexByPostId(
-                                            replyingToPostCommentIndexByPostId => {
-                                                const newReplyingToPostCommentIndexByPostId =
-                                                    new Map(replyingToPostCommentIndexByPostId);
-                                                newReplyingToPostCommentIndexByPostId.delete(
-                                                    lastPostContentItem.post.id,
-                                                );
-                                                return newReplyingToPostCommentIndexByPostId;
-                                            },
-                                        );
+                                    parent={inputParent}
+                                    onParentClear={() => {
+                                        setInputParentByPostId(inputParentByPostId => {
+                                            const newInputParentByPostId = new Map(
+                                                inputParentByPostId,
+                                            );
+                                            newInputParentByPostId.delete(
+                                                lastPostContentItem.post.id,
+                                            );
+                                            return newInputParentByPostId;
+                                        });
                                     }}
                                     onJumpToPostComment={handleJumpToPostComment}
                                     onDeletePostComment={async postCommentIndex => {

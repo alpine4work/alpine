@@ -1,5 +1,6 @@
 import {isDisplayBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {getSelectionStartNodeAndEndNode} from "~/client/helpers/get_selection_start_node_and_end_node.js";
 import {writeTextToClipboardFallback} from "~/client/helpers/write_text_to_clipboard.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -93,99 +94,19 @@ export function getSelectionClipboardData(selection: {
     focusNode: Node;
     focusOffset: number;
 }): {text: string; html: Element} | null {
-    const anchorParentNodes: Array<Node> = [];
-    const focusParentNodes: Array<Node> = [];
-
-    {
-        let anchorParentNode: Node | null = selection.anchorNode;
-        while (anchorParentNode) {
-            anchorParentNodes.push(anchorParentNode);
-            anchorParentNode = anchorParentNode.parentNode;
-        }
-    }
-
-    {
-        let focusParentNode: Node | null = selection.focusNode;
-        while (focusParentNode) {
-            focusParentNodes.push(focusParentNode);
-            focusParentNode = focusParentNode.parentNode;
-        }
-    }
-
-    let commonParentReverseIndex = 1;
-    const minParentNodesLength = Math.min(anchorParentNodes.length, focusParentNodes.length);
-
-    for (let reverseIndex = 1; reverseIndex <= minParentNodesLength; reverseIndex++) {
-        if (
-            anchorParentNodes[anchorParentNodes.length - reverseIndex] !==
-            focusParentNodes[focusParentNodes.length - reverseIndex]
-        ) {
-            break;
-        }
-
-        commonParentReverseIndex = reverseIndex;
-    }
-
-    const commonParentNode =
-        commonParentReverseIndex <= minParentNodesLength
-            ? anchorParentNodes[anchorParentNodes.length - commonParentReverseIndex]!
-            : null;
-
-    // Can't figure out what content is between the selection nodes if there's no
-    // common parent node.
-    if (!commonParentNode) return null;
-
-    let start: "Anchor" | "Focus" | undefined;
-
-    // If `commonParentNode` is the focus node AND the anchor node then the value
-    // of `start` depends on the text offset.
-    if (commonParentNode === selection.focusNode && commonParentNode === selection.anchorNode) {
-        start = selection.anchorOffset <= selection.focusOffset ? "Anchor" : "Focus";
-    }
-    // If `commonParentNode` is the focus node OR the anchor node then the value of
-    // `start` is ambiguous. We can pick either direction. We don't believe the
-    // browser will every create a selection like this because of its ambiguity.
-    else if (
-        commonParentNode === selection.focusNode ||
-        commonParentNode === selection.anchorNode
-    ) {
-        start = "Anchor";
-    }
-    // `commonParentNode` has a child node for both the focus node and the anchor
-    // node.
-    else {
-        const anchorCommonParentChildNode =
-            anchorParentNodes[anchorParentNodes.length - (commonParentReverseIndex + 1)]!;
-
-        const focusCommonParentChildNode =
-            focusParentNodes[focusParentNodes.length - (commonParentReverseIndex + 1)]!;
-
-        for (const commonParentChildNode of commonParentNode.childNodes) {
-            if (commonParentChildNode === anchorCommonParentChildNode) {
-                start = "Anchor";
-                break;
-            }
-
-            if (commonParentChildNode === focusCommonParentChildNode) {
-                start = "Focus";
-                break;
-            }
-        }
-
-        // Must have found one of the children in `commonParentNode`.
-        assert(start !== undefined);
-    }
-
     // For the purposes of this algorithm:
     //
     // - `startNode` is inclusive of its child nodes
     // - `endNode` is not inclusive of its child nodes
-    const startNode = start === "Anchor" ? selection.anchorNode : selection.focusNode;
-    const startOffset = start === "Anchor" ? selection.anchorOffset : selection.focusOffset;
-    const startParentNodes = start === "Anchor" ? anchorParentNodes : focusParentNodes;
-    const endNode = start === "Anchor" ? selection.focusNode : selection.anchorNode;
-    const endOffset = start === "Anchor" ? selection.focusOffset : selection.anchorOffset;
-    const endParentNodes = start === "Anchor" ? focusParentNodes : anchorParentNodes;
+    const {
+        startNode,
+        startOffset,
+        startParentNodes,
+        endNode,
+        endOffset,
+        endParentNodes,
+        commonParentReverseIndex,
+    } = getSelectionStartNodeAndEndNode(selection);
 
     const results: Array<
         string | {requiredLineBreakAroundCount?: number; text: string; html: Node | null} | number

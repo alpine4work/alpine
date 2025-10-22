@@ -8,13 +8,18 @@ import {
     forwardRef,
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
 import {flushSync} from "react-dom";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
-import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {
+    MessageContentPayloadParentWithMessages,
+    MessageInputBase,
+    MessageInputRef,
+} from "~/client/content/messaging/message_input_base.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -69,8 +74,8 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     withAttachFileBeforeCreateMessage?: boolean;
     messageEditing: MessageEditing<RoomKey>;
-    replyingToMessage: Message | null;
-    onClearReplyingToMessage: () => void;
+    parent: MessageContentPayloadParent | null;
+    onParentClear: () => void;
     onJumpToMessage: (message: Message) => void;
     onDeleteMessage: (messageIndex: number) => Promise<void>;
     onShowTypingIndicator: () => void;
@@ -108,8 +113,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         fileAttachmentTarget,
         withAttachFileBeforeCreateMessage = false,
         messageEditing,
-        replyingToMessage,
-        onClearReplyingToMessage,
+        parent: parentWithoutMessages,
+        onParentClear,
         onJumpToMessage,
         onDeleteMessage,
         onShowTypingIndicator,
@@ -138,6 +143,35 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         platform === "mobile" && messageEditing.state.isEditing
             ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
             : null;
+
+    const parent: MessageContentPayloadParentWithMessages<RoomKey, Message> | null = useMemo(() => {
+        if (!parentWithoutMessages) return null;
+
+        switch (parentWithoutMessages.type) {
+            case "Message": {
+                const message = messages.getLoadedMessageIfExists(parentWithoutMessages.index);
+                if (!message) return null;
+                return {type: "Message", message};
+            }
+            case "MessagesRange": {
+                const parentMessages: Array<Message> = [];
+
+                for (
+                    let index = parentWithoutMessages.startIndex;
+                    index <= parentWithoutMessages.endIndex;
+                    index++
+                ) {
+                    const message = messages.getLoadedMessageIfExists(index);
+                    if (!message) return null;
+                    parentMessages.push(message);
+                }
+
+                return {...parentWithoutMessages, messages: parentMessages};
+            }
+            default:
+                throw exhaustive(parentWithoutMessages);
+        }
+    }, [messages, parentWithoutMessages]);
 
     const [{key: inputKey, state: inputState, files: inputFiles}, actuallySetInputState] =
         useState<{
@@ -205,8 +239,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         resetInputState();
     }
     useEffect(() => {
-        if (messageEditingForThisInput && replyingToMessage) {
-            onClearReplyingToMessage();
+        if (messageEditingForThisInput && parent) {
+            onParentClear();
         }
     });
 
@@ -247,9 +281,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             createdTime: new Date(),
             payload: {
                 type: "Content",
-                parent: replyingToMessage
-                    ? {type: "Message", index: replyingToMessage.index}
-                    : null,
+                parent: parent ? parentWithoutMessages : null,
                 content: inputContent,
                 contentUpdate: null,
                 files: inputFiles.map(inputFile => {
@@ -287,7 +319,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         flushSync(() => {
             onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
             resetInputState();
-            onClearReplyingToMessage();
+            onParentClear();
         });
 
         if (wasInputFocused) assertExists(inputRef.current).focus();
@@ -331,9 +363,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         // close the page if we haven't finished sending their message. It will
                         // look ok on their machine but might not be on the server.
                         await createMessage({
-                            parent: replyingToMessage
-                                ? {type: "Message", index: replyingToMessage.index}
-                                : null,
+                            parent: parent ? parentWithoutMessages : null,
                             content: inputContent.doc,
                             fileIds: inputFiles.map(inputFile =>
                                 inputFile.type === "FileEntity"
@@ -448,8 +478,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     withAttachFileBeforeCreateMessage ? null : fileAttachmentTarget
                 }
                 messageEditingForThisInput={messageEditingForThisInput}
-                replyingToMessage={replyingToMessage}
-                onClearReplyingToMessage={onClearReplyingToMessage}
+                parent={parent}
+                onParentClear={onParentClear}
                 onJumpToMessage={onJumpToMessage}
                 onShowTypingIndicator={onShowTypingIndicator}
                 onHideTypingIndicator={onHideTypingIndicator}

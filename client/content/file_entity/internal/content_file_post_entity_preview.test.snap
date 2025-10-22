@@ -27,16 +27,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -102,16 +106,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -177,16 +185,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -252,16 +264,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -337,16 +353,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -406,16 +426,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -481,16 +505,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -556,16 +584,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -631,16 +663,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -716,16 +752,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -785,16 +825,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -860,16 +904,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -935,16 +983,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1010,16 +1062,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1095,16 +1151,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1164,16 +1224,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1239,16 +1303,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1314,16 +1382,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1389,16 +1461,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1474,16 +1550,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1543,16 +1623,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1618,16 +1702,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1693,16 +1781,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1768,16 +1860,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1853,16 +1949,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1922,16 +2022,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -1997,16 +2101,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2072,16 +2180,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2147,16 +2259,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2232,16 +2348,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2301,16 +2421,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2376,16 +2500,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2451,16 +2579,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2526,16 +2658,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2611,16 +2747,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2680,16 +2820,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2755,16 +2899,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2830,16 +2978,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2905,16 +3057,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -2990,16 +3146,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: large
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3059,16 +3219,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3134,16 +3298,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3209,16 +3377,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3284,16 +3456,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3369,16 +3545,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3438,16 +3618,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3513,16 +3697,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3588,16 +3776,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3663,16 +3855,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3748,16 +3944,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3817,16 +4017,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3892,16 +4096,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -3967,16 +4175,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4042,16 +4254,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4127,16 +4343,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4196,16 +4416,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4271,16 +4495,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4346,16 +4574,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4421,16 +4653,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4506,16 +4742,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4575,16 +4815,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4650,16 +4894,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4725,16 +4973,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4800,16 +5052,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4885,16 +5141,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -4954,16 +5214,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5029,16 +5293,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5104,16 +5372,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5179,16 +5451,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5264,16 +5540,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5333,16 +5613,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5408,16 +5692,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5483,16 +5771,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5558,16 +5850,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5643,16 +5939,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5712,16 +6012,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5787,16 +6091,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5862,16 +6170,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -5937,16 +6249,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6022,16 +6338,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: mediu
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6091,16 +6411,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6166,16 +6490,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6241,16 +6569,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6316,16 +6648,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6401,16 +6737,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6470,16 +6810,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6545,16 +6889,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6620,16 +6968,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6695,16 +7047,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6780,16 +7136,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6849,16 +7209,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6924,16 +7288,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -6999,16 +7367,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7074,16 +7446,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7159,16 +7535,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7228,16 +7608,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7303,16 +7687,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7378,16 +7766,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7453,16 +7845,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7538,16 +7934,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7607,16 +8007,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7682,16 +8086,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7757,16 +8165,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7832,16 +8244,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7917,16 +8333,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -7986,16 +8406,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8061,16 +8485,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8136,16 +8564,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8211,16 +8643,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8296,16 +8732,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8365,16 +8805,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8440,16 +8884,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8515,16 +8963,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8590,16 +9042,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8675,16 +9131,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.3333333333333333)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.33333333); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8744,16 +9204,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8819,16 +9283,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8894,16 +9362,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -8969,16 +9441,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div
@@ -9054,16 +9530,20 @@ exports[`renderContentFilePostEntityPreview - HTML Snapshots spacingScale: small
           "
         >
           <span
-            class="sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
-            style="transform: scale(0.2916666666666667)"
+            class="sprinkles_position_absolute__HASH sprinkles_left_0_default__HASH sprinkles_top_0_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH"
+            style="transform: scale(0.29166667); transform-origin: top left"
             aria-hidden="true"
           >
-            <img
-              class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
-              draggable="false"
-              alt="Green tree who’s happy"
-              src="data:image/svg+xml,SVG"
-            />
+            <span
+              class="sprinkles_paddingTop_2_default__HASH sprinkles_paddingBottom_2_default__HASH sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH sprinkles_display_block_default__HASH sprinkles_width_24_default__HASH sprinkles_height_24_default__HASH sprinkles_position_relative__HASH sprinkles_top_-0.5_default__HASH sprinkles_left_0_default__HASH"
+            >
+              <img
+                class="sprinkles_width_20_default__HASH sprinkles_height_20_default__HASH"
+                draggable="false"
+                alt="Green tree who’s happy"
+                src="data:image/svg+xml,SVG"
+              />
+            </span>
           </span>
         </span>
         <div

@@ -3161,10 +3161,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                 scheduleMicrotask(() => {
                     const coords = view.coordsAtPos(view.state.selection.head);
 
-                    coords.bottom +=
-                        contentStyles.paragraphLineHeightPx[getSpacingScaleWithoutListening()];
+                    const newCoords = {
+                        ...coords,
+                        bottom:
+                            coords.bottom +
+                            contentStyles.paragraphLineHeightPx[getSpacingScaleWithoutListening()],
+                    };
 
-                    scrollRectIntoView(view, coords, document.getSelection()!.focusNode!);
+                    scrollRectIntoView(view, newCoords, document.getSelection()!.focusNode!);
                 });
                 return true;
             }

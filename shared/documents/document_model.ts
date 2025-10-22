@@ -215,4 +215,9 @@ export function decodeDocumentCommentRoomKey(
     return [documentId, commentThreadId];
 }
 
+export function decodePossiblyDocumentCommentRoomKey(roomKey: string): [string, string] {
+    const [documentId = "", commentThreadId = ""] = roomKey.split("-", 2);
+    return [documentId, commentThreadId];
+}
+
 export const maxDocumentCommentThreadPreviewCommentAuthorCount = 3;

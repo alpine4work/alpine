@@ -40,3 +40,5 @@ export const backdropFadeInClassName = style({
 export const backdropFadeOutClassName = style({
     animation: `${backdropFadeOutKeyframes} ${backdropFadeAnimationDurationMs}ms ease-in both`,
 });
+
+export const contentClassName = style({});

@@ -24,6 +24,7 @@ import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
+import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
 import {
     getMessageListItemKey,
     renderMessageListItem,
@@ -47,6 +48,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
     BackfillMessagesProcedure,
     CreateMessageProcedure,
@@ -495,7 +497,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     }, [state, tryLoadingMoreData]);
 
     // Manages which comment `<MessageInput>` is currently replying to.
-    const [replyingToMessageIndex, setReplyingToMessageIndex] = useState<number | null>(null);
+    const [inputParent, setInputParent] = useState<MessageContentPayloadParent | null>(null);
 
     // A message to highlight for the user. We currently highlight messages with a
     // little wiggle animation (see `wiggle_animation.css.ts` for more information).
@@ -651,7 +653,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                                 ? highlightMessage.shouldHighlightRef
                                 : null,
                         onJumpToMessage: handleJumpToMessage,
-                        onReplyToMessage: message => setReplyingToMessageIndex(message.index),
+                        onReplyToMessage: message =>
+                            setInputParent({type: "Message", index: message.index}),
                         onDeleteMessage: async message => {
                             await deleteMessage({
                                 messageIndex: message.index,
@@ -706,7 +709,19 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     ref={viewRef}
                     elementRef={elementRef}
                     renderItem={renderItem}
-                    extraChildren={extraChildren}
+                    extraChildren={
+                        <>
+                            {extraChildren}
+                            <MessagingViewPointerToolbar
+                                viewRef={viewRef}
+                                getMessagesByRoomKey={useCallback(
+                                    () => state.messages,
+                                    [state.messages],
+                                )}
+                                onReplyToMessagesRange={(roomKey, parent) => setInputParent(parent)}
+                            />
+                        </>
+                    }
                     initialScrollOffset={initialScrollOffset}
                     bufferedItemHeight={bufferedMessageViewHeight}
                     itemCount={state.getItemCount()}
@@ -726,12 +741,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     fileAttachmentTarget={fileAttachmentTarget}
                     withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
                     messageEditing={messageEditing}
-                    replyingToMessage={
-                        replyingToMessageIndex !== null
-                            ? state.messages.getLoadedMessageIfExists(replyingToMessageIndex)
-                            : null
-                    }
-                    onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
+                    parent={inputParent}
+                    onParentClear={() => setInputParent(null)}
                     onJumpToMessage={handleJumpToMessage}
                     onDeleteMessage={async messageIndex => {
                         await deleteMessage({messageIndex});

@@ -2613,6 +2613,7 @@ function DocumentContentEditorSidebar({
                                 // to a comment then we first need to make sure our sidebar is full screen,
                                 // then we can focus the input after that animation finishes.
                                 onBeforePinnedCommentInputFocusFromReplyOrEditingChange={() => {
+                                    if (platform !== "mobile") return;
                                     if (mobileState.isFullScreen) return;
 
                                     onSidebarMobileFullScreenExpand({

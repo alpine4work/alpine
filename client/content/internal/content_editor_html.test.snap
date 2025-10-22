@@ -2842,12 +2842,14 @@ exports[`account long mention 1`] = `
             >
               <span
                 aria-hidden="true"
-                style="transform: scale(0.2916666666666667)"
+                style="transform: scale(0.29166667); transform-origin: top left"
               >
-                <img
-                  alt="Olive yeti who’s happy"
-                  draggable="false"
-                />
+                <span>
+                  <img
+                    alt="Olive yeti who’s happy"
+                    draggable="false"
+                  />
+                </span>
               </span>
             </span>
           </span>
@@ -2906,12 +2908,14 @@ exports[`account short mention 1`] = `
             >
               <span
                 aria-hidden="true"
-                style="transform: scale(0.2916666666666667)"
+                style="transform: scale(0.29166667); transform-origin: top left"
               >
-                <img
-                  alt="Olive yeti who’s happy"
-                  draggable="false"
-                />
+                <span>
+                  <img
+                    alt="Olive yeti who’s happy"
+                    draggable="false"
+                  />
+                </span>
               </span>
             </span>
           </span>

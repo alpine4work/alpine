@@ -54,6 +54,7 @@ import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realt
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 
@@ -79,8 +80,8 @@ export function PostCommentInput(props: {
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ) => void;
     postCommentEditing: MessageEditing<PostId>;
-    replyingToPostComment: PostCommentModel | null;
-    onClearReplyingToPostComment: () => void;
+    parent: MessageContentPayloadParent | null;
+    onParentClear: () => void;
     onJumpToPostComment: (postComment: PostCommentModel) => void;
     onDeletePostComment: (postCommentIndex: number) => Promise<void>;
     shouldBeConnectedToChannelRealtime: boolean;
@@ -215,8 +216,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
         fileAttachmentTarget,
         onUpdatePostComments,
         postCommentEditing,
-        replyingToPostComment,
-        onClearReplyingToPostComment,
+        parent,
+        onParentClear,
         onJumpToPostComment,
         onDeletePostComment,
         shouldBeConnectedToChannelRealtime,
@@ -324,8 +325,8 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             }}
             fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={postCommentEditing}
-            replyingToMessage={replyingToPostComment}
-            onClearReplyingToMessage={onClearReplyingToPostComment}
+            parent={parent}
+            onParentClear={onParentClear}
             onJumpToMessage={onJumpToPostComment}
             onDeleteMessage={onDeletePostComment}
             onShowTypingIndicator={() => {

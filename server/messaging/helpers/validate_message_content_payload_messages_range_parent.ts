@@ -55,4 +55,34 @@ export function validateMessageContentPayloadMessagesRangeParent(
     //
     // We could use `contentUpdate.mappings` to get a `startPos` and `endPos`
     // relative to the current version but that doesn't seem worthwhile.
+
+    let previousMessageItem = startMessageItem;
+
+    for (let index = 1; index < messageItems.length; index++) {
+        const messageItem = messageItems[index]!;
+
+        if (messageItem.payload.type !== "Content") {
+            previousMessageItem = messageItem;
+            continue;
+        }
+
+        // Double check that the message items are contiguous.
+        assert(previousMessageItem.index + 1 === messageItem.index);
+
+        // There's a parent message in our selected message range which breaks apart
+        // adjacent messages.
+        if (messageItem.payload.parent !== null) {
+            throw new FailedPreconditionError("Message range can’t contain message with parent");
+        }
+
+        // The messages in the range are from different authors. Can't reply to
+        // this range.
+        if (messageItem.authorId !== previousMessageItem.authorId) {
+            throw new FailedPreconditionError(
+                "Message range can’t contain messages from different authors",
+            );
+        }
+
+        previousMessageItem = messageItem;
+    }
 }

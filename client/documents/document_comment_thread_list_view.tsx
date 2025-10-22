@@ -30,6 +30,7 @@ import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
+import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
 import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
@@ -74,6 +75,7 @@ import {
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
     decodeDocumentCommentRoomKey,
+    decodePossiblyDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -86,6 +88,7 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const documentCommentThreadListViewMarginY: Spacing = "24";
@@ -608,8 +611,9 @@ function DocumentCommentThreadListView(
     });
 
     // Manages which comment `<MessageInput>` is currently replying to.
-    const [replyingToCommentIndexByCommentThreadId, setReplyingToCommentIndexByCommentThreadId] =
-        useState<ReadonlyMap<DocumentCommentThreadId, number>>(new Map());
+    const [inputParentByCommentThreadId, setInputParentByCommentThreadId] = useState<
+        ReadonlyMap<DocumentCommentThreadId, MessageContentPayloadParent>
+    >(new Map());
 
     // A comment to highlight for the user. We currently highlight comments with a
     // little wiggle animation (see `wiggle_animation.css.ts` for more information).
@@ -959,18 +963,16 @@ function DocumentCommentThreadListView(
                                 : null,
                         onJumpToMessage: handleJumpToComment,
                         onReplyToMessage: comment => {
-                            setReplyingToCommentIndexByCommentThreadId(
-                                replyingToCommentIndexByCommentThreadId => {
-                                    const newReplyingToCommentIndexByCommentThreadId = new Map(
-                                        replyingToCommentIndexByCommentThreadId,
-                                    );
-                                    newReplyingToCommentIndexByCommentThreadId.set(
-                                        comment.commentThreadId,
-                                        comment.index,
-                                    );
-                                    return newReplyingToCommentIndexByCommentThreadId;
-                                },
-                            );
+                            setInputParentByCommentThreadId(inputParentByCommentThreadId => {
+                                const newInputParentByCommentThreadId = new Map(
+                                    inputParentByCommentThreadId,
+                                );
+                                newInputParentByCommentThreadId.set(comment.commentThreadId, {
+                                    type: "Message",
+                                    index: comment.index,
+                                });
+                                return newInputParentByCommentThreadId;
+                            });
                         },
                         onDeleteMessage: async message => {
                             await procedures.deleteComment({
@@ -1050,13 +1052,8 @@ function DocumentCommentThreadListView(
                 // update `<PostListView>`. We don't know what a good abstraction here is so
                 // following the advice "no abstraction is better than the wrong abstraction".
                 case "DocumentCommentInput": {
-                    const replyingToCommentIndex = replyingToCommentIndexByCommentThreadId.get(
-                        item.commentThread.id,
-                    );
-                    const replyingToComment =
-                        replyingToCommentIndex !== undefined
-                            ? item.comments.getLoadedMessageIfExists(replyingToCommentIndex)
-                            : null;
+                    const inputParent =
+                        inputParentByCommentThreadId.get(item.commentThread.id) ?? null;
 
                     // This is defined out here so that it doesn't re-rerender every time the
                     // `render()` function is called since it's referentially stable.
@@ -1092,19 +1089,15 @@ function DocumentCommentThreadListView(
                                 )
                             }
                             messageEditing={messageEditing}
-                            replyingToComment={replyingToComment}
-                            onClearReplyingToComment={() => {
-                                setReplyingToCommentIndexByCommentThreadId(
-                                    replyingToCommentIndexByCommentThreadId => {
-                                        const newReplyingToCommentIndexByCommentThreadId = new Map(
-                                            replyingToCommentIndexByCommentThreadId,
-                                        );
-                                        newReplyingToCommentIndexByCommentThreadId.delete(
-                                            item.commentThread.id,
-                                        );
-                                        return newReplyingToCommentIndexByCommentThreadId;
-                                    },
-                                );
+                            parent={inputParent}
+                            onParentClear={() => {
+                                setInputParentByCommentThreadId(inputParentByCommentThreadId => {
+                                    const newInputParentByCommentThreadId = new Map(
+                                        inputParentByCommentThreadId,
+                                    );
+                                    newInputParentByCommentThreadId.delete(item.commentThread.id);
+                                    return newInputParentByCommentThreadId;
+                                });
                             }}
                             onJumpToComment={handleJumpToComment}
                             onDeleteComment={async commentIndex => {
@@ -1216,7 +1209,7 @@ function DocumentCommentThreadListView(
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
             space.id,
-            replyingToCommentIndexByCommentThreadId,
+            inputParentByCommentThreadId,
             inputRefByCommentThreadId,
             isConnected,
             subscribeToCommentThreadEvents,
@@ -1280,20 +1273,51 @@ function DocumentCommentThreadListView(
                     }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
-                    extraChildren={navigationBar?.navigationBar}
+                    extraChildren={
+                        <>
+                            {navigationBar?.navigationBar}
+                            <MessagingViewPointerToolbar<
+                                DocumentCommentRoomKey,
+                                DocumentCommentModel
+                            >
+                                viewRef={viewRef}
+                                getMessagesByRoomKey={useCallback(
+                                    roomKey => {
+                                        const [, commentThreadId] =
+                                            decodePossiblyDocumentCommentRoomKey(roomKey);
+
+                                        return (
+                                            tree.getNodeByKeyIfExists(
+                                                // @ts-expect-error: It's fine to call this getter with a
+                                                // string type. If the string isn't a
+                                                // `DocumentCommentThreadId` then we return null.
+                                                commentThreadId,
+                                            )?.node.comments ?? null
+                                        );
+                                    },
+                                    [tree],
+                                )}
+                                onReplyToMessagesRange={(roomKey, parent) => {
+                                    const [, commentThreadId] =
+                                        decodeDocumentCommentRoomKey(roomKey);
+
+                                    setInputParentByCommentThreadId(inputParentById => {
+                                        const newInputParentById = new Map(inputParentById);
+                                        newInputParentById.set(commentThreadId, parent);
+                                        return newInputParentById;
+                                    });
+                                }}
+                            />
+                        </>
+                    }
                 />
                 {isSingleCommentThreadWithPinnedCommentInput &&
                     (() => {
                         const item = tree.getItem(tree.getItemCount() - 1);
                         assert(item.type === "DocumentCommentInput");
 
-                        const replyingToCommentIndex =
-                            replyingToCommentIndexByCommentThreadId.get(item.commentThread.id) ??
-                            null;
-                        const replyingToComment =
-                            replyingToCommentIndex !== null
-                                ? item.comments.getLoadedMessageIfExists(replyingToCommentIndex)
-                                : null;
+                        const inputParent =
+                            inputParentByCommentThreadId.get(item.commentThread.id) ?? null;
 
                         return (
                             <DocumentCommentInput
@@ -1327,16 +1351,17 @@ function DocumentCommentThreadListView(
                                     )
                                 }
                                 messageEditing={messageEditing}
-                                replyingToComment={replyingToComment}
-                                onClearReplyingToComment={() => {
-                                    setReplyingToCommentIndexByCommentThreadId(
-                                        replyingToCommentIndexByCommentThreadId => {
-                                            const newReplyingToCommentIndexByCommentThreadId =
-                                                new Map(replyingToCommentIndexByCommentThreadId);
-                                            newReplyingToCommentIndexByCommentThreadId.delete(
+                                parent={inputParent}
+                                onParentClear={() => {
+                                    setInputParentByCommentThreadId(
+                                        inputParentByCommentThreadId => {
+                                            const newInputParentByCommentThreadId = new Map(
+                                                inputParentByCommentThreadId,
+                                            );
+                                            newInputParentByCommentThreadId.delete(
                                                 item.commentThread.id,
                                             );
-                                            return newReplyingToCommentIndexByCommentThreadId;
+                                            return newInputParentByCommentThreadId;
                                         },
                                     );
                                 }}

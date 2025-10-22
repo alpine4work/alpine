@@ -20,6 +20,7 @@ import {
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
@@ -31,8 +32,8 @@ export function DocumentCommentInput({
     fileAttachmentTarget,
     onUpdateCommentThread,
     messageEditing,
-    replyingToComment,
-    onClearReplyingToComment,
+    parent,
+    onParentClear,
     onJumpToComment,
     onDeleteComment,
     isConnected,
@@ -58,8 +59,8 @@ export function DocumentCommentInput({
         },
     ) => void;
     messageEditing: MessageEditing<DocumentCommentRoomKey>;
-    replyingToComment: DocumentCommentModel | null;
-    onClearReplyingToComment: () => void;
+    parent: MessageContentPayloadParent | null;
+    onParentClear: () => void;
     onJumpToComment: (comment: DocumentCommentModel) => void;
     onDeleteComment: (commentIndex: number) => Promise<void>;
     isConnected: boolean;
@@ -195,8 +196,8 @@ export function DocumentCommentInput({
             }}
             fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={messageEditing}
-            replyingToMessage={replyingToComment}
-            onClearReplyingToMessage={onClearReplyingToComment}
+            parent={parent}
+            onParentClear={onParentClear}
             onJumpToMessage={onJumpToComment}
             onDeleteMessage={onDeleteComment}
             onShowTypingIndicator={() => {

@@ -12,7 +12,12 @@ export function SpaceDefaultAvatar({space, size}: {space: SpaceModel; size: Spac
     }, [space.id]);
 
     return (
-        <Box style={{backgroundColor: `${colors[`${avatarDesign.backgroundColor}-20`]}`}}>
+        <Box
+            position="relative"
+            width="full"
+            height="full"
+            style={{backgroundColor: `${colors[`${avatarDesign.backgroundColor}-20`]}`}}
+        >
             <AvatarDefault size={size} reaction={avatarDesign.reaction} />
         </Box>
     );

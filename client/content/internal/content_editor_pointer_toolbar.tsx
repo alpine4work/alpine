@@ -102,6 +102,8 @@ export function ContentEditorPointerToolbar({
         >
     >;
 }) {
+    const toolbarRef = useRef<HTMLDivElement>(null);
+
     // We keep track of our own `localInteractionModality` separate from
     // `react-aria`'s `interactionModality`. A user is still considered to have a
     // `pointer` `interactionModality` while they're typing in a text input
@@ -183,8 +185,15 @@ export function ContentEditorPointerToolbar({
     // If we show the toolbar while dragging it jumps around awkwardly and blocks
     // pointer events from the mouse over content the user is potentially
     // dragging to.
+    //
+    // NOTE(calebmer): This state was copied into `<MessagingViewPointerToolbar>`.
+    // If you make a change to this state here, you may want to make the same
+    // change there.
     const [hasPointerMovedWhileDown, setHasPointerMovedWhileDown] = useState(false);
 
+    // NOTE(calebmer): This state was copied into `<MessagingViewPointerToolbar>`.
+    // If you make a change to this state here, you may want to make the same
+    // change there.
     const [isWaitingForTripleClickAfterDoubleClick, setIsWaitingForTripleClickAfterDoubleClick] =
         useState(false);
 
@@ -344,13 +353,15 @@ export function ContentEditorPointerToolbar({
         mountSuppressionState === null;
 
     useLayoutEffect(() => {
-        let isPointerDown = false;
+        let isPointerDownOutsideToolbar = false;
 
         let lastMouseDownTime1: number | null = null;
         let lastMouseDownTime2: number | null = null;
 
         const handlePointerDown = (event: PointerEvent) => {
-            isPointerDown = true;
+            isPointerDownOutsideToolbar = !(
+                event.target instanceof Node && toolbarRef.current?.contains(event.target)
+            );
             setHasPointerMovedWhileDown(false);
 
             if (
@@ -383,7 +394,7 @@ export function ContentEditorPointerToolbar({
         };
 
         const handlePointerMove = () => {
-            if (isPointerDown) {
+            if (isPointerDownOutsideToolbar) {
                 setHasPointerMovedWhileDown(true);
             }
 
@@ -392,17 +403,17 @@ export function ContentEditorPointerToolbar({
         };
 
         const handlePointerUp = () => {
-            isPointerDown = false;
+            isPointerDownOutsideToolbar = false;
             setHasPointerMovedWhileDown(false);
         };
 
         const handlePointerCancel = () => {
-            isPointerDown = false;
+            isPointerDownOutsideToolbar = false;
             setHasPointerMovedWhileDown(false);
         };
 
         const handleDragStart = () => {
-            isPointerDown = false;
+            isPointerDownOutsideToolbar = false;
             setHasPointerMovedWhileDown(false);
         };
 
@@ -575,6 +586,7 @@ export function ContentEditorPointerToolbar({
         <ContentEditorPointerToolbarOverlay
             state={state}
             viewRef={viewRef}
+            toolbarRef={toolbarRef}
             selectionFrom={Math.min(state.doc.nodeSize - 2, showState.selectionFrom)}
             selectionTo={Math.min(state.doc.nodeSize - 2, showState.selectionTo)}
             animation={showState.animation}
@@ -612,6 +624,7 @@ export function ContentEditorPointerToolbar({
 function ContentEditorPointerToolbarOverlay({
     state,
     viewRef,
+    toolbarRef,
     selectionFrom,
     selectionTo,
     animation,
@@ -625,6 +638,7 @@ function ContentEditorPointerToolbarOverlay({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
+    toolbarRef: RefObject<HTMLDivElement>;
     selectionFrom: number;
     selectionTo: number;
     animation: "FadingIn" | "FadingOut" | null;
@@ -655,7 +669,9 @@ function ContentEditorPointerToolbarOverlay({
             // The toolbar needs to flip down.
             fallbackPlacements={["bottom-start"]}
             overflowTop={navigationBarHeight}
-            offset="3"
+            // Selected so when we're in a `<MessageInput>` the toolbar just overlaps the
+            // top border of the input.
+            offset="2.5"
             offsetAlong={shouldShowCommentOnly ? "-1" : "-4"}
             overlay={
                 <div
@@ -668,6 +684,7 @@ function ContentEditorPointerToolbarOverlay({
                     }}
                 >
                     <Box
+                        ref={toolbarRef}
                         data-testid="ContentEditorPointerToolbar"
                         display="flex"
                         paddingLeft="1"

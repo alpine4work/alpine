@@ -17,8 +17,10 @@ export function AvatarDefault({size, reaction}: {size: Spacing; reaction: Reacti
         <span
             className={avatarDefaultClassName}
             style={{
-                // Use translate for optical centering.
-                transform: `scale(${parseInt(size, 10) / parseInt(avatarDefaultSize, 10)})`,
+                transform: `scale(${(parseInt(size, 10) / parseInt(avatarDefaultSize, 10)).toFixed(
+                    8,
+                )})`,
+                transformOrigin: "top left",
             }}
             aria-hidden="true"
         >

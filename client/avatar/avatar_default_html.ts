@@ -9,6 +9,9 @@ export const avatarDefaultSize: Spacing = "24";
 export const avatarDefaultIconSize: Spacing = "20";
 
 export const avatarDefaultClassName = sprinkles({
+    position: "absolute",
+    left: "0",
+    top: "0",
     display: "block",
     width: avatarDefaultSize,
     height: avatarDefaultSize,
@@ -48,11 +51,13 @@ export function renderAvatarDefaultHtml({size, reaction}: {size: Spacing; reacti
     avatarHtml.setAttribute("class", avatarDefaultClassName);
     avatarHtml.setAttribute(
         "style",
-        `transform: scale(${parseInt(size, 10) / parseInt(avatarDefaultSize, 10)})`,
+        `transform: scale(${(parseInt(size, 10) / parseInt(avatarDefaultSize, 10)).toFixed(
+            8,
+        )}); transform-origin: top left`,
     );
     avatarHtml.setAttribute("aria-hidden", "true");
 
-    const avatarInnerHtml = new HtmlElementGenerator("span");
+    const avatarInnerHtml = avatarHtml.appendChild(new HtmlElementGenerator("span"));
     avatarInnerHtml.setAttribute(
         "class",
         classNames(
@@ -65,7 +70,7 @@ export function renderAvatarDefaultHtml({size, reaction}: {size: Spacing; reacti
         ),
     );
 
-    avatarHtml.appendChild(
+    avatarInnerHtml.appendChild(
         renderReactionIconHtml({
             reaction,
             size: avatarDefaultIconSize,

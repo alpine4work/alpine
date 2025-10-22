@@ -124,7 +124,7 @@ export interface PostListInterface {
     /**
      * Get a post by its `PostId`.
      */
-    getPostByIdIfExists(postId: PostId): {
+    getPostByIdIfExists(postId: string): {
         post: PostModel;
         postCommentsState: PostCommentsState;
         postComments: MessageList<PostCommentModel>;
