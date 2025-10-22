@@ -1,4 +1,4 @@
-import {render} from "@react-email/render";
+import {render, toPlainText} from "@react-email/render";
 import {decode as decodeHtmlEntities} from "html-entities";
 import {ComponentProps} from "react";
 import {NotificationDigestEmailTemplate} from "~/server/emails/internal/templates/notification_digest_email_template.js";
@@ -27,6 +27,11 @@ export type RenderedEmail = {
      * The HTML content of the email.
      */
     readonly html: string;
+
+    /**
+     * The plain text content of the email.
+     */
+    readonly plainText: string;
 
     /**
      * Get the title of the HTML email content. You should use the title as the
@@ -60,10 +65,12 @@ function createEmailTemplate<T>(Component: React.ComponentType<T>, templateName:
     return async (props: ComponentProps<typeof Component>): Promise<RenderedEmail> => {
         const html = await render(<Component {...(props as any)} />);
         const title = getTitleFromHtml(html);
+        const plainText = toPlainText(html);
         return {
             templateName,
             html,
             title,
+            plainText,
         };
     };
 }

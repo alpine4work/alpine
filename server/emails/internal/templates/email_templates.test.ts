@@ -385,16 +385,26 @@ describe("renderReactEmailTemplate", () => {
             expect(view).toEqual({
                 templateName: templateName,
                 html: expect.any(String),
+                plainText: expect.any(String),
                 title: expect.any(String),
             });
         });
-        test(`${description} content is not empty`, async () => {
+        test(`${description} HTML content is not empty`, async () => {
             const view = await renderReactEmailTemplate(context.tracer, {
                 templateName,
                 templateProps,
             });
 
             expect(view.html).not.toBe("");
+        });
+
+        test(`${description} Plain text content is not empty`, async () => {
+            const view = await renderReactEmailTemplate(context.tracer, {
+                templateName,
+                templateProps,
+            });
+
+            expect(view.plainText).not.toBe("");
         });
     });
 

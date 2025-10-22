@@ -66,7 +66,10 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                 ConfigurationSetName: "ProductionAlpine",
                 Message: {
                     Subject: {Charset: "utf8", Data: email.title},
-                    Body: {Html: {Charset: "utf8", Data: email.html}},
+                    Body: {
+                        Html: {Charset: "utf8", Data: email.html},
+                        Text: {Charset: "utf8", Data: email.plainText},
+                    },
                 },
             };
 

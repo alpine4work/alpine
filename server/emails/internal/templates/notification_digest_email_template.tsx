@@ -163,7 +163,7 @@ export function NotificationDigestEmailTemplate({
                                 verticalAlign: "middle",
                             }}
                         >
-                            <Column width={92}>
+                            <Column width={92} data-skip-in-text="true">
                                 {entry.secondAccount ? (
                                     <TwoAccountAvatar entry={entry} baseUrl={baseUrl} />
                                 ) : (

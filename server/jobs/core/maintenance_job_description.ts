@@ -54,6 +54,7 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
             templateName: Schema.string,
             html: Schema.string,
             title: Schema.string,
+            plainText: Schema.string,
         }),
     }),
 

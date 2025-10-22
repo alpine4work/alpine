@@ -1,6 +1,13 @@
-import {pretty} from "@react-email/render";
+import {pretty, toPlainText} from "@react-email/render";
 import {Link, ShouldRevalidateFunction, useParams} from "@remix-run/react";
-import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
+import {
+    Code,
+    Desktop,
+    DeviceMobileCamera,
+    EnvelopeSimple,
+    IconContext,
+    TextT,
+} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
 import {Box} from "~/client/design/box.js";
@@ -41,6 +48,7 @@ const LoaderSchema = Schema.object({
                 html: Schema.string,
                 htmlTitle: Schema.string,
                 preview: Schema.string.optional(),
+                plainText: Schema.string,
             }),
         }),
         Schema.object({
@@ -74,6 +82,7 @@ export async function loader({params, context}: LoaderArgs) {
 
     const emailPreviewResult = await captureResultPromise(async () => {
         const renderedEmail = await emailTemplatePreview.render(context.tracer);
+        const plainText = toPlainText(renderedEmail.html);
 
         // HACK: HTML parsing with regex is bad, but for our internal dev testing,
         // I think we can be a lil' ok with it. Let's find the preview by the data-email-preview
@@ -88,6 +97,7 @@ export async function loader({params, context}: LoaderArgs) {
             html: await pretty(renderedEmail.html),
             htmlTitle: renderedEmail.title,
             preview: previewMatch ? previewMatch[3]!.trim() : undefined,
+            plainText,
         };
     });
 
@@ -105,7 +115,10 @@ export default function EmailPreviewPage() {
     const {emailPreview: activeSlug} = useParams();
 
     const [_view, setView] = useUrlSearchParamState("view");
-    const view = _view === "desktop" || _view === "mobile" || _view === "html" ? _view : "desktop";
+    const view =
+        _view === "desktop" || _view === "mobile" || _view === "html" || _view === "plainText"
+            ? _view
+            : "desktop";
     const viewSearchParam = _view ? `?view=${_view}` : "";
 
     return (
@@ -224,10 +237,17 @@ export default function EmailPreviewPage() {
                         <ViewSwitcherButton
                             description="HTML view"
                             isActive={view === "html"}
-                            isLast
                             onPress={() => setView("html")}
                         >
                             <Code />
+                        </ViewSwitcherButton>
+                        <ViewSwitcherButton
+                            description="Plain text view"
+                            isActive={view === "plainText"}
+                            isLast
+                            onPress={() => setView("plainText")}
+                        >
+                            <TextT />
                         </ViewSwitcherButton>
                     </Box>
                 </Box>
@@ -266,6 +286,11 @@ export default function EmailPreviewPage() {
                                 />
                             ),
                             html: <EmailHtmlPreview html={emailPreviewResult.value.html} />,
+                            plainText: (
+                                <EmailPlainTextPreview
+                                    plainText={emailPreviewResult.value.plainText}
+                                />
+                            ),
                         }[view]
                     ) : (
                         <Box width="full" maxWidth="128" paddingX="4" paddingY="16">
@@ -339,6 +364,25 @@ function EmailHtmlPreview({html}: {html: string}) {
                 tabIndex={0}
             >
                 <code>{html}</code>
+            </pre>
+        </FocusRing>
+    );
+}
+function EmailPlainTextPreview({plainText}: {plainText: string}) {
+    return (
+        <FocusRing offset="inset">
+            <pre
+                ref={useScrollbar()}
+                className={sprinkles({
+                    width: "full",
+                    padding: "4",
+                    overflow: "auto",
+                    userSelect: "text",
+                    position: "relative",
+                })}
+                tabIndex={0}
+            >
+                <code>{plainText}</code>
             </pre>
         </FocusRing>
     );
