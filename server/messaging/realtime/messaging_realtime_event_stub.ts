@@ -4,6 +4,7 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageReferencedIds} from "~/shared/messaging/message_references.js";
 import {
     MessageContentPayload,
+    MessageContentPayloadContentUpdate,
     MessageStream,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
@@ -66,7 +67,7 @@ export type MessagingRealtimeEventStubChange =
           readonly type: "UpdateContent";
           readonly index: number;
           readonly content: MessageContent;
-          readonly contentUpdatedTime: Date;
+          readonly contentUpdate: MessageContentPayloadContentUpdate;
       }
     | {
           readonly type: "Delete";

@@ -1,3 +1,4 @@
+import {Step} from "prosemirror-transform";
 import {Memo, ReactNode, Ref, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -242,10 +243,11 @@ export function TaskCommentsView({
     );
 
     const updateMessageContent = useCallback(
-        (input: {messageIndex: number; content: MessageContent}) => {
+        (input: {messageIndex: number; version: number; steps: ReadonlyArray<Step>}) => {
             return procedures.updateCommentContent({
                 commentIndex: input.messageIndex,
-                content: input.content,
+                version: input.version,
+                steps: input.steps,
             });
         },
         [procedures],

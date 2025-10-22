@@ -11,11 +11,15 @@ import {
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
+import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -195,10 +199,12 @@ export const updateTaskCommentContent = defineRpc({
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
-        content: MessageContentSchema,
+        version: Schema.integer,
+        steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        contentUpdatedTime: Schema.date,
+        content: MessageContentSchema,
+        contentUpdate: MessageContentPayloadContentUpdateSchema,
     },
 });
 

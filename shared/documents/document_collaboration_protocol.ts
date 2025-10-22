@@ -16,7 +16,10 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
@@ -165,7 +168,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
             input: {
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 commentIndex: Schema.integer,
-                content: MessageContentSchema,
+                version: Schema.integer,
+                steps: Schema.array(MessageContentStepSchema),
             },
             output: {},
         },

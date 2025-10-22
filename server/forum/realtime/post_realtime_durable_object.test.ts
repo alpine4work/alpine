@@ -124,8 +124,8 @@ testMessagingRealtimeImplementation<PostId>(context, {
                 },
                 createMessage: ({parentMessageIndex: parentCommentIndex, content, fileIds}) =>
                     connection.procedures.createComment({parentCommentIndex, content, fileIds}),
-                updateMessageContent: ({messageIndex: commentIndex, content}) =>
-                    connection.procedures.updateCommentContent({commentIndex, content}),
+                updateMessageContent: ({messageIndex: commentIndex, version, steps}) =>
+                    connection.procedures.updateCommentContent({commentIndex, version, steps}),
                 deleteMessage: ({messageIndex: commentIndex}) =>
                     connection.procedures.deleteComment({commentIndex}),
                 startTypingInMessageInput: ({}) =>
@@ -162,11 +162,12 @@ testMessagingRealtimeImplementation<PostId>(context, {
             fileIds,
         });
     },
-    updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
+    updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, version, steps}) {
         return updatePostCommentContent(context, {
             postId,
             commentIndex,
-            content,
+            version,
+            steps,
         });
     },
     deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {

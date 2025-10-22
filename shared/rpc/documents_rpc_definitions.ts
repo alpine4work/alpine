@@ -23,12 +23,16 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
 import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
+import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -245,10 +249,12 @@ export const updateDocumentCommentContent = defineRpc({
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         commentIndex: Schema.integer,
-        content: MessageContentSchema,
+        version: Schema.integer,
+        steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        contentUpdatedTime: Schema.date,
+        content: MessageContentSchema,
+        contentUpdate: MessageContentPayloadContentUpdateSchema,
     },
 });
 

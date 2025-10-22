@@ -267,11 +267,11 @@ export default implementRpcs(definitions, {
     updatePostCommentContent: {
         visibility: ["PostRealtimeService"],
         execute: async (context, input) => {
-            const {contentUpdatedTime} = await updatePostCommentContent(
+            const {content, contentUpdate} = await updatePostCommentContent(
                 context.actor.authorizeSession(),
                 input,
             );
-            return {contentUpdatedTime};
+            return {content, contentUpdate};
         },
     },
 

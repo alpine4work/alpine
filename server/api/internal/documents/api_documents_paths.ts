@@ -139,9 +139,9 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
 
             const payload: MessageContentPayload = {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content,
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [],
             };
 

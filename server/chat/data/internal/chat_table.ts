@@ -2,12 +2,14 @@ import {authorizeChatAccess} from "~/server/chat/data/chat_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayloadSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const ChatTable = DynamoTableSchema.new({
@@ -198,6 +200,8 @@ export const ChatTable = DynamoTableSchema.new({
                             UpdateContent: Schema.object({
                                 type: Schema.value("UpdateContent"),
                                 content: MessageContentSchema,
+                                contentUpdateMappings:
+                                    Schema.array(ProsemirrorMappingSchema).default(emptyArray),
                                 // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
                                 // duplicate it here.
                             }),

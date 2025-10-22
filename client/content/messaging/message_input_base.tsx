@@ -1,5 +1,6 @@
 import {animate} from "motion";
 import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
+import {Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -126,10 +127,7 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Id} from "~/shared/id/id.js";
-import {
-    MessageContentWithReferences,
-    emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -150,7 +148,10 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     placeholder?: string;
     state: ContentEditorState<MessageContentWithReferences>;
     files: ReadonlyArray<MessageInputFile>;
-    onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
+    onChange: (
+        state: ContentEditorState<MessageContentWithReferences>,
+        transaction: Transaction,
+    ) => void;
     onAddFile: ((file: MessageInputFile) => void) | null;
     onRemoveFile: ((fileKey: Id) => void) | null;
     onSend: () => void;
@@ -263,7 +264,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         clear: () => {
             onClearReplyingToMessage?.();
             messageEditingForThisInput?.dispatch({type: "CancelEditing"});
-            onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+
+            const [newState, transaction] = state.delete();
+            onChange(newState, transaction);
         },
         addFiles: (
             spanName: string,
@@ -1116,7 +1119,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 ref={editorRef}
                                                 state={state}
                                                 onChange={(state, transaction) => {
-                                                    onChange(state);
+                                                    onChange(state, transaction);
                                                     if (transaction.docChanged)
                                                         showTypingIndicator();
                                                 }}

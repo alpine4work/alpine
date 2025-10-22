@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import {addHours, addMonths, addSeconds, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
-import {Step} from "prosemirror-transform";
+import {Mapping, Step, StepResult} from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
@@ -151,12 +151,20 @@ import {
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
-import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
+    MessageContent,
+    MessageContentSchema,
+    isMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
     MessagePayloadSchema,
     MessageStreamPartPayload,
     MessageStreamPartPayloadSchema,
+    iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -903,6 +911,9 @@ const TaskTable = DynamoTableSchema.new({
                             UpdateContent: Schema.object({
                                 type: Schema.value("UpdateContent"),
                                 content: MessageContentSchema,
+                                contentUpdateMappings: Schema.array(
+                                    ProsemirrorMappingSchema,
+                                ).default([]),
                                 // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
                                 // duplicate it here.
                             }),
@@ -5318,15 +5329,18 @@ export function updateTaskCommentContent(
     {
         taskId,
         commentIndex,
-        content,
+        version,
+        steps,
     }: {
         taskId: TaskId;
         commentIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     },
 ): Promise<{
     spaceId: SpaceId;
-    contentUpdatedTime: Date;
+    content: MessageContent;
+    contentUpdate: MessageContentPayloadContentUpdate;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{item, commentsSummaryItem}, taskCommentItem] = await runAllPromises([
@@ -5351,18 +5365,47 @@ export function updateTaskCommentContent(
         if (taskCommentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical comment content");
 
-        const contentUpdatedTime = new Date(
-            Math.max(
-                (commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])).getTime() + 1,
-                Date.now(),
+        if (version !== (taskCommentItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError("Can’t update comment with mismatched version");
+
+        let content = taskCommentItem.payload.content;
+        const mapping = new Mapping();
+
+        for (const step of steps) {
+            let stepResult: StepResult;
+            try {
+                stepResult = step.apply(content);
+            } catch (error) {
+                throw FailedPreconditionError.from(error);
+            }
+            if (!stepResult.doc) {
+                throw new FailedPreconditionError(
+                    `Couldn’t apply step to content: ${stepResult.failed!}`,
+                );
+            }
+
+            assert(isMessageContent(stepResult.doc));
+            content = stepResult.doc;
+            mapping.appendMap(step.getMap());
+        }
+
+        const contentUpdate: MessageContentPayloadContentUpdate = {
+            time: new Date(
+                Math.max(
+                    (
+                        commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])
+                    ).getTime() + 1,
+                    Date.now(),
+                ),
             ),
-        );
+            mappings: [...(taskCommentItem.payload.contentUpdate?.mappings ?? []), mapping],
+        };
 
         // `lastChangeTime` should always be greater than or equal
         // to `contentUpdatedTime`.
         assert(
-            !taskCommentItem.payload.contentUpdatedTime ||
-                contentUpdatedTime > taskCommentItem.payload.contentUpdatedTime,
+            !taskCommentItem.payload.contentUpdate ||
+                contentUpdate.time > taskCommentItem.payload.contentUpdate.time,
         );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
@@ -5377,14 +5420,14 @@ export function updateTaskCommentContent(
                 payload: {
                     ...taskCommentItem.payload,
                     content,
-                    contentUpdatedTime,
+                    contentUpdate,
                 },
             }),
             TaskTable.transactionDirectlyUpdateItem({
                 ...commentsSummaryItem,
                 taskId,
                 nextCommentIndex: commentsSummaryItem.nextCommentIndex,
-                lastChangeTime: contentUpdatedTime,
+                lastChangeTime: contentUpdate.time,
                 commentCountByAuthorId: commentsSummaryItem.commentCountByAuthorId,
                 mentionCountByAccountId: newMentionCountByAccountId,
                 updateLockVersion: commentsSummaryItem.updateLockVersion,
@@ -5393,13 +5436,14 @@ export function updateTaskCommentContent(
                 partitionType: "Task",
                 sortRangeType: "CommentChangeLog",
                 taskId,
-                changeTime: contentUpdatedTime,
+                changeTime: contentUpdate.time,
                 commentIndex: taskCommentItem.commentIndex,
                 change: {
                     type: "UpdateContent",
                     content,
+                    contentUpdateMappings: contentUpdate.mappings,
                 },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdatedTime),
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
             }),
         ]);
 
@@ -5414,7 +5458,7 @@ export function updateTaskCommentContent(
             },
         });
 
-        return {spaceId: item.spaceId, contentUpdatedTime};
+        return {spaceId: item.spaceId, content, contentUpdate};
     });
 }
 
@@ -5454,8 +5498,8 @@ export function deleteTaskComment(
         // `lastChangeTime` should always be greater than or equal
         // to `deletedTime`.
         assert(
-            !taskCommentItem.payload.contentUpdatedTime ||
-                deletedTime > taskCommentItem.payload.contentUpdatedTime,
+            !taskCommentItem.payload.contentUpdate ||
+                deletedTime > taskCommentItem.payload.contentUpdate.time,
         );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
@@ -5601,9 +5645,12 @@ export async function createTaskComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: parentCommentIndex,
+                    parent:
+                        parentCommentIndex !== null
+                            ? {type: "Message", index: parentCommentIndex}
+                            : null,
                     content,
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     fileIds,
                     clerical: isStream ? {type: "Stream"} : undefined,
                 },
@@ -6078,6 +6125,12 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<TaskCommentModel> = [];
 
+    const loadOtherReferencedCommentFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedComment(index);
+        }
+    };
+
     const loadOtherReferencedComment = (commentIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -6093,8 +6146,8 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedCommentFromParent(item.payload.parent);
                 }
 
                 otherReferencedComments.push(
@@ -6109,8 +6162,8 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
 
     const comments = await runAllPromises(
         commentItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedCommentFromParent(item.payload.parent);
             }
 
             // Don't propagate `consistency` when loading model references. We
@@ -6443,6 +6496,12 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<TaskCommentModel> = [];
 
+    const loadOtherReferencedCommentFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedComment(index);
+        }
+    };
+
     const loadOtherReferencedComment = (commentIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -6456,8 +6515,8 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedCommentFromParent(item.payload.parent);
                 }
 
                 otherReferencedComments.push(
@@ -6472,8 +6531,8 @@ async function getTaskCommentsFromEndAssumingAuthorizedTask(
 
     const comments = await runAllPromises(
         commentItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedCommentFromParent(item.payload.parent);
             }
             return createTaskCommentModelFromItem(context, spaceId, taskId, item);
         }),
@@ -6771,7 +6830,10 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
                                 item.change.content,
                             ),
                         },
-                        contentUpdatedTime: item.changeTime,
+                        contentUpdate: {
+                            time: item.changeTime,
+                            mappings: item.change.contentUpdateMappings,
+                        },
                     };
                 }
                 case "Delete": {
@@ -7321,8 +7383,11 @@ export function updateTaskNotesContent(
 
                 for (const step of steps) {
                     const stepResult = step.apply(content);
-                    if (!stepResult.doc)
-                        throw new FailedPreconditionError("Couldn’t apply step to content");
+                    if (!stepResult.doc) {
+                        throw new FailedPreconditionError(
+                            `Couldn’t apply step to content: ${stepResult.failed!}`,
+                        );
+                    }
 
                     assert(isTaskNotesContent(stepResult.doc));
                     content = stepResult.doc;
@@ -7345,8 +7410,11 @@ export function updateTaskNotesContent(
 
                 for (const step of steps) {
                     const stepResult = step.apply(content);
-                    if (!stepResult.doc)
-                        throw new FailedPreconditionError("Couldn’t apply step to content");
+                    if (!stepResult.doc) {
+                        throw new FailedPreconditionError(
+                            `Couldn’t apply step to content: ${stepResult.failed!}`,
+                        );
+                    }
 
                     assert(isTaskNotesContent(stepResult.doc));
                     content = stepResult.doc;

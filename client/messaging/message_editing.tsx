@@ -1,3 +1,5 @@
+import {Transaction} from "prosemirror-state";
+import {Step} from "prosemirror-transform";
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -5,8 +7,9 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {trimContentEnd} from "~/shared/content/trim_content.js";
+import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
 import {Platform} from "~/shared/design/core/platform.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -24,7 +27,9 @@ export type MessageEditingState<RoomKey extends string> =
           readonly isEditing: true;
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
+          readonly version: number;
           readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
+          readonly contentSteps: ReadonlyArray<Step>;
           readonly initialContent: MessageContent;
           readonly confirmationDialog: "Save" | "Delete" | null;
           readonly returnFocusAfterEditing: (() => void) | null;
@@ -50,7 +55,8 @@ export type MessageEditingAction<RoomKey extends string> =
       }
     | {
           readonly type: "ContentEditorStateChange";
-          readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
+          readonly state: ContentEditorState<MessageContentWithReferences>;
+          readonly transaction: Transaction;
       }
     | {
           readonly type: "CancelEditing";
@@ -81,12 +87,14 @@ function reduce<RoomKey extends string>(
                 isEditing: true,
                 messageRoomKey: action.messageRoomKey,
                 messageIndex: action.messageIndex,
+                version: action.messagePayload.contentUpdate?.mappings.length ?? 0,
                 contentEditorState: ContentEditorState.create(action.messagePayload.content, {
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. But on mobile, if the message is long, editing should start at the
                     // start of the message so the cursor is visible.
                     selection: action.platform === "mobile" ? "start" : "end",
                 }),
+                contentSteps: emptyArray,
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,
                 isSaving: false,
@@ -98,7 +106,8 @@ function reduce<RoomKey extends string>(
 
             return {
                 ...state,
-                contentEditorState: action.contentEditorState,
+                contentEditorState: action.state,
+                contentSteps: state.contentSteps.concat(action.transaction.steps),
             };
         }
         case "CancelEditing": {
@@ -192,7 +201,8 @@ export function useMessageEditing<RoomKey extends string>({
     onUpdateMessageContent: (options: {
         roomKey: RoomKey;
         messageIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     }) => Promise<void>;
     onDeleteMessage: (options: {roomKey: RoomKey; messageIndex: number}) => Promise<void>;
 }): {
@@ -217,10 +227,19 @@ export function useMessageEditing<RoomKey extends string>({
         // eslint-disable-next-line react-compiler/react-compiler
         state.isAwaitingSaveRef.current = true;
 
+        const doc = state.contentEditorState.getDoc();
+        const trimPos = trimContentFragmentEndPos(doc.content);
+        const trimTransaction =
+            trimPos !== null ? state.contentEditorState.delete(trimPos)[1] : null;
+
         onUpdateMessageContent({
             roomKey: state.messageRoomKey,
             messageIndex: state.messageIndex,
-            content: trimContentEnd(state.contentEditorState.getDoc()),
+            version: state.version,
+            steps:
+                trimTransaction !== null
+                    ? [...state.contentSteps, ...trimTransaction.steps]
+                    : state.contentSteps,
         }).then(
             () => {
                 state.savePromiseResolver?.resolve();

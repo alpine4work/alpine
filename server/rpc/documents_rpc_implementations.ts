@@ -206,11 +206,11 @@ export default implementRpcs(definitions, {
     updateDocumentCommentContent: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            const {contentUpdatedTime} = await updateDocumentCommentContent(
+            const {content, contentUpdate} = await updateDocumentCommentContent(
                 context.actor.authorizeSession(),
                 input,
             );
-            return {contentUpdatedTime};
+            return {content, contentUpdate};
         },
     },
 

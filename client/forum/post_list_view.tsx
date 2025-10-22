@@ -680,13 +680,14 @@ function PostListView(
     // 2. We want only one message to be editable at a time.
     const {messageEditing, modals: messageEditingModals} = useMessageEditing<PostId>({
         messageNoun: "comment",
-        onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
+        onUpdateMessageContent: async ({roomKey, messageIndex, version, steps}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
             if (!procedures) throw new InternalError("Post comment input isn’t mounted");
 
             await procedures.updateCommentContent({
                 commentIndex: messageIndex,
-                content,
+                version,
+                steps,
             });
         },
         onDeleteMessage: async ({roomKey, messageIndex}) => {

@@ -145,8 +145,8 @@ export class PostRealtimeConnection {
             {parentCommentIndex: parentMessageIndex, content, fileIds},
         ) => this._connection.createMessage(context, {parentMessageIndex, content, fileIds}),
 
-        updateCommentContent: (context, {commentIndex: messageIndex, content}) =>
-            this._connection.updateMessageContent(context, {messageIndex, content}),
+        updateCommentContent: (context, {commentIndex: messageIndex, version, steps}) =>
+            this._connection.updateMessageContent(context, {messageIndex, version, steps}),
 
         deleteComment: (context, {commentIndex: messageIndex}) =>
             this._connection.deleteMessage(context, {messageIndex}),
@@ -234,12 +234,13 @@ const createMessage: CreateMessageFunction<PostId> = (
 
 const updateMessageContent: UpdateMessageContentFunction<PostId> = (
     context,
-    {roomKey: postId, messageIndex: commentIndex, content},
+    {roomKey: postId, messageIndex: commentIndex, steps, version},
 ) => {
     return updatePostCommentContent(context, {
         postId,
         commentIndex,
-        content,
+        steps,
+        version,
     });
 };
 
@@ -302,12 +303,12 @@ const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> =
         author: references.author,
         payload: {
             type: "Content",
-            parentMessageIndex: message.payload.parentMessageIndex,
+            parent: message.payload.parent,
             content: {
                 doc: message.payload.content,
                 references: references.contentReferences,
             },
-            contentUpdatedTime: message.payload.contentUpdatedTime,
+            contentUpdate: message.payload.contentUpdate,
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),

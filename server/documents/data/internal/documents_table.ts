@@ -9,6 +9,7 @@ import {
     DocumentWithOptionalTitleContentSchema,
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -23,6 +24,7 @@ import {
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -603,6 +605,8 @@ export const DocumentsTable = DynamoTableSchema.new({
                             UpdateContent: Schema.object({
                                 type: Schema.value("UpdateContent"),
                                 content: MessageContentSchema,
+                                contentUpdateMappings:
+                                    Schema.array(ProsemirrorMappingSchema).default(emptyArray),
                                 // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
                                 // duplicate it here.
                             }),

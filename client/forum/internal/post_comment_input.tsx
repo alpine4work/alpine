@@ -1,4 +1,5 @@
 import {ArrowUp, Plus} from "phosphor-react";
+import {Step} from "prosemirror-transform";
 import {
     ComponentProps,
     Memo,
@@ -53,12 +54,15 @@ import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realt
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export type PostRealtimeProcedures = {
-    updateCommentContent: (input: {commentIndex: number; content: MessageContent}) => Promise<{}>;
+    updateCommentContent: (input: {
+        commentIndex: number;
+        version: number;
+        steps: ReadonlyArray<Step>;
+    }) => Promise<{}>;
     deleteComment: (input: {commentIndex: number}) => Promise<{}>;
 };
 

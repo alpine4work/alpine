@@ -20,11 +20,15 @@ import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {DynamoGeneralRealtimePostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
+import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -330,10 +334,12 @@ export const updatePostCommentContent = defineRpc({
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
-        content: MessageContentSchema,
+        version: Schema.integer,
+        steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        contentUpdatedTime: Schema.date,
+        content: MessageContentSchema,
+        contentUpdate: MessageContentPayloadContentUpdateSchema,
     },
 });
 

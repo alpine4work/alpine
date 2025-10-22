@@ -1,7 +1,9 @@
-import {Node} from "prosemirror-model";
+import {Node, Slice} from "prosemirror-model";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {
     TestAccountActionContext,
+    TestActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -10,6 +12,7 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -18,6 +21,8 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageContentPayloadContentUpdate} from "~/shared/messaging/message_schema.js";
 
 const testMessageCountByConstructor = new DefaultMap<
     typeof TestMessagingRoomBase,
@@ -56,13 +61,24 @@ export abstract class TestMessagingRoomBase {
 
     // Public so that we can call from `TestMessage`. Shouldn't be called outside
     // of this file.
+    public abstract _getMessage(
+        context: TestActionContext,
+        messageIndex: number,
+    ): Promise<MessageModel>;
+
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside
+    // of this file.
     public abstract _updateMessageContent(
         context: TestSessionActionContext,
         options: {
             messageIndex: number;
-            content: MessageContent;
+            version: number;
+            steps: ReadonlyArray<Step>;
         },
-    ): Promise<{contentUpdatedTime: Date}>;
+    ): Promise<{
+        content: MessageContent;
+        contentUpdate: MessageContentPayloadContentUpdate;
+    }>;
 
     // Public so that we can call from `TestMessage`. Shouldn't be called outside
     // of this file.
@@ -181,10 +197,33 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         return new TestMessage(context, space, room, index, createdTime);
     }
 
-    public updateContent(session: TestSession, content: string | MessageContent) {
+    public async updateContent(session: TestSession, content: string | Node) {
+        const message = await this.room._getMessage(
+            // Use a system action since if there's a `PermissionDeniedError` we want it
+            // thrown from `_updateMessageContent()` instead of `_getMessage()`.
+            this.space.systemAction(),
+            this.index,
+        );
+
+        assert(message.payload.type === "Content");
+
         return this.room._updateMessageContent(session.action(), {
             messageIndex: this.index,
-            content: typeof content === "string" ? createSimpleMessageContent(content) : content,
+            version: message.payload.contentUpdate?.mappings.length ?? 0,
+            steps: [
+                new ReplaceStep(
+                    0,
+                    message.payload.content.doc.content.size,
+                    new Slice(
+                        (typeof content === "string"
+                            ? createSimpleMessageContent(content)
+                            : assertMessageContent(content)
+                        ).content,
+                        0,
+                        0,
+                    ),
+                ),
+            ],
         });
     }
 

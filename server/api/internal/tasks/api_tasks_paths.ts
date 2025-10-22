@@ -192,9 +192,9 @@ export const apiTasksPaths: Pick<
 
             const payload: MessageContentPayload = {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content,
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [],
             };
 

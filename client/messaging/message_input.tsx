@@ -246,9 +246,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             createdTime: new Date(),
             payload: {
                 type: "Content",
-                parentMessageIndex: replyingToMessage?.index ?? null,
+                parent: replyingToMessage
+                    ? {type: "Message", index: replyingToMessage.index}
+                    : null,
                 content: inputContent,
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 files: inputFiles.map(inputFile => {
                     switch (inputFile.type) {
                         case "File": {
@@ -411,10 +413,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onChange={
                     !messageEditingForThisInput
                         ? setInputState
-                        : state => {
+                        : (state, transaction) => {
                               messageEditingForThisInput.dispatch({
                                   type: "ContentEditorStateChange",
-                                  contentEditorState: state,
+                                  state,
+                                  transaction,
                               });
                           }
                 }

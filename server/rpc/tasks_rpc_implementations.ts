@@ -186,11 +186,11 @@ export default implementRpcs(definitions, {
     updateTaskCommentContent: {
         visibility: ["TaskNotesCollaborationService"],
         execute: async (context, input) => {
-            const {contentUpdatedTime} = await updateTaskCommentContent(
+            const {content, contentUpdate} = await updateTaskCommentContent(
                 context.actor.authorizeSession(),
                 input,
             );
-            return {contentUpdatedTime};
+            return {content, contentUpdate};
         },
     },
 

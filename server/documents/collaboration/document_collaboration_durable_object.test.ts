@@ -639,12 +639,12 @@ test("will respond optimistically with a comment thread even if it has not been 
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -672,12 +672,12 @@ test("will respond optimistically with a comment thread even if it has not been 
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -732,12 +732,12 @@ test("will respond optimistically with a comment thread even if it has not been 
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -765,12 +765,12 @@ test("will respond optimistically with a comment thread even if it has not been 
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -1078,12 +1078,12 @@ test("will respond optimistically with a comment thread with files even if it ha
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [
                         {
                             type: "File",
@@ -1136,12 +1136,12 @@ test("will respond optimistically with a comment thread with files even if it ha
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [
                         {
                             type: "File",
@@ -1221,12 +1221,12 @@ test("will respond optimistically with a comment thread with files even if it ha
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [
                         {
                             type: "File",
@@ -1279,12 +1279,12 @@ test("will respond optimistically with a comment thread with files even if it ha
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [
                         {
                             type: "File",
@@ -1874,12 +1874,12 @@ test("can create comments in comment threads", async () => {
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1903,12 +1903,12 @@ test("can create comments in comment threads", async () => {
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1948,12 +1948,12 @@ test("can create comments in comment threads", async () => {
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 2"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -1994,12 +1994,12 @@ test("can create comments in comment threads", async () => {
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2012,12 +2012,12 @@ test("can create comments in comment threads", async () => {
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 2"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2055,12 +2055,12 @@ test("can create comments in comment threads", async () => {
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -2084,12 +2084,12 @@ test("can create comments in comment threads", async () => {
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -2281,12 +2281,12 @@ test("if comment thread is persisting we will wait to create messages but respon
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2324,12 +2324,12 @@ test("if comment thread is persisting we will wait to create messages but respon
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -2358,12 +2358,12 @@ test("if comment thread is persisting we will wait to create messages but respon
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -2570,12 +2570,12 @@ test("if comment thread update message hasn’t been processed we will wait to r
                 createdTime: expect.any(Date),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2620,12 +2620,12 @@ test("if comment thread update message hasn’t been processed we will wait to r
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -2654,12 +2654,12 @@ test("if comment thread update message hasn’t been processed we will wait to r
                     createdTime: expect.any(Date),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("Test message content 2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -2819,12 +2819,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2859,12 +2859,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2933,12 +2933,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -2966,12 +2966,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3055,12 +3055,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3088,12 +3088,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3207,12 +3207,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3247,12 +3247,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3321,12 +3321,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3354,12 +3354,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3443,12 +3443,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -3476,12 +3476,12 @@ test("while comment thread is persisting we will respond to comment load request
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test message content 1"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -4839,25 +4839,41 @@ test("can’t call comment procedures as viewer", async () => {
         }),
     ).rejects.toThrow("Can’t see document comments");
 
+    const oldContent = createSimpleMessageContent("bar");
+
     await connection1.procedures.createComment({
         commentThreadId: commentThread.id,
         parentCommentIndex: null,
-        content: createSimpleMessageContent("bar"),
+        content: oldContent,
         fileIds: [],
     });
 
     await expect(
         connection2.procedures.updateCommentContent({
             commentThreadId: commentThread.id,
-            commentIndex: 0,
-            content: createSimpleMessageContent("foo2"),
+            commentIndex: 1,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    0,
+                    oldContent.content.size,
+                    new Slice(createSimpleMessageContent("foo2").content, 0, 0),
+                ),
+            ],
         }),
     ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.updateCommentContent({
         commentThreadId: commentThread.id,
-        commentIndex: 0,
-        content: createSimpleMessageContent("bar2"),
+        commentIndex: 1,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                0,
+                oldContent.content.size,
+                new Slice(createSimpleMessageContent("bar2").content, 0, 0),
+            ),
+        ],
     });
 
     await expect(
@@ -6007,11 +6023,12 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
                         content,
                         fileIds,
                     }),
-                updateMessageContent: ({messageIndex: commentIndex, content}) =>
+                updateMessageContent: ({messageIndex: commentIndex, version, steps}) =>
                     connection.procedures.updateCommentContent({
                         commentThreadId,
                         commentIndex,
-                        content,
+                        version,
+                        steps,
                     }),
                 deleteMessage: ({messageIndex: commentIndex}) =>
                     connection.procedures.deleteComment({commentThreadId, commentIndex}),
@@ -6053,14 +6070,15 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             fileIds,
         });
     },
-    updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+    updateMessageContent(context, {roomKey, messageIndex: commentIndex, version, steps}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return updateDocumentCommentContent(context, {
             documentId,
             commentThreadId,
             commentIndex,
-            content,
+            version,
+            steps,
         });
     },
     deleteMessage(context, {roomKey, messageIndex: commentIndex}) {

@@ -125,11 +125,12 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             fileIds,
         });
     },
-    updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
+    updateMessageContent(context, {roomKey: chatId, messageIndex, version, steps}) {
         return updateChatMessageContent(context, {
             chatId,
             messageIndex,
-            content,
+            version,
+            steps,
         });
     },
     deleteMessage(context, {roomKey: chatId, messageIndex}) {

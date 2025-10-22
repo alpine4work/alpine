@@ -1,6 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {Fragment, Node, Slice} from "prosemirror-model";
-import {ReplaceStep} from "prosemirror-transform";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {
     TestAccountActionContext,
     TestContext,
@@ -22,6 +22,7 @@ import {
     commitTaskActionTransaction,
     createTaskComment,
     deleteTaskComment,
+    getTaskComment,
     getTaskItemForTest,
     updateTaskCommentContent,
     updateTaskNotesContent,
@@ -143,6 +144,13 @@ export class TestTask extends TestCommentRoomBase {
         return {type: "Task", taskId: this.id};
     }
 
+    public override _getMessage(context: TestSessionActionContext, messageIndex: number) {
+        return getTaskComment(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
+        });
+    }
+
     protected override _createMessage(
         context: TestAccountActionContext,
         {
@@ -165,12 +173,21 @@ export class TestTask extends TestCommentRoomBase {
 
     public override _updateMessageContent(
         context: TestSessionActionContext,
-        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+        {
+            messageIndex,
+            version,
+            steps,
+        }: {
+            messageIndex: number;
+            version: number;
+            steps: ReadonlyArray<Step>;
+        },
     ) {
         return updateTaskCommentContent(context, {
             taskId: this.id,
             commentIndex: messageIndex,
-            content,
+            version,
+            steps,
         });
     }
 

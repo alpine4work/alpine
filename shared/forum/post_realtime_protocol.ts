@@ -6,7 +6,10 @@ import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
@@ -71,7 +74,8 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
         updateCommentContent: {
             input: {
                 commentIndex: Schema.integer,
-                content: MessageContentSchema,
+                version: Schema.integer,
+                steps: Schema.array(MessageContentStepSchema),
             },
             output: {},
         },

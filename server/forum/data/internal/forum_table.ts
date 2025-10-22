@@ -1,12 +1,14 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayloadSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // Contains forum data that's not covered by our general realtime system. For
@@ -135,6 +137,8 @@ export const ForumTable = DynamoTableSchema.new({
                             UpdateContent: Schema.object({
                                 type: Schema.value("UpdateContent"),
                                 content: MessageContentSchema,
+                                contentUpdateMappings:
+                                    Schema.array(ProsemirrorMappingSchema).default(emptyArray),
                                 // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
                                 // duplicate it here.
                             }),

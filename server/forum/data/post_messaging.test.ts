@@ -172,11 +172,15 @@ testMessagingImplementation<PostId>(context, {
     async getMessagePayload(context, {roomKey: postId, messageIndex: commentIndex}) {
         return await getPostCommentPayload(context, {postId, commentIndex});
     },
-    async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
+    async updateMessageContent(
+        context,
+        {roomKey: postId, messageIndex: commentIndex, version, steps},
+    ) {
         return updatePostCommentContent(context, {
             postId,
             commentIndex,
-            content,
+            version,
+            steps,
         });
     },
     async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {

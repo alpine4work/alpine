@@ -2,11 +2,15 @@ import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
+import {MessageContentPayloadContentUpdateSchema} from "~/shared/messaging/message_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -71,10 +75,12 @@ export const updateChatMessageContent = defineRpc({
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
-        content: MessageContentSchema,
+        version: Schema.integer,
+        steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        contentUpdatedTime: Schema.date,
+        content: MessageContentSchema,
+        contentUpdate: MessageContentPayloadContentUpdateSchema,
     },
 });
 

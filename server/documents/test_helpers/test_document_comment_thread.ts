@@ -1,7 +1,8 @@
-import {AddMarkStep, AddNodeMarkStep} from "prosemirror-transform";
+import {AddMarkStep, AddNodeMarkStep, Step} from "prosemirror-transform";
 import {
     createDocumentComment,
     deleteDocumentComment,
+    getDocumentComment,
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
@@ -103,6 +104,14 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         return {type: "Document", documentId: this.document.id};
     }
 
+    public override _getMessage(context: TestSessionActionContext, messageIndex: number) {
+        return getDocumentComment(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+        });
+    }
+
     protected override _createMessage(
         context: TestAccountActionContext,
         {
@@ -126,13 +135,22 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
 
     public override _updateMessageContent(
         context: TestSessionActionContext,
-        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+        {
+            messageIndex,
+            version,
+            steps,
+        }: {
+            messageIndex: number;
+            version: number;
+            steps: ReadonlyArray<Step>;
+        },
     ) {
         return updateDocumentCommentContent(context, {
             documentId: this.document.id,
             commentThreadId: this.id,
             commentIndex: messageIndex,
-            content,
+            version,
+            steps,
         });
     }
 

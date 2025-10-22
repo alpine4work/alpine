@@ -3,9 +3,11 @@ import {Node} from "prosemirror-model";
 import {
     AddMarkStep,
     AddNodeMarkStep,
+    Mapping,
     RemoveMarkStep,
     RemoveNodeMarkStep,
     Step,
+    StepResult,
 } from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
@@ -147,8 +149,13 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
+    MessageStreamPartPayload,
+    iterateMessageContentPayloadParentIndexes,
+} from "~/shared/messaging/message_schema.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
@@ -3150,9 +3157,9 @@ export async function updateDocumentContent(
                         createdTime,
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createCommentThread.initialCommentContent,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             fileIds: createCommentThread.initialCommentFileIds,
                         },
                     },
@@ -4489,9 +4496,11 @@ export async function createDocumentComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: parentCommentItem?.commentIndex ?? null,
+                    parent: parentCommentItem
+                        ? {type: "Message", index: parentCommentItem.commentIndex}
+                        : null,
                     content,
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     fileIds,
                     clerical: isStream ? {type: "Stream"} : undefined,
                 },
@@ -5060,15 +5069,19 @@ export function updateDocumentCommentContent(
         documentId,
         commentThreadId,
         commentIndex,
-        content,
+        version,
+        steps,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     },
 ): Promise<{
-    contentUpdatedTime: Date;
+    spaceId: SpaceId;
+    content: MessageContent;
+    contentUpdate: MessageContentPayloadContentUpdate;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
@@ -5096,21 +5109,48 @@ export function updateDocumentCommentContent(
         if (commentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical comment content");
 
-        const contentUpdatedTime = new Date(
-            Math.max(
-                (
-                    commentThreadItem.commentsSummary.lastChangeTime ??
-                    commentThreadItem.createdTime
-                ).getTime() + 1,
-                Date.now(),
+        if (version !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError("Can’t update comment with mismatched version");
+
+        let content = commentItem.payload.content;
+        const mapping = new Mapping();
+
+        for (const step of steps) {
+            let stepResult: StepResult;
+            try {
+                stepResult = step.apply(content);
+            } catch (error) {
+                throw FailedPreconditionError.from(error);
+            }
+            if (!stepResult.doc) {
+                throw new FailedPreconditionError(
+                    `Couldn’t apply step to content: ${stepResult.failed!}`,
+                );
+            }
+
+            assert(isMessageContent(stepResult.doc));
+            content = stepResult.doc;
+            mapping.appendMap(step.getMap());
+        }
+
+        const contentUpdate: MessageContentPayloadContentUpdate = {
+            time: new Date(
+                Math.max(
+                    (
+                        commentThreadItem.commentsSummary.lastChangeTime ??
+                        commentThreadItem.createdTime
+                    ).getTime() + 1,
+                    Date.now(),
+                ),
             ),
-        );
+            mappings: [...(commentItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
+        };
 
         // `lastChangeTime` should always be greater than or equal
         // to `contentUpdatedTime`.
         assert(
-            !commentItem.payload.contentUpdatedTime ||
-                contentUpdatedTime > commentItem.payload.contentUpdatedTime,
+            !commentItem.payload.contentUpdate ||
+                contentUpdate.time > commentItem.payload.contentUpdate.time,
         );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
@@ -5125,7 +5165,7 @@ export function updateDocumentCommentContent(
                 payload: {
                     ...commentItem.payload,
                     content,
-                    contentUpdatedTime,
+                    contentUpdate,
                 },
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
@@ -5133,7 +5173,7 @@ export function updateDocumentCommentContent(
                 "commentsSummary",
                 {
                     nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex,
-                    lastChangeTime: contentUpdatedTime,
+                    lastChangeTime: contentUpdate.time,
                     commentCountByAuthorId:
                         commentThreadItem.commentsSummary.commentCountByAuthorId,
                     mentionCountByAccountId: newMentionCountByAccountId,
@@ -5147,13 +5187,14 @@ export function updateDocumentCommentContent(
                 sortRangeType: "CommentChangeLog",
                 documentId,
                 commentThreadId,
-                changeTime: contentUpdatedTime,
+                changeTime: contentUpdate.time,
                 commentIndex: commentItem.commentIndex,
                 change: {
                     type: "UpdateContent",
                     content,
+                    contentUpdateMappings: contentUpdate.mappings,
                 },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdatedTime),
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
             }),
         ]);
 
@@ -5169,7 +5210,7 @@ export function updateDocumentCommentContent(
             },
         });
 
-        return {contentUpdatedTime};
+        return {spaceId, content, contentUpdate};
     });
 }
 
@@ -5227,8 +5268,8 @@ export function deleteDocumentComment(
         // `lastChangeTime` should always be greater than or equal
         // to `deletedTime`.
         assert(
-            !commentItem.payload.contentUpdatedTime ||
-                deletedTime > commentItem.payload.contentUpdatedTime,
+            !commentItem.payload.contentUpdate ||
+                deletedTime > commentItem.payload.contentUpdate.time,
         );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
@@ -5647,6 +5688,12 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<DocumentCommentModel> = [];
 
+    const loadOtherReferencedCommentFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedComment(index);
+        }
+    };
+
     const loadOtherReferencedComment = (commentIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -5666,8 +5713,8 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedCommentFromParent(item.payload.parent);
                 }
 
                 otherReferencedComments.push(
@@ -5688,8 +5735,8 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
 
     const comments = await runAllPromises(
         commentItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedCommentFromParent(item.payload.parent);
             }
 
             // Don't propagate `consistency` when loading model references. We
@@ -5942,6 +5989,12 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<DocumentCommentModel> = [];
 
+    const loadOtherReferencedCommentFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedComment(index);
+        }
+    };
+
     const loadOtherReferencedComment = (commentIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -5960,8 +6013,8 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedCommentFromParent(item.payload.parent);
                 }
 
                 otherReferencedComments.push(
@@ -5982,8 +6035,8 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
 
     const comments = await runAllPromises(
         commentItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedCommentFromParent(item.payload.parent);
             }
             return createDocumentCommentModelFromItem(
                 context,
@@ -6326,7 +6379,10 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                                 item.change.content,
                             ),
                         },
-                        contentUpdatedTime: item.changeTime,
+                        contentUpdate: {
+                            time: item.changeTime,
+                            mappings: item.change.contentUpdateMappings,
+                        },
                     };
                 }
                 case "Delete": {

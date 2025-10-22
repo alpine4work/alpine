@@ -551,6 +551,14 @@ export class ContentEditorState<Content extends ContentWithReferences> {
     }
 
     /**
+     * Deletes all data within a range in the content editor.
+     */
+    public delete(from?: number, to?: number): [ContentEditorState<Content>, Transaction] {
+        const transaction = this._state.tr.delete(from ?? 0, to ?? this._state.doc.content.size);
+        return [new ContentEditorState(this._state.apply(transaction)), transaction];
+    }
+
+    /**
      * Update the references in our state with an action.
      */
     public updateReferences(

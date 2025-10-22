@@ -1,30 +1,58 @@
 import {Fragment, Node} from "prosemirror-model";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 
+export function trimContent<Content extends Node>(node: Content): Content {
+    return trimContentStart(trimContentEnd(node));
+}
+
+export function trimContentFragment(fragment: Fragment): Fragment {
+    return trimContentFragmentStart(trimContentFragmentEnd(fragment));
+}
+
 /**
  * Trim spaces from the end of a ProseMirror node. We call this before sending
  * a chat message or creating a post. Trailing white space is usually an
  * accident and looks weird in the message.
  */
 export function trimContentEnd<Content extends Node>(node: Content): Content {
-    return actuallyTrimContentEnd(node) as Content;
+    const trimPos = trimContentFragmentEndPos(node.content);
+    if (trimPos === null) return node;
+    return node.cut(0, trimPos) as Content;
+}
+
+export function trimContentFragmentEnd(fragment: Fragment): Fragment {
+    const trimPos = trimContentFragmentEndPos(fragment);
+    if (trimPos === null) return fragment;
+    return fragment.cut(0, trimPos);
 }
 
 /**
  * Trim spaces from the start of a ProseMirror node.
  */
 export function trimContentStart<Content extends Node>(node: Content): Content {
-    return actuallyTrimContentStart(node) as Content;
+    const trimPos = trimContentFragmentStartPos(node.content);
+    if (trimPos === null) return node;
+    return node.cut(trimPos) as Content;
 }
 
-export function trimContent<Content extends Node>(node: Content): Content {
-    return actuallyTrimContentStart(actuallyTrimContentEnd(node)) as Content;
+export function trimContentFragmentStart(fragment: Fragment): Fragment {
+    const trimPos = trimContentFragmentStartPos(fragment);
+    if (trimPos === null) return fragment;
+    return fragment.cut(trimPos);
+}
+
+export function trimContentWithReferences<Content extends ContentWithReferences>(
+    content: Content,
+): Content {
+    const newDoc = trimContentStart(trimContentEnd(content.doc));
+    if (newDoc === content.doc) return content;
+    return {...content, doc: newDoc};
 }
 
 export function trimContentWithReferencesEnd<Content extends ContentWithReferences>(
     content: Content,
 ): Content {
-    const newDoc = actuallyTrimContentEnd(content.doc);
+    const newDoc = trimContentEnd(content.doc);
     if (newDoc === content.doc) return content;
     return {...content, doc: newDoc};
 }
@@ -32,99 +60,90 @@ export function trimContentWithReferencesEnd<Content extends ContentWithReferenc
 export function trimContentWithReferencesStart<Content extends ContentWithReferences>(
     content: Content,
 ): Content {
-    const newDoc = actuallyTrimContentStart(content.doc);
+    const newDoc = trimContentStart(content.doc);
     if (newDoc === content.doc) return content;
     return {...content, doc: newDoc};
 }
 
-export function trimContentWithReferences<Content extends ContentWithReferences>(
-    content: Content,
-): Content {
-    const newDoc = actuallyTrimContentStart(actuallyTrimContentEnd(content.doc));
-    if (newDoc === content.doc) return content;
-    return {...content, doc: newDoc};
-}
+export function trimContentFragmentEndPos(fragment: Fragment): number | null {
+    if (fragment.content.length === 0) return null;
 
-function actuallyTrimContentEnd(node: Node): Node {
-    const fragment = trimContentFragmentEnd(node.content);
-    if (node.content === fragment) return node;
-    return node.type.create(node.attrs, fragment);
-}
+    const lastChildNode = fragment.content[fragment.content.length - 1]!;
 
-export function trimContentFragmentEnd(fragment: Fragment): Fragment {
-    if (fragment.content.length === 0) return fragment;
-
-    const oldLastChildNode = fragment.content[fragment.content.length - 1]!;
-
-    if (!oldLastChildNode.isText) {
-        const newLastChildNode = actuallyTrimContentEnd(oldLastChildNode);
+    if (!lastChildNode.isText) {
+        const trimPos = trimContentFragmentEndPos(lastChildNode.content);
 
         // If the last node is an empty paragraph, then remove it and then try trimming
         // the new last node.
         if (
             fragment.content.length > 1 &&
-            newLastChildNode.type.name === "paragraph" &&
-            newLastChildNode.content.size === 0
+            (lastChildNode.type.name === "paragraph" ||
+                lastChildNode.type.name === "codeBlockLine") &&
+            (trimPos === 0 || (trimPos === null && lastChildNode.content.size === 0))
         ) {
-            return trimContentFragmentEnd(Fragment.from(fragment.content.slice(0, -1)));
+            return (
+                trimContentFragmentEndPos(Fragment.from(fragment.content.slice(0, -1))) ??
+                fragment.size - lastChildNode.nodeSize
+            );
         }
 
-        if (oldLastChildNode === newLastChildNode) return fragment;
+        if (trimPos === null) return null;
 
-        return Fragment.from([...fragment.content.slice(0, -1), newLastChildNode]);
+        return fragment.size - lastChildNode.nodeSize + 1 + trimPos;
     }
 
-    const trimmedText = oldLastChildNode.text!.trimEnd();
-    if (trimmedText.length === oldLastChildNode.text!.length) return fragment;
+    const trimmedText = lastChildNode.text!.trimEnd();
+    if (trimmedText.length === lastChildNode.text!.length) return null;
 
-    if (trimmedText.length === 0) return Fragment.from(fragment.content.slice(0, -1));
+    if (trimmedText.length === 0) {
+        return (
+            trimContentFragmentEndPos(Fragment.from(fragment.content.slice(0, -1))) ??
+            fragment.size - lastChildNode.nodeSize
+        );
+    }
 
-    return Fragment.from([
-        ...fragment.content.slice(0, -1),
-        oldLastChildNode.type.schema.text(trimmedText),
-    ]);
+    return fragment.size - lastChildNode.nodeSize + trimmedText.length;
 }
 
-function actuallyTrimContentStart(node: Node): Node {
-    const fragment = trimContentFragmentStart(node.content);
-    if (node.content === fragment) return node;
-    return node.type.create(node.attrs, fragment);
-}
+export function trimContentFragmentStartPos(fragment: Fragment): number | null {
+    if (fragment.content.length === 0) return null;
 
-export function trimContentFragmentStart(fragment: Fragment): Fragment {
-    if (fragment.content.length === 0) return fragment;
+    const firstChildNode = fragment.content[0]!;
 
-    const oldFirstChildNode = fragment.content[0]!;
+    if (!firstChildNode.isText) {
+        // Don't trim spaces at the start of a code block.
+        if (firstChildNode.type.name === "codeBlockLine") return null;
 
-    if (!oldFirstChildNode.isText) {
-        const newFirstChildNode = actuallyTrimContentStart(oldFirstChildNode);
+        const trimPos = trimContentFragmentStartPos(firstChildNode.content);
 
         // If the first node is an empty paragraph, then remove it and then try
         // trimming the new first node.
         if (
             fragment.content.length > 1 &&
-            newFirstChildNode.type.name === "paragraph" &&
-            newFirstChildNode.content.size === 0
+            firstChildNode.type.name === "paragraph" &&
+            (trimPos === firstChildNode.content.size ||
+                (trimPos === null && firstChildNode.content.size === 0))
         ) {
-            return trimContentFragmentStart(Fragment.fromArray(fragment.content.slice(1)));
+            return (
+                firstChildNode.nodeSize +
+                (trimContentFragmentStartPos(Fragment.fromArray(fragment.content.slice(1))) ?? 0)
+            );
         }
 
-        if (oldFirstChildNode === newFirstChildNode) return fragment;
+        if (trimPos === null) return null;
 
-        return Fragment.from([newFirstChildNode, ...fragment.content.slice(1)]);
+        return 1 + trimPos;
     }
 
-    const trimmedText = oldFirstChildNode.text!.trimStart();
-    if (trimmedText.length === oldFirstChildNode.text!.length) return fragment;
+    const trimmedText = firstChildNode.text!.trimStart();
+    if (trimmedText.length === firstChildNode.text!.length) return null;
 
-    if (trimmedText.length === 0) return Fragment.from(fragment.content.slice(1));
+    if (trimmedText.length === 0) {
+        return (
+            firstChildNode.nodeSize +
+            (trimContentFragmentStartPos(Fragment.fromArray(fragment.content.slice(1))) ?? 0)
+        );
+    }
 
-    return Fragment.from([
-        oldFirstChildNode.type.schema.text(trimmedText),
-        ...fragment.content.slice(1),
-    ]);
-}
-
-export function trimContentFragment(fragment: Fragment): Fragment {
-    return trimContentFragmentStart(trimContentFragmentEnd(fragment));
+    return firstChildNode.nodeSize - trimmedText.length;
 }

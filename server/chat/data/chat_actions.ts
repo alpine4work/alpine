@@ -1,5 +1,6 @@
 import {addSeconds} from "date-fns";
 import murmurhash from "murmurhash";
+import {Mapping, Step, StepResult} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
     AccountChatsIndex,
@@ -67,6 +68,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -89,10 +91,13 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClerical,
+    MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
     MessageStreamPartPayload,
+    iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 
@@ -782,9 +787,12 @@ function sendChatMessageForAccount(
                     createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex,
+                        parent:
+                            parentMessageIndex !== null
+                                ? {type: "Message", index: parentMessageIndex}
+                                : null,
                         content,
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         fileIds,
                         clerical,
                     },
@@ -1934,14 +1942,18 @@ export function updateChatMessageContent(
     {
         chatId,
         messageIndex,
-        content,
+        version,
+        steps,
     }: {
         chatId: ChatId;
         messageIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     },
 ): Promise<{
-    contentUpdatedTime: Date;
+    spaceId: SpaceId;
+    content: MessageContent;
+    contentUpdate: MessageContentPayloadContentUpdate;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
@@ -1963,18 +1975,45 @@ export function updateChatMessageContent(
         if (chatMessageItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical message content");
 
-        const contentUpdatedTime = new Date(
-            Math.max(
-                (chatItem.messagesSummary.lastChangeTime ?? chatItem.createdTime).getTime() + 1,
-                Date.now(),
+        if (version !== (chatMessageItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError("Can’t update message with mismatched version");
+
+        let content = chatMessageItem.payload.content;
+        const mapping = new Mapping();
+
+        for (const step of steps) {
+            let stepResult: StepResult;
+            try {
+                stepResult = step.apply(content);
+            } catch (error) {
+                throw FailedPreconditionError.from(error);
+            }
+            if (!stepResult.doc) {
+                throw new FailedPreconditionError(
+                    `Couldn’t apply step to content: ${stepResult.failed!}`,
+                );
+            }
+
+            assert(isMessageContent(stepResult.doc));
+            content = stepResult.doc;
+            mapping.appendMap(step.getMap());
+        }
+
+        const contentUpdate: MessageContentPayloadContentUpdate = {
+            time: new Date(
+                Math.max(
+                    (chatItem.messagesSummary.lastChangeTime ?? chatItem.createdTime).getTime() + 1,
+                    Date.now(),
+                ),
             ),
-        );
+            mappings: [...(chatMessageItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
+        };
 
         // `lastChangeTime` should always be greater than or equal
         // to `contentUpdatedTime`.
         assert(
-            !chatMessageItem.payload.contentUpdatedTime ||
-                contentUpdatedTime > chatMessageItem.payload.contentUpdatedTime,
+            !chatMessageItem.payload.contentUpdate ||
+                contentUpdate.time > chatMessageItem.payload.contentUpdate.time,
         );
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -1983,7 +2022,7 @@ export function updateChatMessageContent(
                 payload: {
                     ...chatMessageItem.payload,
                     content,
-                    contentUpdatedTime,
+                    contentUpdate,
                 },
             }),
             ChatTable.transactionDirectlyUpdateItemAttribute(
@@ -1991,7 +2030,7 @@ export function updateChatMessageContent(
                 "messagesSummary",
                 {
                     nextMessageIndex: chatItem.messagesSummary.nextMessageIndex,
-                    lastChangeTime: contentUpdatedTime,
+                    lastChangeTime: contentUpdate.time,
                     messageCount: chatItem.messagesSummary.messageCount,
                 },
                 {updateLockVersion: chatItem.updateLockVersion},
@@ -2002,13 +2041,14 @@ export function updateChatMessageContent(
                 partitionType: "Chat",
                 sortRangeType: "MessageChangeLog",
                 chatId,
-                changeTime: contentUpdatedTime,
+                changeTime: contentUpdate.time,
                 messageIndex: chatMessageItem.messageIndex,
                 change: {
                     type: "UpdateContent",
                     content,
+                    contentUpdateMappings: contentUpdate.mappings,
                 },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdatedTime),
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
             }),
         ]);
 
@@ -2023,7 +2063,7 @@ export function updateChatMessageContent(
             },
         });
 
-        return {contentUpdatedTime};
+        return {spaceId: chatItem.spaceId, content, contentUpdate};
     });
 }
 
@@ -2066,8 +2106,8 @@ export function deleteChatMessage(
         // `lastChangeTime` should always be greater than or equal
         // to `deletedTime`.
         assert(
-            !chatMessageItem.payload.contentUpdatedTime ||
-                deletedTime > chatMessageItem.payload.contentUpdatedTime,
+            !chatMessageItem.payload.contentUpdate ||
+                deletedTime > chatMessageItem.payload.contentUpdate.time,
         );
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -2322,6 +2362,12 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
     let otherReferencedMessagePromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedMessages: Array<ChatMessageModel> = [];
 
+    const loadOtherReferencedMessageFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedMessage(index);
+        }
+    };
+
     const loadOtherReferencedMessage = (messageIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -2337,8 +2383,8 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
                 if (!item) throw new InternalError("Parent message not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedMessage(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedMessageFromParent(item.payload.parent);
                 }
 
                 otherReferencedMessages.push(
@@ -2353,8 +2399,8 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 
     const messages = await runAllPromises(
         messageItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedMessage(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedMessageFromParent(item.payload.parent);
             }
 
             // Don't propagate `consistency` when loading model references. We
@@ -2574,6 +2620,12 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
     let otherReferencedMessagePromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedMessages: Array<ChatMessageModel> = [];
 
+    const loadOtherReferencedMessageFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedMessage(index);
+        }
+    };
+
     const loadOtherReferencedMessage = (messageIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -2587,8 +2639,8 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
                 if (!item) throw new InternalError("Parent message not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedMessage(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedMessageFromParent(item.payload.parent);
                 }
 
                 otherReferencedMessages.push(
@@ -2603,8 +2655,8 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
 
     const messages = await runAllPromises(
         messageItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedMessage(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedMessageFromParent(item.payload.parent);
             }
             return createChatMessageModelFromItem(context, spaceId, chatId, item);
         }),
@@ -2889,7 +2941,10 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                                 item.change.content,
                             ),
                         },
-                        contentUpdatedTime: item.changeTime,
+                        contentUpdate: {
+                            time: item.changeTime,
+                            mappings: item.change.contentUpdateMappings,
+                        },
                     };
                 }
                 case "Delete": {

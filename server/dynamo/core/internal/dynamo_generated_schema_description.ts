@@ -978,7 +978,22 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "type": "Integer"
                                                                 }
                                                             },
-                                                            "optional": false
+                                                            "optional": true
+                                                        },
+                                                        "parent": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "type": {
+                                                                        "valueSchema": {
+                                                                            "type": "Value",
+                                                                            "value": "Message"
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         },
                                                         "content": {
                                                             "valueSchema": {
@@ -1535,7 +1550,74 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "type": "Date"
                                                                 }
                                                             },
-                                                            "optional": false
+                                                            "optional": true
+                                                        },
+                                                        "contentUpdate": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "mappings": {
+                                                                        "valueSchema": {
+                                                                            "type": "Array",
+                                                                            "itemSchema": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "maps": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Array",
+                                                                                            "itemSchema": {
+                                                                                                "type": "Object",
+                                                                                                "propertySchemaByKey": {
+                                                                                                    "ranges": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Array",
+                                                                                                            "itemSchema": {
+                                                                                                                "type": "Integer"
+                                                                                                            }
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    },
+                                                                                                    "inverted": {
+                                                                                                        "valueSchema": {
+                                                                                                            "type": "Boolean"
+                                                                                                        },
+                                                                                                        "optional": false
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "mirror": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Array",
+                                                                                            "itemSchema": {
+                                                                                                "type": "Integer"
+                                                                                            }
+                                                                                        },
+                                                                                        "optional": true
+                                                                                    },
+                                                                                    "from": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Integer"
+                                                                                        },
+                                                                                        "optional": true
+                                                                                    },
+                                                                                    "to": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Integer"
+                                                                                        },
+                                                                                        "optional": true
+                                                                                    }
+                                                                                },
+                                                                                "referenceId": "96bba2b8"
+                                                                            }
+                                                                        },
+                                                                        "optional": true
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         },
                                                         "fileIds": {
                                                             "valueSchema": {
@@ -1826,6 +1908,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "reuseReferenceId": "05d7837f"
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "contentUpdateMappings": {
+                                                            "valueSchema": {
+                                                                "type": "Array",
+                                                                "itemSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "96bba2b8"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -5304,6 +5396,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "reuseReferenceId": "05d7837f"
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "contentUpdateMappings": {
+                                                            "valueSchema": {
+                                                                "type": "Array",
+                                                                "itemSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "96bba2b8"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -7099,6 +7201,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "reuseReferenceId": "05d7837f"
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "contentUpdateMappings": {
+                                                            "valueSchema": {
+                                                                "type": "Array",
+                                                                "itemSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "96bba2b8"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -12410,6 +12522,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "reuseReferenceId": "05d7837f"
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "contentUpdateMappings": {
+                                                            "valueSchema": {
+                                                                "type": "Array",
+                                                                "itemSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "96bba2b8"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },

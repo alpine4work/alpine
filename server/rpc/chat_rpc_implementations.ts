@@ -57,12 +57,11 @@ export default implementRpcs(definitions, {
     updateChatMessageContent: {
         visibility: ["ChatRealtimeService"],
         execute: async (context, input) => {
-            const {contentUpdatedTime} = await updateChatMessageContent(
+            const {content, contentUpdate} = await updateChatMessageContent(
                 context.actor.authorizeSession(),
                 input,
             );
-
-            return {contentUpdatedTime};
+            return {content, contentUpdate};
         },
     },
 

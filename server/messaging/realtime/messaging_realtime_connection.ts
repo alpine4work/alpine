@@ -1,3 +1,4 @@
+import {Step} from "prosemirror-transform";
 import {
     WorkerActionContext,
     WorkerSessionActionContext,
@@ -32,7 +33,10 @@ import {
     MessageReferences,
     getMessageReferencedIds,
 } from "~/shared/messaging/message_references.js";
-import {MessagePayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdate,
+    MessagePayload,
+} from "~/shared/messaging/message_schema.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
@@ -70,10 +74,12 @@ export type UpdateMessageContentFunction<RoomKey extends string> = (
     options: {
         roomKey: RoomKey;
         messageIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     },
 ) => Promise<{
-    contentUpdatedTime: Date;
+    content: MessageContent;
+    contentUpdate: MessageContentPayloadContentUpdate;
 }>;
 
 /**
@@ -526,9 +532,15 @@ export class MessagingRealtimeConnection<
 
             const messagePayload: MessagePayload = {
                 type: "Content",
-                parentMessageIndex,
+                parent:
+                    parentMessageIndex !== null
+                        ? {
+                              type: "Message",
+                              index: parentMessageIndex,
+                          }
+                        : null,
                 content,
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds,
             };
 
@@ -575,18 +587,21 @@ export class MessagingRealtimeConnection<
         context: WorkerSessionActionContext,
         {
             messageIndex,
-            content,
+            version,
+            steps,
         }: {
             messageIndex: number;
-            content: MessageContent;
+            version: number;
+            steps: ReadonlyArray<Step>;
         },
     ): Promise<{}> {
         assert(this.accountId === context.actor.getAccountId());
 
-        const {contentUpdatedTime} = await this._updateMessageContent(context, {
+        const {content, contentUpdate} = await this._updateMessageContent(context, {
             roomKey: this.roomKey,
             messageIndex,
-            content,
+            version,
+            steps,
         });
 
         await messagingRealtimeUpdateMessageContentBeforeSendTestCheckpoint.waitForTest(
@@ -597,7 +612,7 @@ export class MessagingRealtimeConnection<
             type: "UpdateContent",
             index: messageIndex,
             content,
-            contentUpdatedTime,
+            contentUpdate,
         };
 
         const sendOurEventPromise = this._sendMessageChange(context, change);
@@ -878,7 +893,7 @@ export class MessagingRealtimeConnection<
                                     doc: eventStub.change.content,
                                     references: references.contentReferences,
                                 },
-                                contentUpdatedTime: eventStub.change.contentUpdatedTime,
+                                contentUpdate: eventStub.change.contentUpdate,
                             },
                         };
                     }

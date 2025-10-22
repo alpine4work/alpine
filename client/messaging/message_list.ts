@@ -825,8 +825,8 @@ export class MessageList<Message extends MessageModel> {
                     optimisticMessages: this._optimisticMessages,
                     lastMessageChangeTime:
                         !this._lastMessageChangeTime ||
-                        change.contentUpdatedTime > this._lastMessageChangeTime
-                            ? change.contentUpdatedTime
+                        change.contentUpdate.time > this._lastMessageChangeTime
+                            ? change.contentUpdate.time
                             : this._lastMessageChangeTime,
                     unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
                     typingStateByConnectionId: this._typingStateByConnectionId,
@@ -1055,9 +1055,9 @@ function changeMessage<Message extends MessageModel>(
             // `contentUpdatedTime`.
             if (
                 message.payload.type !== "Content" ||
-                (message.payload.contentUpdatedTime !== null &&
-                    change.contentUpdatedTime.getTime() <
-                        message.payload.contentUpdatedTime.getTime())
+                (message.payload.contentUpdate !== null &&
+                    change.contentUpdate.time.getTime() <
+                        message.payload.contentUpdate.time.getTime())
             ) {
                 return message;
             }
@@ -1066,7 +1066,7 @@ function changeMessage<Message extends MessageModel>(
                 payload: {
                     ...message.payload,
                     content: change.content,
-                    contentUpdatedTime: change.contentUpdatedTime,
+                    contentUpdate: change.contentUpdate,
                 },
             });
         }

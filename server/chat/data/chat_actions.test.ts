@@ -112,9 +112,12 @@ function massageMessage(message: ChatMessageModel | null) {
         case "Content": {
             return {
                 authorId: message.author.id,
-                parentMessageIndex: message.payload.parentMessageIndex,
+                parentMessageIndex:
+                    message.payload.parent?.type === "Message"
+                        ? message.payload.parent.index
+                        : null,
                 content: message.payload.content.doc,
-                hasContentUpdated: message.payload.contentUpdatedTime !== null,
+                hasContentUpdated: message.payload.contentUpdate !== null,
             };
         }
         case "Deleted": {
@@ -3698,9 +3701,9 @@ test("will send share notification messages separately to each account", async (
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -3716,9 +3719,9 @@ test("will send share notification messages separately to each account", async (
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -3779,9 +3782,9 @@ test("will send share notification messages separately to each account", async (
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -3797,9 +3800,9 @@ test("will send share notification messages separately to each account", async (
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -3823,9 +3826,9 @@ test("will send share notification messages separately to each account", async (
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("quxbaz"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entity2Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -3841,9 +3844,9 @@ test("will send share notification messages separately to each account", async (
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("quxbaz"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entity2Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -3982,9 +3985,9 @@ test("processing send share notification message job is idempotent", async () =>
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -4000,9 +4003,9 @@ test("processing send share notification message job is idempotent", async () =>
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -4061,9 +4064,9 @@ test("processing send share notification message job is idempotent", async () =>
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -4079,9 +4082,9 @@ test("processing send share notification message job is idempotent", async () =>
             createdTime: expect.any(Date),
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: createSimpleMessageContent("foobar"),
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
             },
@@ -4436,11 +4439,12 @@ testMessagingImplementation<ChatId>(context, {
     async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
         return getChatMessagePayload(context, {chatId, messageIndex});
     },
-    async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
+    async updateMessageContent(context, {roomKey: chatId, messageIndex, version, steps}) {
         return updateChatMessageContent(context, {
             chatId,
             messageIndex,
-            content,
+            version,
+            steps,
         });
     },
     async deleteMessage(context, {roomKey: chatId, messageIndex}) {

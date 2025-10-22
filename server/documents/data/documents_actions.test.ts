@@ -12868,25 +12868,27 @@ describe("Comments", () => {
                 }),
             ).toEqual({accountIds: new Set([session1.account.id])});
 
+            const oldContent = assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Hello, "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session4.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        MessageContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            );
+
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
                 parentCommentIndex: null,
-                content: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Hello, "),
-                            MessageContentProsemirrorSchema.node("mention", {
-                                mention: cast<ContentMention>({
-                                    type: "Account",
-                                    accountId: session4.account.id,
-                                    isShort: false,
-                                }),
-                            }),
-                            MessageContentProsemirrorSchema.text("!"),
-                        ]),
-                    ]),
-                ),
+                content: oldContent,
                 fileIds: [],
             });
 
@@ -12936,13 +12938,22 @@ describe("Comments", () => {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 1,
-                content: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Hello, world!"),
-                        ]),
-                    ]),
-                ),
+                version: 0,
+                steps: [
+                    new ReplaceStep(
+                        0,
+                        oldContent.content.size,
+                        new Slice(
+                            Fragment.from([
+                                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                                    MessageContentProsemirrorSchema.text("Hello, world!"),
+                                ]),
+                            ]),
+                            0,
+                            0,
+                        ),
+                    ),
+                ],
             });
 
             expect(
@@ -13237,17 +13248,19 @@ describe("Comments", () => {
                 }),
             ).toEqual({accountIds: new Set([session1.account.id])});
 
+            const oldContent = assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Hello, world!"),
+                    ]),
+                ]),
+            );
+
             await createDocumentComment(session3.action(), {
                 documentId: document.id,
                 commentThreadId,
                 parentCommentIndex: null,
-                content: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Hello, world!"),
-                        ]),
-                    ]),
-                ),
+                content: oldContent,
                 fileIds: [],
             });
 
@@ -13279,21 +13292,30 @@ describe("Comments", () => {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 1,
-                content: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Hello, "),
-                            MessageContentProsemirrorSchema.node("mention", {
-                                mention: cast<ContentMention>({
-                                    type: "Account",
-                                    accountId: session4.account.id,
-                                    isShort: false,
-                                }),
-                            }),
-                            MessageContentProsemirrorSchema.text("!"),
-                        ]),
-                    ]),
-                ),
+                version: 0,
+                steps: [
+                    new ReplaceStep(
+                        0,
+                        oldContent.content.size,
+                        new Slice(
+                            Fragment.from([
+                                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                                    MessageContentProsemirrorSchema.text("Hello, "),
+                                    MessageContentProsemirrorSchema.node("mention", {
+                                        mention: cast<ContentMention>({
+                                            type: "Account",
+                                            accountId: session4.account.id,
+                                            isShort: false,
+                                        }),
+                                    }),
+                                    MessageContentProsemirrorSchema.text("!"),
+                                ]),
+                            ]),
+                            0,
+                            0,
+                        ),
+                    ),
+                ],
             });
 
             expect(
@@ -13586,25 +13608,27 @@ describe("Comments", () => {
                 ]),
             });
 
+            const oldContent = assertMessageContent(
+                MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Hello, "),
+                        MessageContentProsemirrorSchema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session4.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        MessageContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            );
+
             const comment = await createDocumentComment(session2.action(), {
                 documentId: document.id,
                 commentThreadId,
                 parentCommentIndex: null,
-                content: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Hello, "),
-                            MessageContentProsemirrorSchema.node("mention", {
-                                mention: cast<ContentMention>({
-                                    type: "Account",
-                                    accountId: session4.account.id,
-                                    isShort: false,
-                                }),
-                            }),
-                            MessageContentProsemirrorSchema.text("!"),
-                        ]),
-                    ]),
-                ),
+                content: oldContent,
                 fileIds: [],
             });
 
@@ -13676,21 +13700,30 @@ describe("Comments", () => {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: comment.index,
-                content: assertMessageContent(
-                    MessageContentProsemirrorSchema.node("doc", {}, [
-                        MessageContentProsemirrorSchema.node("paragraph", {}, [
-                            MessageContentProsemirrorSchema.text("Hello, "),
-                            MessageContentProsemirrorSchema.node("mention", {
-                                mention: cast<ContentMention>({
-                                    type: "Account",
-                                    accountId: session6.account.id,
-                                    isShort: false,
-                                }),
-                            }),
-                            MessageContentProsemirrorSchema.text("!"),
-                        ]),
-                    ]),
-                ),
+                version: 0,
+                steps: [
+                    new ReplaceStep(
+                        0,
+                        oldContent.content.size,
+                        new Slice(
+                            Fragment.from([
+                                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                                    MessageContentProsemirrorSchema.text("Hello, "),
+                                    MessageContentProsemirrorSchema.node("mention", {
+                                        mention: cast<ContentMention>({
+                                            type: "Account",
+                                            accountId: session6.account.id,
+                                            isShort: false,
+                                        }),
+                                    }),
+                                    MessageContentProsemirrorSchema.text("!"),
+                                ]),
+                            ]),
+                            0,
+                            0,
+                        ),
+                    ),
+                ],
             });
 
             expect(

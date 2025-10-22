@@ -1,4 +1,5 @@
 import {Node} from "prosemirror-model";
+import {Step} from "prosemirror-transform";
 import {
     TestAccountActionContext,
     TestContext,
@@ -12,6 +13,7 @@ import {getPost} from "~/server/forum/data/get_post.js";
 import {
     createPostComment,
     deletePostComment,
+    getPostComment,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
@@ -191,6 +193,13 @@ export class TestPost extends TestCommentRoomBase {
         return {type: "Post", postId: this.id};
     }
 
+    public override _getMessage(context: TestSessionActionContext, messageIndex: number) {
+        return getPostComment(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+        });
+    }
+
     protected override _createMessage(
         context: TestAccountActionContext,
         {
@@ -213,12 +222,21 @@ export class TestPost extends TestCommentRoomBase {
 
     public override _updateMessageContent(
         context: TestSessionActionContext,
-        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+        {
+            messageIndex,
+            version,
+            steps,
+        }: {
+            messageIndex: number;
+            version: number;
+            steps: ReadonlyArray<Step>;
+        },
     ) {
         return updatePostCommentContent(context, {
             postId: this.id,
             commentIndex: messageIndex,
-            content,
+            version,
+            steps,
         });
     }
 

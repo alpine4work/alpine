@@ -1,9 +1,14 @@
+import {Step} from "prosemirror-transform";
 import {ContentReferences, ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
-import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContent,
+    MessageContentSchema,
+    MessageContentStepSchema,
+} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadSchema,
@@ -55,7 +60,8 @@ export type CreateMessageProcedure = (input: {
 
 export type UpdateMessageContentProcedure = (input: {
     messageIndex: number;
-    content: MessageContent;
+    version: number;
+    steps: ReadonlyArray<Step>;
 }) => Promise<{}>;
 
 export type DeleteMessageProcedure = (input: {messageIndex: number}) => Promise<{}>;
@@ -146,7 +152,8 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         updateMessageContent: {
             input: {
                 messageIndex: Schema.integer,
-                content: MessageContentSchema,
+                version: Schema.integer,
+                steps: Schema.array(MessageContentStepSchema),
             },
             output: {},
         },

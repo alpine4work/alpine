@@ -284,14 +284,15 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             commentIndex,
         });
     },
-    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, version, steps}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return updateDocumentCommentContent(context, {
             documentId,
             commentThreadId,
             commentIndex,
-            content,
+            version,
+            steps,
         });
     },
     async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {

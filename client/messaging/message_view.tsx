@@ -162,7 +162,7 @@ function shouldMergeMessages<RoomKey extends string>(
         message1.author.id === message2.author.id &&
         Math.abs(differenceInMinutes(message1.createdTime, message2.createdTime)) <
             mergeMessageMinuteLimit &&
-        (message2.payload.type !== "Content" || message2.payload.parentMessageIndex === null)
+        (message2.payload.type !== "Content" || message2.payload.parent === null)
     );
 }
 
@@ -302,9 +302,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [isLastMessage, message.payload, nextMessage, shouldMergeWithNextMessage]);
 
     const parentMessage =
-        message.payload.type === "Content" && message.payload.parentMessageIndex !== null
+        message.payload.type === "Content" && message.payload.parent?.type === "Message"
             ? assertExists(
-                  messages.getLoadedMessageIfExists(message.payload.parentMessageIndex),
+                  messages.getLoadedMessageIfExists(message.payload.parent.index),
                   "Parent message should have been loaded",
               )
             : null;
@@ -903,12 +903,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     }}
                 >
                     {children}
-                    {message.payload.contentUpdatedTime && (
+                    {message.payload.contentUpdate && (
                         <Tooltip
                             placement="bottom"
                             content={
                                 <PrettyAbsoluteDateTooltipContent
-                                    date={message.payload.contentUpdatedTime}
+                                    date={message.payload.contentUpdate.time}
                                 />
                             }
                         >
@@ -928,7 +928,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <ContentView
                 content={message.payload.content}
-                contentUpdatedTime={message.payload.contentUpdatedTime}
+                contentUpdatedTime={message.payload.contentUpdate?.time}
                 withUserSelectNone={!canPrimaryInputHover}
                 getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
             />
@@ -1092,7 +1092,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         // to see it.
                         contentUpdatedTime={
                             !canPrimaryInputHover && message.payload.type === "Content"
-                                ? message.payload.contentUpdatedTime
+                                ? message.payload.contentUpdate?.time ?? null
                                 : null
                         }
                         deletedTime={
@@ -1278,7 +1278,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                             }
                                             messageEditing={messageEditing}
                                             lastContentUpdatedTime={
-                                                message.payload.contentUpdatedTime
+                                                message.payload.contentUpdate?.time ?? null
                                             }
                                         />
                                     )
@@ -1775,7 +1775,7 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
                                 createdTime={message.createdTime}
                                 contentUpdatedTime={
                                     message.payload.type === "Content"
-                                        ? message.payload.contentUpdatedTime
+                                        ? message.payload.contentUpdate?.time ?? null
                                         : null
                                 }
                                 deletedTime={

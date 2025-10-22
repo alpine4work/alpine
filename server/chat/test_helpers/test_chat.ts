@@ -1,5 +1,7 @@
+import {Step} from "prosemirror-transform";
 import {
     deleteChatMessage,
+    getChatMessage,
     getOrCreateChatForAccounts,
     sendChatMessage,
     updateChatMessageContent,
@@ -85,6 +87,13 @@ export class TestChat extends TestMessageRoomBase {
         return {type: "Chat", chatId: this.id};
     }
 
+    public override _getMessage(context: TestSessionActionContext, messageIndex: number) {
+        return getChatMessage(context, {
+            chatId: this.id,
+            messageIndex,
+        });
+    }
+
     protected override _createMessage(
         context: TestAccountActionContext,
         {
@@ -107,12 +116,21 @@ export class TestChat extends TestMessageRoomBase {
 
     public override _updateMessageContent(
         context: TestSessionActionContext,
-        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+        {
+            messageIndex,
+            version,
+            steps,
+        }: {
+            messageIndex: number;
+            version: number;
+            steps: ReadonlyArray<Step>;
+        },
     ) {
         return updateChatMessageContent(context, {
             chatId: this.id,
             messageIndex,
-            content,
+            version,
+            steps,
         });
     }
 

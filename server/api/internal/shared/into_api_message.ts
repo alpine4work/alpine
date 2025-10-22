@@ -102,8 +102,9 @@ async function intoApiMessagePayload(
             return {
                 type: "Content",
                 parent:
-                    payload.parentMessageIndex !== null
-                        ? {type: "Message", index: payload.parentMessageIndex}
+                    // TODO(calebmer, #ai, #api, #public-api): Support message ranges here too.
+                    payload.parent?.type === "Message"
+                        ? {type: "Message", index: payload.parent.index}
                         : undefined,
                 content: await intoApiContentWithReferences(context, spaceId, payload.content),
             };

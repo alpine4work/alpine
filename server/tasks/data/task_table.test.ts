@@ -51,7 +51,6 @@ import {
     getTaskNotesContentWithoutReferences,
     getTaskNotificationSubscribers,
     getTaskOwnerIfPossible,
-    updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
@@ -19570,71 +19569,27 @@ test("throws error for users that only have view access when trying to update ta
     const assigneeTaskComment = await task.createComment(assigneeSession, "test1");
 
     const updatedContent1 = createSimpleMessageContent("updated test1");
-    const updatedCreatorTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: creatorTaskComment.index,
-        content: updatedContent1,
-    };
-
-    const updatedAssigneeTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: assigneeTaskComment.index,
-        content: updatedContent1,
-    };
-
-    const updatedUnauthorizedTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: unauthorizedTaskComment.index,
-        content: updatedContent1,
-    };
-
-    const updatedViewerTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: viewerTaskComment.index,
-        content: updatedContent1,
-    };
-
-    const updatedCommenterTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: commenterTaskComment.index,
-        content: updatedContent1,
-    };
-
-    const updatedEditorTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: editorTaskComment.index,
-        content: updatedContent1,
-    };
-
-    const updatedManageTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: manageTaskComment.index,
-        content: updatedContent1,
-    };
 
     await expect(
-        updateTaskCommentContent(assigneeSession.action(), updatedAssigneeTaskCommentDetails),
+        assigneeTaskComment.updateContent(assigneeSession, updatedContent1),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(
-            unauthorizedSession.action(),
-            updatedUnauthorizedTaskCommentDetails,
-        ),
+        unauthorizedTaskComment.updateContent(unauthorizedSession, updatedContent1),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(viewerSession.action(), updatedViewerTaskCommentDetails),
+        viewerTaskComment.updateContent(viewerSession, updatedContent1),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(creatorSession.action(), updatedCreatorTaskCommentDetails),
+        creatorTaskComment.updateContent(creatorSession, updatedContent1),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(commenterSession.action(), updatedCommenterTaskCommentDetails),
+        commenterTaskComment.updateContent(commenterSession, updatedContent1),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(editorSession.action(), updatedEditorTaskCommentDetails),
+        editorTaskComment.updateContent(editorSession, updatedContent1),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(manageSession.action(), updatedManageTaskCommentDetails),
+        manageTaskComment.updateContent(manageSession, updatedContent1),
     ).resolves.not.toBeNull();
 
     await collection.access.set(creatorSession, {
@@ -19652,74 +19607,27 @@ test("throws error for users that only have view access when trying to update ta
     await task.updateAssignee(creatorSession, assigneeSession);
 
     const secondUpdatedTaskComment = createSimpleMessageContent("updated test2");
-    const secondUpdatedCreatorTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: creatorTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
-
-    const secondUpdatedAssigneeTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: assigneeTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
-
-    const secondUpdatedUnauthorizedTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: unauthorizedTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
-
-    const secondUpdatedViewerTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: viewerTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
-
-    const secondUpdatedCommenterTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: commenterTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
-
-    const secondUpdatedEditorTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: editorTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
-
-    const secondUpdatedManageTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: manageTaskComment.index,
-        content: secondUpdatedTaskComment,
-    };
 
     await expect(
-        updateTaskCommentContent(assigneeSession.action(), secondUpdatedAssigneeTaskCommentDetails),
+        assigneeTaskComment.updateContent(assigneeSession, secondUpdatedTaskComment),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(
-            unauthorizedSession.action(),
-            secondUpdatedUnauthorizedTaskCommentDetails,
-        ),
+        unauthorizedTaskComment.updateContent(unauthorizedSession, secondUpdatedTaskComment),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        updateTaskCommentContent(viewerSession.action(), secondUpdatedViewerTaskCommentDetails),
+        viewerTaskComment.updateContent(viewerSession, secondUpdatedTaskComment),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        updateTaskCommentContent(creatorSession.action(), secondUpdatedCreatorTaskCommentDetails),
+        creatorTaskComment.updateContent(creatorSession, secondUpdatedTaskComment),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(
-            commenterSession.action(),
-            secondUpdatedCommenterTaskCommentDetails,
-        ),
+        commenterTaskComment.updateContent(commenterSession, secondUpdatedTaskComment),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(editorSession.action(), secondUpdatedEditorTaskCommentDetails),
+        editorTaskComment.updateContent(editorSession, secondUpdatedTaskComment),
     ).resolves.not.toBeNull();
     await expect(
-        updateTaskCommentContent(manageSession.action(), secondUpdatedManageTaskCommentDetails),
+        manageTaskComment.updateContent(manageSession, secondUpdatedTaskComment),
     ).resolves.not.toBeNull();
 });
 
@@ -20107,12 +20015,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment0.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20124,12 +20032,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment1.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20141,12 +20049,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment2.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20203,12 +20111,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment0.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20220,12 +20128,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment1.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20237,12 +20145,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment2.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20276,12 +20184,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment0.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20293,12 +20201,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment1.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20310,12 +20218,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment2.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20349,12 +20257,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment0.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20366,12 +20274,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment1.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20383,12 +20291,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment2.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20422,12 +20330,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment0.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test1"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20439,12 +20347,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment1.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test2"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20456,12 +20364,12 @@ test("returns null for users that only have view access when trying to get initi
                     createdTime: comment2.createdTime,
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent("test3"),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -20534,27 +20442,22 @@ test("throws error for users that only have view access when trying to get task 
     });
 
     const updatedMessageContent1 = createSimpleMessageContent("updated test1");
-    const updatedFirstTaskCommentDetails = {
-        taskId: task.id,
-        commentIndex: creatorTaskComment.index,
-        content: updatedMessageContent1,
-    };
 
-    const updatedCreatorTaskComment = await updateTaskCommentContent(
-        creatorSession.action(),
-        updatedFirstTaskCommentDetails,
+    const updatedCreatorTaskComment = await creatorTaskComment.updateContent(
+        creatorSession,
+        updatedMessageContent1,
     );
 
     expect(
         await backfillTaskComments(assigneeSession.action(), {
             taskId: task.id,
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
         commentChangesResult: {type: "Available", changes: []},
@@ -20564,12 +20467,12 @@ test("throws error for users that only have view access when trying to get task 
         await backfillTaskComments(manageSession.action(), {
             taskId: task.id,
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
         commentChangesResult: {type: "Available", changes: []},
@@ -20579,12 +20482,12 @@ test("throws error for users that only have view access when trying to get task 
         await backfillTaskComments(editorSession.action(), {
             taskId: task.id,
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
         commentChangesResult: {type: "Available", changes: []},
@@ -20594,12 +20497,12 @@ test("throws error for users that only have view access when trying to get task 
         await backfillTaskComments(commenterSession.action(), {
             taskId: task.id,
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
         commentChangesResult: {type: "Available", changes: []},
@@ -20609,7 +20512,7 @@ test("throws error for users that only have view access when trying to get task 
         backfillTaskComments(viewerSession.action(), {
             taskId: task.id,
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).rejects.toThrow(PermissionDeniedError);
@@ -20618,7 +20521,7 @@ test("throws error for users that only have view access when trying to get task 
         backfillTaskComments(unauthorizedSession.action(), {
             taskId: task.id,
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdatedTime,
+            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).rejects.toThrow(PermissionDeniedError);

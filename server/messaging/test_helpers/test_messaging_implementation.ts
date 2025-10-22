@@ -1,3 +1,7 @@
+/* eslint-disable string-quotes */
+
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
     ServerAccountActionContext,
@@ -30,6 +34,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
+    UnimplementedError,
 } from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -48,7 +53,11 @@ import {
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
-import {MessagePayload, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadContentUpdate,
+    MessagePayload,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 
 /**
  * Create a new message in a room.
@@ -133,10 +142,12 @@ type UpdateMessageContentFunctionForTest<RoomKey extends string> = (
     options: {
         roomKey: RoomKey;
         messageIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     },
 ) => Promise<{
-    contentUpdatedTime: Date;
+    content: MessageContent;
+    contentUpdate: MessageContentPayloadContentUpdate;
 }>;
 
 /**
@@ -465,6 +476,11 @@ export type RoomInterface<RoomKey> = {
     readonly messageCount: number;
 };
 
+function textSlice(text: string) {
+    if (text.length === 0) return Slice.empty;
+    return new Slice(Fragment.from(MessageContentProsemirrorSchema.text(text)), 0, 0);
+}
+
 export function testMessagingImplementation<RoomKey extends string>(
     context: TestContext,
     {
@@ -521,11 +537,27 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         switch (message.payload.type) {
             case "Content": {
+                let parentMessageIndex: number | null = null;
+
+                if (message.payload.parent !== null) {
+                    switch (message.payload.parent.type) {
+                        case "Message": {
+                            parentMessageIndex = message.payload.parent.index;
+                            break;
+                        }
+                        default: {
+                            throw new UnimplementedError(
+                                `\`massageMessage()\` hasn’t implemented parent type ${message.payload.parent.type}`,
+                            );
+                        }
+                    }
+                }
+
                 return {
                     author: message.author,
-                    parentMessageIndex: message.payload.parentMessageIndex,
+                    parentMessageIndex,
                     content: message.payload.content.doc,
-                    hasContentUpdated: message.payload.contentUpdatedTime !== null,
+                    hasContentUpdated: message.payload.contentUpdate !== null,
                     ...(message.payload.files.length > 0
                         ? {
                               fileIds: message.payload.files.map(file =>
@@ -549,10 +581,26 @@ export function testMessagingImplementation<RoomKey extends string>(
     function massageMessagePayload(payload: MessagePayload) {
         switch (payload.type) {
             case "Content": {
+                let parentMessageIndex: number | null = null;
+
+                if (payload.parent !== null) {
+                    switch (payload.parent.type) {
+                        case "Message": {
+                            parentMessageIndex = payload.parent.index;
+                            break;
+                        }
+                        default: {
+                            throw new UnimplementedError(
+                                `\`massageMessagePayload()\` hasn’t implemented parent type ${payload.parent.type}`,
+                            );
+                        }
+                    }
+                }
+
                 return {
-                    parentMessageIndex: payload.parentMessageIndex,
+                    parentMessageIndex,
                     content: payload.content,
-                    hasContentUpdated: payload.contentUpdatedTime !== null,
+                    hasContentUpdated: payload.contentUpdate !== null,
                     ...(payload.fileIds.length > 0 ? {fileIds: payload.fileIds} : {}),
                 };
             }
@@ -705,6 +753,18 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageIndex,
             }),
         ).rejects.toThrow(expected);
+    }
+
+    async function getMessageContentPayload(
+        session: TestSessionItem,
+        roomKey: RoomKey,
+        messageIndex: number,
+    ) {
+        const message = await getMessage(context.action(session), {
+            roomKey,
+            messageIndex,
+        });
+        return message.payload.content?.doc.toString();
     }
 
     describe("Messaging implementation", () => {
@@ -1474,7 +1534,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             await expectGetMessage(
@@ -1496,12 +1557,156 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
+        test("can update message with different content multiple times", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test1"))',
+            );
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test2"))',
+            );
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+                version: 1,
+                steps: [new ReplaceStep(5, 6, textSlice("3"))],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test3"))',
+            );
+        });
+
+        test("can’t update message with the wrong version", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test1"))',
+            );
+
+            await expect(
+                updateMessageContent(context.action(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    version: 1,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
+                }),
+            ).rejects.toThrow(/mismatched version/);
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test1"))',
+            );
+        });
+
+        test("can update message with the wrong version after a successful update", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test1"))',
+            );
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test2"))',
+            );
+
+            await expect(
+                updateMessageContent(context.action(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("3"))],
+                }),
+            ).rejects.toThrow(/mismatched version/);
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test2"))',
+            );
+        });
+
+        test("can update message with the wrong version (future version) after a successful update", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test1"))',
+            );
+
+            await updateMessageContent(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
+            });
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test2"))',
+            );
+
+            await expect(
+                updateMessageContent(context.action(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    version: 2,
+                    steps: [new ReplaceStep(5, 6, textSlice("3"))],
+                }),
+            ).rejects.toThrow(/mismatched version/);
+
+            expect(await getMessageContentPayload(session1, room.key, message.index)).toEqual(
+                'doc(paragraph("test2"))',
+            );
+        });
+
         test("can’t update message on room that doesn’t exist", async () => {
             await expect(
                 updateMessageContent(context.action(session2), {
                     roomKey: getMissingRoomKey(),
                     messageIndex: 42,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(/not found/);
         });
@@ -1513,7 +1718,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: 42,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -1550,7 +1756,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
@@ -1605,7 +1812,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
 
@@ -1659,7 +1867,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             await expectGetMessage(
@@ -1713,7 +1922,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             await expectGetMessage(
@@ -1740,7 +1950,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content3,
+                    version: 1,
+                    steps: [new ReplaceStep(5, 6, textSlice("3"))],
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
@@ -1795,7 +2006,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session4), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
@@ -1822,7 +2034,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                     updateMessageContent(context.action(session5), {
                         roomKey: room.key,
                         messageIndex: message.index,
-                        content: content2,
+                        version: 0,
+                        steps: [new ReplaceStep(5, 6, textSlice("2"))],
                     }),
                 ).rejects.toThrow(PermissionDeniedError);
 
@@ -1850,11 +2063,6 @@ export function testMessagingImplementation<RoomKey extends string>(
             const room = await createRoom(context.action(session1), space.id);
 
             const schema = MessageContentProsemirrorSchema;
-            const invalidContent = assertMessageContent(
-                schema.nodes.doc.create({}, [
-                    schema.nodes.unorderedListItem.create({}, [schema.text("Hello, world!")]),
-                ]),
-            );
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -1885,9 +2093,26 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: invalidContent,
+                    version: 0,
+                    steps: [
+                        new ReplaceStep(
+                            0,
+                            7,
+                            new Slice(
+                                Fragment.from(
+                                    schema.nodes.doc.create({}, [
+                                        schema.nodes.unorderedListItem.create({}, [
+                                            schema.text("Hello, world!"),
+                                        ]),
+                                    ]),
+                                ),
+                                0,
+                                0,
+                            ),
+                        ),
+                    ],
                 }),
-            ).rejects.toThrow(InvalidArgumentError);
+            ).rejects.toThrow(FailedPreconditionError);
 
             await expectGetMessage(
                 context.action(session1),
@@ -2384,7 +2609,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 }),
             ).rejects.toThrow(FailedPreconditionError);
         });
@@ -6128,7 +6354,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -6295,7 +6522,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -6408,7 +6636,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 });
 
                 {
@@ -6417,7 +6646,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 1),
                     );
                 }
@@ -6479,7 +6708,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 });
 
                 {
@@ -6488,7 +6718,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 1),
                     );
                 }
@@ -6496,7 +6726,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content3,
+                    version: 1,
+                    steps: [new ReplaceStep(5, 6, textSlice("3"))],
                 });
 
                 {
@@ -6505,7 +6736,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 2),
                     );
                 }
@@ -6514,7 +6745,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content3,
+                    version: 2,
+                    steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
                 {
@@ -6523,7 +6755,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 3),
                     );
                 }
@@ -6550,7 +6782,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
-                    content: content2,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("2"))],
                 });
 
                 {
@@ -6559,7 +6792,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 1),
                     );
                 }
@@ -6616,7 +6849,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message1.index,
-                    content: content4,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
                 {
@@ -6625,7 +6859,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message1.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 1),
                     );
                 }
@@ -6633,7 +6867,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message2.index,
-                    content: content4,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
                 {
@@ -6642,7 +6877,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message2.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 2),
                     );
                 }
@@ -6652,7 +6887,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
-                    content: content4,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
                 {
@@ -6661,7 +6897,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message3.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 3),
                     );
                 }
@@ -6702,7 +6938,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message1.index,
-                    content: content4,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
                 {
@@ -6711,7 +6948,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message1.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 1),
                     );
                 }
@@ -6802,7 +7039,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                 await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
-                    content: content4,
+                    version: 0,
+                    steps: [new ReplaceStep(5, 6, textSlice("4"))],
                 });
 
                 {
@@ -6811,7 +7049,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         messageIndex: message3.index,
                     });
                     assert(updatedMessage?.payload.type === "Content");
-                    expect(updatedMessage.payload.contentUpdatedTime).toEqual(
+                    expect(updatedMessage.payload.contentUpdate?.time).toEqual(
                         new Date(room.createdTime.getTime() + 2),
                     );
                 }
@@ -7569,7 +7807,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -7581,12 +7820,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                         beforeMessageIndex: null,
                     })
                 ).lastMessageChangeTime,
-            ).toEqual(updatedMessage2.contentUpdatedTime);
+            ).toEqual(updatedMessage2.contentUpdate.time);
 
             const updatedMessage5 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                content: content1,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("1"))],
             });
 
             expect(
@@ -7598,7 +7838,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         beforeMessageIndex: null,
                     })
                 ).lastMessageChangeTime,
-            ).toEqual(updatedMessage5.contentUpdatedTime);
+            ).toEqual(updatedMessage5.contentUpdate.time);
         });
 
         test("get from end returns the last time any message was updated even if it is not visible", async () => {
@@ -7660,7 +7900,8 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage5 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
-                content: content1,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("1"))],
             });
 
             expect(
@@ -7672,12 +7913,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                         beforeMessageIndex: null,
                     })
                 ).lastMessageChangeTime,
-            ).toEqual(updatedMessage5.contentUpdatedTime);
+            ).toEqual(updatedMessage5.contentUpdate.time);
 
             const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -7689,7 +7931,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         beforeMessageIndex: null,
                     })
                 ).lastMessageChangeTime,
-            ).toEqual(updatedMessage2.contentUpdatedTime);
+            ).toEqual(updatedMessage2.contentUpdate.time);
         });
 
         test("get from start returns the last time any message was deleted even if it is not visible", async () => {
@@ -7929,13 +8171,15 @@ export function testMessagingImplementation<RoomKey extends string>(
             await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -7943,13 +8187,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                     await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
-                        clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                        clientLastMessageChangeTime: updatedMessage1.contentUpdate.time,
                         newMessageLimit: 100,
                     }),
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [],
                 messageChangesResult: {type: "Available", changes: []},
             });
@@ -8057,13 +8301,15 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -8077,7 +8323,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [
                     {
                         author: await getAccount(
@@ -8130,7 +8376,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [
                     {
                         author: await getAccount(
@@ -8173,7 +8419,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [],
                 messageChangesResult: {
                     type: "Available",
@@ -8189,13 +8435,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                     await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
-                        clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                        clientLastMessageChangeTime: updatedMessage3.contentUpdate.time,
                         newMessageLimit: 100,
                     }),
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [],
                 messageChangesResult: {
                     type: "Available",
@@ -8208,13 +8454,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                     await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 2,
-                        clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                        clientLastMessageChangeTime: updatedMessage3.contentUpdate.time,
                         newMessageLimit: 100,
                     }),
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [
                     {
                         author: await getAccount(
@@ -8346,7 +8592,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
-                        clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                        clientLastMessageChangeTime: updatedMessage1.contentUpdate.time,
                         newMessageLimit: 100,
                     }),
                 ),
@@ -8760,13 +9006,15 @@ export function testMessagingImplementation<RoomKey extends string>(
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -8780,7 +9028,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ),
             ).toEqual({
                 messageCount: 3,
-                lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                 newMessages: [],
                 messageChangesResult: {
                     type: "Available",
@@ -8793,7 +9041,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             const originalDateNow = Date.now;
             const mockTime = getMessageChangeLogExpirationTimeFromChangeTime(
-                updatedMessage1.contentUpdatedTime,
+                updatedMessage1.contentUpdate.time,
             );
             Date.now = () => mockTime.getTime();
 
@@ -8809,7 +9057,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual({
                     messageCount: 3,
-                    lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                    lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                     newMessages: [],
                     messageChangesResult: {type: "Unavailable"},
                 });
@@ -8819,13 +9067,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                         await backfillMessages(context.action(session1), {
                             roomKey: room.key,
                             clientMessageCount: 3,
-                            clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                            clientLastMessageChangeTime: updatedMessage3.contentUpdate.time,
                             newMessageLimit: 100,
                         }),
                     ),
                 ).toEqual({
                     messageCount: 3,
-                    lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                    lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                     newMessages: [],
                     messageChangesResult: {type: "Unavailable"},
                 });
@@ -8835,13 +9083,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                         await backfillMessages(context.action(session1), {
                             roomKey: room.key,
                             clientMessageCount: 3,
-                            clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                            clientLastMessageChangeTime: updatedMessage1.contentUpdate.time,
                             newMessageLimit: 100,
                         }),
                     ),
                 ).toEqual({
                     messageCount: 3,
-                    lastMessageChangeTime: updatedMessage1.contentUpdatedTime,
+                    lastMessageChangeTime: updatedMessage1.contentUpdate.time,
                     newMessages: [],
                     messageChangesResult: {
                         type: "Available",
@@ -9531,7 +9779,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
                     roomKey: room.key,
                     parentMessageIndex: null,
-                    content: createSimpleMessageContent("Hello, world!"),
+                    content: content1,
                     fileIds: [],
                     isStream: true,
                 });
@@ -9540,7 +9788,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                     updateMessageContent(botAccount.action(getRoomBotScope(room.key)), {
                         roomKey: room.key,
                         messageIndex: message.index,
-                        content: createSimpleMessageContent("Hello, world 2!"),
+                        version: 0,
+                        steps: [new ReplaceStep(5, 6, textSlice("2"))],
                     }),
                 ).rejects.toThrow(/^Can’t update clerical (message|comment) content$/);
             });

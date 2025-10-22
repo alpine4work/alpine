@@ -165,12 +165,13 @@ const createMessage: CreateMessageFunction<ChatId> = (
 
 const updateMessageContent: UpdateMessageContentFunction<ChatId> = (
     context,
-    {roomKey: chatId, messageIndex, content},
+    {roomKey: chatId, messageIndex, version, steps},
 ) => {
     return updateChatMessageContent(context, {
         chatId,
         messageIndex,
-        content,
+        version,
+        steps,
     });
 };
 
@@ -216,12 +217,12 @@ const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> =
         author: references.author,
         payload: {
             type: "Content",
-            parentMessageIndex: message.payload.parentMessageIndex,
+            parent: message.payload.parent,
             content: {
                 doc: message.payload.content,
                 references: references.contentReferences,
             },
-            contentUpdatedTime: message.payload.contentUpdatedTime,
+            contentUpdate: message.payload.contentUpdate,
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),

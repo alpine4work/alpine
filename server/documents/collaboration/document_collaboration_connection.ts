@@ -499,12 +499,16 @@ export class DocumentCollaborationConnection {
 
         updateCommentContent: async (
             context,
-            {commentThreadId, commentIndex: messageIndex, content},
+            {commentThreadId, commentIndex: messageIndex, steps, version},
         ) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.updateMessageContent(context, {messageIndex, content});
+            return connection.updateMessageContent(context, {
+                messageIndex,
+                steps,
+                version,
+            });
         },
 
         deleteComment: async (context, {commentThreadId, commentIndex: messageIndex}) => {
@@ -955,7 +959,7 @@ export class DocumentCollaborationConnection {
             },
             updateMessageContent: async (
                 context,
-                {roomKey, messageIndex: commentIndex, content},
+                {roomKey, messageIndex: commentIndex, version, steps},
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
@@ -974,7 +978,8 @@ export class DocumentCollaborationConnection {
                     documentId,
                     commentThreadId,
                     commentIndex,
-                    content,
+                    version,
+                    steps,
                 });
             },
             deleteMessage: async (context, {roomKey, messageIndex: commentIndex}) => {
@@ -1087,12 +1092,12 @@ export class DocumentCollaborationConnection {
             createdTime: optimisticCommentThread.createdTime,
             payload: {
                 type: "Content",
-                parentMessageIndex: null,
+                parent: null,
                 content: {
                     doc: optimisticCommentThread.initialComment.content,
                     references: contentReferences,
                 },
-                contentUpdatedTime: null,
+                contentUpdate: null,
                 files,
             },
             stream: null,
@@ -1155,12 +1160,12 @@ const createMessageModel: CreateMessageModelFunction<
         author: references.author,
         payload: {
             type: "Content",
-            parentMessageIndex: message.payload.parentMessageIndex,
+            parent: message.payload.parent,
             content: {
                 doc: message.payload.content,
                 references: references.contentReferences,
             },
-            contentUpdatedTime: message.payload.contentUpdatedTime,
+            contentUpdate: message.payload.contentUpdate,
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),

@@ -2,10 +2,13 @@ import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Id} from "~/shared/id/id.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClericalSchema,
+    MessageContentPayloadContentUpdateSchema,
+    MessageContentPayloadParentSchema,
     MessageStream,
 } from "~/shared/messaging/message_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -133,14 +136,23 @@ export const MessageContentPayloadModelFileSchema = Schema.union({
 
 const MessageContentPayloadModelSchema = Schema.object({
     type: Schema.value("Content"),
-    parentMessageIndex: Schema.integer.nullable(),
+    parent: MessageContentPayloadParentSchema.nullable(),
     content: MessageContentWithReferencesSchema,
-    contentUpdatedTime: Schema.date.nullable(),
+    contentUpdate: MessageContentPayloadContentUpdateSchema.nullable(),
     files: Schema.array(MessageContentPayloadModelFileSchema).default([]),
     clerical: MessageContentPayloadClericalSchema.optional(),
 });
 
-const MessageDeletedPayloadModelSchema = Schema.object({
+const MessageDeletedPayloadModelSchema: Schema<{
+    readonly type: "Deleted";
+    readonly deletedTime: Date;
+    // For TypeScript so you can access `payload.content` and get `T | undefined`.
+    readonly parent?: undefined;
+    readonly content?: undefined;
+    readonly contentUpdate?: undefined;
+    readonly files?: undefined;
+    readonly clerical?: undefined;
+}> = Schema.object({
     type: Schema.value("Deleted"),
     deletedTime: Schema.date,
 });
@@ -172,9 +184,10 @@ export function areMessagePayloadModelsEqual(
         case "Content": {
             if (payload2.type !== "Content") return false;
             return (
-                payload1.parentMessageIndex === payload2.parentMessageIndex &&
+                isDeepEqual(payload1.parent, payload2.parent) &&
                 payload1.content.doc.eq(payload2.content.doc) &&
-                payload1.contentUpdatedTime?.getTime() === payload2.contentUpdatedTime?.getTime()
+                isDeepEqual(payload1.contentUpdate, payload2.contentUpdate) &&
+                isDeepEqual(payload1.clerical, payload2.clerical)
             );
         }
         case "Deleted": {
@@ -189,7 +202,7 @@ export function areMessagePayloadModelsEqual(
 function getMessagePayloadChangeTime(payload: MessagePayloadModel): Date | null {
     switch (payload.type) {
         case "Content":
-            return payload.contentUpdatedTime;
+            return payload.contentUpdate?.time ?? null;
         case "Deleted":
             return payload.deletedTime;
         default:

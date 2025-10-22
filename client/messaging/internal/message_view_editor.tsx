@@ -116,7 +116,8 @@ function MessageViewEditor<RoomKey extends string>(
 
                         messageEditing.dispatch({
                             type: "ContentEditorStateChange",
-                            contentEditorState,
+                            state: contentEditorState,
+                            transaction,
                         });
                     }}
                     aria-label={messageStartOfSentenceNoun}

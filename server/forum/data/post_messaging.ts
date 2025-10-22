@@ -1,4 +1,5 @@
 import {addSeconds} from "date-fns";
+import {Mapping, Step, StepResult} from "prosemirror-transform";
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
@@ -66,8 +67,13 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentPayloadContentUpdate,
+    MessageContentPayloadParent,
+    MessageStreamPartPayload,
+    iterateMessageContentPayloadParentIndexes,
+} from "~/shared/messaging/message_schema.js";
 
 /**
  * Add a new comment to a post.
@@ -192,9 +198,12 @@ export async function createPostComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: parentCommentIndex,
+                    parent:
+                        parentCommentIndex !== null
+                            ? {type: "Message", index: parentCommentIndex}
+                            : null,
                     content,
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     fileIds,
                     clerical: isStream ? {type: "Stream"} : undefined,
                 },
@@ -758,15 +767,18 @@ export function updatePostCommentContent(
     {
         postId,
         commentIndex,
-        content,
+        version,
+        steps,
     }: {
         postId: PostId;
         commentIndex: number;
-        content: MessageContent;
+        version: number;
+        steps: ReadonlyArray<Step>;
     },
 ): Promise<{
     spaceId: SpaceId;
-    contentUpdatedTime: Date;
+    content: MessageContent;
+    contentUpdate: MessageContentPayloadContentUpdate;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const postItemConsistency: DynamoReadConsistency = "Eventual";
@@ -818,18 +830,45 @@ export function updatePostCommentContent(
         if (commentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t update clerical comment content");
 
-        const contentUpdatedTime = new Date(
-            Math.max(
-                (postItem.commentsSummary.lastChangeTime ?? postItem.createdTime).getTime() + 1,
-                Date.now(),
+        if (version !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
+            throw new FailedPreconditionError("Can’t update comment with mismatched version");
+
+        let content = commentItem.payload.content;
+        const mapping = new Mapping();
+
+        for (const step of steps) {
+            let stepResult: StepResult;
+            try {
+                stepResult = step.apply(content);
+            } catch (error) {
+                throw FailedPreconditionError.from(error);
+            }
+            if (!stepResult.doc) {
+                throw new FailedPreconditionError(
+                    `Couldn’t apply step to content: ${stepResult.failed!}`,
+                );
+            }
+
+            assert(isMessageContent(stepResult.doc));
+            content = stepResult.doc;
+            mapping.appendMap(step.getMap());
+        }
+
+        const contentUpdate: MessageContentPayloadContentUpdate = {
+            time: new Date(
+                Math.max(
+                    (postItem.commentsSummary.lastChangeTime ?? postItem.createdTime).getTime() + 1,
+                    Date.now(),
+                ),
             ),
-        );
+            mappings: [...(commentItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
+        };
 
         // `lastChangeTime` should always be greater than or equal
         // to `contentUpdatedTime`.
         assert(
-            !commentItem.payload.contentUpdatedTime ||
-                contentUpdatedTime > commentItem.payload.contentUpdatedTime,
+            !commentItem.payload.contentUpdate ||
+                contentUpdate.time > commentItem.payload.contentUpdate.time,
         );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
@@ -844,7 +883,7 @@ export function updatePostCommentContent(
                 payload: {
                     ...commentItem.payload,
                     content,
-                    contentUpdatedTime,
+                    contentUpdate,
                 },
             }),
             // Ok for us to not tell the client about a comment summary update through our
@@ -855,7 +894,7 @@ export function updatePostCommentContent(
                 "commentsSummary",
                 {
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex,
-                    lastChangeTime: contentUpdatedTime,
+                    lastChangeTime: contentUpdate.time,
                     commentCountByAuthorId: postItem.commentsSummary.commentCountByAuthorId,
                     mentionCountByAccountId: newMentionCountByAccountId,
                 },
@@ -867,13 +906,14 @@ export function updatePostCommentContent(
                 partitionType: "Post",
                 sortRangeType: "CommentChangeLog",
                 postId,
-                changeTime: contentUpdatedTime,
+                changeTime: contentUpdate.time,
                 commentIndex: commentItem.commentIndex,
                 change: {
                     type: "UpdateContent",
                     content,
+                    contentUpdateMappings: contentUpdate.mappings,
                 },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdatedTime),
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
             }),
         ]);
 
@@ -888,10 +928,7 @@ export function updatePostCommentContent(
             },
         });
 
-        return {
-            spaceId,
-            contentUpdatedTime,
-        };
+        return {spaceId, content, contentUpdate};
     });
 }
 
@@ -962,8 +999,8 @@ export function deletePostComment(
         // `lastChangeTime` should always be greater than or equal
         // to `deletedTime`.
         assert(
-            !commentItem.payload.contentUpdatedTime ||
-                deletedTime > commentItem.payload.contentUpdatedTime,
+            !commentItem.payload.contentUpdate ||
+                deletedTime > commentItem.payload.contentUpdate.time,
         );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
@@ -1069,8 +1106,11 @@ export async function getPostAndInitialComments(
     for await (const item of queryIterable) {
         commentIndexes.add(item.index);
 
-        if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
-            parentCommentIndexes.add(item.payload.parentMessageIndex);
+        if (item.payload.type === "Content" && item.payload.parent !== null) {
+            for (const index of iterateMessageContentPayloadParentIndexes(item.payload.parent)) {
+                parentCommentIndexes.add(index);
+            }
+        }
 
         commentPromises.push(
             createPostCommentModelFromItem(context, postItem.spaceId, postId, item),
@@ -1267,6 +1307,12 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<PostCommentModel> = [];
 
+    const loadOtherReferencedCommentFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedComment(index);
+        }
+    };
+
     const loadOtherReferencedComment = (commentIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -1282,8 +1328,8 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedCommentFromParent(item.payload.parent);
                 }
 
                 otherReferencedComments.push(
@@ -1298,8 +1344,8 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
 
     const comments = await runAllPromises(
         commentItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedCommentFromParent(item.payload.parent);
             }
 
             // Don't propagate `consistency` when loading model references. We
@@ -1566,6 +1612,12 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
     let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
     const otherReferencedComments: Array<PostCommentModel> = [];
 
+    const loadOtherReferencedCommentFromParent = (parent: MessageContentPayloadParent) => {
+        for (const index of iterateMessageContentPayloadParentIndexes(parent)) {
+            loadOtherReferencedComment(index);
+        }
+    };
+
     const loadOtherReferencedComment = (commentIndex: number) => {
         // If this message is already in our loaded messages range then we don't need
         // to load it again.
@@ -1579,8 +1631,8 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                if (item.payload.type === "Content" && item.payload.parent !== null) {
+                    loadOtherReferencedCommentFromParent(item.payload.parent);
                 }
 
                 otherReferencedComments.push(
@@ -1595,8 +1647,8 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
 
     const comments = await runAllPromises(
         commentItems.map(item => {
-            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
-                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            if (item.payload.type === "Content" && item.payload.parent !== null) {
+                loadOtherReferencedCommentFromParent(item.payload.parent);
             }
             return createPostCommentModelFromItem(context, spaceId, postId, item);
         }),
@@ -1935,7 +1987,10 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                                 item.change.content,
                             ),
                         },
-                        contentUpdatedTime: item.changeTime,
+                        contentUpdate: {
+                            time: item.changeTime,
+                            mappings: item.change.contentUpdateMappings,
+                        },
                     };
                 }
                 case "Delete": {

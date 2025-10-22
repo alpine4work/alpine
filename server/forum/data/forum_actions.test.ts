@@ -64,7 +64,6 @@ import {
     getPostAndInitialComments,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
-    updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {sendChannelShareNotification} from "~/server/forum/data/send_channel_share_notification.js";
 import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
@@ -3680,13 +3679,9 @@ test("won’t backfill realtime updates when comment count changes", async () =>
         eventTransaction: [],
     });
 
-    const {contentUpdatedTime: comment2ContentUpdatedTime} = await updatePostCommentContent(
-        session.action(),
-        {
-            postId: post.id,
-            commentIndex: comment2.index,
-            content: createSimpleMessageContent("comment2 (updated)"),
-        },
+    const {contentUpdate: comment2ContentUpdate} = await comment2.updateContent(
+        session,
+        "comment2 (updated)",
     );
 
     const post1d = (await getPost(session.action(), post.id)).model;
@@ -3694,7 +3689,7 @@ test("won’t backfill realtime updates when comment count changes", async () =>
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
     expect(post1d.commentCount).toEqual(2);
-    expect(post1d.lastCommentChangeTime).toEqual(comment2ContentUpdatedTime);
+    expect(post1d.lastCommentChangeTime).toEqual(comment2ContentUpdate.time);
 
     expect(
         await backfillChannelPosts(session.action(), {
@@ -7494,7 +7489,7 @@ describe("Notification subscribers", () => {
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await post.createComment(
+        const comment = await post.createComment(
             session2,
             assertMessageContent(
                 MessageContentProsemirrorSchema.node("doc", {}, [
@@ -7519,17 +7514,14 @@ describe("Notification subscribers", () => {
             ),
         ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
 
-        await updatePostCommentContent(session2.action(), {
-            postId: post.id,
-            commentIndex: 0,
-            content: assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Hello, world!"),
-                    ]),
+        await comment.updateContent(
+            session2,
+            MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Hello, world!"),
                 ]),
-            ),
-        });
+            ]),
+        );
 
         expect(
             await getPostNotificationSubscribers(space.systemAction(), post.id).then(
@@ -7611,7 +7603,7 @@ describe("Notification subscribers", () => {
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await post.createComment(
+        const comment = await post.createComment(
             session2,
             assertMessageContent(
                 MessageContentProsemirrorSchema.node("doc", {}, [
@@ -7628,25 +7620,22 @@ describe("Notification subscribers", () => {
             ),
         ).toEqual(new Set([session1.account.id, session2.account.id]));
 
-        await updatePostCommentContent(session2.action(), {
-            postId: post.id,
-            commentIndex: 0,
-            content: assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Hello, "),
-                        MessageContentProsemirrorSchema.node("mention", {
-                            mention: cast<ContentMention>({
-                                type: "Account",
-                                accountId: session3.account.id,
-                                isShort: false,
-                            }),
+        await comment.updateContent(
+            session2,
+            MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Hello, "),
+                    MessageContentProsemirrorSchema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "Account",
+                            accountId: session3.account.id,
+                            isShort: false,
                         }),
-                        MessageContentProsemirrorSchema.text("!"),
-                    ]),
+                    }),
+                    MessageContentProsemirrorSchema.text("!"),
                 ]),
-            ),
-        });
+            ]),
+        );
 
         expect(
             await getPostNotificationSubscribers(space.systemAction(), post.id).then(
@@ -7766,25 +7755,22 @@ describe("Notification subscribers", () => {
             ]),
         );
 
-        await updatePostCommentContent(session2.action(), {
-            postId: post.id,
-            commentIndex: comment.index,
-            content: assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Hello, "),
-                        MessageContentProsemirrorSchema.node("mention", {
-                            mention: cast<ContentMention>({
-                                type: "Account",
-                                accountId: session5.account.id,
-                                isShort: false,
-                            }),
+        await comment.updateContent(
+            session2,
+            MessageContentProsemirrorSchema.node("doc", {}, [
+                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                    MessageContentProsemirrorSchema.text("Hello, "),
+                    MessageContentProsemirrorSchema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "Account",
+                            accountId: session5.account.id,
+                            isShort: false,
                         }),
-                        MessageContentProsemirrorSchema.text("!"),
-                    ]),
+                    }),
+                    MessageContentProsemirrorSchema.text("!"),
                 ]),
-            ),
-        });
+            ]),
+        );
 
         expect(
             await getPostNotificationSubscribers(space.systemAction(), post.id).then(

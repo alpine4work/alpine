@@ -1,6 +1,9 @@
 import {ApiContentMentionInlineElementTargetPath} from "~/shared/api/types/api_specification_convenience_types.js";
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessagePayload = SchemaType<typeof MessagePayloadSchema>;
@@ -10,6 +13,64 @@ export type MessageContentPayload = SchemaType<typeof MessageContentPayloadSchem
 export type MessageContentPayloadClerical = SchemaType<typeof MessageContentPayloadClericalSchema>;
 
 export type MessageDeletedPayload = SchemaType<typeof MessageDeletedPayloadSchema>;
+
+export type MessageContentPayloadParent = SchemaType<typeof MessageContentPayloadParentSchema>;
+
+export const MessageContentPayloadParentSchema = Schema.union({
+    Message: Schema.object({
+        type: Schema.value("Message"),
+        index: Schema.integer,
+    }),
+    MessagesRange: Schema.object({
+        type: Schema.value("MessagesRange"),
+        startIndex: Schema.integer.min(0),
+        endIndex: Schema.integer.min(0), // `endIndex` is inclusive
+        startVersion: Schema.integer.min(0),
+        endVersion: Schema.integer.min(0),
+        startPos: Schema.integer.min(0),
+        endPos: Schema.integer.min(0),
+    })
+        .validation(
+            "`startIndex` is less than or equal to `endIndex`",
+            range => range.startIndex <= range.endIndex,
+        )
+        .validation(
+            "`startVersion` is equal to `endVersion` if `startIndex` equals `endIndex`",
+            range => range.startIndex !== range.endIndex || range.startVersion === range.endVersion,
+        )
+        .validation(
+            "`startPos` is less than or equal to `endPos` if `startIndex` equals `endIndex`",
+            range => range.startIndex !== range.endIndex || range.startPos <= range.endPos,
+        ),
+});
+
+export function* iterateMessageContentPayloadParentIndexes(
+    parent: MessageContentPayloadParent,
+): IterableIterator<number> {
+    switch (parent.type) {
+        case "Message": {
+            yield parent.index;
+            break;
+        }
+        case "MessagesRange": {
+            for (let index = parent.startIndex; index <= parent.endIndex; index++) {
+                yield index;
+            }
+            break;
+        }
+        default:
+            throw exhaustive(parent);
+    }
+}
+
+export type MessageContentPayloadContentUpdate = SchemaType<
+    typeof MessageContentPayloadContentUpdateSchema
+>;
+
+export const MessageContentPayloadContentUpdateSchema = Schema.object({
+    time: Schema.date,
+    mappings: Schema.array(ProsemirrorMappingSchema).default(emptyArray),
+});
 
 /**
  * Clerical message left when someone shares an entity with you and chooses
@@ -40,7 +101,14 @@ export const MessageContentPayloadSchema = Schema.object({
      * index of the message we're replying to. The parent message index should
      * always be less than our message index.
      */
-    parentMessageIndex: Schema.integer.nullable(),
+    parent: MessageContentPayloadParentSchema.wrapOriginalPropertyInUnionVariant(
+        "Message",
+        "index",
+        {},
+    )
+        .originalPropertyKey("parentMessageIndex")
+        .nullable()
+        .default(null),
 
     /**
      * The contents of the message.
@@ -50,8 +118,18 @@ export const MessageContentPayloadSchema = Schema.object({
     /**
      * If this message was ever updated then this is the time at which the update
      * occurred. Will be null if the message was never updated.
+     *
+     * Also includes `mappings`. Each time the message is updated we record the
+     * mapping for positions from the start version to the end version of the
+     * updated message. So we can map any positions in `MessagesRange`. The version
+     * of the message is `contentUpdate.mappings.length` (we start at version 0).
      */
-    contentUpdatedTime: Schema.date.nullable(),
+    contentUpdate: MessageContentPayloadContentUpdateSchema.wrapOriginalPropertyInObject("time", {
+        mappings: [],
+    })
+        .originalPropertyKey("contentUpdatedTime")
+        .nullable()
+        .default(null),
 
     /**
      * Files attached to the message to be rendered below the message content.

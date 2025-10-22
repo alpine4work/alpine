@@ -1,3 +1,5 @@
+import {Fragment, Slice} from "prosemirror-model";
+import {Mapping, ReplaceStep} from "prosemirror-transform";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
@@ -28,6 +30,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
+    MessageContentProsemirrorSchema,
     MessageContentWithReferences,
     assertMessageContent,
     createSimpleMessageContent,
@@ -42,6 +45,11 @@ import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
+
+function textSlice(text: string) {
+    if (text.length === 0) return Slice.empty;
+    return new Slice(Fragment.from(MessageContentProsemirrorSchema.text(text)), 0, 0);
+}
 
 export const testMessagingRealtimeImplementationSearchInjection: Partial<SearchInjection> = {
     getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
@@ -187,9 +195,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -200,9 +208,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -213,9 +221,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -244,9 +252,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -257,9 +265,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -288,9 +296,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -301,9 +309,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -391,9 +399,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -410,9 +418,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -429,9 +437,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -456,9 +464,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -490,9 +498,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -509,9 +517,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -528,9 +536,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -629,9 +637,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -648,9 +656,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -675,9 +683,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -694,9 +702,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -730,9 +738,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -747,9 +755,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -848,9 +856,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -867,9 +875,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -903,9 +911,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1034,9 +1042,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1051,9 +1059,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1068,9 +1076,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1213,9 +1221,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1230,9 +1238,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1247,9 +1255,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1374,9 +1382,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1391,9 +1399,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1417,9 +1425,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1434,9 +1442,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1451,9 +1459,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1530,9 +1538,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1560,9 +1568,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1649,9 +1657,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1673,9 +1681,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -1723,7 +1731,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             const deletedMessage1 = await deleteMessage(context.action(session1), {
@@ -1753,7 +1762,10 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             type: "UpdateContent",
                             index: message3.index,
                             content: content2WithReferences,
-                            contentUpdatedTime: updatedMessage3.contentUpdatedTime,
+                            contentUpdate: {
+                                time: updatedMessage3.contentUpdate.time,
+                                mappings: [expect.any(Mapping)],
+                            },
                         },
                         {
                             type: "Delete",
@@ -1770,7 +1782,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             expect(
                 await connection1.procedures.backfillMessages({
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
+                    clientLastMessageChangeTime: updatedMessage3.contentUpdate.time,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
@@ -1813,7 +1825,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             expect(
@@ -1824,7 +1837,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: updatedMessage2.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage2.contentUpdate.time,
                 newMessages: [],
                 newOtherReferencedMessages: [],
                 messageChangesResult: {
@@ -1834,7 +1847,10 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             type: "UpdateContent",
                             index: message3.index,
                             content: content2WithReferences,
-                            contentUpdatedTime: updatedMessage3.contentUpdatedTime,
+                            contentUpdate: {
+                                time: updatedMessage3.contentUpdate.time,
+                                mappings: [expect.any(Mapping)],
+                            },
                         },
                         {
                             type: "Delete",
@@ -1845,7 +1861,10 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             type: "UpdateContent",
                             index: message2.index,
                             content: content2WithReferences,
-                            contentUpdatedTime: updatedMessage2.contentUpdatedTime,
+                            contentUpdate: {
+                                time: updatedMessage2.contentUpdate.time,
+                                mappings: [expect.any(Mapping)],
+                            },
                         },
                     ],
                 },
@@ -1862,7 +1881,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: updatedMessage2.contentUpdatedTime,
+                lastMessageChangeTime: updatedMessage2.contentUpdate.time,
                 newMessages: [],
                 newOtherReferencedMessages: [],
                 messageChangesResult: {
@@ -1872,7 +1891,10 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             type: "UpdateContent",
                             index: message2.index,
                             content: content2WithReferences,
-                            contentUpdatedTime: updatedMessage2.contentUpdatedTime,
+                            contentUpdate: {
+                                time: updatedMessage2.contentUpdate.time,
+                                mappings: [expect.any(Mapping)],
+                            },
                         },
                     ],
                 },
@@ -1955,7 +1977,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await connection2.procedures.updateMessageContent({
                 messageIndex: message2.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1967,7 +1990,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         type: "UpdateContent",
                         index: message2.index,
                         content: content2WithReferences,
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -1978,7 +2001,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         type: "UpdateContent",
                         index: message2.index,
                         content: content2WithReferences,
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -1989,7 +2012,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         type: "UpdateContent",
                         index: message2.index,
                         content: content2WithReferences,
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2049,7 +2072,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                             type: "UpdateContent",
                             index: message2.index,
                             content: content2WithReferences,
-                            contentUpdatedTime: expect.any(Date),
+                            contentUpdate: expect.any(Object),
                         },
                         {
                             type: "Delete",
@@ -2156,7 +2179,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await connection2.procedures.updateMessageContent({
                 messageIndex: message2.index,
-                content: content2,
+                version: 0,
+                steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -2168,7 +2192,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         type: "UpdateContent",
                         index: message2.index,
                         content: content2WithReferences,
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2179,7 +2203,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         type: "UpdateContent",
                         index: message2.index,
                         content: content2WithReferences,
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2190,7 +2214,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         type: "UpdateContent",
                         index: message2.index,
                         content: content2WithReferences,
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2339,9 +2363,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2374,9 +2398,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2404,9 +2428,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2448,9 +2472,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2493,9 +2517,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2543,9 +2567,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2596,9 +2620,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2625,9 +2649,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content3WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2731,7 +2755,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             await connection3.procedures.updateMessageContent({
                 messageIndex: initialMessage.index,
-                content: updatedContent,
+                version: 0,
+                steps: [new ReplaceStep(0, 7, new Slice(updatedContent.content, 0, 0))],
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -2773,7 +2798,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2814,7 +2839,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2855,7 +2880,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -2948,9 +2973,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -2984,9 +3009,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -3015,9 +3040,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -3051,9 +3076,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content2WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [
                                 {
                                     type: "FileEntity",
@@ -3110,9 +3135,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -3139,9 +3164,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: expect.any(Date),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: content1WithReferences,
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             files: [],
                         },
                     }),
@@ -3177,7 +3202,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             const updateMessagePromise = connection3.procedures.updateMessageContent({
                 messageIndex: initialMessage.index,
-                content: updatedContent,
+                version: 0,
+                steps: [new ReplaceStep(0, 7, new Slice(updatedContent.content, 0, 0))],
             });
 
             const {unpause} = await pausePromise;
@@ -3221,7 +3247,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -3248,7 +3274,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -3276,7 +3302,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -3303,7 +3329,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                                 ]),
                             },
                         },
-                        contentUpdatedTime: expect.any(Date),
+                        contentUpdate: expect.any(Object),
                     },
                 },
             ]);
@@ -3345,9 +3371,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: new Date(),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("foo"),
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             fileIds: [],
                         },
                         stream: null,
@@ -3423,9 +3449,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: new Date(),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("foo"),
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             fileIds: [],
                         },
                         stream: null,
@@ -3448,9 +3474,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: new Date(),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("bar"),
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             fileIds: [],
                         },
                         stream: null,
@@ -3526,9 +3552,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: new Date(),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("foo"),
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             fileIds: [],
                         },
                         stream: null,
@@ -3551,9 +3577,9 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         createdTime: new Date(),
                         payload: {
                             type: "Content",
-                            parentMessageIndex: null,
+                            parent: null,
                             content: createSimpleMessageContent("bar"),
-                            contentUpdatedTime: null,
+                            contentUpdate: null,
                             fileIds: [],
                         },
                         stream: null,

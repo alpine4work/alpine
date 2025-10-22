@@ -120,12 +120,12 @@ test("will load messages when there are messages at the start", () => {
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -225,12 +225,12 @@ test("will load messages when there are messages at the start from multiple load
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -251,12 +251,12 @@ test("will load messages when there are messages at the start from multiple load
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${loadMessageCount + index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -277,14 +277,14 @@ test("will load messages when there are messages at the start from multiple load
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${loadMessageCount * 1.5 + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -384,14 +384,14 @@ test("will load messages when there are messages at the end", () => {
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -491,14 +491,14 @@ test("will load messages when there are messages at the end from multiple loads"
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -519,14 +519,14 @@ test("will load messages when there are messages at the end from multiple loads"
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount * 2 + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -547,14 +547,14 @@ test("will load messages when there are messages at the end from multiple loads"
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount * 2.5 + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -654,12 +654,12 @@ test("will load messages when there are messages at the start and end", () => {
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -680,14 +680,14 @@ test("will load messages when there are messages at the start and end", () => {
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -837,12 +837,12 @@ test("will load messages when there are messages at the start, end, and middle",
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -863,14 +863,14 @@ test("will load messages when there are messages at the start, end, and middle",
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -891,12 +891,12 @@ test("will load messages when there are messages at the start, end, and middle",
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${300 + index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1144,14 +1144,14 @@ test("will load messages when there are messages at the end when there are some 
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(
                                 `Test ${messageCount - loadMessageCount + index}`,
                             ),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1170,12 +1170,12 @@ test("will load messages when there are messages at the end when there are some 
                 createdTime: new Date(),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test 400"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -1187,12 +1187,12 @@ test("will load messages when there are messages at the end when there are some 
                 createdTime: new Date(),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test 403"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -1292,12 +1292,12 @@ test("will load messages when there are messages at the start when there are som
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1316,12 +1316,12 @@ test("will load messages when there are messages at the start when there are som
                 createdTime: new Date(),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test 400"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -1333,12 +1333,12 @@ test("will load messages when there are messages at the start when there are som
                 createdTime: new Date(),
                 payload: {
                     type: "Content",
-                    parentMessageIndex: null,
+                    parent: null,
                     content: {
                         doc: createSimpleMessageContent("Test 403"),
                         references: emptyContentReferences,
                     },
-                    contentUpdatedTime: null,
+                    contentUpdate: null,
                     files: [],
                 },
                 stream: null,
@@ -1359,12 +1359,12 @@ test("will load messages when there are messages at the start when there are som
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1464,12 +1464,12 @@ test("will load messages in the middle of two loaded ranges", () => {
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,
@@ -1490,12 +1490,12 @@ test("will load messages in the middle of two loaded ranges", () => {
                     createdTime: new Date(),
                     payload: {
                         type: "Content",
-                        parentMessageIndex: null,
+                        parent: null,
                         content: {
                             doc: createSimpleMessageContent(`Test ${110 + index}`),
                             references: emptyContentReferences,
                         },
-                        contentUpdatedTime: null,
+                        contentUpdate: null,
                         files: [],
                     },
                     stream: null,

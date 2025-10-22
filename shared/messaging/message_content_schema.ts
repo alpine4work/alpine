@@ -56,6 +56,8 @@ const messageContentSchemas = createSchemaForProsemirrorSchema(MessageContentPro
 export const MessageContentSchema =
     messageContentSchemas.TopNodeType as Schema<any> as Schema<MessageContent>;
 
+export const MessageContentStepSchema = messageContentSchemas.createStepSchema();
+
 export const emptyMessageContent = MessageContentProsemirrorSchema.node("doc", {}, [
     MessageContentProsemirrorSchema.node("paragraph"),
 ]) as MessageContent;

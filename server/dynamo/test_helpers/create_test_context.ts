@@ -30,6 +30,7 @@ import {
 } from "~/server/context/injection_context_module.js";
 import {
     ServerAccountActionContextModules,
+    ServerActionContextModules,
     ServerAnonymousActionContextModules,
     ServerBotActionContextModules,
     ServerImpersonatedAccountActionContextModules,
@@ -110,6 +111,10 @@ type TestContextExtraModules = {
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
 
 export type TestContext = Context<TestContextModules> & TestContextHelpers<TestContextModules>;
+
+export type TestActionContextModules = ServerActionContextModules & TestContextExtraModules;
+
+export type TestActionContext = Context<TestActionContextModules>;
 
 export type TestSessionActionContextModules = ServerSessionActionContextModules &
     TestContextExtraModules & {

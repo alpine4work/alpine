@@ -61,12 +61,12 @@ export async function createMessagePayloadModel(
 
             return {
                 type: "Content",
-                parentMessageIndex: payload.parentMessageIndex,
+                parent: payload.parent,
                 content: {
                     doc: payload.content,
                     references,
                 },
-                contentUpdatedTime: payload.contentUpdatedTime,
+                contentUpdate: payload.contentUpdate,
                 files,
                 clerical: payload.clerical,
             };

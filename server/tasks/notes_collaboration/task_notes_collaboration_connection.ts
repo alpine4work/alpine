@@ -279,8 +279,12 @@ export class TaskNotesCollaborationConnection {
                 fileIds,
             }),
 
-        updateCommentContent: (context, {commentIndex: messageIndex, content}) =>
-            this._messagingConnection.updateMessageContent(context, {messageIndex, content}),
+        updateCommentContent: (context, {commentIndex: messageIndex, steps, version}) =>
+            this._messagingConnection.updateMessageContent(context, {
+                messageIndex,
+                steps,
+                version,
+            }),
 
         deleteComment: (context, {commentIndex: messageIndex}) =>
             this._messagingConnection.deleteMessage(context, {messageIndex}),
@@ -397,12 +401,13 @@ const createMessage: CreateMessageFunction<TaskId> = (
 
 const updateMessageContent: UpdateMessageContentFunction<TaskId> = (
     context,
-    {roomKey: taskId, messageIndex: commentIndex, content},
+    {roomKey: taskId, messageIndex: commentIndex, version, steps},
 ) => {
     return updateTaskCommentContent(context, {
         taskId,
         commentIndex,
-        content,
+        version,
+        steps,
     });
 };
 
@@ -465,12 +470,12 @@ const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> =
         author: references.author,
         payload: {
             type: "Content",
-            parentMessageIndex: message.payload.parentMessageIndex,
+            parent: message.payload.parent,
             content: {
                 doc: message.payload.content,
                 references: references.contentReferences,
             },
-            contentUpdatedTime: message.payload.contentUpdatedTime,
+            contentUpdate: message.payload.contentUpdate,
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),

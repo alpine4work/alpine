@@ -174,11 +174,15 @@ testMessagingImplementation<TaskId>(processContext, {
     async getMessagePayload(context, {roomKey: taskId, messageIndex: commentIndex}) {
         return getTaskCommentPayload(context, {taskId, commentIndex});
     },
-    async updateMessageContent(context, {roomKey: taskId, messageIndex: commentIndex, content}) {
+    async updateMessageContent(
+        context,
+        {roomKey: taskId, messageIndex: commentIndex, version, steps},
+    ) {
         return updateTaskCommentContent(context, {
             taskId,
             commentIndex,
-            content,
+            version,
+            steps,
         });
     },
     async deleteMessage(context, {roomKey: taskId, messageIndex: commentIndex}) {
