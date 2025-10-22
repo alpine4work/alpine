@@ -1,13 +1,16 @@
 import {Step} from "prosemirror-transform";
 import {
+    completeChatMessageStream,
     deleteChatMessage,
     getChatMessage,
     getOrCreateChatForAccounts,
+    putChatMessageStreamPart,
     sendChatMessage,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
 import {
     TestAccountActionContext,
+    TestBotActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -21,7 +24,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParent,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 
 export class TestChat extends TestMessageRoomBase {
     public readonly context: TestContext;
@@ -101,10 +107,12 @@ export class TestChat extends TestMessageRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            isStream?: boolean;
         },
     ) {
         return sendChatMessage(context, {
@@ -112,6 +120,7 @@ export class TestChat extends TestMessageRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         });
     }
 
@@ -140,6 +149,36 @@ export class TestChat extends TestMessageRoomBase {
         {messageIndex}: {messageIndex: number},
     ) {
         return deleteChatMessage(context, {
+            chatId: this.id,
+            messageIndex,
+        });
+    }
+
+    public override async _putMessageStreamPart(
+        context: TestBotActionContext,
+        {
+            messageIndex,
+            partIndex,
+            payload,
+        }: {
+            messageIndex: number;
+            partIndex: number;
+            payload: MessageStreamPartPayload;
+        },
+    ) {
+        await putChatMessageStreamPart(context, {
+            chatId: this.id,
+            messageIndex,
+            partIndex,
+            payload,
+        });
+    }
+
+    public override async _completeMessageStream(
+        context: TestBotActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        await completeChatMessageStream(context, {
             chatId: this.id,
             messageIndex,
         });

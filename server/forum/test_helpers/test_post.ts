@@ -2,6 +2,7 @@ import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {
     TestAccountActionContext,
+    TestBotActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -12,9 +13,11 @@ import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getPost} from "~/server/forum/data/get_post.js";
 import {getPostContentAndChannelPreview} from "~/server/forum/data/get_post_content_and_channel_preview.js";
 import {
+    completePostCommentStream,
     createPostComment,
     deletePostComment,
     getPostComment,
+    putPostCommentStreamPart,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
@@ -36,7 +39,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParent,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 
 let testPostCount = 1;
 
@@ -207,10 +213,12 @@ export class TestPost extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            isStream?: boolean;
         },
     ) {
         return createPostComment(context, {
@@ -218,6 +226,7 @@ export class TestPost extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         });
     }
 
@@ -251,6 +260,36 @@ export class TestPost extends TestCommentRoomBase {
         });
     }
 
+    public override async _putMessageStreamPart(
+        context: TestBotActionContext,
+        {
+            messageIndex,
+            partIndex,
+            payload,
+        }: {
+            messageIndex: number;
+            partIndex: number;
+            payload: MessageStreamPartPayload;
+        },
+    ) {
+        await putPostCommentStreamPart(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+            partIndex,
+            payload,
+        });
+    }
+
+    public override async _completeMessageStream(
+        context: TestBotActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        await completePostCommentStream(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+        });
+    }
+
     public async get(): Promise<PostModel> {
         return (await getPost(this.space.systemAction(), this.id)).model;
     }
@@ -261,16 +300,24 @@ export class TestPost extends TestCommentRoomBase {
 
     public async updateContent(
         session: TestSpaceSession,
-        {
-            content,
-            files = emptyArray,
-            attachFiles: originalAttachFiles = emptyArray,
-        }: {
-            content: Node | string;
-            files?: ReadonlyArray<TestFile>;
-            attachFiles?: ReadonlyArray<TestFile>;
-        },
+        options:
+            | Node
+            | string
+            | {
+                  content: Node | string;
+                  files?: ReadonlyArray<TestFile>;
+                  attachFiles?: ReadonlyArray<TestFile>;
+              },
     ) {
+        let {
+            content,
+            files,
+            attachFiles: originalAttachFiles,
+        } = typeof options === "string" || options instanceof Node ? {content: options} : options;
+
+        files ??= emptyArray;
+        originalAttachFiles ??= emptyArray;
+
         const post = await getPostContentAndChannelPreview(
             // Use a system action since if there's a `PermissionDeniedError` we want it
             // thrown from `updatePostContent()` instead of here.

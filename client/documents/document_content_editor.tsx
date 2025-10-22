@@ -1684,6 +1684,13 @@ export function DocumentContentEditor({
             display="flex"
             flexDirection="column"
             backgroundColor="grey-0"
+            onScroll={event => {
+                // NOTE(calebmer): I've observed sometimes Chrome scrolls this element despite
+                // `overflow="hidden"`! I don't quite understand what's causing the problem but
+                // resetting scroll top/left here fixes it.
+                event.currentTarget.scrollTop = 0;
+                event.currentTarget.scrollLeft = 0;
+            }}
         >
             <Box
                 ref={useMergedRefs<HTMLDivElement>(

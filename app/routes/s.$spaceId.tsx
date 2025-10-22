@@ -872,28 +872,45 @@ function SpaceLayoutRouteOutlet({
     const {resizedWindowHeightForMobileWebKit} = useMobileWebKitKeyboardSupport();
 
     // We've observed that sometimes Chrome will change the `scrollTop` of our
-    // `<html>` element even though `overflow: hidden` is set. Specifically we've
+    // `<body>` element even though `overflow: hidden` is set. Specifically we've
     // observed this when `element.scrollIntoView()` is called for an element in a
     // peek which is animating up (since the peek starts offscreen). We've also
     // seen this occasionally happen in Playwright integration tests.
     //
     // Make sure if we see a scroll event on the window we immediately reset our
-    // `<html>`'s `scrollTop` to 0 or else we'll get into weird states.
+    // `<body>`'s `scrollTop` to 0 or else we'll get into weird states.
+    //
+    // NOTE(calebmer, 2025-10-11): I'm able to reliably reproduce this with the
+    // Playwright test "can reply to range in single message" in
+    // `messaging_message_range_parent_desktop.spec.ts`. [Demo video][1]
+    //
+    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/cc7w1v6xhkyzg377anyk42e28m
     useEffect(() => {
         // Mobile WebKit has its own handling for document scrolling in
         // `useMobileWebKitKeyboardSupport()`.
         if (isMobileWebKit) return;
 
         document.documentElement.scrollTop = 0;
+        document.documentElement.scrollLeft = 0;
+        document.body.scrollTop = 0;
+        document.body.scrollLeft = 0;
 
-        const handleScroll = () => {
+        const handleWindowScroll = () => {
             document.documentElement.scrollTop = 0;
+            document.documentElement.scrollLeft = 0;
         };
 
-        window.addEventListener("scroll", handleScroll);
+        const handleBodyScroll = () => {
+            document.body.scrollTop = 0;
+            document.body.scrollLeft = 0;
+        };
+
+        window.addEventListener("scroll", handleWindowScroll);
+        document.body.addEventListener("scroll", handleBodyScroll);
 
         return () => {
-            window.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("scroll", handleWindowScroll);
+            document.body.removeEventListener("scroll", handleBodyScroll);
         };
     }, []);
 

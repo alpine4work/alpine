@@ -4,6 +4,7 @@ import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {
     TestAccountActionContext,
     TestActionContext,
+    TestBotActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -25,6 +26,7 @@ import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
+    MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
 
 const testMessageCountByConstructor = new DefaultMap<
@@ -33,8 +35,9 @@ const testMessageCountByConstructor = new DefaultMap<
 >(() => ({current: 1}));
 
 type TestMessagingRoomCreateMessageOptions = {
-    parent?: TestMessage;
+    parent?: TestMessage | MessageContentPayloadParent;
     files?: Iterable<TestFile | FileId>;
+    isStream?: boolean;
 };
 
 export abstract class TestMessagingRoomBase {
@@ -59,6 +62,7 @@ export abstract class TestMessagingRoomBase {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            isStream?: boolean;
         },
     ): Promise<{index: number; createdTime: Date}>;
 
@@ -90,6 +94,24 @@ export abstract class TestMessagingRoomBase {
         options: {messageIndex: number},
     ): Promise<{deletedTime: Date}>;
 
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside
+    // of this file.
+    public abstract _putMessageStreamPart(
+        context: TestBotActionContext,
+        options: {
+            messageIndex: number;
+            partIndex: number;
+            payload: MessageStreamPartPayload;
+        },
+    ): Promise<void>;
+
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside
+    // of this file.
+    public abstract _completeMessageStream(
+        context: TestBotActionContext,
+        options: {messageIndex: number},
+    ): Promise<void>;
+
     public static createDefaultMessageContent() {
         return `Test ${this._getMessageNoun()} ${testMessageCountByConstructor.getOrSetDefault(this)
             .current++}`;
@@ -98,23 +120,23 @@ export abstract class TestMessagingRoomBase {
     // Static method so you can't call `post.createMessage()`, you must call
     // `post.createComment()`. However, for code working generically on any room
     // that code can call `TestMessagingRoomBase.createMessage(room)`.
-    public static createMessage(
-        room: TestMessagingRoomBase,
+    public static createMessage<Room extends TestMessagingRoomBase>(
+        room: Room,
         session: TestSession | TestBotAccount | TestAccountActionContext,
-        content?: string | Node,
+        content?: string | Node | {isStream: true},
         options?: TestMessagingRoomCreateMessageOptions,
-    ) {
+    ): Promise<TestMessage<Room>> {
         return room._actuallyCreateMessage(session, content, options);
     }
 
     protected async _actuallyCreateMessage(
         session: TestSession | TestBotAccount | TestAccountActionContext,
-        content: string | Node = (
+        content: string | Node | {isStream: true} = (
             this.constructor as typeof TestMessagingRoomBase
         ).createDefaultMessageContent(),
-        {parent, files}: TestMessagingRoomCreateMessageOptions = {},
+        {parent, files, isStream}: TestMessagingRoomCreateMessageOptions = {},
     ): Promise<TestMessage<this>> {
-        if (parent) {
+        if (parent instanceof TestMessage) {
             const roomKey = this._getRoomKey();
             const parentRoomKey = parent.room._getRoomKey();
 
@@ -128,14 +150,24 @@ export abstract class TestMessagingRoomBase {
         const {index, createdTime} = await this._createMessage(
             "action" in session ? session.action() : session,
             {
-                parent: parent ? {type: "Message", index: parent.index} : null,
+                parent:
+                    parent instanceof TestMessage
+                        ? {type: "Message", index: parent.index}
+                        : parent ?? null,
                 content:
                     typeof content === "string"
                         ? createSimpleMessageContent(content)
-                        : assertMessageContent(content),
+                        : content instanceof Node
+                        ? assertMessageContent(content)
+                        : createSimpleMessageContent(""),
                 fileIds: files
                     ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                     : [],
+                isStream:
+                    isStream ||
+                    (typeof content !== "string" &&
+                        "isStream" in content &&
+                        content.isStream === true),
             },
         );
 
@@ -200,6 +232,10 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         return new TestMessage(context, space, room, index, createdTime);
     }
 
+    public async get() {
+        return this.room._getMessage(this.space.systemAction(), this.index);
+    }
+
     public async updateContent(session: TestSession, content: string | Node) {
         const message = await this.room._getMessage(
             // Use a system action since if there's a `PermissionDeniedError` we want it
@@ -232,5 +268,26 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
     public delete(session: TestSession) {
         return this.room._deleteMessage(session.action(), {messageIndex: this.index});
+    }
+
+    public putStreamPart(
+        context: TestBotActionContext,
+        partIndex: number,
+        payload: string | Node | MessageStreamPartPayload,
+    ) {
+        return this.room._putMessageStreamPart(context, {
+            messageIndex: this.index,
+            partIndex,
+            payload:
+                typeof payload === "string"
+                    ? {type: "Content", content: createSimpleMessageContent(payload)}
+                    : payload instanceof Node
+                    ? {type: "Content", content: assertMessageContent(payload)}
+                    : payload,
+        });
+    }
+
+    public completeStream(context: TestBotActionContext) {
+        return this.room._completeMessageStream(context, {messageIndex: this.index});
     }
 }

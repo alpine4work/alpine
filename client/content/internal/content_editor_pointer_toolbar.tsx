@@ -66,6 +66,7 @@ import {
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     sprinkles,
+    withoutClearSelectionOnMouseDownClassName,
 } from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -695,6 +696,9 @@ function ContentEditorPointerToolbarOverlay({
                         boxShadow="elevation-20"
                         className={classNames(
                             greyElevated2ClassName,
+                            // Don't clear the selection when clicking in the toolbar since the toolbar
+                            // references the selection.
+                            withoutClearSelectionOnMouseDownClassName,
                             animation === "FadingIn"
                                 ? overlayAnimateFadeInClassName
                                 : animation === "FadingOut"

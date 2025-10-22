@@ -9459,6 +9459,64 @@ test("can’t get channel realtime event for post when actor is in the wrong spa
     ).rejects.toThrow("Account doesn’t have access to space");
 });
 
+test("can create post comment with post range parent", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "content 1");
+
+    const comment = await post.createComment(session, "Hello, world!", {
+        parent: {type: "PostRange", version: 0, startPos: 2, endPos: 4},
+    });
+
+    expect((await comment.get()).payload.parent).toEqual({
+        type: "PostRange",
+        version: 0,
+        startPos: 2,
+        endPos: 4,
+    });
+});
+
+test("can create post comment with post range parent on later version", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "content 1");
+
+    await post.updateContent(session, "content 2");
+    await post.updateContent(session, "content 3");
+
+    const comment = await post.createComment(session, "Hello, world!", {
+        parent: {type: "PostRange", version: 2, startPos: 2, endPos: 4},
+    });
+
+    expect((await comment.get()).payload.parent).toEqual({
+        type: "PostRange",
+        version: 2,
+        startPos: 2,
+        endPos: 4,
+    });
+});
+
+test("can’t create post comment with post range parent with invalid version", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+    const post = await channel.createPost(session, "content 1");
+
+    await post.updateContent(session, "content 2");
+    await post.updateContent(session, "content 3");
+
+    await expect(
+        post.createComment(session, "Hello, world!", {
+            parent: {type: "PostRange", version: 3, startPos: 2, endPos: 4},
+        }),
+    ).rejects.toThrow("Invalid post range version");
+});
+
 describe("getChannelAndMetadata", () => {
     describe("topContributors", () => {
         const getTopContributors = async (session: TestSession, channel: TestChannel) => {

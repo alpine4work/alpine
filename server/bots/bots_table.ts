@@ -276,7 +276,7 @@ export async function createBotForTest(
     context: DynamoContext,
     {name, webhookUrl}: {name: string; webhookUrl: string},
 ) {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
 
     const botId = generateId<BotId>();
 

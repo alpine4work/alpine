@@ -1,4 +1,5 @@
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {withoutClearSelectionOnMouseDownClassName} from "~/client/styles/styles.js";
 
 /**
  * By default, the browser clears your selection if you click on an element
@@ -33,6 +34,10 @@ export function registerAlwaysClearSelectionOnMouseDown() {
         // Make sure the click isn't in an editable element.
         if (isTextInputElement(event.target)) return;
         if (event.target.closest("[contenteditable]")) return;
+
+        // Class you can use to disable this behavior. We use it for pointer toolbar
+        // components. Where you'll click buttons to interact with the selection.
+        if (event.target.closest(`.${withoutClearSelectionOnMouseDownClassName}`)) return;
 
         selection.removeAllRanges();
     });

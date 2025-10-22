@@ -1,15 +1,18 @@
 import {AddMarkStep, AddNodeMarkStep, Step} from "prosemirror-transform";
 import {
+    completeDocumentCommentStream,
     createDocumentComment,
     deleteDocumentComment,
     getDocumentComment,
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
+    putDocumentCommentStreamPart,
     updateDocumentCommentContent,
 } from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     TestAccountActionContext,
+    TestBotActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -25,7 +28,10 @@ import {
     MessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParent,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -119,10 +125,12 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            isStream?: boolean;
         },
     ) {
         return createDocumentComment(context, {
@@ -131,6 +139,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         });
     }
 
@@ -160,6 +169,38 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         {messageIndex}: {messageIndex: number},
     ) {
         return deleteDocumentComment(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+        });
+    }
+
+    public override async _putMessageStreamPart(
+        context: TestBotActionContext,
+        {
+            messageIndex,
+            partIndex,
+            payload,
+        }: {
+            messageIndex: number;
+            partIndex: number;
+            payload: MessageStreamPartPayload;
+        },
+    ) {
+        await putDocumentCommentStreamPart(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+            partIndex,
+            payload,
+        });
+    }
+
+    public override async _completeMessageStream(
+        context: TestBotActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        await completeDocumentCommentStream(context, {
             documentId: this.document.id,
             commentThreadId: this.id,
             commentIndex: messageIndex,

@@ -46,13 +46,15 @@ if (typeof window !== "undefined") {
 
         console.log(`[ScrollEventDebugger#${debugId}] registered`, element);
 
-        element.addEventListener("scroll", () => {
-            console.log(
-                `[ScrollEventDebugger#${debugId}] scroll event`,
-                element.scrollTop,
-                element.scrollLeft,
-            );
-        });
+        if (element !== document.body) {
+            element.addEventListener("scroll", () => {
+                console.log(
+                    `[ScrollEventDebugger#${debugId}] scroll event`,
+                    element.scrollTop,
+                    element.scrollLeft,
+                );
+            });
+        }
 
         return debugId;
     }
@@ -99,4 +101,16 @@ if (typeof window !== "undefined") {
             return originalMethod.apply(this, arguments as any);
         };
     }
+
+    // Make sure we always log for scroll events on `<body>`. Even if we there
+    // isn't a scroll property set or scroll method call on `<body>` first.
+    document.body.addEventListener("scroll", () => {
+        const debugId = getScrollElementDebugId(document.body);
+
+        console.log(
+            `[ScrollEventDebugger#${debugId}] scroll event`,
+            document.body.scrollTop,
+            document.body.scrollLeft,
+        );
+    });
 }

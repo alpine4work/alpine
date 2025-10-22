@@ -228,8 +228,16 @@ const testCases: Array<{
 
             await page.goto(`/s/${space.id}/documents/${document.id}?comments=${commentThread.id}`);
 
+            const editorLocator = page.getByRole("textbox", {name: "New comment"});
+
+            if (isMobile) {
+                await page.getByText("Add a comment").tap();
+                await expect(editorLocator).toBeVisible();
+                await (await editorLocator.elementHandle())!.waitForElementState("stable");
+            }
+
             return {
-                editorLocator: page.getByRole("textbox", {name: "New comment"}),
+                editorLocator,
                 toolbarLocator: isMobile
                     ? page.getByTestId("MessageInputMobileKeyboardToolbar")
                     : undefined,

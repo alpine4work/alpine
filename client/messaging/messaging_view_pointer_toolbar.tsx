@@ -1,4 +1,5 @@
 import {useHover, usePress} from "@react-aria/interactions";
+import classNames from "classnames";
 import {ArrowArcRight, IconContext} from "phosphor-react";
 import {Memo, ReactNode, RefObject, useEffect, useRef, useState} from "react";
 import {mergeProps} from "react-aria";
@@ -12,7 +13,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {messagingStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    messagingStyles,
+    sprinkles,
+    withoutClearSelectionOnMouseDownClassName,
+} from "~/client/styles/styles.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -233,7 +238,12 @@ export function MessagingViewPointerToolbar<
                     boxShadow="elevation-20"
                     paddingLeft="1"
                     paddingRight="0.5"
-                    className={greyElevated2ClassName}
+                    className={classNames(
+                        greyElevated2ClassName,
+                        // Don't clear the selection when clicking in the toolbar since the toolbar
+                        // references the selection.
+                        withoutClearSelectionOnMouseDownClassName,
+                    )}
                 >
                     <MessagingViewPointerToolbarButton
                         icon={<ArrowArcRight />}

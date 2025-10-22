@@ -1613,6 +1613,7 @@ function MessageInputParent<RoomKey extends string, Message extends MessageModel
 
     return (
         <Box
+            data-testid={process.env.NODE_ENV !== "production" ? "MessageInputParent" : undefined}
             paddingRight={paddingX}
             style={{
                 paddingTop: spacing[messageInputPaddingY[platform]],

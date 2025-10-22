@@ -16,3 +16,5 @@ globalStyle(
         pointerEvents: "initial",
     },
 );
+
+export const withoutClearSelectionOnMouseDownClassName = style({});

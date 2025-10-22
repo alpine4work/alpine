@@ -3,6 +3,7 @@ import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {
     TestAccountActionContext,
+    TestBotActionContext,
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -20,10 +21,12 @@ import {
     FileTaskAuthorizer,
     TaskEssentialAttributesItem,
     commitTaskActionTransaction,
+    completeTaskCommentStream,
     createTaskComment,
     deleteTaskComment,
     getTaskComment,
     getTaskItemForTest,
+    putTaskCommentStreamPart,
     updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
@@ -39,7 +42,10 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadParent,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -158,10 +164,12 @@ export class TestTask extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            isStream?: boolean;
         },
     ) {
         return createTaskComment(context, {
@@ -169,6 +177,7 @@ export class TestTask extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            isStream,
         });
     }
 
@@ -197,6 +206,36 @@ export class TestTask extends TestCommentRoomBase {
         {messageIndex}: {messageIndex: number},
     ) {
         return deleteTaskComment(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
+        });
+    }
+
+    public override async _putMessageStreamPart(
+        context: TestBotActionContext,
+        {
+            messageIndex,
+            partIndex,
+            payload,
+        }: {
+            messageIndex: number;
+            partIndex: number;
+            payload: MessageStreamPartPayload;
+        },
+    ) {
+        await putTaskCommentStreamPart(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
+            partIndex,
+            payload,
+        });
+    }
+
+    public override async _completeMessageStream(
+        context: TestBotActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        await completeTaskCommentStream(context, {
             taskId: this.id,
             commentIndex: messageIndex,
         });
