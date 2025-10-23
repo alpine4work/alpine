@@ -3,11 +3,9 @@ import {Node} from "prosemirror-model";
 import {
     AddMarkStep,
     AddNodeMarkStep,
-    Mapping,
     RemoveMarkStep,
     RemoveNodeMarkStep,
     Step,
-    StepResult,
 } from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
@@ -46,6 +44,7 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
+import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
@@ -150,8 +149,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {computeUpdateMessageContentReactions} from "~/shared/messaging/compute_update_message_content_reactions.js";
-import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
@@ -5199,61 +5197,21 @@ export function updateDocumentCommentContent(
         if (commentItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only update comments you authored");
 
-        if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can not update comments with a non-content payload");
-
-        if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can’t update clerical comment content");
-
-        if (contentVersion !== (commentItem.payload.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError(
-                "Can’t update comment with mismatched content version",
-            );
-
-        let content = commentItem.payload.content;
-        const mapping = new Mapping();
-
-        for (const step of steps) {
-            let stepResult: StepResult;
-            try {
-                stepResult = step.apply(content);
-            } catch (error) {
-                throw FailedPreconditionError.from(error);
-            }
-            if (!stepResult.doc) {
-                throw new FailedPreconditionError(
-                    `Couldn’t apply step to content: ${stepResult.failed!}`,
-                );
-            }
-
-            assert(isMessageContent(stepResult.doc));
-            content = stepResult.doc;
-            mapping.appendMap(step.getMap());
-        }
-
-        const contentUpdate: MessageContentPayloadContentUpdate = {
-            time: new Date(),
-            mappings: [...(commentItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
-        };
+        const {oldPayload, newPayload} = computeUpdateMessageContent(
+            commentItem,
+            contentVersion,
+            steps,
+        );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
             commentThreadItem.commentsSummary.mentionCountByAccountId,
-            commentItem.payload.content,
-            content,
+            oldPayload.content,
+            newPayload.content,
         );
 
         const transactionEntry = DocumentsTable.transactionDirectlyUpdateItem({
             ...commentItem,
-            payload: {
-                ...commentItem.payload,
-                content,
-                contentUpdate,
-                reactionsByPos: computeUpdateMessageContentReactions({
-                    oldPayload: commentItem.payload,
-                    newContent: content,
-                    mapping,
-                }),
-            },
+            payload: newPayload,
         });
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -5278,10 +5236,13 @@ export function updateDocumentCommentContent(
                 sortRangeType: "MessageUpdates",
                 documentId,
                 commentThreadId,
-                eventTime: contentUpdate.time,
+                eventTime: newPayload.contentUpdate.time,
                 messageIndex: commentItem.commentIndex,
                 version: transactionEntry.newItem.updateLockVersion ?? 0,
-                expirationTime: addDays(contentUpdate.time, messagingEventExpirationDays),
+                expirationTime: addDays(
+                    newPayload.contentUpdate.time,
+                    messagingEventExpirationDays,
+                ),
             }),
         ]);
 
@@ -5300,8 +5261,8 @@ export function updateDocumentCommentContent(
         return {
             spaceId,
             version: transactionEntry.newItem.updateLockVersion ?? 0,
-            content,
-            contentUpdate,
+            content: newPayload.content,
+            contentUpdate: newPayload.contentUpdate,
         };
     });
 }

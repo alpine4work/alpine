@@ -1,6 +1,6 @@
 import {addDays, addSeconds} from "date-fns";
 import murmurhash from "murmurhash";
-import {Mapping, Step, StepResult} from "prosemirror-transform";
+import {Step} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {
     AccountChatsIndex,
@@ -33,6 +33,7 @@ import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
+import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {
@@ -72,7 +73,6 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -97,8 +97,7 @@ import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {computeUpdateMessageContentReactions} from "~/shared/messaging/compute_update_message_content_reactions.js";
-import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClerical,
     MessageContentPayloadContentUpdate,
@@ -2041,55 +2040,11 @@ export function updateChatMessageContent(
         if (chatMessageItem.authorId !== context.actor.getPossiblyBotAccountId())
             throw new PermissionDeniedError("Can only update chat messages you authored");
 
-        if (chatMessageItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can not chat messages with a non-content payload");
-
-        if (chatMessageItem.payload.clerical)
-            throw new FailedPreconditionError("Can’t update clerical message content");
-
-        if (contentVersion !== (chatMessageItem.payload.contentUpdate?.mappings.length ?? 0))
-            throw new FailedPreconditionError(
-                "Can’t update message with mismatched content version",
-            );
-
-        let content = chatMessageItem.payload.content;
-        const mapping = new Mapping();
-
-        for (const step of steps) {
-            let stepResult: StepResult;
-            try {
-                stepResult = step.apply(content);
-            } catch (error) {
-                throw FailedPreconditionError.from(error);
-            }
-            if (!stepResult.doc) {
-                throw new FailedPreconditionError(
-                    `Couldn’t apply step to content: ${stepResult.failed!}`,
-                );
-            }
-
-            assert(isMessageContent(stepResult.doc));
-            content = stepResult.doc;
-            mapping.appendMap(step.getMap());
-        }
-
-        const contentUpdate: MessageContentPayloadContentUpdate = {
-            time: new Date(),
-            mappings: [...(chatMessageItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
-        };
+        const {newPayload} = computeUpdateMessageContent(chatMessageItem, contentVersion, steps);
 
         const transactionEntry = ChatTable.transactionDirectlyUpdateItem({
             ...chatMessageItem,
-            payload: {
-                ...chatMessageItem.payload,
-                content,
-                contentUpdate,
-                reactionsByPos: computeUpdateMessageContentReactions({
-                    oldPayload: chatMessageItem.payload,
-                    newContent: content,
-                    mapping,
-                }),
-            },
+            payload: newPayload,
         });
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -2101,10 +2056,13 @@ export function updateChatMessageContent(
                 partitionType: "Chat",
                 sortRangeType: "MessageUpdates",
                 chatId,
-                eventTime: contentUpdate.time,
+                eventTime: newPayload.contentUpdate.time,
                 messageIndex: chatMessageItem.messageIndex,
                 version: transactionEntry.newItem.updateLockVersion ?? 0,
-                expirationTime: addDays(contentUpdate.time, messagingEventExpirationDays),
+                expirationTime: addDays(
+                    newPayload.contentUpdate.time,
+                    messagingEventExpirationDays,
+                ),
             }),
         ]);
 
@@ -2122,8 +2080,8 @@ export function updateChatMessageContent(
         return {
             spaceId: chatItem.spaceId,
             version: transactionEntry.newItem.updateLockVersion ?? 0,
-            content,
-            contentUpdate,
+            content: newPayload.content,
+            contentUpdate: newPayload.contentUpdate,
         };
     });
 }

@@ -1,12 +1,78 @@
-import {Mapping} from "prosemirror-transform";
+import {Mapping, Step, StepResult} from "prosemirror-transform";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
+import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentPayload,
+    MessageContentPayloadContentUpdate,
+    MessagePayload,
+} from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
-export function computeUpdateMessageContentReactions({
+export function computeUpdateMessageContent(
+    messageItem: {payload: MessagePayload},
+    contentVersion: number,
+    steps: ReadonlyArray<Step>,
+): {
+    oldPayload: MessageContentPayload;
+    newPayload: MessageContentPayload & {
+        readonly contentUpdate: MessageContentPayloadContentUpdate;
+    };
+} {
+    if (messageItem.payload.type !== "Content")
+        throw new FailedPreconditionError("Can’t update message with a non-content payload");
+
+    if (messageItem.payload.clerical)
+        throw new FailedPreconditionError("Can’t update clerical message content");
+
+    if (contentVersion !== (messageItem.payload.contentUpdate?.mappings.length ?? 0)) {
+        throw new FailedPreconditionError("Can’t update message with mismatched content version");
+    }
+
+    let content = messageItem.payload.content;
+    const mapping = new Mapping();
+
+    for (const step of steps) {
+        let stepResult: StepResult;
+        try {
+            stepResult = step.apply(content);
+        } catch (error) {
+            throw FailedPreconditionError.from(error);
+        }
+        if (!stepResult.doc) {
+            throw new FailedPreconditionError(
+                `Couldn’t apply step to content: ${stepResult.failed!}`,
+            );
+        }
+
+        assert(isMessageContent(stepResult.doc));
+        content = stepResult.doc;
+        mapping.appendMap(step.getMap());
+    }
+
+    const contentUpdate: MessageContentPayloadContentUpdate = {
+        time: new Date(),
+        mappings: [...(messageItem.payload.contentUpdate?.mappings ?? []), mapping],
+    };
+
+    return {
+        oldPayload: messageItem.payload,
+        newPayload: {
+            ...messageItem.payload,
+            content,
+            contentUpdate,
+            reactionsByPos: computeUpdateMessageContentReactions({
+                oldPayload: messageItem.payload,
+                newContent: content,
+                mapping,
+            }),
+        },
+    };
+}
+
+function computeUpdateMessageContentReactions({
     oldPayload,
     newContent,
     mapping,
