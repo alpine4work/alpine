@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd0217968bea0b0a 100644
+index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed80435de4ac0 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -216,8 +216,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -37,7 +37,18 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
      if (moveX || moveY) {
        if (atTop) {
          doc.defaultView.scrollBy(moveX, moveY);
-@@ -1472,10 +1496,68 @@ var NodeViewDesc = function (_ViewDesc4) {
+@@ -540,7 +564,9 @@ function _coordsAtPos(view, pos, side) {
+   }
+   if (atom == null && offset < nodeSize(node)) {
+     var _after = node.childNodes[offset];
+-    while (_after.pmViewDesc && _after.pmViewDesc.ignoreForCoords) _after = _after.nextSibling;
++    // NOTE(calebmer): Allow us to set `pmIgnoreForCoords` on arbitrary decoration
++    // DOM nodes (like spell check lints) to ignore them in coord calculations.
++    while ((_after.pmViewDesc && _after.pmViewDesc.ignoreForCoords) || _after.pmIgnoreForCoords) _after = _after.nextSibling;
+     var _target = !_after ? null : _after.nodeType == 3 ? textRange(_after, 0, supportEmptyRange ? 0 : 1) : _after.nodeType == 1 ? _after : null;
+     if (_target) return flattenV(singleRect(_target, -1), true);
+   }
+@@ -1472,10 +1498,68 @@ var NodeViewDesc = function (_ViewDesc4) {
    }]);
    return NodeViewDesc;
  }(ViewDesc);
@@ -106,7 +117,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
    return docView;
  }
  var TextViewDesc = function (_NodeViewDesc) {
-@@ -2338,6 +2420,14 @@ function apply(view, sel) {
+@@ -2338,6 +2422,14 @@ function apply(view, sel) {
    view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
    return true;
  }
@@ -121,7 +132,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
  function selectHorizontally(view, dir, mods) {
    var sel = view.state.selection;
    if (sel instanceof prosemirrorState.TextSelection) {
-@@ -2352,6 +2442,16 @@ function selectHorizontally(view, dir, mods) {
+@@ -2352,6 +2444,16 @@ function selectHorizontally(view, dir, mods) {
      } else if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) {
        var next = moveSelectionBlock(view.state, dir);
        if (next && next instanceof prosemirrorState.NodeSelection) return apply(view, next);
@@ -138,7 +149,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
        return false;
      } else if (!(mac && mods.indexOf("m") > -1)) {
        var _$head = sel.$head,
-@@ -2703,6 +2803,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2703,6 +2805,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
        html = f(html, view);
      });
      dom = readHTML(html);
@@ -151,7 +162,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
      if (webkit) restoreReplacedSpaces(dom);
    }
    var contextNode = dom && dom.querySelector("[data-pm-slice]");
-@@ -3499,7 +3605,9 @@ editHandlers.drop = function (view, _event) {
+@@ -3499,7 +3607,9 @@ editHandlers.drop = function (view, _event) {
    }
    var move = !!(dragging && dragMoves(view, event));
    if (view.someProp("handleDrop", function (f) {
@@ -162,7 +173,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
    })) {
      event.preventDefault();
      return;
-@@ -3538,9 +3646,33 @@ handlers.focus = function (view) {
+@@ -3538,9 +3648,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -199,7 +210,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
    }
  };
  handlers.blur = function (view, _event) {
-@@ -4209,6 +4341,7 @@ var DOMObserver = function () {
+@@ -4209,6 +4343,7 @@ var DOMObserver = function () {
      this.currentSelection = new SelectionState();
      this.onCharData = null;
      this.suppressingSelectionUpdates = false;
@@ -207,7 +218,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
      this.lastChangedTextNode = null;
      this.observer = window.MutationObserver && new window.MutationObserver(function (mutations) {
        for (var i = 0; i < mutations.length; i++) _this11.queue.push(mutations[i]);
-@@ -4295,13 +4428,25 @@ var DOMObserver = function () {
+@@ -4295,13 +4430,25 @@ var DOMObserver = function () {
    }, {
      key: "onSelectionChange",
      value: function onSelectionChange() {
@@ -234,7 +245,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
      }
    }, {
      key: "setCurSelection",
-@@ -4858,6 +5003,10 @@ var EditorView = function () {
+@@ -4858,6 +5005,10 @@ var EditorView = function () {
    function EditorView(place, props) {
      var _this15 = this;
      _classCallCheck(this, EditorView);
@@ -245,7 +256,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
      this._root = null;
      this.focused = false;
      this.trackWrites = null;
-@@ -4889,6 +5038,8 @@ var EditorView = function () {
+@@ -4889,6 +5040,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -254,7 +265,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd021796
    }
    _createClass(EditorView, [{
      key: "composing",
-@@ -5284,3 +5435,7 @@ exports.DecorationSet = DecorationSet;
+@@ -5284,3 +5437,7 @@ exports.DecorationSet = DecorationSet;
  exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
@@ -337,7 +348,7 @@ index 31d9a81fcd5b095612450b892805122f000909c4..cb246e42425776d18cb4214573d2b0d9
 +    startDOM: DOMNode,
 +): void;
 diff --git a/dist/index.js b/dist/index.js
-index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d98893e546 100644
+index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d83e20973 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -220,16 +220,38 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -389,7 +400,18 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
          if (moveX || moveY) {
              if (atTop) {
                  doc.defaultView.scrollBy(moveX, moveY);
-@@ -1499,6 +1521,24 @@ class NodeViewDesc extends ViewDesc {
+@@ -593,7 +615,9 @@ function coordsAtPos(view, pos, side) {
+     }
+     if (atom == null && offset < nodeSize(node)) {
+         let after = node.childNodes[offset];
+-        while (after.pmViewDesc && after.pmViewDesc.ignoreForCoords)
++        // NOTE(calebmer): Allow us to set `pmIgnoreForCoords` on arbitrary decoration
++        // DOM nodes (like spell check lints) to ignore them in coord calculations.
++        while ((after.pmViewDesc && after.pmViewDesc.ignoreForCoords) || after.pmIgnoreForCoords)
+             after = after.nextSibling;
+         let target = !after ? null : after.nodeType == 3 ? textRange(after, 0, (supportEmptyRange ? 0 : 1))
+             : after.nodeType == 1 ? after : null;
+@@ -1499,6 +1523,24 @@ class NodeViewDesc extends ViewDesc {
      }
      get domAtom() { return this.node.isAtom; }
  }
@@ -414,7 +436,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
  // Create a view desc for the top-level document node, to be exported
  // and used by the view class.
  function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
-@@ -1506,6 +1546,47 @@ function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
+@@ -1506,6 +1548,47 @@ function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
      let docView = new NodeViewDesc(undefined, doc, outerDeco, innerDeco, dom, dom, dom, view, 0);
      if (docView.contentDOM)
          docView.updateChildren(view, 0);
@@ -462,7 +484,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
      return docView;
  }
  class TextViewDesc extends NodeViewDesc {
-@@ -2416,6 +2497,14 @@ function apply(view, sel) {
+@@ -2416,6 +2499,14 @@ function apply(view, sel) {
      view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
      return true;
  }
@@ -477,7 +499,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
  function selectHorizontally(view, dir, mods) {
      let sel = view.state.selection;
      if (sel instanceof TextSelection) {
-@@ -2433,6 +2522,16 @@ function selectHorizontally(view, dir, mods) {
+@@ -2433,6 +2524,16 @@ function selectHorizontally(view, dir, mods) {
              let next = moveSelectionBlock(view.state, dir);
              if (next && (next instanceof NodeSelection))
                  return apply(view, next);
@@ -494,7 +516,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
              return false;
          }
          else if (!(mac && mods.indexOf("m") > -1)) {
-@@ -2844,6 +2943,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2844,6 +2945,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
      else {
          view.someProp("transformPastedHTML", f => { html = f(html, view); });
          dom = readHTML(html);
@@ -505,7 +527,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
          if (webkit)
              restoreReplacedSpaces(dom);
      }
-@@ -3749,7 +3852,9 @@ editHandlers.drop = (view, _event) => {
+@@ -3749,7 +3854,9 @@ editHandlers.drop = (view, _event) => {
          slice = parseFromClipboard(view, getText(event.dataTransfer), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
      }
      let move = !!(dragging && dragMoves(view, event));
@@ -516,7 +538,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
          event.preventDefault();
          return;
      }
-@@ -3796,10 +3901,34 @@ handlers.focus = view => {
+@@ -3796,10 +3903,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -555,7 +577,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4563,6 +4692,7 @@ class DOMObserver {
+@@ -4563,6 +4694,7 @@ class DOMObserver {
          this.currentSelection = new SelectionState;
          this.onCharData = null;
          this.suppressingSelectionUpdates = false;
@@ -563,7 +585,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
          this.lastChangedTextNode = null;
          this.observer = window.MutationObserver &&
              new window.MutationObserver(mutations => {
-@@ -4631,8 +4761,13 @@ class DOMObserver {
+@@ -4631,8 +4763,13 @@ class DOMObserver {
          setTimeout(() => this.suppressingSelectionUpdates = false, 50);
      }
      onSelectionChange() {
@@ -578,7 +600,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
          if (this.suppressingSelectionUpdates)
              return selectionToDOM(this.view);
          // Deletions on IE11 fire their events in the wrong order, giving
-@@ -4645,6 +4780,10 @@ class DOMObserver {
+@@ -4645,6 +4782,10 @@ class DOMObserver {
                  return this.flushSoon();
          }
          this.flush();
@@ -589,7 +611,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
      }
      setCurSelection() {
          this.currentSelection.set(this.view.domSelectionRange());
-@@ -5257,6 +5396,9 @@ class EditorView {
+@@ -5257,6 +5398,9 @@ class EditorView {
      added to the document.
      */
      constructor(place, props) {
@@ -599,7 +621,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
          this._root = null;
          /**
          @internal
-@@ -5319,6 +5461,8 @@ class EditorView {
+@@ -5319,6 +5463,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -608,7 +630,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d9
      }
      /**
      Holds `true` when a
-@@ -5820,3 +5964,8 @@ function checkStateComponent(plugin) {
+@@ -5820,3 +5966,8 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard };
@@ -670,7 +692,7 @@ index 6f4d867829ac818e25368a4cd87b1864f9fd51e7..715f6aeb4eddedf57bf2f626b5f0c5db
    }
  
 diff --git a/src/domcoords.ts b/src/domcoords.ts
-index 6fe7518c0a1622f40bbc5c486d0b1bcfe49abf78..814f0ab9dcc8965a4411536042e171b3b7333aec 100644
+index 6fe7518c0a1622f40bbc5c486d0b1bcfe49abf78..38b189233655949fc48e5a51b24f7a05b3bb5456 100644
 --- a/src/domcoords.ts
 +++ b/src/domcoords.ts
 @@ -39,16 +39,38 @@ export function scrollRectIntoView(view: EditorView, rect: Rect, startDOM: Node)
@@ -722,6 +744,17 @@ index 6fe7518c0a1622f40bbc5c486d0b1bcfe49abf78..814f0ab9dcc8965a4411536042e171b3
      if (moveX || moveY) {
        if (atTop) {
          doc.defaultView!.scrollBy(moveX, moveY)
+@@ -398,7 +420,9 @@ export function coordsAtPos(view: EditorView, pos: number, side: number): Rect {
+   }
+   if (atom == null && offset < nodeSize(node)) {
+     let after = node.childNodes[offset]
+-    while (after.pmViewDesc && after.pmViewDesc.ignoreForCoords) after = after.nextSibling!
++    // NOTE(calebmer): Allow us to set `pmIgnoreForCoords` on arbitrary decoration
++    // DOM nodes (like spell check lints) to ignore them in coord calculations.
++    while ((after.pmViewDesc && after.pmViewDesc.ignoreForCoords) || (after as any).pmIgnoreForCoords) after = after.nextSibling!
+     let target = !after ? null : after.nodeType == 3 ? textRange(after as Text, 0, (supportEmptyRange ? 0 : 1))
+         : after.nodeType == 1 ? after : null
+     if (target) return flattenV(singleRect(target as Range | HTMLElement, -1), true)
 diff --git a/src/domobserver.ts b/src/domobserver.ts
 index c39068024015af3a2254a474fc554fb01e6c5fd1..df32c378967e70251e5abc8f9df7faff9787fb12 100644
 --- a/src/domobserver.ts

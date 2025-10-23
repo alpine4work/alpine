@@ -64,15 +64,23 @@ export type ContentSpellCheckSuggestion = {
     readonly kind: ContentSpellCheckSuggestionKind;
 };
 
+export type ContentSpellCheckLintKey = ReadonlyArray<never>;
+
+export function generateContentSpellCheckLintKey(): ContentSpellCheckLintKey {
+    // All that matters is the identity of the object.
+    return [];
+}
+
 export type ContentSpellCheckLint = {
     /**
      * `key` is an identifier which won't change even if `from`/`to` are mapped
      * to different values. We can use this as a key to `WeakMap` which'll GC
      * anything related to the lint when the lint is no longer used.
+     *
      * We could use a Symbol here, but Firefox does not support symbols as WeakMap keys.
      *   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
      */
-    readonly key: Array<string>;
+    readonly key: ContentSpellCheckLintKey;
 
     readonly from: number;
     readonly to: number;

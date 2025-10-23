@@ -24,6 +24,7 @@ import {
     ContentSpellCheckLintCategory,
     ContentSpellCheckLintKind,
     ContentSpellCheckSuggestion,
+    generateContentSpellCheckLintKey,
 } from "~/client/content/state/content_editor_spell_checker_configuration.js";
 import {
     contentEditorSpellCheckerPlugin,
@@ -40,10 +41,9 @@ function createMockLint(options: {
     kind: ContentSpellCheckLintKind;
     category: ContentSpellCheckLintCategory;
     suggestions: Array<ContentSpellCheckSuggestion>;
-    key?: Array<string>;
 }): ContentSpellCheckLint {
     return {
-        key: options.key ?? ["test-lint"],
+        key: generateContentSpellCheckLintKey(),
         from: options.from,
         to: options.to,
         kind: options.kind,

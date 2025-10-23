@@ -6,9 +6,11 @@ import {renderContentMentionToTextForClient} from "~/client/content/render_conte
 import {
     ContentSpellCheckLint,
     ContentSpellCheckLintCategory,
+    ContentSpellCheckLintKey,
     ContentSpellCheckLintKind,
     ContentSpellCheckSuggestionKind,
     contentSpellCheckLintCategoryByKnownKind,
+    generateContentSpellCheckLintKey,
 } from "~/client/content/state/content_editor_spell_checker_configuration.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -214,7 +216,7 @@ export function createSpellCheckContent({
 }
 
 type ContentSpellCheckActualLint = {
-    readonly key: Array<string>;
+    readonly key: ContentSpellCheckLintKey;
     readonly index: number;
     readonly length: number;
     readonly kind: ContentSpellCheckLintKind;
@@ -281,7 +283,7 @@ export async function actuallySpellCheckContent(
         result.push({
             // We could use a Symbol here, but Firefox does not support symbols as WeakMap keys.
             //   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
-            key: [kind],
+            key: generateContentSpellCheckLintKey(),
             index: span.start,
             length: span.end - span.start,
             kind,

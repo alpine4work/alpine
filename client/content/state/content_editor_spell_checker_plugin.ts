@@ -1,7 +1,10 @@
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet} from "prosemirror-view";
-import {ContentSpellCheckLint} from "~/client/content/state/content_editor_spell_checker_configuration.js";
+import {
+    ContentSpellCheckLint,
+    ContentSpellCheckLintKey,
+} from "~/client/content/state/content_editor_spell_checker_configuration.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -15,9 +18,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 type ContentEditorSpellCheckerPluginState = {
     readonly lints: ReadonlyArray<ContentSpellCheckLint>;
     readonly hideLintUntilSelectionLeaves: {
-        // We could use a Symbol here, but Firefox does not support symbols as WeakMap keys.
-        //   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
-        readonly key: Array<string>;
+        readonly key: ContentSpellCheckLintKey;
         readonly hasDocChanged: boolean;
     } | null;
 };
@@ -32,12 +33,7 @@ const contentEditorSpellCheckerPluginKey = new PluginKey<ContentEditorSpellCheck
 export function contentEditorSpellCheckerPlugin() {
     const decorationElementByLintKeyByTextblockNode = new WeakMap<
         Node,
-        WeakMap<
-            // We could use a Symbol here, but Firefox does not support symbols as WeakMap keys.
-            //   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
-            Array<string>,
-            HTMLElement
-        >
+        WeakMap<ContentSpellCheckLintKey, HTMLElement>
     >();
 
     return new Plugin<ContentEditorSpellCheckerPluginState>({
@@ -224,14 +220,7 @@ export function contentEditorSpellCheckerPlugin() {
                     const decorationElementByKey = getOrSetDefaultMapValue(
                         decorationElementByLintKeyByTextblockNode,
                         textblockNode,
-                        () =>
-                            new WeakMap<
-                                // We could use a Symbol here, but Firefox does not support symbols
-                                // as WeakMap keys.
-                                //   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1710433
-                                Array<string>,
-                                HTMLElement
-                            >(),
+                        () => new WeakMap(),
                     );
 
                     for (let i = 0; i < lints.length; i++) {
@@ -305,6 +294,15 @@ export function contentEditorSpellCheckerPlugin() {
                                         const top = rangeRect.bottom - textblockRect.top;
                                         rectElement.style.top = `calc(${top}px + ${contentStyles.inlineBackgroundPadding.bottom} - ${contentStyles.spellCheckSquiggleHeightRem}rem)`;
                                     }
+
+                                    // Expando property ProseMirror checks (we added this property in a
+                                    // `prosemirror-view` patch). This element is absolutely positioned so
+                                    // ProseMirror has a bad time if it tries to use the element to figure out
+                                    // pixel position assuming it's a `display: inline` element that's not
+                                    // absolutely positioned.
+                                    //
+                                    // @ts-expect-error
+                                    element.pmIgnoreForCoords = true;
 
                                     return element;
                                 }),
