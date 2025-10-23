@@ -1,6 +1,11 @@
 import {createAccountNotFoundError} from "~/shared/accounts/account_error_messages.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
-import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
+import {
+    createDocumentCommentThreadNotFoundError,
+    createDocumentNotFoundError,
+} from "~/shared/documents/document_error_messages.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
     createChannelNotFoundError,
     createPostNotFoundError,
@@ -10,6 +15,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
@@ -33,6 +39,17 @@ export function deserializeDocumentIdForLoader(id: string | null | undefined): D
     }
 
     return Schema.id<DocumentId>().deserialize(id);
+}
+
+export function deserializeDocumentCommentThreadIdForLoader(
+    documentId: DocumentId,
+    id: string | null | undefined,
+): DocumentCommentThreadId {
+    if (!id || !isId(id)) {
+        throw createDocumentCommentThreadNotFoundError(documentId, id || undefined);
+    }
+
+    return Schema.id<DocumentCommentThreadId>().deserialize(id);
 }
 
 export function deserializeChannelIdForLoader(id: string | null | undefined): ChannelId {
@@ -73,4 +90,29 @@ export function deserializeSpaceIdForLoader(id: string | null | undefined): Spac
     }
 
     return Schema.id<SpaceId>().deserialize(id);
+}
+
+export function deserializeMessageIndexForLoader(
+    messageNoun: "message" | "comment",
+    indexString: string | null | undefined,
+): number {
+    indexString ??= "";
+
+    const indexNumber = parseInt(indexString, 10);
+
+    if (
+        !/^(0|[1-9][0-9]*)$/.test(indexString) ||
+        isNaN(indexNumber) ||
+        indexNumber < 0 ||
+        !Number.isSafeInteger(indexNumber)
+    ) {
+        throw new NotFoundError(`Invalid ${messageNoun} index`, {
+            displayMessage: {
+                message: errorDisplayMessage`This message doesn’t exist. Try searching “my messages” to see messages you’ve created.`,
+                comment: errorDisplayMessage`This comment doesn’t exist. Try searching “my comments” to see comments you’ve created.`,
+            }[messageNoun],
+        });
+    }
+
+    return indexNumber;
 }

@@ -28,10 +28,11 @@ export function createDocumentNotFoundError(documentId?: string) {
 
 export function createDocumentCommentThreadNotFoundError(
     documentId: DocumentId,
-    commentThreadId: DocumentCommentThreadId,
+    commentThreadId?: string,
 ) {
     return new NotFoundError("Document comment thread not found", {
-        aggregateDedupeKey: `${documentId}-${commentThreadId}`,
+        aggregateDedupeKey:
+            commentThreadId !== undefined ? `${documentId}-${commentThreadId}` : undefined,
         displayMessage: errorDisplayMessage`This comment thread doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
     });
 }

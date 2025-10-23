@@ -24,8 +24,11 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.channels.new": {
         errorTitle: "Couldn’t create channel",
     },
-    "routes/s.$spaceId.chat.$chatId": {
+    "routes/s.$spaceId.chat.$chatId._index": {
         errorTitle: "Couldn’t open chat",
+    },
+    "routes/s.$spaceId.chat.$chatId.messages.$index.reactions": {
+        errorTitle: "Couldn’t open message reactions",
     },
     "routes/s.$spaceId.chat.new": {
         errorTitle: "Couldn’t create chat",
@@ -46,8 +49,11 @@ const metadataByRouteId: Record<
         errorTitle: "Couldn’t open document",
         spaceSideBarSpacing: "Never",
     },
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
+    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
         errorTitle: "Couldn’t open comment thread",
+    },
+    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions": {
+        errorTitle: "Couldn’t open comment reactions",
     },
     "routes/s.$spaceId.favorites": {
         errorTitle: "Couldn’t open favorites",
@@ -91,6 +97,9 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.posts.$postId.reactions": {
         errorTitle: "Couldn’t open post reactions",
     },
+    "routes/s.$spaceId.posts.$postId.comments.$index.reactions": {
+        errorTitle: "Couldn’t open comment reactions",
+    },
     "routes/s.$spaceId.posts.new.$draftId": {
         errorTitle: "Couldn’t create post",
     },
@@ -118,8 +127,11 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.tasks.$taskId._index": {
         errorTitle: "Couldn’t open task",
     },
-    "routes/s.$spaceId.tasks.$taskId.comments": {
+    "routes/s.$spaceId.tasks.$taskId.comments._index": {
         errorTitle: "Couldn’t open task",
+    },
+    "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {
+        errorTitle: "Couldn’t open comment reactions",
     },
     "routes/s.$spaceId.tasks._index": {
         errorTitle: "Couldn’t open tasks",

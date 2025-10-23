@@ -189,10 +189,11 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
     "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
     "routes/s.$spaceId.channels.new": {component: ChannelCreatorRouteShimmer},
-    "routes/s.$spaceId.chat.$chatId": {
+    "routes/s.$spaceId.chat.$chatId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: ChatRouteShimmer,
     },
+    "routes/s.$spaceId.chat.$chatId.messages.$index.reactions": {component: ReactionsRouteShimmer},
     "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
@@ -202,9 +203,12 @@ const shimmerOptionsByRouteId: Record<
     // This route is only used in tests, so we don't bother with a shimmer.
     "routes/s.$spaceId.dev.empty": false,
     "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
+    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
+    },
+    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId.$index.reactions": {
+        component: ReactionsRouteShimmer,
     },
     "routes/s.$spaceId.favorites": {component: SearchFavoritesRouteShimmer},
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
@@ -229,6 +233,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.posts.$postId.reactions": {
         component: ReactionsRouteShimmer,
     },
+    "routes/s.$spaceId.posts.$postId.comments.$index.reactions": {component: ReactionsRouteShimmer},
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
     "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
@@ -238,10 +243,11 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
-    "routes/s.$spaceId.tasks.$taskId.comments": {
+    "routes/s.$spaceId.tasks.$taskId.comments._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: TaskCommentsRouteShimmer,
     },
+    "routes/s.$spaceId.tasks.$taskId.comments.$index.reactions": {component: ReactionsRouteShimmer},
     "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 

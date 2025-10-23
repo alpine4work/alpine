@@ -49,11 +49,9 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
     {
-        // Account name in title won't update when account changes without reload
-        // because we're using `initialData`.
         title: `Reactions for post by ${getAccountShortNameWithoutFullNameTooltip(
             post.model.author.initialData,
-        )} in ${post.model.channel.name}`,
+        )}`,
     },
 ]);
 

@@ -42,4 +42,8 @@ export class ChatMessageModel
     public getRoomKey() {
         return this.chatId;
     }
+
+    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
+        return `/s/${spaceId}/chat/${this.chatId}/messages/${this.index}/reactions?at=${pos}@${contentVersion}`;
+    }
 }

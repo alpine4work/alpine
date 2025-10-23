@@ -147,7 +147,6 @@ export function PostContentView({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
-    const navigate = useNavigate();
 
     // Update `SearchEntityRegistry` with the post content. Now as the post content
     // changes in realtime, any `SearchEntityModel`s rendered elsewhere in
@@ -385,7 +384,6 @@ export function PostContentView({
                             actions={getPostMoreActions({
                                 currentAccount,
                                 post,
-                                navigate,
                                 onStartEditingPost: () => {
                                     postEditing.dispatch({
                                         type: "StartEditing",
@@ -567,6 +565,9 @@ function PostContentViewFooter({
                             newReactions.delete(currentAccount.id);
                             return post.clone({reactions: new ReactionSet(newReactions)});
                         });
+                    }}
+                    onPressSeeReactions={async () => {
+                        await navigate(`/s/${space.id}/posts/${post.id}/reactions`);
                     }}
                 />
             </Box>

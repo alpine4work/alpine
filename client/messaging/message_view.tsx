@@ -25,7 +25,11 @@ import {
 import {MessageContentPayloadParentWithMessages} from "~/client/content/messaging/message_input_base.js";
 import {MessageViewFiles} from "~/client/content/messaging/message_view_files.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
-import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
+import {
+    ContextMenuActions,
+    hasContextMenuActionWithKey,
+    useContextMenuActions,
+} from "~/client/design/context_menu.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
@@ -66,11 +70,13 @@ import {
 } from "~/client/messaging/use_jump_to_message_range.js";
 import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
 import {ContentViewWithReactionParties} from "~/client/reactions/content_view_with_reaction_parties.js";
+import {reactionButtonContextMenuActionKey} from "~/client/reactions/reaction_button.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -209,6 +215,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const clientInfo = useClientInfo();
+    const navigate = useNavigate();
     const reporter = useReporter();
     const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -450,6 +457,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // - Select text in one message then right click the parent message of another
         //   (should show right click actions for the attached message)
         getContextMenuActions: (event: MouseEvent) => {
+            // If the user right clicked on a `<ReactionButton>` in the message then only
+            // show the reaction button's context menu actions. Don't show the message
+            // context menu actions.
+            if (hasContextMenuActionWithKey(event, reactionButtonContextMenuActionKey)) {
+                return [];
+            }
+
             const containerElement = assertExists(containerRef.current);
             const selection = window.getSelection();
 
@@ -1084,6 +1098,18 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             onUpdateMessagesOptimistically,
                         });
                     }}
+                    onPressSeeReactions={async pos => {
+                        if (message.isOptimistic) return;
+                        if (!currentAccountId) return;
+
+                        await navigate(
+                            message.getSeeReactionsUrl(
+                                space.id,
+                                message.payload.contentUpdate?.mappings.length ?? 0,
+                                pos,
+                            ),
+                        );
+                    }}
                 />
             );
         }
@@ -1099,6 +1125,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         onSetMessageReaction,
         onUpdateMessagesOptimistically,
         onDeleteMessageReaction,
+        navigate,
+        space.id,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -1288,23 +1316,32 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
                     return newActionSections;
                 }}
-                extraOverlayBottom={
-                    <MessageViewMenuCreatedTime
-                        createdTime={message.createdTime}
-                        // Only show the updated time if the user can't hover over the "(edited)" text
-                        // to see it.
-                        contentUpdatedTime={
-                            !canPrimaryInputHover && message.payload.type === "Content"
-                                ? message.payload.contentUpdate?.time ?? null
-                                : null
-                        }
-                        deletedTime={
-                            !canPrimaryInputHover && message.payload.type === "Deleted"
-                                ? message.payload.deletedTime
-                                : null
-                        }
-                    />
-                }
+                extraOverlayBottom={event => {
+                    // If the user right clicked on a `<ReactionButton>` in the message then only
+                    // show the reaction button's context menu actions. Don't show the message
+                    // context menu actions.
+                    if (hasContextMenuActionWithKey(event, reactionButtonContextMenuActionKey)) {
+                        return;
+                    }
+
+                    return (
+                        <MessageViewMenuCreatedTime
+                            createdTime={message.createdTime}
+                            // Only show the updated time if the user can't hover over the "(edited)" text
+                            // to see it.
+                            contentUpdatedTime={
+                                !canPrimaryInputHover && message.payload.type === "Content"
+                                    ? message.payload.contentUpdate?.time ?? null
+                                    : null
+                            }
+                            deletedTime={
+                                !canPrimaryInputHover && message.payload.type === "Deleted"
+                                    ? message.payload.deletedTime
+                                    : null
+                            }
+                        />
+                    );
+                }}
             >
                 <div
                     ref={containerRef}

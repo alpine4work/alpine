@@ -2,6 +2,7 @@ import {ThumbsUp} from "phosphor-react";
 import {ReactElement, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {ThumbsUpFill2Icon} from "~/client/icons/thumbs_up_fill2_icon.js";
@@ -27,14 +28,18 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
+export const reactionButtonContextMenuActionKey = "reaction-button";
+
 export function ReactionButton({
     reactions,
     onSetReaction,
     onDeleteReaction,
+    onPressSeeReactions,
 }: {
     reactions: ReactionSet;
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: () => void;
+    onPressSeeReactions: () => Promise<void>;
 }) {
     return (
         <ReactionButtonBase
@@ -43,22 +48,35 @@ export function ReactionButton({
             onDeleteReaction={onDeleteReaction}
         >
             {({currentAccountReaction, isMouseDownFromOverlayOpen}) => (
-                <Button
-                    variant="quietest"
-                    isPressed={isMouseDownFromOverlayOpen}
-                    height={postContentViewFooterButtonHeight}
-                    paddingX="1.5"
-                    icon={({isPressed}) => (
-                        <ReactionButtonIcon
-                            currentAccountReaction={currentAccountReaction}
-                            isPressed={isPressed}
-                        />
-                    )}
+                <ContextMenuActions
+                    actions={[
+                        [
+                            {
+                                key: reactionButtonContextMenuActionKey,
+                                label: "See reactions",
+                                pressErrorTitle: "Couldn’t open reactions",
+                                onPress: onPressSeeReactions,
+                            },
+                        ],
+                    ]}
                 >
-                    <span style={{fontVariantNumeric: "tabular-nums"}}>
-                        <PrettyNumber number={reactions.get().size} />
-                    </span>
-                </Button>
+                    <Button
+                        variant="quietest"
+                        isPressed={isMouseDownFromOverlayOpen}
+                        height={postContentViewFooterButtonHeight}
+                        paddingX="1.5"
+                        icon={({isPressed}) => (
+                            <ReactionButtonIcon
+                                currentAccountReaction={currentAccountReaction}
+                                isPressed={isPressed}
+                            />
+                        )}
+                    >
+                        <span style={{fontVariantNumeric: "tabular-nums"}}>
+                            <PrettyNumber number={reactions.get().size} />
+                        </span>
+                    </Button>
+                </ContextMenuActions>
             )}
         </ReactionButtonBase>
     );

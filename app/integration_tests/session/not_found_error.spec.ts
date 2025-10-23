@@ -48,7 +48,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This channel doesn’t exist")).toBeVisible();
         });
     },
-    "chat.$chatId": () => {
+    "chat.$chatId._index": () => {
         test("not found error for route `chat.$chatId`", async ({
             page,
             context: browserContext,
@@ -58,6 +58,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/chat/${generateId()}`);
+
+            await expect(page.getByText("This chat doesn’t exist")).toBeVisible();
+        });
+    },
+    "chat.$chatId.messages.$index.reactions": () => {
+        test("not found error for route `chat.$chatId.messages.$index.reactions`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/chat/${generateId()}/messages/42/reactions`);
 
             await expect(page.getByText("This chat doesn’t exist")).toBeVisible();
         });
@@ -90,7 +104,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This document doesn’t exist")).toBeVisible();
         });
     },
-    "documents.$documentId.comments.$commentThreadId": () => {
+    "documents.$documentId.comments.$commentThreadId._index": () => {
         test("not found error for route `documents.$documentId.comments.$commentThreadId`", async ({
             page,
             context: browserContext,
@@ -102,6 +116,24 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/documents/${document.id}/comments/${generateId()}`);
+
+            await expect(page.getByText("This comment thread doesn’t exist")).toBeVisible();
+        });
+    },
+    "documents.$documentId.comments.$commentThreadId.$index.reactions": () => {
+        test("not found error for route `documents.$documentId.comments.$commentThreadId.$index.reactions`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const document = await TestDocument.create(session);
+
+            await services.signIn(browserContext, session);
+            await page.goto(
+                `/s/${space.id}/documents/${document.id}/comments/${generateId()}/42/reactions`,
+            );
 
             await expect(page.getByText("This comment thread doesn’t exist")).toBeVisible();
         });
@@ -142,6 +174,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This post doesn’t exist")).toBeVisible();
         });
     },
+    "posts.$postId.comments.$index.reactions": () => {
+        test("not found error for route `posts.$postId.comments.$index.reactions`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/posts/${generateId()}/comments/42/reactions`);
+
+            await expect(page.getByText("This post doesn’t exist")).toBeVisible();
+        });
+    },
     "posts.new.$draftId": () => {
         // This route accepts any chronological ID the user passes in. It'll error on
         // random IDs but this is a legitimate error.
@@ -160,7 +206,7 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This task doesn’t exist")).toBeVisible();
         });
     },
-    "tasks.$taskId.comments": () => {
+    "tasks.$taskId.comments._index": () => {
         test("not found error for route `tasks.$taskId.comments`", async ({
             page,
             context: browserContext,
@@ -170,6 +216,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
 
             await services.signIn(browserContext, session);
             await page.goto(`/s/${space.id}/tasks/${generateId()}/comments`);
+
+            await expect(page.getByText("This task doesn’t exist")).toBeVisible();
+        });
+    },
+    "tasks.$taskId.comments.$index.reactions": () => {
+        test("not found error for route `tasks.$taskId.comments.$index.reactions`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/tasks/${generateId()}/comments/42/reactions`);
 
             await expect(page.getByText("This task doesn’t exist")).toBeVisible();
         });

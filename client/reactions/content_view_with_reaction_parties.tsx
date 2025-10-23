@@ -1,6 +1,7 @@
-import {Fragment, Memo, useMemo} from "react";
+import {Memo, useMemo, useState} from "react";
 import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentView, ContentViewProps} from "~/client/content/content_view.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {ReactionButton} from "~/client/reactions/reaction_button.js";
 import {ReactionParty} from "~/client/reactions/reaction_party.js";
 import {
@@ -46,6 +47,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     reactionsByPos,
     onSetReaction,
     onDeleteReaction,
+    onPressSeeReactions,
     ...props
 }: Pick<
     ContentViewProps<Content>,
@@ -59,6 +61,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     reactionsByPos: ReadonlyMap<number, ReactionSet>;
     onSetReaction: (pos: number, reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number) => void;
+    onPressSeeReactions: (pos: number) => Promise<void>;
 }) {
     const orderedReactionsByPosEntries = useMemo(() => {
         const orderedReactionsByPosEntries: Array<[number, ReactionSet | null]> = Array.from(
@@ -94,6 +97,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
                     reactions={reactions}
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
+                    onPressSeeReactions={onPressSeeReactions}
                 />
             ))}
         </>
@@ -119,6 +123,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     reactions,
     onSetReaction,
     onDeleteReaction,
+    onPressSeeReactions,
 }: {
     content: Content;
     contentUpdatedTime: Date | null | undefined;
@@ -133,8 +138,13 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     reactions: ReactionSet | null;
     onSetReaction: (pos: number, reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number) => void;
+    onPressSeeReactions: (pos: number) => Promise<void>;
 }) {
     const {"data-room": dataRoom, "data-index": dataIndex} = props;
+
+    const reporter = useReporter();
+
+    const [isReactionPartyPressPending, setIsReactionPartyPressPending] = useState(false);
 
     const posAttributeOffset = originalPosAttributeOffset + previousPos;
 
@@ -210,6 +220,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                             reactions={reactions}
                             onSetReaction={reaction => onSetReaction(pos, reaction)}
                             onDeleteReaction={() => onDeleteReaction(pos)}
+                            onPressSeeReactions={() => onPressSeeReactions(pos)}
                         />
                     </div>
                     <ContentBlockWidthContextProvider
@@ -223,7 +234,19 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                             // so we don't care about finding an alternative sufficient entropy source.
                             randomSeed={`ContentView:${dataRoom}-${dataIndex}-${partIndex}`}
                             onPress={() => {
-                                // TODO(calebmer): Will be implemented later in the stack.
+                                if (isReactionPartyPressPending) return;
+
+                                setIsReactionPartyPressPending(true);
+
+                                onPressSeeReactions(pos).then(
+                                    () => {
+                                        setIsReactionPartyPressPending(false);
+                                    },
+                                    error => {
+                                        setIsReactionPartyPressPending(false);
+                                        reporter.displayError("Couldn’t open reactions", error);
+                                    },
+                                );
                             }}
                         />
                     </ContentBlockWidthContextProvider>

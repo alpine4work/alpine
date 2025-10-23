@@ -1,5 +1,6 @@
 import {useMemo} from "react";
 import {
+    deserializeDocumentCommentThreadIdForLoader,
     deserializeDocumentIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
@@ -33,7 +34,6 @@ import {
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -55,8 +55,9 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const documentId = deserializeDocumentIdForLoader(params.documentId);
-    const commentThreadId = Schema.id<DocumentCommentThreadId>().deserialize(
-        params.commentThreadId ?? null,
+    const commentThreadId = deserializeDocumentCommentThreadIdForLoader(
+        documentId,
+        params.commentThreadId,
     );
 
     const url = new URL(request.url);

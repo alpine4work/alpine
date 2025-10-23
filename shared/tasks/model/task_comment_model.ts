@@ -1,4 +1,4 @@
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -23,5 +23,9 @@ export class TaskCommentModel
 
     public getRoomKey() {
         return this.taskId;
+    }
+
+    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
+        return `/s/${spaceId}/tasks/${this.taskId}/comments/${this.index}/reactions?at=${pos}@${contentVersion}`;
     }
 }

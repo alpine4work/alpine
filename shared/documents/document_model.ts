@@ -86,6 +86,10 @@ export class DocumentCommentModel
     public getRoomKey() {
         return encodeDocumentCommentRoomKey(this.documentId, this.commentThreadId);
     }
+
+    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
+        return `/s/${spaceId}/documents/${this.documentId}/comments/${this.commentThreadId}/${this.index}/reactions?at=${pos}@${contentVersion}`;
+    }
 }
 
 /**

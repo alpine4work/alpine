@@ -81,4 +81,8 @@ export class PostCommentModel
     public getRoomKey() {
         return this.postId;
     }
+
+    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
+        return `/s/${spaceId}/posts/${this.postId}/comments/${this.index}/reactions?at=${pos}@${contentVersion}`;
+    }
 }

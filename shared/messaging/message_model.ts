@@ -8,6 +8,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {Id} from "~/shared/id/id.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClericalSchema,
@@ -87,6 +88,12 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * optimistically creating a room and not have a room yet.
      */
     getRoomKey(): RoomKey;
+
+    /**
+     * Get the URL to navigate to for viewing the reactions for a position in a
+     * message.
+     */
+    getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string;
 
     /**
      * Clone the model object, replacing any values with those provided in the

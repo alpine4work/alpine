@@ -30,6 +30,10 @@ import {
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {
+    dispatchTriggeredOverlayCloseEvent,
+    dispatchTriggeredOverlayOpenEvent,
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {setElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -60,6 +64,7 @@ type ContextMenuEventExtension = {
     extraOverlayBottom?: ReactNode;
     withoutDefaultActions?: boolean;
     withSelectionAlignment?: boolean;
+    triggerOverlayOpenElements?: Array<HTMLElement>;
 };
 
 /**
@@ -92,6 +97,24 @@ export function addContextMenuActions(
     if (options?.withSelectionAlignment) extension.withSelectionAlignment = true;
 }
 
+/**
+ * Is there an action with the provided `key` in the current context menu
+ * actions?
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function hasContextMenuActionWithKey(
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
+    key: Key,
+): boolean {
+    return (
+        event[contextMenuEventExtensionSymbol]?.actions?.some(actions =>
+            (isReadonlyArray(actions) ? actions : actions.actions).some(
+                action => "key" in action && action.key === key,
+            ),
+        ) ?? false
+    );
+}
+
 function setContextMenuMergeReadonlyCopyAction(
     event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
     mergeReadonlyCopyActionSymbol: (
@@ -109,6 +132,15 @@ function setContextMenuExtraOverlayBottom(
 ) {
     const extension = (event[contextMenuEventExtensionSymbol] ??= {});
     extension.extraOverlayBottom = extraOverlayBottom;
+}
+
+function addContextMenuTriggerOverlayOpenElement(
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
+    element: HTMLElement,
+) {
+    const extension = (event[contextMenuEventExtensionSymbol] ??= {});
+    extension.triggerOverlayOpenElements ??= [];
+    extension.triggerOverlayOpenElements.push(element);
 }
 
 /**
@@ -139,23 +171,38 @@ export function useContextMenuActionsRef(
                   actions: ReadonlyArray<MenuActionsSection>,
                   action: MenuStandardAction,
               ) => ReadonlyArray<MenuActionsSection>;
-              extraOverlayBottom?: ReactNode;
+              extraOverlayBottom?: MaybeThunk<ReactNode, [MouseEvent]>;
           }
         | null,
 ): RefCallback<HTMLElement> {
-    const handleContextMenu = useEvent((event: MouseEvent) => {
+    const handleContextMenu = useEvent((element: HTMLElement, event: MouseEvent) => {
         if (actionsOrOptions === null) return;
 
-        const {actions, mergeReadonlyCopyAction, extraOverlayBottom} =
-            isReadonlyArray(actionsOrOptions) || typeof actionsOrOptions === "function"
-                ? {
-                      actions: actionsOrOptions,
-                      mergeReadonlyCopyAction: undefined,
-                      extraOverlayBottom: undefined,
-                  }
-                : actionsOrOptions;
+        const {
+            actions: actionsOrThunk,
+            mergeReadonlyCopyAction,
+            extraOverlayBottom: extraOverlayBottomOrThunk,
+        } = isReadonlyArray(actionsOrOptions) || typeof actionsOrOptions === "function"
+            ? {
+                  actions: actionsOrOptions,
+                  mergeReadonlyCopyAction: undefined,
+                  extraOverlayBottom: undefined,
+              }
+            : actionsOrOptions;
 
-        addContextMenuActions(event, typeof actions === "function" ? actions(event) : actions);
+        const actions =
+            typeof actionsOrThunk === "function" ? actionsOrThunk(event) : actionsOrThunk;
+
+        const extraOverlayBottom =
+            typeof extraOverlayBottomOrThunk === "function"
+                ? extraOverlayBottomOrThunk(event)
+                : extraOverlayBottomOrThunk;
+
+        addContextMenuActions(event, actions);
+
+        // If `element` is a `<Button>` then right clicking should show the same
+        // selection state the button would be in if it had an open overlay.
+        addContextMenuTriggerOverlayOpenElement(event, element);
 
         if (mergeReadonlyCopyAction !== undefined) {
             setContextMenuMergeReadonlyCopyAction(event, mergeReadonlyCopyAction);
@@ -173,9 +220,13 @@ export function useContextMenuActionsRef(
                 "Expected the children of `<ContextMenuActions>` to render an element with a ref to an HTML element",
             );
 
-            element.addEventListener("contextmenu", handleContextMenu);
+            const handler = (event: MouseEvent) => {
+                handleContextMenu(element, event);
+            };
+
+            element.addEventListener("contextmenu", handler);
             return () => {
-                element.removeEventListener("contextmenu", handleContextMenu);
+                element.removeEventListener("contextmenu", handler);
             };
         },
         [handleContextMenu],
@@ -216,33 +267,39 @@ export function useContextMenuActionsRef(
  * ...the parent's actions should come after the child's actions. So `actions2`
  * should come after `actions1`.
  */
-export function ContextMenuActions({
-    isDisabled,
-    actions,
-    mergeReadonlyCopyAction,
-    extraOverlayBottom,
-    children,
-}: {
-    isDisabled?: boolean;
-    actions: MaybeThunk<ReadonlyArray<MenuActionsSection>, [MouseEvent]>;
-    mergeReadonlyCopyAction?: (
-        actions: ReadonlyArray<MenuActionsSection>,
-        action: MenuStandardAction,
-    ) => ReadonlyArray<MenuActionsSection>;
-    extraOverlayBottom?: ReactNode;
-    children: ReactElement;
-}) {
+export const ContextMenuActions = forwardRef(function ContextMenuActions(
+    {
+        isDisabled,
+        actions,
+        mergeReadonlyCopyAction,
+        extraOverlayBottom,
+        children,
+    }: {
+        isDisabled?: boolean;
+        actions: MaybeThunk<ReadonlyArray<MenuActionsSection>, [MouseEvent]>;
+        mergeReadonlyCopyAction?: (
+            actions: ReadonlyArray<MenuActionsSection>,
+            action: MenuStandardAction,
+        ) => ReadonlyArray<MenuActionsSection>;
+        extraOverlayBottom?: MaybeThunk<ReactNode, [MouseEvent]>;
+        children: ReactElement;
+    },
+    ref: Ref<HTMLElement>,
+) {
     return useElementWithRef(
         children,
-        useContextMenuActionsRef(
-            !isDisabled
-                ? mergeReadonlyCopyAction !== undefined || extraOverlayBottom !== undefined
-                    ? {actions, mergeReadonlyCopyAction, extraOverlayBottom}
-                    : actions
-                : null,
+        useMergedRefs(
+            ref,
+            useContextMenuActionsRef(
+                !isDisabled
+                    ? mergeReadonlyCopyAction !== undefined || extraOverlayBottom !== undefined
+                        ? {actions, mergeReadonlyCopyAction, extraOverlayBottom}
+                        : actions
+                    : null,
+            ),
         ),
     );
-}
+});
 
 const ContextMenuActionsContext = createContext<ReadonlyArray<MenuActionsSection> | null>(null);
 
@@ -270,6 +327,7 @@ type ContextMenuInstanceState = {
     readonly extraOverlayBottom: ReactNode;
     readonly focusedMenuItemIndex: number | null;
     readonly targetElement: Element;
+    readonly triggerOverlayCloseElements: ReadonlyArray<HTMLElement>;
 };
 
 type ContextMenuState =
@@ -489,6 +547,12 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
                 flushSync(() => {
+                    const triggerOverlayOpenElements = extension.triggerOverlayOpenElements ?? [];
+
+                    for (const element of triggerOverlayOpenElements) {
+                        dispatchTriggeredOverlayOpenEvent(element);
+                    }
+
                     setContextMenuState({
                         isOpen: true,
                         instance: {
@@ -498,6 +562,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             extraOverlayBottom,
                             focusedMenuItemIndex: null,
                             targetElement,
+                            triggerOverlayCloseElements: triggerOverlayOpenElements,
                         },
                     });
                 });
@@ -515,6 +580,49 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
     const instance = contextMenuState.isOpen
         ? contextMenuState.instance
         : contextMenuState.lastInstance;
+
+    const previousContextMenuStateRef = useRef<ContextMenuState | null>(null);
+
+    // Call `dispatchTriggeredOverlayCloseEvent()` once the context menu closes on
+    // any elements we had called `dispatchTriggeredOverlayOpenEvent()` on.
+    useEffect(() => {
+        if ((previousContextMenuStateRef.current ?? null) === contextMenuState) return;
+
+        const previousContextMenuState = previousContextMenuStateRef.current;
+        previousContextMenuStateRef.current = contextMenuState;
+
+        const previousInstance = previousContextMenuState?.isOpen
+            ? previousContextMenuState.instance
+            : previousContextMenuState?.lastInstance ?? null;
+
+        const instance = contextMenuState.isOpen
+            ? contextMenuState.instance
+            : contextMenuState.lastInstance;
+
+        if (
+            previousInstance !== null &&
+            previousInstance?.triggerOverlayCloseElements !== instance?.triggerOverlayCloseElements
+        ) {
+            for (const element of previousInstance.triggerOverlayCloseElements) {
+                // Double request animation frame on close (when animating) like
+                // `<OverlayTriggerButton>`. See the documentation comment in
+                // `<OverlayTriggerButton>` around its `dispatchTriggeredOverlayCloseEvent()`
+                // call for more details on why we need a double animation frame.
+                if (
+                    !previousContextMenuState?.isOpen &&
+                    !previousContextMenuState?.shouldAnimateOut
+                ) {
+                    dispatchTriggeredOverlayCloseEvent(element);
+                } else {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            dispatchTriggeredOverlayCloseEvent(element);
+                        });
+                    });
+                }
+            }
+        }
+    }, [contextMenuState, instance]);
 
     // Set the target of our `<OverlayAnimated>` to be owned by the element the
     // user right clicked on. This way we won't consider events in the context menu
