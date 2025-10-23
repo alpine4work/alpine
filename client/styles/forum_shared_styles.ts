@@ -46,6 +46,8 @@ export const postContentViewFooterButtonHeightRem = parseRemLength(
     postContentViewFooterButtonHeight,
 );
 
+export const postContentViewFooterReactionButtonAreaWidth = "2.5rem";
+
 export const postContentViewHeaderMobilePostMetadataPaddingLeft = "2";
 export const postContentViewHeaderDesktopPostMetadataPaddingLeft = "3";
 

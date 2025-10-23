@@ -33,6 +33,7 @@ import {contentEditorTextClipboardSerializer} from "~/client/content/internal/co
 import {addContentFileEntityPreviewBehavior} from "~/client/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
@@ -621,6 +622,18 @@ export function ContentView<Content extends ContentWithReferences>({
 
         if (previousHtmlGenerator === htmlGenerator) return;
 
+        const selection = window.getSelection();
+
+        const oldAnchorPos =
+            selection?.anchorNode && element.contains(selection.anchorNode)
+                ? getContentViewPosFromDom(element, selection.anchorNode, selection.anchorOffset)
+                : null;
+
+        const oldFocusPos =
+            selection?.focusNode && element.contains(selection.focusNode)
+                ? getContentViewPosFromDom(element, selection.focusNode, selection.focusOffset)
+                : null;
+
         if (
             !previousHtmlGenerator ||
             // Force the content HTML to be re-created if the structure of `content.doc`
@@ -642,6 +655,43 @@ export function ContentView<Content extends ContentWithReferences>({
             element.appendChild(htmlGenerator.generateNode());
         } else {
             assert(htmlGenerator.patchNode(previousHtmlGenerator, element));
+        }
+
+        const newAnchorPos =
+            selection?.anchorNode && element.contains(selection.anchorNode)
+                ? getContentViewPosFromDom(element, selection.anchorNode, selection.anchorOffset)
+                : null;
+
+        const newFocusPos =
+            selection?.focusNode && element.contains(selection.focusNode)
+                ? getContentViewPosFromDom(element, selection.focusNode, selection.focusOffset)
+                : null;
+
+        // HACK: If re-rendering our `<ContentView>` changes the selection then clear
+        // the selection. Ideally instead we'd find the correct position for the
+        // selection in the new DOM and set the selection to the new position. However,
+        // we don't have a utility to turn a ProseMirror `pos` into a DOM position
+        // right now. We currently have `getContentViewPosFromDom()` but we'd also need
+        // `getDomFromContentViewPos()`.
+        //
+        // If you're fixing this hack, please also consider
+        // `<ContentViewWithReactionParties>`. Since the story gets a little more
+        // complicated there. When adding a reaction one `<ContentView>` may be split
+        // into two `<ContentView>`s! So we need to move `newAnchorPos` into a
+        // different component entirely.
+        //
+        // Examples where this happens:
+        //
+        // - A `jumpAnimation` is running and you have a selection in the highlighted
+        //   text (or in text in an adjacent node to the highlighted text).
+        //
+        // - You have a selection in a paragraph and another user adds a reaction to
+        //   the message in the paragraph above in realtime causing
+        //   `<ContentViewWithReactionParties>` to render and your `<ContentView>`s to
+        //   split apart.
+        if (oldAnchorPos !== newAnchorPos || oldFocusPos !== newFocusPos) {
+            disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame();
+            window.getSelection()?.removeAllRanges();
         }
     }, [content.doc, htmlGenerator, isInitialAppRender]);
 

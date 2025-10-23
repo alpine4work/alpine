@@ -5,6 +5,7 @@ import {Memo, ReactNode, Ref, RefObject, forwardRef, useEffect, useRef, useState
 import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
 import {getContentViewPosFromDom} from "~/client/content/get_content_view_pos_from_dom.js";
+import {isMessagingViewPointerToolbarAnimationOutDisabled} from "~/client/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
@@ -18,7 +19,6 @@ import {getSelectionStartNodeAndEndNode} from "~/client/helpers/get_selection_st
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {isMessagingViewPointerToolbarAnimationOutDisabled} from "~/client/messaging/internal/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
 import {useMessagingViewToolbarReactionState} from "~/client/messaging/internal/use_messaging_view_toolbar_reaction_state.js";
 import {MessageList} from "~/client/messaging/message_list.js";

@@ -16,6 +16,7 @@ import {ContentBlockWidthContextProvider} from "~/client/content/content_block_w
 import {ContentView} from "~/client/content/content_view.js";
 import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
+import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {
     getTruncatedMessageContentForReplyPreview,
     getTruncatedMessagesRangeContentForReplyPreview,
@@ -32,13 +33,13 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
-import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/messaging/internal/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageStreamView} from "~/client/messaging/internal/message_stream_view.js";
 import {MessageViewContextMenuReactionButton} from "~/client/messaging/internal/message_view_context_menu_reaction_button.js";
@@ -54,12 +55,15 @@ import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
     OnUpdateMessagesOptimisticallyFunction,
+    deleteMessageReactionWithOptimisticUpdate,
+    setMessageReactionWithOptimisticUpdate,
 } from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {
     JumpMessageState,
     JumpToMessageRangeOptions,
 } from "~/client/messaging/use_jump_to_message_range.js";
 import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
+import {ContentViewWithReactionParties} from "~/client/reactions/content_view_with_reaction_parties.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
@@ -203,9 +207,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const clientInfo = useClientInfo();
+    const reporter = useReporter();
     const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
+
+    const currentAccountId = currentAccount?.id;
 
     const isReadOnly = useMemo(
         () =>
@@ -1033,24 +1040,79 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             );
         }
 
-        return (
-            <ContentView
-                data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
-                data-index={!message.isOptimistic ? message.index : undefined}
-                className={messagingStyles.withPointerToolbarClassName}
-                content={message.payload.content}
-                contentUpdatedTime={message.payload.contentUpdate?.time}
-                withUserSelectNone={!canPrimaryInputHover}
-                getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
-                jumpAnimation={jumpAnimation}
-            />
-        );
+        if (message.payload.reactionsByPos.size === 0) {
+            return (
+                <ContentView
+                    data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
+                    data-index={!message.isOptimistic ? message.index : undefined}
+                    className={messagingStyles.withPointerToolbarClassName}
+                    content={message.payload.content}
+                    contentUpdatedTime={message.payload.contentUpdate?.time}
+                    withUserSelectNone={!canPrimaryInputHover}
+                    getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                    jumpAnimation={jumpAnimation}
+                />
+            );
+        } else {
+            return (
+                <ContentViewWithReactionParties
+                    data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
+                    data-index={!message.isOptimistic ? message.index : undefined}
+                    className={messagingStyles.withPointerToolbarClassName}
+                    content={message.payload.content}
+                    contentUpdatedTime={message.payload.contentUpdate?.time}
+                    withUserSelectNone={!canPrimaryInputHover}
+                    getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                    jumpAnimation={jumpAnimation}
+                    reactionsByPos={message.payload.reactionsByPos}
+                    onSetReaction={(pos, reaction) => {
+                        if (message.isOptimistic) return;
+                        if (!currentAccountId) return;
+
+                        setMessageReactionWithOptimisticUpdate({
+                            reporter,
+                            currentAccountId,
+                            messageNoun,
+                            roomKey: message.getRoomKey(),
+                            messageIndex: message.index,
+                            contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
+                            pos,
+                            reaction,
+                            onSetMessageReaction,
+                            onUpdateMessagesOptimistically,
+                        });
+                    }}
+                    onDeleteReaction={pos => {
+                        if (message.isOptimistic) return;
+                        if (!currentAccountId) return;
+
+                        deleteMessageReactionWithOptimisticUpdate({
+                            reporter,
+                            currentAccountId,
+                            messageNoun,
+                            roomKey: message.getRoomKey(),
+                            messageIndex: message.index,
+                            contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
+                            pos,
+                            onDeleteMessageReaction,
+                            onUpdateMessagesOptimistically,
+                        });
+                    }}
+                />
+            );
+        }
     }, [
         message,
         messageTextForBigEmojiMessage,
         canPrimaryInputHover,
         events.getClipboardSerializerPrefix,
         jumpAnimation,
+        currentAccountId,
+        reporter,
+        messageNoun,
+        onSetMessageReaction,
+        onUpdateMessagesOptimistically,
+        onDeleteMessageReaction,
     ]);
 
     const deletedPayloadNode = useMemo(() => {

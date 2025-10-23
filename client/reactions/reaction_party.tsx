@@ -4,7 +4,6 @@ import {useId, useMemo} from "react";
 import {usePress} from "react-aria";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useContentBlockWidth} from "~/client/content/content_block_width.js";
-import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -145,12 +144,12 @@ export function ReactionParty({
                 reactionEntries,
                 widthStyle: `${round3(partyWidthRem)}rem`,
                 node: (
-                    <Box position="relative" top="-0.5">
+                    <div style={{position: "relative", top: `-${spacing["0.5"]}`}}>
                         <ReactionIcon
                             reaction={firstRowReactionEntries[0]!.reaction}
                             size={iconSizeSpacing}
                         />
-                    </Box>
+                    </div>
                 ),
             };
         }
@@ -216,17 +215,19 @@ export function ReactionParty({
             }
         >
             <FocusRing insetTop={reactionEntries.length > 1 ? "-1.5" : undefined}>
-                <Box
+                <div
                     {...pressProps}
                     tabIndex={0}
-                    position="relative"
-                    zIndex="0"
-                    height={postContentViewFooterHeight}
-                    opacity={isPressed ? "60" : undefined}
-                    style={{width: widthStyle}}
+                    style={{
+                        position: "relative",
+                        zIndex: "0",
+                        height: spacing[postContentViewFooterHeight],
+                        opacity: isPressed ? 0.6 : undefined,
+                        width: widthStyle,
+                    }}
                 >
                     {node}
-                </Box>
+                </div>
             </FocusRing>
         </Tooltip>
     );

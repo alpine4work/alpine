@@ -47,6 +47,7 @@ import {
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
+    postContentViewFooterReactionButtonAreaWidth,
     postContentViewInnerMarginY,
     postContentViewMinHeightPx,
     postContentViewOuterMarginBottom,
@@ -467,7 +468,6 @@ function PostContentViewFooter({
 
     const [isNavigatePending, setIsNavigatePending] = useState(false);
 
-    const reactionButtonAreaWidth = "2.5rem";
     const commentButtonAndAvatarsAreaWidth = platform !== "mobile" ? "10rem" : "7rem";
 
     const commentCount = postComments.getMessageCountIncludingOptimisticMessages();
@@ -495,7 +495,7 @@ function PostContentViewFooter({
                 display="flex"
                 justifyContent="flex-start"
                 alignItems="center"
-                style={{width: reactionButtonAreaWidth}}
+                style={{width: postContentViewFooterReactionButtonAreaWidth}}
             >
                 <ReactionButton
                     reactions={post.reactions}
@@ -534,7 +534,12 @@ function PostContentViewFooter({
             <ContentBlockWidthContextProvider
                 maxWidth={contentStyles.contentMaxWidth}
                 paddingLeft={useMemo(
-                    () => addRemLengths(screenPaddingX[platform], reactionButtonAreaWidth, "-1.5"),
+                    () =>
+                        addRemLengths(
+                            screenPaddingX[platform],
+                            postContentViewFooterReactionButtonAreaWidth,
+                            "-1.5",
+                        ),
                     [platform],
                 )}
                 paddingRight={useMemo(
