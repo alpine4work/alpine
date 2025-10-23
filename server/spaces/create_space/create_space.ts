@@ -2,15 +2,14 @@ import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_welcome_channel_transaction_entries.js";
+import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
+import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {getCreateSpaceTransactionEntries} from "~/server/spaces/internal/get_create_space_transaction_entries.js";
-import {
-    addSpaceAccountWithoutAuthorization,
-    createSpaceModelFromItem,
-} from "~/server/spaces/spaces_actions.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export async function createSpace(
     context: ServerSessionActionContext,
@@ -19,7 +18,7 @@ export async function createSpace(
     }: {
         name: string;
     },
-) {
+): Promise<SpaceModel> {
     const accountId = context.actor.getAccountId();
 
     return actuallyCreateSpace(context, {
@@ -28,7 +27,7 @@ export async function createSpace(
     });
 }
 
-export async function internalDangerouslyCreateSpaceForAccountAsAdmin(
+export async function createSpaceForAccountAsAdmin(
     context: ServerSessionActionContext,
     {
         name,
@@ -41,8 +40,9 @@ export async function internalDangerouslyCreateSpaceForAccountAsAdmin(
         spaceId?: SpaceId;
         welcomeChannelId?: ChannelId;
     },
-) {
+): Promise<SpaceModel> {
     await authorizeInternalAccess(context);
+
     return actuallyCreateSpace(context, {
         name,
         ownerAccountId,
@@ -71,55 +71,48 @@ async function actuallyCreateSpace(
         spaceId?: SpaceId;
         welcomeChannelId?: ChannelId;
     },
-) {
+): Promise<SpaceModel> {
     const name = originalName.trim().replace(/\s+/g, " ");
     if (name.length > 50) {
         throw new InvalidArgumentError("Space name cannot be more than 50 characters", {
-            displayMessage: errorDisplayMessage`The space name cannot be more than 50 characters`,
+            displayMessage: errorDisplayMessage`Name is too long. Try a name that’s less than 50 characters.`,
         });
     }
 
-    const spaceId = givenSpaceId || generateId<SpaceId>();
-    const welcomeChannelId = givenWelcomeChannelId || generateId<ChannelId>();
-    const createdTime = new Date();
+    const spaceId = givenSpaceId ?? generateId<SpaceId>();
+    const welcomeChannelId = givenWelcomeChannelId ?? generateId<ChannelId>();
 
-    const createWelcomeChannelTransactionEntries =
-        internalDangerouslyCreateWelcomeChannelTransactionEntries(context, {
-            ownerAccountId,
-            spaceId,
-            welcomeChannelId,
-            createdTime,
-        });
+    const spaceItem = await context.dynamo.retryTransaction(async context => {
+        const {currentTime, transactionEntries: addSpaceAccountTransactionEntries} =
+            await getAddSpaceAccountTransactionEntries(context, {
+                space: {type: "New", id: spaceId},
+                account: {type: "Existing", id: ownerAccountId},
+                role: "Owner",
+            });
 
-    const {newItem: space, transactionEntries: createSpaceTransactionEntries} =
-        getCreateSpaceTransactionEntries({
-            spaceId,
-            name,
-            createdTime,
-        });
+        const createWelcomeChannelTransactionEntries =
+            internalDangerouslyCreateWelcomeChannelTransactionEntries(context, {
+                ownerAccountId,
+                spaceId,
+                welcomeChannelId,
+                createdTime: currentTime,
+            });
 
-    await DynamoTableSchema.executeTransaction(context, [
-        ...createSpaceTransactionEntries,
-        ...createWelcomeChannelTransactionEntries,
-    ]);
+        const {newItem: spaceItem, transactionEntries: createSpaceTransactionEntries} =
+            getCreateSpaceTransactionEntries({
+                spaceId,
+                name,
+                createdTime: currentTime,
+            });
 
-    // NOTE(imjoshin): The "addSpaceAccount" logic is isolated in a single function, and requires
-    // existence of a space. We should have this step added to the transaction execution above,
-    // but that would require a significant refactor of the "addSpaceAccount" logic. The end
-    // result of this could be some memberless spaces. The user will have the same experience
-    // when an error occurs.
-    await addSpaceAccountWithoutAuthorization(context, {
-        spaceId,
-        accountId: ownerAccountId,
-        role: "Owner",
+        await DynamoTableSchema.executeTransaction(context, [
+            ...createSpaceTransactionEntries,
+            ...addSpaceAccountTransactionEntries,
+            ...createWelcomeChannelTransactionEntries,
+        ]);
+
+        return spaceItem;
     });
 
-    return createSpaceModelFromItem({
-        ...space,
-        // No need to fetch the avatars, we know they're null on a new space.
-        avatars: {
-            lightTheme: null,
-            darkTheme: null,
-        },
-    });
+    return createSpaceModelFromItem(spaceItem);
 }

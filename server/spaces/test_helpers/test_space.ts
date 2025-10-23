@@ -155,8 +155,6 @@ export class TestSpace {
             role: role ?? "Member",
         });
 
-        await this.acceptInviteForAccountIfNeeded(actualAccount);
-
         return actualAccount;
     }
 
@@ -179,27 +177,6 @@ export class TestSpace {
         }
 
         await this.addAccount(account, role);
-
-        return;
-    }
-
-    private async acceptInviteForAccountIfNeeded(account: TestAccount | TestSession) {
-        if (
-            await isAccountMemberOfSpaceWithoutAuthorization(
-                this.context.clone({cache: CacheContextModule.new()}),
-                this.id,
-                account instanceof TestSession ? account.account.id : account.id,
-            )
-        ) {
-            return;
-        }
-
-        const session =
-            account instanceof TestSession
-                ? account
-                : await TestSpaceSession._create(this, account);
-
-        await acceptSpaceAccountInvite(session.action(), this.id);
     }
 
     /**

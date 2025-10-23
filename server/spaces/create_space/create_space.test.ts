@@ -3,7 +3,7 @@ import {expensivelyGetChannelsInSpaceForTest} from "~/server/forum/data/expensiv
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {
     createSpace,
-    internalDangerouslyCreateSpaceForAccountAsAdmin,
+    createSpaceForAccountAsAdmin,
 } from "~/server/spaces/create_space/create_space.js";
 import {
     getOurAccountSpaceIds,
@@ -18,14 +18,14 @@ const context = createTestContext({
     spacesInjection,
 });
 
-describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
+describe("createSpaceForAccountAsAdmin()", () => {
     describe("successful space creation", () => {
         test("creates space with owner as member", async () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession({hasInternalAccess: true});
             const spaceName = "Test Space";
 
-            const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            const space = await createSpaceForAccountAsAdmin(session.action(), {
                 name: spaceName,
                 ownerAccountId: session.account.id,
             });
@@ -45,7 +45,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const session = await existingSpace.createSession({hasInternalAccess: true});
             const spaceName = "Test Space";
 
-            const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            const space = await createSpaceForAccountAsAdmin(session.action(), {
                 name: spaceName,
                 ownerAccountId: session.account.id,
             });
@@ -59,11 +59,11 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession({hasInternalAccess: true});
 
-            const space1 = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            const space1 = await createSpaceForAccountAsAdmin(session.action(), {
                 name: "Space 1",
                 ownerAccountId: session.account.id,
             });
-            const space2 = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            const space2 = await createSpaceForAccountAsAdmin(session.action(), {
                 name: "Space 2",
                 ownerAccountId: session.account.id,
             });
@@ -77,7 +77,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession({hasInternalAccess: true});
 
-            const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            const space = await createSpaceForAccountAsAdmin(session.action(), {
                 name: "Test Space",
                 ownerAccountId: session.account.id,
             });
@@ -116,13 +116,10 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
                 const session = await existingSpace.createSession({hasInternalAccess: true});
 
                 const expectedName = givenExpectedName || spaceName;
-                const space = await internalDangerouslyCreateSpaceForAccountAsAdmin(
-                    session.action(),
-                    {
-                        name: spaceName,
-                        ownerAccountId: session.account.id,
-                    },
-                );
+                const space = await createSpaceForAccountAsAdmin(session.action(), {
+                    name: spaceName,
+                    ownerAccountId: session.account.id,
+                });
                 expect(space.name).toBe(expectedName);
             });
         });
@@ -133,7 +130,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const longName = "A".repeat(51);
 
             await expect(
-                internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+                createSpaceForAccountAsAdmin(session.action(), {
                     name: longName,
                     ownerAccountId: session.account.id,
                 }),
@@ -148,15 +145,15 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession({hasInternalAccess: true});
 
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            await createSpaceForAccountAsAdmin(session.action(), {
                 name: "First Space",
                 ownerAccountId: session.account.id,
             });
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            await createSpaceForAccountAsAdmin(session.action(), {
                 name: "Second Space",
                 ownerAccountId: session.account.id,
             });
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            await createSpaceForAccountAsAdmin(session.action(), {
                 name: "Third Space",
                 ownerAccountId: session.account.id,
             });
@@ -171,11 +168,11 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const session1 = await space1.createSession({hasInternalAccess: true});
             const session2 = await space2.createSession({hasInternalAccess: true});
 
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session1.action(), {
+            await createSpaceForAccountAsAdmin(session1.action(), {
                 name: "Session 1 Space",
                 ownerAccountId: session1.account.id,
             });
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session2.action(), {
+            await createSpaceForAccountAsAdmin(session2.action(), {
                 name: "Session 2 Space",
                 ownerAccountId: session2.account.id,
             });
@@ -197,7 +194,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin", hasInternalAccess: true});
 
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            await createSpaceForAccountAsAdmin(session.action(), {
                 name: "New Space",
                 ownerAccountId: session.account.id,
             });
@@ -210,7 +207,7 @@ describe("internalDangerouslyCreateSpaceForAccountAsAdmin()", () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Member", hasInternalAccess: true});
 
-            await internalDangerouslyCreateSpaceForAccountAsAdmin(session.action(), {
+            await createSpaceForAccountAsAdmin(session.action(), {
                 name: "New Space",
                 ownerAccountId: session.account.id,
             });

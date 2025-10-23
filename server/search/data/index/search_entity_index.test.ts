@@ -5573,6 +5573,7 @@ test("you can still search for removed accounts but you can’t see name updates
     await addSpaceAccount(session2.action(), {
         spaceId: space2.id,
         accountId: sharedAccount.id,
+        withoutInviteForTest: true,
     });
 
     await acceptSpaceAccountInvite(sharedSession.action(), space2.id);

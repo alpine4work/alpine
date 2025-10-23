@@ -9,7 +9,6 @@ import {
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
-    pickRandomReactionCharacterForAccount,
 } from "~/server/accounts/accounts_actions.js";
 import {getBot} from "~/server/bots/bots_table.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
@@ -27,7 +26,7 @@ import {
     DynamoReadConsistency,
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoTransactionCancelledExceptionByConditionCheckError} from "~/server/dynamo/core/is_dynamo_transaction_cancelled_exception_by_condition_check_error.js";
@@ -41,14 +40,23 @@ import {
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
+import {addSpaceAccountWithoutAuthorization} from "~/server/spaces/internal/add_space_account_without_authorization.js";
 import {
-    AccountModelWithoutSpace,
-    AccountModelWithoutSpaceAndAvatarData,
-    AccountModelWithoutSpaceData,
-} from "~/shared/accounts/account_model_without_space.js";
+    createAccountModelDataWithoutAvatarFromItem,
+    createAccountModelFromItem,
+} from "~/server/spaces/internal/create_account_model_from_item.js";
+import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
+import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
+import {
+    SpaceAccountAvatarOverrideItem,
+    SpaceAccountItem,
+    SpaceAvatarDarkThemeItem,
+    SpaceAvatarLightThemeItem,
+    SpaceItem,
+    SpacesTable,
+} from "~/server/spaces/internal/spaces_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {AvatarModel, AvatarTheme} from "~/shared/avatar/avatar_schema.js";
+import {AvatarTheme} from "~/shared/avatar/avatar_schema.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -67,7 +75,6 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
@@ -92,27 +99,12 @@ import {
     SpaceAccountSettings,
     SpaceAccountSettingsSchema,
 } from "~/shared/spaces/space_account_settings.js";
-import {SpaceAccountState} from "~/shared/spaces/space_account_state.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel, SpaceRole, hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
 type Fuse<T> = _Fuse.default<T>;
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
-
-type SpaceAttributesItem = DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">;
-type SpaceAvatarDarkThemeItem = DynamoTableItemType<typeof SpacesTable, "Space", "AvatarDarkTheme">;
-type SpaceAvatarLightThemeItem = DynamoTableItemType<
-    typeof SpacesTable,
-    "Space",
-    "AvatarLightTheme"
->;
-type SpaceItem = SpaceAttributesItem & {
-    readonly avatars: {
-        readonly darkTheme: SpaceAvatarDarkThemeItem | null;
-        readonly lightTheme: SpaceAvatarLightThemeItem | null;
-    };
-};
 
 async function getSpaceItem(
     context: DynamoContext,
@@ -169,47 +161,6 @@ async function getSpaceItemIfExists(
         ...attributesItem,
     };
 }
-
-function createAvatarModelFromItem(
-    avatarItem:
-        | SpaceAvatarDarkThemeItem
-        | SpaceAvatarLightThemeItem
-        | SpaceAccountAvatarOverrideItem
-        | null,
-): AvatarModel | null {
-    if (!avatarItem) return null;
-
-    return {
-        avatarId: avatarItem.avatarId,
-        version: avatarItem.updateLockVersion ?? 0,
-        content: avatarItem.content,
-    };
-}
-
-export function createSpaceModelFromItem(spaceItem: SpaceItem): SpaceModel {
-    return new SpaceModel({
-        id: spaceItem.spaceId,
-        version: spaceItem.updateLockVersion ?? 0,
-        name: spaceItem.name,
-        alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
-        avatars: {
-            darkTheme: createAvatarModelFromItem(spaceItem.avatars.darkTheme),
-            lightTheme: createAvatarModelFromItem(spaceItem.avatars.lightTheme),
-        },
-    });
-}
-
-type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
-type SpaceAccountAvatarOverrideItem = DynamoTableItemType<
-    typeof SpacesTable,
-    "Space",
-    "AccountAvatarOverride"
->;
-type SpaceAccountItemWithAccountAvatarOverride = SpaceAccountItem & {
-    readonly accountAvatarOverride: SpaceAccountAvatarOverrideItem | null;
-};
-
-type AccountSpacesItem = DynamoTableItemType<typeof SpacesTable, "Account", "Spaces">;
 
 /**
  * Scan every account by space pair in our database. Use when migrating data.
@@ -280,6 +231,7 @@ export async function addSpaceAccountForTest(
             spaceId,
             accountId,
             role,
+            withoutInviteForTest: true,
         },
     );
 }
@@ -425,10 +377,12 @@ export async function addSpaceAccount(
         spaceId,
         accountId,
         role,
+        withoutInviteForTest = false,
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
         role?: SpaceRole;
+        withoutInviteForTest?: boolean;
     },
 ): Promise<AccountModel> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
@@ -437,6 +391,7 @@ export async function addSpaceAccount(
         spaceId,
         accountId,
         role,
+        withoutInviteForTest,
     });
 }
 
@@ -466,362 +421,6 @@ export async function removeSpaceAccount(
     }
 
     return removeSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
-}
-
-export const addSpaceAccountBeforeExecuteTestCheckpoint =
-    new TestCheckpoint<`${SpaceId}:${AccountId}`>();
-
-/**
- * Validates the the given account can be added to the space.
- */
-function validateAccountStateForSpaceAddition({
-    spaceId,
-    account,
-    accountSpacesItem,
-    spaceAccountItem,
-}: {
-    spaceId: SpaceId;
-    account: AccountModelWithoutSpace | null;
-    accountSpacesItem: AccountSpacesItem | null;
-    spaceAccountItem: SpaceAccountItem | null;
-}) {
-    // Bot accounts can only be a member of one space. Don't allow adding a bot
-    // account to a new space but it's ok if the bot account was previously a
-    // member of the space that was removed. Then it's ok to add the bot account
-    // back to the space.
-    if (account?.botId && !spaceAccountItem) {
-        throw new FailedPreconditionError(
-            "Can’t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
-        );
-    }
-
-    const accountSpaceIds: Set<SpaceId> = accountSpacesItem
-        ? new Set(accountSpacesItem.spaceIds)
-        : new Set();
-
-    const accountInvitePendingSpaceIds: Set<SpaceId> = accountSpacesItem
-        ? new Set(accountSpacesItem.invitePendingSpaceIds)
-        : new Set();
-
-    if (accountSpaceIds.has(spaceId) || accountInvitePendingSpaceIds.has(spaceId)) {
-        // This is an extra check to make sure our spaceIds on the Account#Spaces isn't
-        // drifting apart from the source of the truth.
-        throw new FailedPreconditionError("Account is already a member of space");
-    }
-
-    if (spaceAccountItem) {
-        if (spaceAccountItem.state.type !== "Removed") {
-            throw new FailedPreconditionError("Account is already a member of space");
-        } else if (spaceAccountItem.state.reason !== "ActionByAdmin") {
-            throw new FailedPreconditionError("Account cannot be invited to this space.");
-        }
-    }
-}
-
-/**
- * Get transaction entries necessary to add an account to a space.
- * This does not create an account if it doesn't exist.
- */
-async function getAddSpaceAccountTransactionEntries({
-    spaceItem,
-    account,
-    newAccountId,
-    role,
-    spaceAccountItem,
-    accountSpacesItem,
-    newSpaceAccountState,
-}: {
-    spaceItem: SpaceAttributesItem;
-    role: SpaceRole;
-    spaceAccountItem: SpaceAccountItem | null;
-    accountSpacesItem: AccountSpacesItem | null;
-    newSpaceAccountState: SpaceAccountState;
-} & (
-    | {
-          account: AccountModelWithoutSpace;
-          newAccountId?: never;
-      }
-    | {
-          account?: never;
-          newAccountId: AccountId;
-      }
-)) {
-    const currentTime = new Date();
-    const accountId = newAccountId ?? account.id;
-
-    const accountSpaceIds: Set<SpaceId> = accountSpacesItem
-        ? new Set(accountSpacesItem.spaceIds)
-        : new Set();
-
-    const accountInvitePendingSpaceIds: Set<SpaceId> = accountSpacesItem
-        ? new Set(accountSpacesItem.invitePendingSpaceIds)
-        : new Set();
-
-    let updateOrCreateSpaceAccountItemTransactionEntry;
-    let updateOrCreateAccountAvatarOverrideItemTransactionEntry;
-
-    // If the account was previously removed, we should re-add it
-    if (spaceAccountItem) {
-        // We've already checked this case above. Let's reassert here to make sure
-        // our types are correct.
-        // NOTE(imjoshin): We only need to do this because we're trying to early-return
-        // from the function if the account is already a member of the space.
-        assert(spaceAccountItem.state.type === "Removed");
-        assert(spaceAccountItem.state.reason === "ActionByAdmin");
-
-        // If there was already a space account item, we need to update it
-        // Make sure we're passing `InvitePending` here unless we're adding a bot which
-        // will always be added as active.
-        //
-        // Bots are added back to spaces as `Active` since a bot won't be accepting
-        // invites. That'd be silly.
-        const expectedNewAccountStateType = account?.botId ? "Active" : "InvitePending";
-        assert(newSpaceAccountState.type === expectedNewAccountStateType);
-
-        updateOrCreateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
-            ...spaceAccountItem,
-            role,
-            // The account was previously a member of the space and is being added back.
-            // We don't use newSpaceAccountState here as it's not a new space account
-            state: newSpaceAccountState,
-        });
-
-        // If the account was previously removed, we should not update the account avatar override
-        // item. Maintain the "removed" avatar UX until they re-accept
-        updateOrCreateAccountAvatarOverrideItemTransactionEntry = null;
-    } else {
-        // Can only add bot to space through `instantiateBotSpaceAccount()`.
-        assert(!account?.botId);
-        const expectedNewAccountStateType = role === "Owner" ? "Active" : "InvitePending";
-        assert(newSpaceAccountState.type === expectedNewAccountStateType);
-
-        updateOrCreateSpaceAccountItemTransactionEntry = SpacesTable.transactionCreateItem({
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId: spaceItem.spaceId,
-            accountId,
-            role,
-            addedTime: currentTime,
-            state: newSpaceAccountState,
-        });
-
-        // If the account was not previously a member of the space, we need to create an account
-        // avatar override item with null content so that the user's avatar does not show up
-        // in the space
-        updateOrCreateAccountAvatarOverrideItemTransactionEntry = SpacesTable.transactionCreateItem(
-            {
-                partitionType: "Space",
-                sortRangeType: "AccountAvatarOverride",
-                spaceId: spaceItem.spaceId,
-                accountId,
-                avatarId: null,
-                content: null,
-            },
-        );
-    }
-
-    await addSpaceAccountBeforeExecuteTestCheckpoint.waitForTest(
-        `${spaceItem.spaceId}:${accountId}`,
-    );
-
-    const newAccountStateType = updateOrCreateSpaceAccountItemTransactionEntry.newItem.state.type;
-
-    // Only update the account's spaceIDs if the account is being added to the space as Active.
-    if (newAccountStateType === "Active") {
-        accountSpaceIds.add(spaceItem.spaceId);
-    } else if (newAccountStateType === "InvitePending") {
-        accountInvitePendingSpaceIds.add(spaceItem.spaceId);
-    }
-
-    // Sanity check: Bot accounts should only ever be in a single space and never
-    // invited to a space.
-    if (account?.botId) {
-        assert(accountSpaceIds.size === 1);
-        assert(accountInvitePendingSpaceIds.size === 0);
-    }
-
-    const shouldAddAccountAvatarOverride =
-        newAccountStateType !== "Active" &&
-        updateOrCreateAccountAvatarOverrideItemTransactionEntry !== null;
-    return {
-        transactionEntries: [
-            // Since this transaction is security sensitive, make sure the account and
-            // space didn't update when we commit. This also makes sure both the space and
-            // account exist.
-            //
-            // If we're adding an owner, force this transaction to be serialized with other
-            // add space account `role: "Owner"` transactions.
-            role === "Owner"
-                ? SpacesTable.transactionDirectlyUpdateItemLockVersion(
-                      spaceItem,
-                      spaceItem.updateLockVersion,
-                  )
-                : SpacesTable.transactionUpdateLockVersionConditionCheck(
-                      spaceItem,
-                      spaceItem.updateLockVersion,
-                  ),
-            ...(account ? [checkAccountVersionConditionCheck(account)] : []),
-            SpacesTable.transactionDirectlyUpdateItem({
-                ...accountSpacesItem,
-                partitionType: "Account",
-                sortRangeType: "Spaces",
-                accountId,
-                spaceIds: accountSpaceIds,
-                invitePendingSpaceIds: accountInvitePendingSpaceIds,
-            }),
-            updateOrCreateSpaceAccountItemTransactionEntry,
-            ...(shouldAddAccountAvatarOverride
-                ? [assertExists(updateOrCreateAccountAvatarOverrideItemTransactionEntry)]
-                : []),
-        ],
-        newItem: {
-            ...updateOrCreateSpaceAccountItemTransactionEntry.newItem,
-            accountAvatarOverride: shouldAddAccountAvatarOverride
-                ? assertExists(updateOrCreateAccountAvatarOverrideItemTransactionEntry?.newItem)
-                : null,
-        },
-    };
-}
-
-/**
- * Adds an account to a space without authorizing the actor has permission to
- * add accounts to the space.
- *
- * The added space account will have a "Member" role by default. But we use
- * this function in the test environment to add the accounts with "Admin" role
- * as well.
- *
- * If role is "Owner" we check that there are no other owners in the space,
- * otherwise we throw an error.
- *
- * This is a very very dangerous function! If arbitrary users got the ability
- * to add any user to any space they could easily compromise the data privacy
- * of spaces. You must authorize the actor is allowed to add accounts when
- * calling this function from an exported function.
- */
-export async function addSpaceAccountWithoutAuthorization(
-    context: Context<
-        DynamoContextModules & {
-            cache: CacheContextModule;
-            jobs: JobsContextModule;
-            searchInjection: SearchInjectionContextModule;
-        }
-    >,
-    {
-        spaceId,
-        accountId,
-        role = "Member",
-    }: {
-        spaceId: SpaceId;
-        accountId: AccountId;
-        role?: SpaceRole;
-    },
-): Promise<AccountModel> {
-    const createdAccount: AccountModel = await context.dynamo.retryTransaction(async context => {
-        const [spaceItem, account, spaceAccountItem, accountSpacesItem] = await runAllPromises([
-            SpacesTable.getItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Attributes",
-                spaceId,
-            }),
-            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
-            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
-            SpacesTable.getItemIfExists(context, {
-                partitionType: "Account",
-                sortRangeType: "Spaces",
-                accountId,
-            }),
-        ]);
-
-        if (!account) {
-            throw new NotFoundError("Account not found");
-        }
-
-        validateAccountStateForSpaceAddition({
-            spaceId,
-            account,
-            accountSpacesItem,
-            spaceAccountItem,
-        });
-
-        // Make sure there aren't any other owners in the space.
-        //
-        // This is race condition safe because of we use
-        // `SpacesTable.transactionUpdateLockVersionConditionCheck()` in our
-        // transaction to actually add an account. If two calls are racing then the
-        // race winner updates the space `updateLockVersion` causing the race loser to
-        // retry which will run this query again.
-        if (role === "Owner") {
-            for await (const otherSpaceAccountItem of SpacesTable.query(context, {
-                consistency: "Strong",
-                limit: "All",
-                partitionKey: {
-                    partitionType: "Space",
-                    spaceId,
-                },
-                startSortKey: {
-                    sortRangeType: "Account",
-                    accountId: getMinId<AccountId>(),
-                },
-                endSortKey: {
-                    sortRangeType: "Account",
-                    accountId: getMaxId<AccountId>(),
-                },
-            })) {
-                if (otherSpaceAccountItem.role === "Owner") {
-                    throw new FailedPreconditionError("Space already has an owner account");
-                }
-            }
-        }
-
-        const {newItem, transactionEntries} = await getAddSpaceAccountTransactionEntries({
-            spaceItem,
-            account,
-            role,
-            spaceAccountItem,
-            accountSpacesItem,
-            newSpaceAccountState:
-                role === "Owner" || spaceAccountItem?.botId
-                    ? {type: "Active"}
-                    : {
-                          type: "InvitePending",
-                          invitedTime: new Date(),
-                          pendingAccountData: account.initialData,
-                          wasPreviouslyRemoved: spaceAccountItem?.state.type === "Removed",
-                      },
-        });
-
-        await DynamoTableSchema.executeTransaction(context, transactionEntries);
-
-        return createAccountModelFromItem(
-            newItem,
-            newItem.state.type === "Active" ? account : null,
-        );
-    });
-
-    // When an account is added to a space, index the account in the space so it
-    // can be searched.
-    context.jobs.send({
-        type: "IndexSearchEntity",
-        spaceId,
-        update: {
-            type: "Account",
-            accountId,
-            updatedTraits: {type: "Some", traits: []},
-        },
-    });
-
-    // After we've successfully created the account, run some additional
-    // non-critical initialization logic. If any initialization here fails, the
-    // account will still be successfully created, but there may be some small
-    // issues.
-    await context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
-        spaceId,
-        accountId,
-        entityId: "TaskPersonal",
-    });
-
-    return createdAccount;
 }
 
 /**
@@ -1067,122 +666,6 @@ export const accountNameIndexFuseMinMatchCharLength = 4;
  * we need to demand a higher level of correctness.
  */
 export const accountNameIndexFuseScoreMatchCutoff = 0.35;
-
-function getAccountAvatarModelForAccountModel(
-    item: SpaceAccountItemWithAccountAvatarOverride,
-    account: AccountModelWithoutSpace | null,
-) {
-    switch (item.state.type) {
-        case "Active": {
-            assert(account !== null);
-
-            // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): If there is an
-            // accountAvatarOverride item on the space account, we should emit a warning.
-            return account.initialData.avatar;
-        }
-        case "InvitePending":
-        case "Removed": {
-            if (!item.accountAvatarOverride) {
-                // TODO(ifitzsimmons, 2025-08-28, #account-override-avatar-coupling): This is an
-                // impossible state. We should emit an error without crashing the app. To avoid
-                // app crashes, we overwrite the account avatar with a null avatar if we get into
-                // this state.
-                return {avatarId: null, content: null, version: 0};
-            }
-
-            return createAvatarModelFromItem(item.accountAvatarOverride);
-        }
-        default:
-            throw exhaustive(item.state);
-    }
-}
-
-function createAccountModelFromItem(
-    item: SpaceAccountItemWithAccountAvatarOverride,
-    account: AccountModelWithoutSpace | null,
-): AccountModel {
-    let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
-
-    switch (item.state.type) {
-        case "Active": {
-            assert(account !== null);
-            accountData = account.initialData;
-            break;
-        }
-        case "InvitePending": {
-            // If the account is pending, we should use the pending account data that was
-            // given when the account was invited.
-            assert(account === null);
-            accountData = item.state.pendingAccountData;
-            break;
-        }
-        case "Removed": {
-            // If the account was removed, we should use the old account data that was
-            // present when the account was removed.
-            assert(account === null);
-            accountData = item.state.oldAccountData;
-            break;
-        }
-        default:
-            throw exhaustive(item.state);
-    }
-
-    return new AccountModel({
-        ...accountData,
-        avatar: getAccountAvatarModelForAccountModel(item, account),
-        space: {
-            version: item.updateLockVersion ?? 0,
-            addedTime: item.addedTime,
-            state: item.state,
-            role: item.role,
-        },
-    });
-}
-
-function createAccountModelDataWithoutAvatarFromItem(
-    item: SpaceAccountItem,
-    activeAccountData: Omit<AccountModelWithoutSpaceData, "avatar"> | null,
-): Omit<AccountModelData, "avatar"> {
-    let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
-    let spaceAccountState: AccountModelDataSpaceState;
-
-    switch (item.state.type) {
-        case "Active": {
-            assert(activeAccountData !== null);
-            accountData = activeAccountData;
-            spaceAccountState = {type: "Active"};
-            break;
-        }
-        case "InvitePending": {
-            // If the account is pending, we should use the pending account data that was
-            // given when the account was invited.
-            assert(activeAccountData === null);
-            accountData = item.state.pendingAccountData;
-            spaceAccountState = item.state;
-            break;
-        }
-        case "Removed": {
-            // If the account was removed, we should use the old account data that was
-            // present when the account was removed.
-            assert(activeAccountData === null);
-            accountData = item.state.oldAccountData;
-            spaceAccountState = item.state;
-            break;
-        }
-        default:
-            throw exhaustive(item.state);
-    }
-
-    return {
-        ...accountData,
-        space: {
-            version: item.updateLockVersion ?? 0,
-            addedTime: item.addedTime,
-            state: spaceAccountState,
-            role: item.role,
-        },
-    };
-}
 
 type SpaceAccountsCacheData = {
     readonly accounts: ReadonlyArray<AccountModel>;
@@ -2800,70 +2283,16 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             },
         });
 
-        const [spaceItem, account, spaceAccountItem, accountSpacesItem] = await runAllPromises([
-            SpacesTable.getItem(context, {
-                partitionType: "Space",
-                sortRangeType: "Attributes",
-                spaceId,
-            }),
-            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId),
-            internalGetSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId),
-            SpacesTable.getItemIfExists(context, {
-                partitionType: "Account",
-                sortRangeType: "Spaces",
-                accountId,
-            }),
-        ]);
-
-        validateAccountStateForSpaceAddition({
-            spaceId,
-            account,
-            accountSpacesItem,
-            spaceAccountItem,
-        });
-
-        const currentTime = new Date();
-
-        const newSpaceAccountState: SpaceAccountState = {
-            type: "InvitePending",
-            invitedTime: currentTime,
-            pendingAccountData: {
-                id: accountId,
-                version: 0,
-                // Names are labelStrings and can only support 50 characters
-                // Just do a hard truncate here
-                name: emailAddress.substring(0, 50),
-                nameVersion: 0,
-                // Pick a random character for the account since we don't want to reveal the
-                // character selected by the account (which is private information along with
-                // the rest of the account's data).
-                reactionCharacter: pickRandomReactionCharacterForAccount(),
-            },
-            wasPreviouslyRemoved: spaceAccountItem?.state.type === "Removed",
-        };
-        let addSpaceAccountTransactionEntries;
-
-        if (existingAccountId) {
-            addSpaceAccountTransactionEntries = await getAddSpaceAccountTransactionEntries({
-                spaceItem,
+        const {currentTime, spaceItem, account, newAccountItem, transactionEntries} =
+            await getAddSpaceAccountTransactionEntries(context, {
+                space: {type: "Existing", id: spaceId},
+                account: existingAccountId
+                    ? {type: "Existing", id: accountId, invitedEmailAddress: emailAddress}
+                    : {type: "New", id: accountId, emailAddress},
                 role: "Member",
-                spaceAccountItem,
-                accountSpacesItem,
-                newSpaceAccountState,
-                account: assertExists(account),
             });
-        } else {
-            addSpaceAccountTransactionEntries = await getAddSpaceAccountTransactionEntries({
-                spaceItem,
-                role: "Member",
-                spaceAccountItem,
-                accountSpacesItem,
-                newSpaceAccountState,
-                newAccountId: accountId,
-            });
-        }
 
-        const {transactionEntries, newItem} = addSpaceAccountTransactionEntries;
+        assert(spaceItem);
 
         await DynamoTableSchema.executeTransaction(context, [
             ...(!existingAccountId
@@ -2878,28 +2307,6 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
                 : []),
             ...transactionEntries,
         ]);
-
-        // When an account is added to a space, index the account in the space so it
-        // can be searched.
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId,
-            update: {
-                type: "Account",
-                accountId,
-                updatedTraits: {type: "Some", traits: []},
-            },
-        });
-
-        // After we've successfully created the account, run some additional
-        // non-critical initialization logic. If any initialization here fails, the
-        // account will still be successfully created, but there may be some small
-        // issues.
-        await context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
-            spaceId,
-            accountId,
-            entityId: "TaskPersonal",
-        });
 
         const spaceUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}`;
 
@@ -2922,7 +2329,10 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             },
         });
 
-        return createAccountModelFromItem(newItem, null);
+        return createAccountModelFromItem(
+            newAccountItem,
+            newAccountItem.state.type === "Active" ? account : null,
+        );
     });
 }
 

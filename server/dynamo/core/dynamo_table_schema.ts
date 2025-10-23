@@ -2581,7 +2581,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             onAfterTransactionExecutedSuccessfully,
         }: {
             isConditionCheckErrorRetriable?: boolean;
-            onAfterTransactionExecutedSuccessfully?: () => void;
+            onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>;
         } = {},
     ): DynamoTransactionEntry & {newItem: Item} {
         return this._transactionPutItem(item, {
@@ -2677,7 +2677,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
-        {condition}: {condition?: DynamoCondition<Item>} = {},
+        {
+            condition,
+            onAfterTransactionExecutedSuccessfully,
+        }: {
+            condition?: DynamoCondition<Item>;
+            onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>;
+        } = {},
     ): DynamoTransactionEntry & {newItem: Item} {
         // Verify that the lock version was not changed by a concurrent writer.
         const updateLockVersionCondition = DynamoConditionExpression.from<Item>({
@@ -2701,6 +2707,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 // This operation implements an optimistic locking scheme. Retrying the
                 // operation should read the latest item version and eventually succeed.
                 isConditionCheckErrorRetriable: true,
+                onAfterTransactionExecutedSuccessfully,
             },
         );
     }

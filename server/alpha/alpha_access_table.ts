@@ -14,7 +14,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {internalDangerouslyCreateSpaceForAccountAsAdmin} from "~/server/spaces/create_space/create_space.js";
+import {createSpaceForAccountAsAdmin} from "~/server/spaces/create_space/create_space.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     AlphaAccessRequestDecisionSchema,
@@ -342,7 +342,7 @@ export async function createAlphaSpaceAsAdmin(
     const welcomeChannelId = generateId<ChannelId>();
     const createdTime = new Date();
 
-    await internalDangerouslyCreateSpaceForAccountAsAdmin(context, {
+    await createSpaceForAccountAsAdmin(context, {
         name,
         ownerAccountId,
         spaceId,

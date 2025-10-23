@@ -7810,7 +7810,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session2.account.initialName,
                                 nameVersion: 0,
                                 space: {
-                                    version: 1,
+                                    version: 0,
                                     addedTime: expect.any(Date),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -7825,7 +7825,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session3.account.initialName,
                                 nameVersion: 0,
                                 space: {
-                                    version: 2,
+                                    version: 1,
                                     addedTime: expect.any(Date),
                                     state: {
                                         type: "Removed",
@@ -7981,7 +7981,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session2.account.initialName,
                                 nameVersion: 0,
                                 space: {
-                                    version: 1,
+                                    version: 0,
                                     addedTime: expect.any(Date),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -7996,7 +7996,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session3.account.initialName,
                                 nameVersion: 0,
                                 space: {
-                                    version: 2,
+                                    version: 1,
                                     addedTime: expect.any(Date),
                                     state: {
                                         type: "Removed",
@@ -8100,7 +8100,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session2.account.initialName,
                                 nameVersion: -1073741824,
                                 space: {
-                                    version: -1073741823,
+                                    version: -1073741824,
                                     addedTime: new Date(0),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -8115,7 +8115,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session3.account.initialName,
                                 nameVersion: -1073741824,
                                 space: {
-                                    version: -1073741822,
+                                    version: -1073741823,
                                     addedTime: new Date(0),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -8204,7 +8204,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session2.account.initialName,
                                 nameVersion: -1073741824,
                                 space: {
-                                    version: -1073741823,
+                                    version: -1073741824,
                                     addedTime: new Date(0),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -8219,7 +8219,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session3.account.initialName,
                                 nameVersion: -1073741824,
                                 space: {
-                                    version: -1073741822,
+                                    version: -1073741823,
                                     addedTime: new Date(0),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -8309,7 +8309,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session2.account.initialName,
                                 nameVersion: 0,
                                 space: {
-                                    version: 1,
+                                    version: 0,
                                     addedTime: expect.any(Date),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -8324,7 +8324,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session3.account.initialName,
                                 nameVersion: 0,
                                 space: {
-                                    version: 2,
+                                    version: 1,
                                     addedTime: expect.any(Date),
                                     state: {
                                         type: "Removed",
@@ -8420,7 +8420,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session2.account.initialName,
                                 nameVersion: -1073741824,
                                 space: {
-                                    version: -1073741823,
+                                    version: -1073741824,
                                     addedTime: new Date(0),
                                     state: {type: "Active"},
                                     role: "Member",
@@ -8435,7 +8435,7 @@ test("can get a document with references as actors that don’t have access to t
                                 name: session3.account.initialName,
                                 nameVersion: -1073741824,
                                 space: {
-                                    version: -1073741822,
+                                    version: -1073741823,
                                     addedTime: new Date(0),
                                     state: {type: "Active"},
                                     role: "Member",

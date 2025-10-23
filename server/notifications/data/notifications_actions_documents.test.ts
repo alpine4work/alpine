@@ -1327,6 +1327,7 @@ for (const [currentProcessingType, processingMultiple] of [
             await addSpaceAccount(session1.action(), {
                 spaceId: space.id,
                 accountId: session2.account.id,
+                withoutInviteForTest: true,
             });
 
             await acceptSpaceAccountInvite(session2.action(), space.id);

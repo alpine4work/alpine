@@ -1,5 +1,5 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -223,3 +223,33 @@ export const SpacesTable = DynamoTableSchema.new({
         },
     ],
 });
+
+export type SpaceAttributesItem = DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">;
+export type SpaceAvatarDarkThemeItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "AvatarDarkTheme"
+>;
+export type SpaceAvatarLightThemeItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "AvatarLightTheme"
+>;
+export type SpaceItem = SpaceAttributesItem & {
+    readonly avatars: {
+        readonly darkTheme: SpaceAvatarDarkThemeItem | null;
+        readonly lightTheme: SpaceAvatarLightThemeItem | null;
+    };
+};
+
+export type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
+export type SpaceAccountAvatarOverrideItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "AccountAvatarOverride"
+>;
+export type SpaceAccountItemWithAccountAvatarOverride = SpaceAccountItem & {
+    readonly accountAvatarOverride: SpaceAccountAvatarOverrideItem | null;
+};
+
+export type AccountSpacesItem = DynamoTableItemType<typeof SpacesTable, "Account", "Spaces">;

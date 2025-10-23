@@ -77,7 +77,6 @@ import {updateChannelNameAndDescription} from "~/server/forum/data/update_channe
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
-    acceptSpaceAccountInvite,
     addSpaceAccount,
     getOurAccountSpaceIds,
     removeSpaceAccount,
@@ -4656,6 +4655,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session3.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4663,6 +4663,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session4.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4670,6 +4671,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session1.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4677,6 +4679,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session2.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4684,6 +4687,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(session2.action(), {
             spaceId: space2.id,
             accountId: session2.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4691,6 +4695,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(session2.action(), {
             spaceId: space2.id,
             accountId: session1.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4718,6 +4723,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(adminSession.action(), {
             spaceId: space1.id,
             accountId: generateId(),
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -4725,15 +4731,15 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(adminSession.action(), {
             spaceId: generateId(),
             accountId: session3.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await addSpaceAccount(adminSession.action(), {
         spaceId: space1.id,
         accountId: session3.account.id,
+        withoutInviteForTest: true,
     });
-
-    await acceptSpaceAccountInvite(session3.action(), space1.id);
 
     await getChannel(session3.action(), channel1.id);
 
@@ -4753,6 +4759,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(adminSession.action(), {
             spaceId: space1.id,
             accountId: adminSession.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 
@@ -4770,6 +4777,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(adminSession.action(), {
             spaceId: space1.id,
             accountId: session3.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 
@@ -4777,6 +4785,7 @@ test("can add accounts to spaces as admin", async () => {
         addSpaceAccount(adminSession.action(), {
             spaceId: space2.id,
             accountId: session2.account.id,
+            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -4793,9 +4802,8 @@ test("can add accounts to spaces as admin", async () => {
     await addSpaceAccount(adminSession.action(), {
         spaceId: space1.id,
         accountId: session2.account.id,
+        withoutInviteForTest: true,
     });
-
-    await acceptSpaceAccountInvite(session2.action(), space1.id);
 
     await getChannel(session2.action(), channel1.id);
 
