@@ -41,7 +41,6 @@ import {useContentBlockWidth} from "~/client/content/content_block_width.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
-import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
@@ -149,12 +148,7 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
-import {
-    colorSchemeVars,
-    contentEditorStyles,
-    contentStyles,
-    contentViewStyles,
-} from "~/client/styles/styles.js";
+import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
@@ -174,7 +168,6 @@ import {
     commentClassName,
     fileClassName,
     linkClassName,
-    paragraphClassName,
 } from "~/shared/design/core/constant_class_names.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -645,14 +638,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     isBodyEmpty?: boolean;
 
     /**
-     * Renders a placeholder for the `contentUpdatedTime` note rendered by
-     * `<ContentView>`. This reserves the space of the placeholder so when we
-     * enter/exit edit mode we don't lose/gain height for a `contentUpdatedTime`
-     * note that's rendered on a separate line.
-     */
-    withContentUpdatedTimePlaceholder?: boolean;
-
-    /**
      * This is a required prop on any content editor that can have spell
      * checks ignored. If that is not needed, do not provide this prop.
      */
@@ -893,7 +878,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         fileAttachmentTarget,
         commentFileAttachmentTarget,
         isBodyEmpty: isBodyEmptyFromProps,
-        withContentUpdatedTimePlaceholder = false,
         onSpellCheckIgnoreLint,
         spellCheckIgnoredLints,
     } = props;
@@ -3139,40 +3123,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return true;
             }
 
-            // Reimplement `scrollToSelection()` when `withContentUpdatedTimePlaceholder`
-            // is true. Specifically, we want the scroll to include the space for our
-            // updated time placeholder when it's visible.
-            //
-            // We need to run in a microtask since the content updated time placeholder
-            // space appears to be added synchronously AFTER this function. So we need to
-            // scroll in a microtask so the remaining synchronous code can run.
-            //
-            // For example: Say you have a message that would render a content updated time
-            // placeholder on the next line but it hasn't been edited yet. If you edit the
-            // message then add/delete a character the content updated time placeholder
-            // should be added (so there should be an empty line at the end of the message
-            // input) and we should scroll to include that space on the screen. [Demo][1].
-            //
-            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/pfx8514ek43x85peeh842xj2s4
-            if (
-                propsRef.current.withContentUpdatedTimePlaceholder &&
-                !(view.state.selection instanceof NodeSelection)
-            ) {
-                scheduleMicrotask(() => {
-                    const coords = view.coordsAtPos(view.state.selection.head);
-
-                    const newCoords = {
-                        ...coords,
-                        bottom:
-                            coords.bottom +
-                            contentStyles.paragraphLineHeightPx[getSpacingScaleWithoutListening()],
-                    };
-
-                    scrollRectIntoView(view, newCoords, document.getSelection()!.focusNode!);
-                });
-                return true;
-            }
-
             return false;
         };
 
@@ -4242,71 +4192,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             });
         };
     }, [phantomSelections]);
-
-    /* ========================================================================== *\
-     *                Content updated time placeholder decoration                 *
-    \* ========================================================================== */
-
-    // If `withContentUpdatedTimePlaceholder` is true then we render invisible
-    // `(edited)` text at the end of the editor to reserve space for the `(edited)`
-    // text in the corresponding `<ContentView>`. That way when entering/exiting
-    // edit mode the content won't jump around.
-    useLayoutEffect(() => {
-        if (!withContentUpdatedTimePlaceholder) return;
-
-        const updatedNoteContainerHtml = new Lazy(() => {
-            const updatedNoteContainerHtml = document.createElement("p");
-            updatedNoteContainerHtml.setAttribute("contenteditable", "false");
-            updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
-            updatedNoteContainerHtml.setAttribute(
-                "style",
-                "visibility: hidden; pointer-events: none",
-            );
-
-            const updatedNoteHtml = document.createElement("span");
-            updatedNoteContainerHtml.appendChild(updatedNoteHtml);
-            updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-            updatedNoteHtml.appendChild(document.createTextNode("(edited)"));
-
-            return updatedNoteContainerHtml;
-        });
-
-        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
-            const result = getContentViewLastParagraphChild(state.doc);
-
-            if (result === null) {
-                return decorationSet.add(state.doc, [
-                    Decoration.widget(state.doc.content.size, () => updatedNoteContainerHtml.get()),
-                ]);
-            } else {
-                // If empty, don't render the updated note placeholder. We'll never end up
-                // needing to create space for the placeholder.
-                if (result.node.childCount === 0) return decorationSet;
-
-                return decorationSet.add(state.doc, [
-                    Decoration.node(
-                        state.doc.content.size + 1 - result.depth - result.node.nodeSize,
-                        state.doc.content.size + 1 - result.depth,
-                        {class: contentViewStyles.updatedNotePlaceholderClassName},
-                    ),
-                ]);
-            }
-        };
-
-        setDecorationCallbacks(decorationCallbacks => {
-            const newDecorationCallbacks = new Set(decorationCallbacks);
-            newDecorationCallbacks.add(decorationCallback);
-            return newDecorationCallbacks;
-        });
-
-        return () => {
-            setDecorationCallbacks(decorationCallbacks => {
-                const newDecorationCallbacks = new Set(decorationCallbacks);
-                newDecorationCallbacks.delete(decorationCallback);
-                return newDecorationCallbacks;
-            });
-        };
-    }, [phantomSelections, withContentUpdatedTimePlaceholder]);
 
     /* ========================================================================== *\
      *                          Scroll press cancelling                           *

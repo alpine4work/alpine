@@ -310,6 +310,47 @@ export function PostContentView({
         return {from, to, startTime: jumpState.animation.startTime};
     }, [jumpState, post]);
 
+    const editorHeightSpacerRef = useRef<HTMLDivElement>(null);
+
+    // When we switch from not editing to editing, measure the current height of
+    // the content container element. This runs before React makes any changes to
+    // the DOM. So we'll get the content container height before it switches to the
+    // editor component.
+    //
+    // I feel ok reading mutable state in a `useState()` initializer function (vs
+    // `useMemo()` or directly in the React render function).
+    const oldContentContainerHeightForEditorHeightDifference =
+        useStateWithDependenciesWithoutDispatch(
+            ([withHeight]) => (withHeight ? contentContainerRef.current?.offsetHeight ?? 0 : null),
+            [isEditingPost],
+        );
+
+    // When we switch from not editing to editing, after the editor has rendered
+    // measure the new height and take the difference of the height pre-editor
+    // render and post-editor render. We'll render the difference in some empty
+    // space below the post so layout doesn't shift.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (oldContentContainerHeightForEditorHeightDifference === null) return;
+
+        const contentContainerElement = assertExists(contentContainerRef.current);
+        const editorHeightSpacerElement = assertExists(editorHeightSpacerRef.current);
+
+        // Don't change the spacer height once it's been set the first time.
+        if (editorHeightSpacerElement.hasAttribute("style")) return;
+
+        const oldContentContainerHeight = oldContentContainerHeightForEditorHeightDifference;
+        const newContentContainerHeight = contentContainerElement.offsetHeight;
+
+        const editorHeightDifference = Math.max(
+            0,
+            oldContentContainerHeight - newContentContainerHeight,
+        );
+
+        // Directly set the `style` attribute in this effect so we don't need a
+        // React re-render.
+        editorHeightSpacerElement.setAttribute("style", `height: ${editorHeightDifference}px`);
+    }, [oldContentContainerHeightForEditorHeightDifference]);
+
     return (
         <Box
             data-testid={
@@ -413,14 +454,16 @@ export function PostContentView({
                         />
                     )
                 ) : (
-                    <PostContentViewEditor
-                        idBase={idBase}
-                        isPostView={isPostView}
-                        postEditingForThisPost={postEditingForThisPost}
-                        fileAttachmentTarget={fileAttachmentTarget}
-                        lastContentUpdatedTime={post.contentUpdate?.time ?? null}
-                        onScrollToIfNotVisible={onScrollToIfNotVisible}
-                    />
+                    <>
+                        <PostContentViewEditor
+                            idBase={idBase}
+                            isPostView={isPostView}
+                            postEditingForThisPost={postEditingForThisPost}
+                            fileAttachmentTarget={fileAttachmentTarget}
+                            onScrollToIfNotVisible={onScrollToIfNotVisible}
+                        />
+                        <div ref={editorHeightSpacerRef} />
+                    </>
                 )}
             </Box>
             <PostContentViewFooter
@@ -803,14 +846,12 @@ function PostContentViewEditor({
     isPostView,
     postEditingForThisPost,
     fileAttachmentTarget,
-    lastContentUpdatedTime,
     onScrollToIfNotVisible,
 }: {
     idBase: string;
     isPostView: boolean;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
-    lastContentUpdatedTime: Date | null;
     onScrollToIfNotVisible: () => void;
 }) {
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
@@ -908,11 +949,6 @@ function PostContentViewEditor({
                         // On mobile, don't allow interactions when unfocused. We're already in an
                         // editing modality.
                         withoutMobileDualModality={true}
-                        // Allocate space for the "(edited)" note so messages don't shift when we
-                        // enter/exit edit mode.
-                        withContentUpdatedTimePlaceholder={
-                            !!lastContentUpdatedTime || hasContentChanged
-                        }
                         placeholder="Share your ideas…"
                         fileAttachmentTarget={fileAttachmentTarget}
                         className={sprinkles({padding: "2"})}

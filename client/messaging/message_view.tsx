@@ -37,6 +37,8 @@ import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
@@ -1195,7 +1197,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     const id = useId();
 
-    const isMessageHighlighted: boolean = useMemo(
+    const isMessageHighlightedFromContextMenu: boolean = useMemo(
         () =>
             !!touchMenuState ||
             (openContextMenuActions ?? []).some(subActions =>
@@ -1205,6 +1207,47 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ),
         [touchMenuState, openContextMenuActions, id],
     );
+
+    const editorHeightSpacerRef = useRef<HTMLDivElement>(null);
+
+    // When we switch from not editing to editing, measure the current height of
+    // the content container element. This runs before React makes any changes to
+    // the DOM. So we'll get the content container height before it switches to the
+    // editor component.
+    //
+    // I feel ok reading mutable state in a `useState()` initializer function (vs
+    // `useMemo()` or directly in the React render function).
+    const oldContentContainerHeightForEditorHeightDifference =
+        useStateWithDependenciesWithoutDispatch(
+            ([withHeight]) => (withHeight ? contentContainerRef.current?.offsetHeight ?? 0 : null),
+            [message.payload.type === "Content" && isEditingThisMessage],
+        );
+
+    // When we switch from not editing to editing, after the editor has rendered
+    // measure the new height and take the difference of the height pre-editor
+    // render and post-editor render. We'll render the difference in some empty
+    // space below the message so layout doesn't shift.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (oldContentContainerHeightForEditorHeightDifference === null) return;
+
+        const contentContainerElement = assertExists(contentContainerRef.current);
+        const editorHeightSpacerElement = assertExists(editorHeightSpacerRef.current);
+
+        // Don't change the spacer height once it's been set the first time.
+        if (editorHeightSpacerElement.hasAttribute("style")) return;
+
+        const oldContentContainerHeight = oldContentContainerHeightForEditorHeightDifference;
+        const newContentContainerHeight = contentContainerElement.offsetHeight;
+
+        const editorHeightDifference = Math.max(
+            0,
+            oldContentContainerHeight - newContentContainerHeight,
+        );
+
+        // Directly set the `style` attribute in this effect so we don't need a
+        // React re-render.
+        editorHeightSpacerElement.setAttribute("style", `height: ${editorHeightDifference}px`);
+    }, [oldContentContainerHeightForEditorHeightDifference]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
@@ -1217,7 +1260,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         <>
             {timestampDividerNode}
             <ContextMenuActions
-                isDisabled={!!messageEditingForThisMessage}
+                isDisabled={isEditingThisMessage}
                 actions={events.getContextMenuActions}
                 // Merge the text copy action into the "Copy link" section.
                 mergeReadonlyCopyAction={(actionSections, copyTextAction) => {
@@ -1303,8 +1346,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     //
                                     // Fixes:
                                     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cwvja89b8vmbajqytsa3926h00
-                                    message.payload.type === "Content" &&
-                                    messageEditingForThisMessage
+                                    message.payload.type === "Content" && isEditingThisMessage
                                         ? "20"
                                         : "0",
                                 display: "flex",
@@ -1350,7 +1392,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     // have `min-width: auto` which extends with content.
                                     // https://stackoverflow.com/a/66689926/1568890
                                     minWidth: 0,
-                                    ...(isMessageHighlighted
+                                    ...(isMessageHighlightedFromContextMenu
                                         ? assignInlineVars({
                                               [backgroundColorVar]: colorSchemeVars["grey-5"],
                                           })
@@ -1423,21 +1465,23 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     </div>
                                 )}
                                 {message.payload.type === "Content" ? (
-                                    !messageEditingForThisMessage ? (
+                                    !isEditingThisMessage ? (
                                         contentPayloadNode
                                     ) : (
-                                        <MessageViewEditor
-                                            ref={messageEditorRef}
-                                            messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                            isLastMessage={isLastMessage}
-                                            shouldMergeWithPreviousMessage={
-                                                shouldMergeWithPreviousMessage
-                                            }
-                                            messageEditing={messageEditing}
-                                            lastContentUpdatedTime={
-                                                message.payload.contentUpdate?.time ?? null
-                                            }
-                                        />
+                                        <>
+                                            <MessageViewEditor
+                                                ref={messageEditorRef}
+                                                messageStartOfSentenceNoun={
+                                                    messageStartOfSentenceNoun
+                                                }
+                                                isLastMessage={isLastMessage}
+                                                shouldMergeWithPreviousMessage={
+                                                    shouldMergeWithPreviousMessage
+                                                }
+                                                messageEditing={messageEditing}
+                                            />
+                                            <div ref={editorHeightSpacerRef} />
+                                        </>
                                     )
                                 ) : (
                                     deletedPayloadNode
@@ -1465,7 +1509,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         />
                                     )}
                             </div>
-                            {isMessageHighlighted && (
+                            {isMessageHighlightedFromContextMenu && (
                                 <div
                                     className={sprinkles({
                                         position: "absolute",

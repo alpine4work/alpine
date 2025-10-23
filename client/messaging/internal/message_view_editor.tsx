@@ -33,14 +33,12 @@ function MessageViewEditor<RoomKey extends string>(
         isLastMessage,
         shouldMergeWithPreviousMessage,
         messageEditing,
-        lastContentUpdatedTime,
     }: {
         ref?: Ref<MessageViewEditorRef>;
         messageStartOfSentenceNoun: string;
         isLastMessage: boolean;
         shouldMergeWithPreviousMessage: boolean;
         messageEditing: MessageEditing<RoomKey>;
-        lastContentUpdatedTime: Date | null;
     },
     ref: Ref<MessageViewEditorRef>,
 ) {
@@ -51,10 +49,9 @@ function MessageViewEditor<RoomKey extends string>(
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
-    const hasInitiallyMountedRef = useRef(false);
-
     const hasContentChanged = state.contentEditorState.getDoc() !== state.initialContent;
 
+    const hasInitiallyMountedRef = useRef(false);
     useLayoutEffectWithoutServerSideWarning(() => {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
@@ -127,11 +124,6 @@ function MessageViewEditor<RoomKey extends string>(
                     // On mobile, don't allow interactions when unfocused. We're already in an
                     // editing modality.
                     withoutMobileDualModality={true}
-                    // Allocate space for the "(edited)" note so posts don't shift when we
-                    // enter/exit edit mode.
-                    withContentUpdatedTimePlaceholder={
-                        !!lastContentUpdatedTime || hasContentChanged
-                    }
                     className={sprinkles({
                         paddingRight: messageViewOutlineMargin,
                         paddingY: messageViewOutlineMargin,
