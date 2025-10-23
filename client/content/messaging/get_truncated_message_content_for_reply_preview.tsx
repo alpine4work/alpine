@@ -20,10 +20,10 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
@@ -167,21 +167,8 @@ export function getTruncatedPostContentForReplyPreview(
         fileRegistry: FileRegistry;
     },
 ): ReactNode {
-    const contentVersion = post.contentUpdate?.mappings.length ?? 0;
-
-    const mappings =
-        contentVersion > fromContentVersion
-            ? post.contentUpdate?.mappings.slice(-(contentVersion - fromContentVersion)) ??
-              emptyArray
-            : emptyArray;
-
-    let actualStartPos = startPos;
-    let actualEndPos = endPos;
-
-    for (const mapping of mappings) {
-        actualStartPos = mapping.map(actualStartPos, 1);
-        actualEndPos = mapping.map(actualEndPos, -1);
-    }
+    const actualStartPos = mapMessagePosFromContentVersion(post, fromContentVersion, startPos, 1);
+    const actualEndPos = mapMessagePosFromContentVersion(post, fromContentVersion, endPos, -1);
 
     return getTruncatedMessageContentForReplyPreviewBase(get, {
         content: {
@@ -240,22 +227,19 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 break;
             }
             case "Content": {
-                const contentVersion = startMessage.payload.contentUpdate?.mappings.length ?? 0;
+                const actualStartPos = mapMessagePosFromContentVersion(
+                    startMessage.payload,
+                    startContentVersion,
+                    startPos,
+                    1,
+                );
 
-                const mappings =
-                    contentVersion > startContentVersion
-                        ? startMessage.payload.contentUpdate?.mappings.slice(
-                              -(contentVersion - startContentVersion),
-                          ) ?? emptyArray
-                        : emptyArray;
-
-                let actualStartPos = startPos;
-                let actualEndPos = endPos;
-
-                for (const mapping of mappings) {
-                    actualStartPos = mapping.map(actualStartPos, 1);
-                    actualEndPos = mapping.map(actualEndPos, -1);
-                }
+                const actualEndPos = mapMessagePosFromContentVersion(
+                    startMessage.payload,
+                    startContentVersion,
+                    endPos,
+                    -1,
+                );
 
                 startPayload = {
                     type: "Content",
@@ -276,20 +260,12 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 break;
             }
             case "Content": {
-                const contentVersion = startMessage.payload.contentUpdate?.mappings.length ?? 0;
-
-                const mappings =
-                    contentVersion > startContentVersion
-                        ? startMessage.payload.contentUpdate?.mappings.slice(
-                              -(contentVersion - startContentVersion),
-                          ) ?? emptyArray
-                        : emptyArray;
-
-                let pos = startPos;
-
-                for (const mapping of mappings) {
-                    pos = mapping.map(pos, 1);
-                }
+                const pos = mapMessagePosFromContentVersion(
+                    startMessage.payload,
+                    startContentVersion,
+                    startPos,
+                    1,
+                );
 
                 startPayload = {
                     type: "Content",
@@ -310,20 +286,12 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
                 break;
             }
             case "Content": {
-                const contentVersion = endMessage.payload.contentUpdate?.mappings.length ?? 0;
-
-                const mappings =
-                    contentVersion > endContentVersion
-                        ? endMessage.payload.contentUpdate?.mappings.slice(
-                              -(contentVersion - endContentVersion),
-                          ) ?? emptyArray
-                        : emptyArray;
-
-                let pos = endPos;
-
-                for (const mapping of mappings) {
-                    pos = mapping.map(pos, -1);
-                }
+                const pos = mapMessagePosFromContentVersion(
+                    endMessage.payload,
+                    endContentVersion,
+                    endPos,
+                    -1,
+                );
 
                 endPayload = {
                     type: "Content",

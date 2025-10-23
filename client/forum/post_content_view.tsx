@@ -80,7 +80,6 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -88,6 +87,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {AccountId, FileId, PostId} from "~/shared/id/types/id_types.js";
+import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
     deletePostReaction,
@@ -294,25 +294,21 @@ export function PostContentView({
     const jumpAnimation = useMemo(() => {
         if (!jumpState?.animation) return null;
 
-        let from = jumpState.options.startPos;
-        let to = jumpState.options.endPos;
-
-        const contentVersion = post.contentUpdate?.mappings.length ?? 0;
-
-        const mappings =
-            contentVersion > jumpState.options.contentVersion
-                ? post.contentUpdate?.mappings.slice(
-                      -(contentVersion - jumpState.options.contentVersion),
-                  ) ?? emptyArray
-                : emptyArray;
-
-        for (const mapping of mappings) {
-            from = mapping.map(from, 1);
-            to = mapping.map(to, -1);
-        }
+        const from = mapMessagePosFromContentVersion(
+            post,
+            jumpState.options.contentVersion,
+            jumpState.options.startPos,
+            1,
+        );
+        const to = mapMessagePosFromContentVersion(
+            post,
+            jumpState.options.contentVersion,
+            jumpState.options.endPos,
+            -1,
+        );
 
         return {from, to, startTime: jumpState.animation.startTime};
-    }, [jumpState, post.contentUpdate?.mappings]);
+    }, [jumpState, post]);
 
     return (
         <Box

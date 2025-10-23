@@ -120,7 +120,6 @@ import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -128,6 +127,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -910,39 +910,23 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (jumpState.start === null) {
             from = null;
         } else {
-            from = jumpState.start.pos;
-
-            const contentVersion = message.payload.contentUpdate?.mappings.length ?? 0;
-
-            const mappings =
-                contentVersion > jumpState.start.contentVersion
-                    ? message.payload.contentUpdate?.mappings.slice(
-                          -(contentVersion - jumpState.start.contentVersion),
-                      ) ?? emptyArray
-                    : emptyArray;
-
-            for (const mapping of mappings) {
-                from = mapping.map(from, 1);
-            }
+            from = mapMessagePosFromContentVersion(
+                message.payload,
+                jumpState.start.contentVersion,
+                jumpState.start.pos,
+                1,
+            );
         }
 
         if (jumpState.end === null) {
             to = null;
         } else {
-            to = jumpState.end.pos;
-
-            const contentVersion = message.payload.contentUpdate?.mappings.length ?? 0;
-
-            const mappings =
-                contentVersion > jumpState.end.contentVersion
-                    ? message.payload.contentUpdate?.mappings.slice(
-                          -(contentVersion - jumpState.end.contentVersion),
-                      ) ?? emptyArray
-                    : emptyArray;
-
-            for (const mapping of mappings) {
-                to = mapping.map(to, -1);
-            }
+            to = mapMessagePosFromContentVersion(
+                message.payload,
+                jumpState.end.contentVersion,
+                jumpState.end.pos,
+                -1,
+            );
         }
 
         return {from, to, startTime: jumpState.animation.startTime};
