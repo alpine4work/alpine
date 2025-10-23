@@ -1,4 +1,4 @@
-import {ArrowSquareOut, Link as LinkIcon} from "phosphor-react";
+import {Link as LinkIcon} from "phosphor-react";
 import {useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -339,8 +339,6 @@ function FeedSearchAffinityView({
         },
         {
             label: "Open in peek",
-            icon: <ArrowSquareOut />,
-            iconPlacement: "end",
             pressErrorTitle: "Couldn’t open peek",
             onPress: async () => {
                 const path = getSearchEntityPath({

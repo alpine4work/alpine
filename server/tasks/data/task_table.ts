@@ -127,6 +127,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
     VtencBigUint64Set,
@@ -152,6 +153,9 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
+import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
+import {computeUpdateMessageContentReactions} from "~/shared/messaging/compute_update_message_content_reactions.js";
 import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -162,6 +166,7 @@ import {
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
 import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -5446,6 +5451,11 @@ export function updateTaskCommentContent(
                 ...taskCommentItem.payload,
                 content,
                 contentUpdate,
+                reactionsByPos: computeUpdateMessageContentReactions({
+                    oldPayload: taskCommentItem.payload,
+                    newContent: content,
+                    mapping,
+                }),
             },
         });
 
@@ -5572,6 +5582,133 @@ export function deleteTaskComment(
         return {
             version: transactionEntry.newItem.updateLockVersion ?? 0,
             deletedTime,
+        };
+    });
+}
+
+export function setTaskCommentReaction(
+    context: ServerAccountActionContext,
+    {
+        taskId,
+        commentIndex,
+        contentVersion,
+        pos,
+        reaction,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        contentVersion: number;
+        pos: number;
+        reaction: Reaction | "GenericLike";
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [, commentItem] = await runAllPromises([
+            authorizeTaskAccess(context, taskId, "Comment"),
+            getTaskCommentItemIfExists(context, taskId, commentIndex),
+        ]);
+        if (!commentItem) throw new NotFoundError("Task comment not found");
+
+        const currentTime = new Date();
+
+        const newPayload = computeSetMessageReaction({
+            actorAccountId: context.actor.getPossiblyBotAccountId(),
+            message: commentItem,
+            contentVersion,
+            pos,
+            reaction,
+        });
+
+        const transactionEntry = TaskTable.transactionDirectlyUpdateItem({
+            ...omitObject(commentItem, ["index", "version"]),
+            partitionType: "Task",
+            sortRangeType: "Comments",
+            taskId,
+            commentIndex: commentItem.index,
+            updateLockVersion: commentItem.version,
+            payload: newPayload,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
+            TaskTable.transactionCreateOrReplaceItem({
+                partitionType: "Task",
+                sortRangeType: "MessageUpdates",
+                taskId,
+                eventTime: currentTime,
+                messageIndex: commentItem.index,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(currentTime, messagingEventExpirationDays),
+            }),
+        ]);
+
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+        };
+    });
+}
+
+export function deleteTaskCommentReaction(
+    context: ServerAccountActionContext,
+    {
+        taskId,
+        commentIndex,
+        contentVersion,
+        pos,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        contentVersion: number;
+        pos: number;
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [, commentItem] = await runAllPromises([
+            authorizeTaskAccess(context, taskId, "Comment"),
+            getTaskCommentItemIfExists(context, taskId, commentIndex),
+        ]);
+        if (!commentItem) throw new NotFoundError("Task comment not found");
+
+        const currentTime = new Date();
+
+        const newPayload = computeDeleteMessageReaction({
+            actorAccountId: context.actor.getPossiblyBotAccountId(),
+            message: commentItem,
+            contentVersion,
+            pos,
+        });
+
+        const transactionEntry = TaskTable.transactionDirectlyUpdateItem({
+            ...omitObject(commentItem, ["index", "version"]),
+            partitionType: "Task",
+            sortRangeType: "Comments",
+            taskId,
+            commentIndex: commentItem.index,
+            updateLockVersion: commentItem.version,
+            payload: newPayload,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
+            TaskTable.transactionCreateOrReplaceItem({
+                partitionType: "Task",
+                sortRangeType: "MessageUpdates",
+                taskId,
+                eventTime: currentTime,
+                messageIndex: commentItem.index,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(currentTime, messagingEventExpirationDays),
+            }),
+        ]);
+
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
         };
     });
 }
@@ -5706,6 +5843,7 @@ export async function createTaskComment(
                     contentUpdate: null,
                     fileIds,
                     clerical: isStream ? {type: "Stream"} : undefined,
+                    reactionsByPos: emptyMap,
                 },
             }),
             commentsSummaryItem !== null

@@ -10,6 +10,7 @@ ts_project(
         "//shared/design",
         "//shared/error",
         "//shared/id",
+        "//shared/reactions",
         "//shared/schema",
         "//shared/web_socket",
     ],

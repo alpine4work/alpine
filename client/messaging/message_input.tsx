@@ -49,6 +49,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {
@@ -327,6 +328,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             throw exhaustive(inputFile);
                     }
                 }),
+                reactionsByPos: emptyMap,
             },
             stream: null,
         };

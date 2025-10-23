@@ -11,6 +11,7 @@ import {
 } from "~/shared/messaging/message_references.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -87,6 +88,33 @@ export const deleteChatMessage = defineRpc({
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const setChatMessageReaction = defineRpc({
+    name: "setChatMessageReaction",
+    input: {
+        chatId: Schema.id<ChatId>(),
+        messageIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
+        reaction: ReactionOrGenericLikeSchema,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const deleteChatMessageReaction = defineRpc({
+    name: "deleteChatMessageReaction",
+    input: {
+        chatId: Schema.id<ChatId>(),
+        messageIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
     },
     output: {
         version: Schema.integer,

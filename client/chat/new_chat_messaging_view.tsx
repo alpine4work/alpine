@@ -97,6 +97,8 @@ function NewChatMessagingView(
             createMessage={procedures.createMessage}
             updateMessageContent={procedures.updateMessageContent}
             deleteMessage={procedures.deleteMessage}
+            setMessageReaction={procedures.setMessageReaction}
+            deleteMessageReaction={procedures.deleteMessageReaction}
             startTypingInMessageInput={useCallback(
                 async input => {
                     // May be called when we don't have a selected chat.

@@ -103,6 +103,8 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         "createComment",
         "updateCommentContent",
         "deleteComment",
+        "setCommentReaction",
+        "deleteCommentReaction",
         "startTypingInCommentInput",
         "stopTypingInCommentInput",
     ] as const satisfies ReadonlyArray<

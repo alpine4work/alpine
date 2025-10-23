@@ -318,6 +318,8 @@ function ChatMessagingView({
             createMessage={procedures.createMessage}
             updateMessageContent={procedures.updateMessageContent}
             deleteMessage={procedures.deleteMessage}
+            setMessageReaction={procedures.setMessageReaction}
+            deleteMessageReaction={procedures.deleteMessageReaction}
             startTypingInMessageInput={procedures.startTypingInMessageInput}
             stopTypingInMessageInput={procedures.stopTypingInMessageInput}
             isConnected={isConnected}

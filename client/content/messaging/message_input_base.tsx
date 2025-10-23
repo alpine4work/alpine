@@ -781,6 +781,27 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     }
                 }}
             >
+                <Box
+                    // HACK: Fixes a bug where triple clicking on the last message in a
+                    // `<MessagingView>` then dragging up in Chrome doesn't select the previous
+                    // message. The issue seemed to be there's no selectable element between the
+                    // last message and the message input `<ContentEditor>`. So for some reason
+                    // selection was being placed in the `<ContentEditor>` as the user drags up???
+                    //
+                    // Adding an invisible element with `userSelect: text` and some text fixes this
+                    // very strange issue. Using a `.` as an unassuming character in case this text
+                    // ever does get copied.
+                    //
+                    // Video reproducing the bug:
+                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/23qe4pw59agpxcm7qm5mm72380
+                    position="absolute"
+                    opacity="0"
+                    userSelect="text"
+                    pointerEvents="none"
+                    aria-hidden={true}
+                >
+                    .
+                </Box>
                 {(isEditingMessage || parent) && (
                     <Box
                         pointerEvents="none"

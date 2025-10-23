@@ -10,3 +10,10 @@ export const ReactionSchema = Schema.integer.transform<Reaction>({
         return reaction;
     },
 });
+
+export const ReactionOrGenericLikeSchema = ReactionSchema.nullable().transform<
+    Reaction | "GenericLike"
+>({
+    serialize: value => (value === "GenericLike" ? null : value),
+    deserialize: value => (value === null ? "GenericLike" : value),
+});

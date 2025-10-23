@@ -58,6 +58,7 @@ import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export type PostRealtimeProcedures = {
@@ -67,6 +68,17 @@ export type PostRealtimeProcedures = {
         steps: ReadonlyArray<Step>;
     }) => Promise<{}>;
     deleteComment: (input: {commentIndex: number}) => Promise<{}>;
+    setCommentReaction: (input: {
+        commentIndex: number;
+        contentVersion: number;
+        pos: number;
+        reaction: Reaction | "GenericLike";
+    }) => Promise<{}>;
+    deleteCommentReaction: (input: {
+        commentIndex: number;
+        contentVersion: number;
+        pos: number;
+    }) => Promise<{}>;
 };
 
 export function PostCommentInput(props: {
@@ -138,7 +150,13 @@ function usePostCommentInputRealtime({
 
     useImperativeHandle(
         proceduresRef,
-        () => pickObject(procedures, ["updateCommentContent", "deleteComment"]),
+        () =>
+            pickObject(procedures, [
+                "updateCommentContent",
+                "deleteComment",
+                "setCommentReaction",
+                "deleteCommentReaction",
+            ]),
         [procedures],
     );
 

@@ -29,6 +29,7 @@ import {
     messagingEventExpirationDays,
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
@@ -43,6 +44,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -62,10 +64,13 @@ import {
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
 import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,
 } from "~/shared/web_socket/server_synchronization_checkpoint.js";
+
+const schema = MessageContentProsemirrorSchema;
 
 /**
  * Create a new message in a room.
@@ -83,30 +88,6 @@ type CreateMessageFunctionForTest<RoomKey extends string> = (
     index: number;
     createdTime: Date;
 }>;
-
-/**
- * Put a stream part for a streaming message.
- */
-type PutMessageStreamPartFunctionForTest<RoomKey extends string> = (
-    context: TestBotActionContext,
-    options: {
-        roomKey: RoomKey;
-        messageIndex: number;
-        partIndex: number;
-        payload: MessageStreamPartPayload;
-    },
-) => Promise<void>;
-
-/**
- * Complete a message stream. After this parts can't be added or updated.
- */
-type CompleteMessageStreamFunctionForTest<RoomKey extends string> = (
-    context: TestBotActionContext,
-    options: {
-        roomKey: RoomKey;
-        messageIndex: number;
-    },
-) => Promise<{completedTime: Date}>;
 
 /**
  * Get a message.
@@ -170,6 +151,57 @@ type DeleteMessageFunctionForTest<RoomKey extends string> = (
 ) => Promise<{
     deletedTime: Date;
 }>;
+
+/**
+ * Put a stream part for a streaming message.
+ */
+type PutMessageStreamPartFunctionForTest<RoomKey extends string> = (
+    context: TestBotActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        partIndex: number;
+        payload: MessageStreamPartPayload;
+    },
+) => Promise<void>;
+
+/**
+ * Complete a message stream. After this parts can't be added or updated.
+ */
+type CompleteMessageStreamFunctionForTest<RoomKey extends string> = (
+    context: TestBotActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+    },
+) => Promise<{completedTime: Date}>;
+
+/**
+ * Sets a reaction on a message.
+ */
+type SetMessageReactionFunctionForTest<RoomKey extends string> = (
+    context: TestSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        contentVersion: number;
+        pos: number;
+        reaction: Reaction | "GenericLike";
+    },
+) => Promise<{}>;
+
+/**
+ * Deletes a reaction from a message.
+ */
+type DeleteMessageReactionFunctionForTest<RoomKey extends string> = (
+    context: TestSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        contentVersion: number;
+        pos: number;
+    },
+) => Promise<{}>;
 
 /**
  * Load a range of messages starting from the beginning of the room (or
@@ -376,16 +408,6 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     createMessage: CreateMessageFunctionForTest<RoomKey>;
 
     /**
-     * Put a stream part for a streaming message.
-     */
-    putMessageStreamPart: PutMessageStreamPartFunctionForTest<RoomKey>;
-
-    /**
-     * Complete a message stream. After this parts can't be added or updated.
-     */
-    completeMessageStream: CompleteMessageStreamFunctionForTest<RoomKey>;
-
-    /**
      * Get a message.
      */
     getMessage: GetMessageFunctionForTest<MessageModel<RoomKey>>;
@@ -407,6 +429,26 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * Delete a message.
      */
     deleteMessage: DeleteMessageFunctionForTest<RoomKey>;
+
+    /**
+     * Put a stream part for a streaming message.
+     */
+    putMessageStreamPart: PutMessageStreamPartFunctionForTest<RoomKey>;
+
+    /**
+     * Complete a message stream. After this parts can't be added or updated.
+     */
+    completeMessageStream: CompleteMessageStreamFunctionForTest<RoomKey>;
+
+    /**
+     * Sets a reaction on a message.
+     */
+    setMessageReaction: SetMessageReactionFunctionForTest<RoomKey>;
+
+    /**
+     * Deletes a reaction from a message.
+     */
+    deleteMessageReaction: DeleteMessageReactionFunctionForTest<RoomKey>;
 
     /**
      * Load a range of messages starting from the beginning of the room (or
@@ -489,8 +531,6 @@ export function testMessagingImplementation<RoomKey extends string>(
         getRoomFileAuthorizer,
         getRoomBotScope,
         createMessage,
-        putMessageStreamPart,
-        completeMessageStream,
         getMessage,
         getMessagePayload,
         getMessagesFromStart,
@@ -499,6 +539,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         getMessagePayloadsFromEnd,
         updateMessageContent,
         deleteMessage,
+        putMessageStreamPart,
+        completeMessageStream,
+        setMessageReaction,
+        deleteMessageReaction,
         backfillMessages,
         spacePermissionDeniedErrorMessage = "Account doesn’t have access to space",
     }: TestMessagingImplementation<RoomKey>,
@@ -966,7 +1010,6 @@ export function testMessagingImplementation<RoomKey extends string>(
         test("can’t create message with invalid content", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
-            const schema = MessageContentProsemirrorSchema;
             const content = assertMessageContent(
                 schema.nodes.doc.create({}, [
                     schema.nodes.unorderedListItem.create({}, [schema.text("Hello, world!")]),
@@ -1990,8 +2033,6 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("can’t update message with invalid content", async () => {
             const room = await createRoom(context.action(session1), space.id);
-
-            const schema = MessageContentProsemirrorSchema;
 
             const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -10023,7 +10064,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        describe("message streams", () => {
+        describe("streams", () => {
             test("can create stream message as a bot actor", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
@@ -12438,6 +12479,2162 @@ export function testMessagingImplementation<RoomKey extends string>(
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
+            });
+        });
+
+        describe("reactions", () => {
+            const reaction1: Reaction = {
+                character: {type: "Cat", variant: "Grey"},
+                emotion: "Celebrate",
+            };
+
+            const reaction2: Reaction = {
+                character: {type: "Tree", variant: "Green"},
+                emotion: "Yes",
+            };
+
+            const reaction3: Reaction = {
+                character: {type: "Tree", variant: "Pink"},
+                emotion: "No",
+            };
+
+            const reaction4: Reaction = {
+                character: {type: "Yeti", variant: "Blue"},
+                emotion: "Happy",
+            };
+
+            const reaction5: Reaction = {
+                character: {type: "Cat", variant: "Yellow"},
+                emotion: "Lolsob",
+            };
+
+            const reaction6: Reaction = {
+                character: {type: "Yeti", variant: "Olive"},
+                emotion: "Shock",
+            };
+
+            const getMessageReactionsByPos = async (
+                session: TestSession,
+                room: {key: RoomKey},
+                messageIndex: number,
+            ) => {
+                const {payload} = await getMessagePayload(session.action(), {
+                    roomKey: room.key,
+                    messageIndex,
+                });
+                if (!payload.reactionsByPos) return null;
+
+                return new Map(
+                    mapIterable(payload.reactionsByPos, ([pos, reactions]) => [
+                        pos,
+                        // Since order is important, return maps as arrays from this function.
+                        Array.from(reactions.get()),
+                    ]),
+                );
+            };
+
+            test("can add a reaction to first paragraph in message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[13, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to second paragraph in message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to third paragraph in message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to first, second, and third paragraph in message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session2.account.id, "GenericLike"]]]]),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: reaction1,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [26, [[session2.account.id, "GenericLike"]]],
+                        [39, [[session2.account.id, reaction1]]],
+                    ]),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction2,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [13, [[session2.account.id, reaction2]]],
+                        [26, [[session2.account.id, "GenericLike"]]],
+                        [39, [[session2.account.id, reaction1]]],
+                    ]),
+                );
+            });
+
+            test("can add a reaction to first, second, and third paragraph in message as multiple accounts", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2, session3, session4] = await space.createSessions(4);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                    {accountId: session3.account.id},
+                    {accountId: session4.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session3.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session3.account.id, "GenericLike"]]]]),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: reaction1,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [26, [[session3.account.id, "GenericLike"]]],
+                        [39, [[session2.account.id, reaction1]]],
+                    ]),
+                );
+
+                await setMessageReaction(session4.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction2,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            26,
+                            [
+                                [session3.account.id, "GenericLike"],
+                                [session4.account.id, reaction2],
+                            ],
+                        ],
+                        [39, [[session2.account.id, reaction1]]],
+                    ]),
+                );
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction3,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            26,
+                            [
+                                [session3.account.id, "GenericLike"],
+                                [session4.account.id, reaction2],
+                                [session1.account.id, reaction3],
+                            ],
+                        ],
+                        [39, [[session2.account.id, reaction1]]],
+                    ]),
+                );
+
+                await setMessageReaction(session3.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: reaction4,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            26,
+                            [
+                                [session3.account.id, "GenericLike"],
+                                [session4.account.id, reaction2],
+                                [session1.account.id, reaction3],
+                            ],
+                        ],
+                        [
+                            39,
+                            [
+                                [session2.account.id, reaction1],
+                                [session3.account.id, reaction4],
+                            ],
+                        ],
+                    ]),
+                );
+            });
+
+            test("can replace own reaction", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session2.account.id, "GenericLike"]]]]),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction1,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session2.account.id, reaction1]]]]),
+                );
+            });
+
+            test("replacing own reaction preserves order in reaction set", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: "GenericLike",
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: "GenericLike",
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            13,
+                            [
+                                [session1.account.id, "GenericLike"],
+                                [session2.account.id, "GenericLike"],
+                            ],
+                        ],
+                        [
+                            26,
+                            [
+                                [session2.account.id, "GenericLike"],
+                                [session1.account.id, "GenericLike"],
+                            ],
+                        ],
+                    ]),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction1,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            13,
+                            [
+                                [session1.account.id, "GenericLike"],
+                                [session2.account.id, "GenericLike"],
+                            ],
+                        ],
+                        [
+                            26,
+                            [
+                                [session2.account.id, reaction1],
+                                [session1.account.id, "GenericLike"],
+                            ],
+                        ],
+                    ]),
+                );
+            });
+
+            test("can’t add a reaction to room that doesn’t exist", async () => {
+                const space = await TestSpace.create(context);
+                const [, session2] = await space.createSessions(2);
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: getMissingRoomKey(),
+                        messageIndex: 0,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(/not found/);
+            });
+
+            test("can’t add a reaction to message if session doesn’t have access to room", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2, session3] = await space.createSessions(3);
+
+                const room = await actuallyCreatePrivateRoom(context.action(session1), space.id, {
+                    insideSessions: [
+                        {accountId: session1.account.id},
+                        {accountId: session2.account.id},
+                    ],
+                    insideViewerSession: null,
+                    insideBotAccount: null,
+                    outsideSession: {accountId: session3.account.id},
+                });
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session3.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    /^(Account doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can’t add a reaction to deleted message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await deleteMessage(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow("Can’t set reaction on messages with a non-content payload");
+            });
+
+            test("can’t add a reaction beyond the end of the message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 100,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow("Can’t set reaction with position outside the message’s bounds");
+            });
+
+            test("can’t add a reaction to position that’s at the end of a block node not after the block node", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 25,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can’t add a reaction to position that’s within a block node's content", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 22,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can’t add a reaction to position at the start of a block node's content", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 27,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can’t add a reaction to position immediately after a nested block node", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("quoteBlock", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 27,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can add a reaction to position immediately after a block node with nested blocks", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("quoteBlock", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 41,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[41, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can’t add a reaction to position that’s at the start of the message", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 0,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow("Can’t set reaction on the content’s start position");
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can’t add a reaction to position that’s at the start of the first paragraph", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 1,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can add a reaction to second paragraph on content version after update that inserts content", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(24, 24, textSlice("TEST "))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 1,
+                    pos: 31,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[31, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to second paragraph on content version before update that inserts content", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(24, 24, textSlice("TEST "))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 1,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[31, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to second paragraph on content version before update that deletes content", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(17, 23, textSlice(""))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 1,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow(
+                    "Can only set reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[20, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can’t add a reaction to future content version", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 1,
+                        pos: 31,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow("Can’t set reaction with future content version");
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can’t add a reaction with negative content version", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: -1,
+                        pos: 31,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow("Can’t set reaction with negative content version");
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can add a reaction to first paragraph in stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[13, [[session1.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to third paragraph in stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session1.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can’t add a reaction to the last stream message part if stream isn’t complete", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await expect(
+                    setMessageReaction(session1.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    }),
+                ).rejects.toThrow("Can’t set reaction with position outside the message’s bounds");
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can add a reaction to third paragraph in stream message if first paragraph has content", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Paragraph 1"),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session1.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("updating content by adding text moves reaction positions", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session2.account.id, "GenericLike"]]]]),
+                );
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(24, 24, textSlice("TEST "))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[31, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("updating content by deleting text moves reaction positions", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[26, [[session2.account.id, "GenericLike"]]]]),
+                );
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(17, 23, textSlice(""))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[20, [[session2.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("updating content by merging paragraphs merges any reactions between the two paragraphs", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2, session3, session4, session5] =
+                    await space.createSessions(5);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                    {accountId: session3.account.id},
+                    {accountId: session4.account.id},
+                    {accountId: session5.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session3.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction1,
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction2,
+                });
+
+                await setMessageReaction(session4.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction3,
+                });
+
+                // Test adding the first paragraph reactions last. They'll appear first in the
+                // merged reaction set even though they were added last.
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction4,
+                });
+
+                await setMessageReaction(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction5,
+                });
+
+                await setMessageReaction(session5.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction6,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            13,
+                            [
+                                [session2.account.id, reaction4],
+                                [session1.account.id, reaction5],
+                                [session5.account.id, reaction6],
+                            ],
+                        ],
+                        [
+                            26,
+                            [
+                                [session3.account.id, reaction1],
+                                [session2.account.id, reaction2],
+                                [session4.account.id, reaction3],
+                            ],
+                        ],
+                    ]),
+                );
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(3, 19, textSlice(""))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            10,
+                            [
+                                [session1.account.id, reaction5],
+                                [session5.account.id, reaction6],
+                                [session3.account.id, reaction1],
+                                [session2.account.id, reaction2],
+                                [session4.account.id, reaction3],
+                            ],
+                        ],
+                    ]),
+                );
+            });
+
+            test("can delete a reaction", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session2.account.id, "GenericLike"]]]]),
+                );
+
+                await deleteMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("can delete a single reaction when account has left multiple", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction1,
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction2,
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: reaction3,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [13, [[session2.account.id, reaction1]]],
+                        [26, [[session2.account.id, reaction2]]],
+                        [39, [[session2.account.id, reaction3]]],
+                    ]),
+                );
+
+                await deleteMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [13, [[session2.account.id, reaction1]]],
+                        [39, [[session2.account.id, reaction3]]],
+                    ]),
+                );
+            });
+
+            test("can delete a reaction when another account has left a reaction too", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2, session3] = await space.createSessions(3);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                    {accountId: session3.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction1,
+                });
+
+                await setMessageReaction(session3.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                    reaction: reaction2,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([
+                        [
+                            13,
+                            [
+                                [session2.account.id, reaction1],
+                                [session3.account.id, reaction2],
+                            ],
+                        ],
+                    ]),
+                );
+
+                await deleteMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 13,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[13, [[session3.account.id, reaction2]]]]),
+                );
+            });
+
+            test("will rebase a reaction deletion on an old content version", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction1,
+                });
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(24, 24, textSlice("TEST "))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[31, [[session2.account.id, reaction1]]]]),
+                );
+
+                await deleteMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map(),
+                );
+            });
+
+            test("must get the position right if deleting a reaction on the current content version", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: reaction1,
+                });
+
+                await updateMessageContent(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    steps: [new ReplaceStep(24, 24, textSlice("TEST "))],
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[31, [[session2.account.id, reaction1]]]]),
+                );
+
+                await expect(
+                    deleteMessageReaction(session2.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 1,
+                        pos: 26,
+                    }),
+                ).rejects.toThrow(
+                    "Can only delete reaction on position immediately after a block node",
+                );
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[31, [[session2.account.id, reaction1]]]]),
+                );
+            });
+
+            test("will backfill a message update when adding a reaction", async () => {
+                const checkpoint = generateServerSynchronizationCheckpoint();
+
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(
+                    await backfillMessages(session1.action(), {
+                        roomKey: room.key,
+                        checkpoint,
+                        clientMessageCount: 1,
+                        newMessageLimit: 100,
+                    }).then(({messageUpdatesResult}) => messageUpdatesResult),
+                ).toEqual({
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: "GenericLike",
+                });
+
+                expect(
+                    await backfillMessages(session1.action(), {
+                        roomKey: room.key,
+                        checkpoint,
+                        clientMessageCount: 1,
+                        newMessageLimit: 100,
+                    }).then(({messageUpdatesResult}) => messageUpdatesResult),
+                ).toEqual({
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [expect.objectContaining({index: message.index, version: 1})],
+                });
+            });
+
+            test("will backfill a message update when deleting a reaction", async () => {
+                const checkpoint = generateServerSynchronizationCheckpoint();
+
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+
+                const message = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: assertMessageContent(
+                        schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                        ]),
+                    ),
+                    fileIds: [],
+                });
+
+                expect(
+                    await backfillMessages(session1.action(), {
+                        roomKey: room.key,
+                        checkpoint,
+                        clientMessageCount: 1,
+                        newMessageLimit: 100,
+                    }).then(({messageUpdatesResult}) => messageUpdatesResult),
+                ).toEqual({
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                });
+
+                await setMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                    reaction: "GenericLike",
+                });
+
+                expect(
+                    await backfillMessages(session1.action(), {
+                        roomKey: room.key,
+                        checkpoint,
+                        clientMessageCount: 1,
+                        newMessageLimit: 100,
+                    }).then(({messageUpdatesResult}) => messageUpdatesResult),
+                ).toEqual({
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [expect.objectContaining({index: message.index, version: 1})],
+                });
+
+                await deleteMessageReaction(session2.action(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 39,
+                });
+
+                expect(
+                    await backfillMessages(session1.action(), {
+                        roomKey: room.key,
+                        checkpoint,
+                        clientMessageCount: 1,
+                        newMessageLimit: 100,
+                    }).then(({messageUpdatesResult}) => messageUpdatesResult),
+                ).toEqual({
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [expect.objectContaining({index: message.index, version: 2})],
+                });
             });
         });
     });

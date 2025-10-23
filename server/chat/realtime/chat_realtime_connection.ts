@@ -10,9 +10,11 @@ import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
+    DeleteMessageReactionFunction,
     GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
+    SetMessageReactionFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
@@ -32,9 +34,11 @@ import {
 import {
     backfillChatMessages,
     deleteChatMessage,
+    deleteChatMessageReaction,
     getChatMessageAtVersion,
     getChatMessageReferences,
     sendChatMessage,
+    setChatMessageReaction,
     updateChatMessageContent,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 
@@ -78,6 +82,8 @@ export class ChatRealtimeConnection {
             createMessage,
             updateMessageContent,
             deleteMessage,
+            setMessageReaction,
+            deleteMessageReaction,
             backfillMessages,
             getMessageAtVersion,
             getMessageReferences,
@@ -106,6 +112,9 @@ export class ChatRealtimeConnection {
         updateMessageContent: (context, input) =>
             this._connection.updateMessageContent(context, input),
         deleteMessage: (context, input) => this._connection.deleteMessage(context, input),
+        setMessageReaction: (context, input) => this._connection.setMessageReaction(context, input),
+        deleteMessageReaction: (context, input) =>
+            this._connection.deleteMessageReaction(context, input),
         startTypingInMessageInput: (context, input) =>
             this._connection.startTypingInMessageInput(context, input),
         stopTypingInMessageInput: (context, input) =>
@@ -182,6 +191,20 @@ const deleteMessage: DeleteMessageFunction<ChatId> = (context, {roomKey: chatId,
     return deleteChatMessage(context, {chatId, messageIndex});
 };
 
+const setMessageReaction: SetMessageReactionFunction<ChatId> = (
+    context,
+    {roomKey: chatId, messageIndex, contentVersion, pos, reaction},
+) => {
+    return setChatMessageReaction(context, {chatId, messageIndex, contentVersion, pos, reaction});
+};
+
+const deleteMessageReaction: DeleteMessageReactionFunction<ChatId> = (
+    context,
+    {roomKey: chatId, messageIndex, contentVersion, pos},
+) => {
+    return deleteChatMessageReaction(context, {chatId, messageIndex, contentVersion, pos});
+};
+
 const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = async (
     context,
     {roomKey: chatId, checkpoint, clientMessageCount, newMessageLimit},
@@ -243,6 +266,7 @@ const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> =
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),
+            reactionsByPos: message.payload.reactionsByPos,
         },
         stream: message.stream,
     });

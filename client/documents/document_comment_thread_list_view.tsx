@@ -26,11 +26,17 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
 import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
+import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+    OnUpdateMessagesOptimisticallyFunction,
+} from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {
     JumpToMessageRangeOptions,
@@ -346,7 +352,7 @@ function DocumentCommentThreadListView(
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const [tree, setTree] = useState(() => {
+    const [tree, setTree, setTreeOptimistically] = useStateWithOptimisticUpdates(() => {
         let tree = createEmptyDocumentCommentThreadTree();
 
         for (const initialCommentThreadResult of initialCommentThreadResults) {
@@ -748,6 +754,52 @@ function DocumentCommentThreadListView(
         },
     });
 
+    const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<DocumentCommentRoomKey>> =
+        useCallback(
+            async (roomKey, {messageIndex, ...input}) => {
+                const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                await procedures.setCommentReaction({
+                    commentThreadId,
+                    commentIndex: messageIndex,
+                    ...input,
+                });
+            },
+            [procedures],
+        );
+
+    const handleDeleteMessageReaction: Memo<
+        OnDeleteMessageReactionFunction<DocumentCommentRoomKey>
+    > = useCallback(
+        async (roomKey, {messageIndex, ...input}) => {
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            await procedures.deleteCommentReaction({
+                commentThreadId,
+                commentIndex: messageIndex,
+                ...input,
+            });
+        },
+        [procedures],
+    );
+
+    const handleUpdateMessagesOptimistically: Memo<
+        OnUpdateMessagesOptimisticallyFunction<DocumentCommentRoomKey, DocumentCommentModel>
+    > = useCallback(
+        (roomKey, promise, update) => {
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            setTreeOptimistically(promise, (tree, promiseValue) => {
+                return tree.updateNode(commentThreadId, node => {
+                    const newComments = update(node.comments, promiseValue);
+                    if (newComments === node.comments) return node;
+                    return {...node, comments: newComments};
+                });
+            });
+        },
+        [setTreeOptimistically],
+    );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const actualIndex = index;
@@ -943,6 +995,9 @@ function DocumentCommentThreadListView(
                                 window.location.href,
                             );
                         },
+                        onSetMessageReaction: handleSetMessageReaction,
+                        onDeleteMessageReaction: handleDeleteMessageReaction,
+                        onUpdateMessagesOptimistically: handleUpdateMessagesOptimistically,
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
                             // -2 instead of -1 since when
@@ -1164,6 +1219,9 @@ function DocumentCommentThreadListView(
             messageEditing,
             jumpState,
             jumpToMessageRange,
+            handleSetMessageReaction,
+            handleDeleteMessageReaction,
+            handleUpdateMessagesOptimistically,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
             space.id,
@@ -1174,6 +1232,7 @@ function DocumentCommentThreadListView(
             subscribeToPongs,
             withCommentInputMobileMaxHeight,
             platform,
+            setTree,
         ],
     );
 
@@ -1240,6 +1299,7 @@ function DocumentCommentThreadListView(
                                 DocumentCommentModel
                             >
                                 viewRef={viewRef}
+                                messageNoun="comment"
                                 getMessagesByRoomKey={useCallback(
                                     roomKey => {
                                         const [, commentThreadId] =
@@ -1266,6 +1326,9 @@ function DocumentCommentThreadListView(
                                         return newInputParentById;
                                     });
                                 }}
+                                onSetMessageReaction={handleSetMessageReaction}
+                                onDeleteMessageReaction={handleDeleteMessageReaction}
+                                onUpdateMessagesOptimistically={handleUpdateMessagesOptimistically}
                             />
                         </>
                     }

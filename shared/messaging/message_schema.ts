@@ -2,8 +2,10 @@ import {ApiContentMentionInlineElementTargetPath} from "~/shared/api/types/api_s
 import {FileIdOrFileEntityIdSchema, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessagePayload = SchemaType<typeof MessagePayloadSchema>;
@@ -14,49 +16,65 @@ export type MessageContentPayloadClerical = SchemaType<typeof MessageContentPayl
 
 export type MessageDeletedPayload = SchemaType<typeof MessageDeletedPayloadSchema>;
 
+export type MessageContentPayloadMessageParent = SchemaType<
+    typeof MessageContentPayloadMessageParentSchema
+>;
+
+const MessageContentPayloadMessageParentSchema = Schema.object({
+    type: Schema.value("Message"),
+    index: Schema.integer,
+});
+
+export type MessageContentPayloadMessagesRangeParent = SchemaType<
+    typeof MessageContentPayloadMessagesRangeParentSchema
+>;
+
+const MessageContentPayloadMessagesRangeParentSchema = Schema.object({
+    type: Schema.value("MessagesRange"),
+    startIndex: Schema.integer.min(0),
+    endIndex: Schema.integer.min(0), // `endIndex` is inclusive
+    startContentVersion: Schema.integer.min(0).originalPropertyKey("startVersion"),
+    endContentVersion: Schema.integer.min(0).originalPropertyKey("endVersion"),
+    startPos: Schema.integer.min(0),
+    endPos: Schema.integer.min(0),
+})
+    .validation(
+        "`startIndex` is less than or equal to `endIndex`",
+        range => range.startIndex <= range.endIndex,
+    )
+    .validation(
+        "`startContentVersion` is equal to `endContentVersion` if `startIndex` equals `endIndex`",
+        range =>
+            range.startIndex !== range.endIndex ||
+            range.startContentVersion === range.endContentVersion,
+    )
+    .validation(
+        "`startPos` is less than or equal to `endPos` if `startIndex` equals `endIndex`",
+        range => range.startIndex !== range.endIndex || range.startPos <= range.endPos,
+    );
+
+export type MessageContentPayloadPostRangeParent = SchemaType<
+    typeof MessageContentPayloadPostRangeParentSchema
+>;
+
+// Only post comments can have a post range parent. We throw an error if any
+// other messaging surface has a post range parent.
+const MessageContentPayloadPostRangeParentSchema = Schema.object({
+    type: Schema.value("PostRange"),
+    contentVersion: Schema.integer.min(0).originalPropertyKey("version"),
+    startPos: Schema.integer.min(0),
+    endPos: Schema.integer.min(0),
+}).validation(
+    "`startPos` is is less than or equal to `endPos`",
+    range => range.startPos <= range.endPos,
+);
+
 export type MessageContentPayloadParent = SchemaType<typeof MessageContentPayloadParentSchema>;
 
 export const MessageContentPayloadParentSchema = Schema.union({
-    Message: Schema.object({
-        type: Schema.value("Message"),
-        index: Schema.integer,
-    }),
-
-    MessagesRange: Schema.object({
-        type: Schema.value("MessagesRange"),
-        startIndex: Schema.integer.min(0),
-        endIndex: Schema.integer.min(0), // `endIndex` is inclusive
-        startContentVersion: Schema.integer.min(0).originalPropertyKey("startVersion"),
-        endContentVersion: Schema.integer.min(0).originalPropertyKey("endVersion"),
-        startPos: Schema.integer.min(0),
-        endPos: Schema.integer.min(0),
-    })
-        .validation(
-            "`startIndex` is less than or equal to `endIndex`",
-            range => range.startIndex <= range.endIndex,
-        )
-        .validation(
-            "`startContentVersion` is equal to `endContentVersion` if `startIndex` equals `endIndex`",
-            range =>
-                range.startIndex !== range.endIndex ||
-                range.startContentVersion === range.endContentVersion,
-        )
-        .validation(
-            "`startPos` is less than or equal to `endPos` if `startIndex` equals `endIndex`",
-            range => range.startIndex !== range.endIndex || range.startPos <= range.endPos,
-        ),
-
-    // Only post comments can have a post range parent. We throw an error if any
-    // other messaging surface has a post range parent.
-    PostRange: Schema.object({
-        type: Schema.value("PostRange"),
-        contentVersion: Schema.integer.min(0).originalPropertyKey("version"),
-        startPos: Schema.integer.min(0),
-        endPos: Schema.integer.min(0),
-    }).validation(
-        "`startPos` is is less than or equal to `endPos`",
-        range => range.startPos <= range.endPos,
-    ),
+    Message: MessageContentPayloadMessageParentSchema,
+    MessagesRange: MessageContentPayloadMessagesRangeParentSchema,
+    PostRange: MessageContentPayloadPostRangeParentSchema,
 });
 
 export function* iterateMessageContentPayloadParentIndexes(
@@ -178,6 +196,23 @@ export const MessageContentPayloadSchema = Schema.object({
      * think of three use cases for this abstraction, I'm happy introducing it.
      */
     clerical: MessageContentPayloadClericalSchema.optional(),
+
+    /**
+     * Reactions on the message. Users can leave reactions on each block node of
+     * the message. Since if a user is looking at a series of messages from the
+     * same user, we don't tell them where the message boundaries are. It looks
+     * like one unified block of text. What users see are paragraph boundaries.
+     * So we let them leave reactions on each paragraph (block node) of the
+     * message.
+     *
+     * The server throws if the client tries to add a reaction that's not at the
+     * end of a block node. The server will also perform some rebasing if the
+     * client tries to add a reaction to an old message version.
+     *
+     * When a message updates, the server is responsible for moving reactions to
+     * their new location. Based on how the message was updated.
+     */
+    reactionsByPos: Schema.map(Schema.integer, ReactionSet.schema).default(emptyMap),
 });
 
 const MessageDeletedPayloadSchema: Schema<{
@@ -191,6 +226,7 @@ const MessageDeletedPayloadSchema: Schema<{
     readonly contentUpdatedTime?: undefined;
     readonly fileIds?: undefined;
     readonly clerical?: undefined;
+    readonly reactionsByPos?: undefined;
 }> = Schema.object({
     type: Schema.value("Deleted"),
 

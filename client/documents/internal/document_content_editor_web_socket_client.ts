@@ -80,6 +80,8 @@ export class DocumentContentEditorWebSocketClient {
         "createComment",
         "updateCommentContent",
         "deleteComment",
+        "setCommentReaction",
+        "deleteCommentReaction",
         "startTypingInCommentInput",
         "stopTypingInCommentInput",
         "getCommentThreadAndInitialCommentsIfExists",

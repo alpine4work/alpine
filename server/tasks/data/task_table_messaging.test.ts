@@ -10,6 +10,7 @@ import {
     completeTaskCommentStream,
     createTaskComment,
     deleteTaskComment,
+    deleteTaskCommentReaction,
     getTaskComment,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
@@ -19,6 +20,7 @@ import {
     getTaskCommentsSummaryItemIfExistsForTest,
     getTaskItemForTest,
     putTaskCommentStreamPart,
+    setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
@@ -184,6 +186,29 @@ testMessagingImplementation<TaskId>(processContext, {
     },
     async deleteMessage(context, {roomKey: taskId, messageIndex: commentIndex}) {
         return deleteTaskComment(context, {taskId, commentIndex});
+    },
+    async setMessageReaction(
+        context,
+        {roomKey: taskId, messageIndex: commentIndex, contentVersion, pos, reaction},
+    ) {
+        return setTaskCommentReaction(context, {
+            taskId,
+            commentIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    },
+    async deleteMessageReaction(
+        context,
+        {roomKey: taskId, messageIndex: commentIndex, contentVersion, pos},
+    ) {
+        return deleteTaskCommentReaction(context, {
+            taskId,
+            commentIndex,
+            contentVersion,
+            pos,
+        });
     },
     async getMessagesFromStart(
         context,

@@ -19,7 +19,7 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
-import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -182,7 +182,7 @@ test("can insert some posts into the end", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post2 = new PostModel({
@@ -197,7 +197,7 @@ test("can insert some posts into the end", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post3 = new PostModel({
@@ -212,7 +212,7 @@ test("can insert some posts into the end", () => {
         commentCount: 20,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post4 = new PostModel({
@@ -227,7 +227,7 @@ test("can insert some posts into the end", () => {
         commentCount: 1,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post5 = new PostModel({
@@ -242,7 +242,7 @@ test("can insert some posts into the end", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     list = list.loadMorePosts({
@@ -316,7 +316,7 @@ test("can toggle the comments for a post open", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post2 = new PostModel({
@@ -331,7 +331,7 @@ test("can toggle the comments for a post open", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post3 = new PostModel({
@@ -346,7 +346,7 @@ test("can toggle the comments for a post open", () => {
         commentCount: 20,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post4 = new PostModel({
@@ -361,7 +361,7 @@ test("can toggle the comments for a post open", () => {
         commentCount: 1,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post5 = new PostModel({
@@ -376,7 +376,7 @@ test("can toggle the comments for a post open", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     list = list.loadMorePosts({
@@ -607,7 +607,7 @@ test("can insert some posts into the end with already open comments", () => {
         commentCount: 1,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post2 = new PostModel({
@@ -622,7 +622,7 @@ test("can insert some posts into the end with already open comments", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post3 = new PostModel({
@@ -637,7 +637,7 @@ test("can insert some posts into the end with already open comments", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post4 = new PostModel({
@@ -652,7 +652,7 @@ test("can insert some posts into the end with already open comments", () => {
         commentCount: 20,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post5 = new PostModel({
@@ -667,7 +667,7 @@ test("can insert some posts into the end with already open comments", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     list = list.loadMorePosts({
@@ -761,7 +761,7 @@ test("can update the post comments list", () => {
         commentCount: 1,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post2 = new PostModel({
@@ -776,7 +776,7 @@ test("can update the post comments list", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post3 = new PostModel({
@@ -791,7 +791,7 @@ test("can update the post comments list", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post4 = new PostModel({
@@ -806,7 +806,7 @@ test("can update the post comments list", () => {
         commentCount: 20,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post5 = new PostModel({
@@ -821,7 +821,7 @@ test("can update the post comments list", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     list = list.loadMorePosts({
@@ -936,7 +936,7 @@ test("can add a channel header at the beginning", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post2 = new PostModel({
@@ -951,7 +951,7 @@ test("can add a channel header at the beginning", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post3 = new PostModel({
@@ -966,7 +966,7 @@ test("can add a channel header at the beginning", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post4 = new PostModel({
@@ -981,7 +981,7 @@ test("can add a channel header at the beginning", () => {
         commentCount: 1,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post5 = new PostModel({
@@ -996,7 +996,7 @@ test("can add a channel header at the beginning", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     list = list.loadMorePosts({
@@ -1107,7 +1107,7 @@ test("can add an unloaded posts section at the end", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post2 = new PostModel({
@@ -1122,7 +1122,7 @@ test("can add an unloaded posts section at the end", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post3 = new PostModel({
@@ -1137,7 +1137,7 @@ test("can add an unloaded posts section at the end", () => {
         commentCount: 5,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post4 = new PostModel({
@@ -1152,7 +1152,7 @@ test("can add an unloaded posts section at the end", () => {
         commentCount: 1,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     const post5 = new PostModel({
@@ -1167,7 +1167,7 @@ test("can add an unloaded posts section at the end", () => {
         commentCount: 0,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
-        reactions: new ReactionSet(emptyMap),
+        reactions: emptyReactionSet,
     });
 
     list = list.loadMorePosts({

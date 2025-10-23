@@ -38,7 +38,7 @@ import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {sprinkles, withoutClearSelectionOnMouseDownClassName} from "~/client/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -920,6 +920,9 @@ const ContextMenu = forwardRef(function ContextMenu(
                 data-testid="ContextMenu"
                 className={classNames(
                     greyElevated2ClassName,
+                    // If the user clicks on a non-clickable area of the context menu it shouldn't
+                    // deselect the text the context menu is targeting.
+                    withoutClearSelectionOnMouseDownClassName,
                     sprinkles({
                         minWidth: Menu.sizeConstants.base.desktop.width,
                         borderRadius: "1.5",

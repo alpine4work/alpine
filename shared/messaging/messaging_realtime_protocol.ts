@@ -17,6 +17,8 @@ import {
     MessageStreamPartPayloadSchema,
     MessageStreamSchema,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
@@ -63,6 +65,19 @@ export type UpdateMessageContentProcedure = (input: {
 
 export type DeleteMessageProcedure = (input: {messageIndex: number}) => Promise<{}>;
 
+export type SetMessageReactionProcedure = (input: {
+    messageIndex: number;
+    contentVersion: number;
+    pos: number;
+    reaction: Reaction | "GenericLike";
+}) => Promise<{}>;
+
+export type DeleteMessageReactionProcedure = (input: {
+    messageIndex: number;
+    contentVersion: number;
+    pos: number;
+}) => Promise<{}>;
+
 export type StartTypingInMessageInputProcedure = (input: {}) => Promise<{}>;
 
 export type StopTypingInMessageInputProcedure = (input: {}) => Promise<{}>;
@@ -72,6 +87,8 @@ export type MessagingRealtimeProcedures<Message extends MessageModel> = {
     createMessage: CreateMessageProcedure;
     updateMessageContent: UpdateMessageContentProcedure;
     deleteMessage: DeleteMessageProcedure;
+    setMessageReaction: SetMessageReactionProcedure;
+    deleteMessageReaction: DeleteMessageReactionProcedure;
     startTypingInMessageInput: StartTypingInMessageInputProcedure;
     stopTypingInMessageInput: StopTypingInMessageInputProcedure;
 };
@@ -153,6 +170,31 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
         deleteMessage: {
             input: {
                 messageIndex: Schema.integer,
+            },
+            output: {},
+        },
+
+        /**
+         * Sets a reaction at some position on a message.
+         */
+        setMessageReaction: {
+            input: {
+                messageIndex: Schema.integer,
+                contentVersion: Schema.integer,
+                pos: Schema.integer,
+                reaction: ReactionOrGenericLikeSchema,
+            },
+            output: {},
+        },
+
+        /**
+         * Deletes a reaction at some position on a message.
+         */
+        deleteMessageReaction: {
+            input: {
+                messageIndex: Schema.integer,
+                contentVersion: Schema.integer,
+                pos: Schema.integer,
             },
             output: {},
         },

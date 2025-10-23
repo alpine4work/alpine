@@ -21,6 +21,7 @@ import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
@@ -267,6 +268,34 @@ export function TaskCommentsView({
         [procedures],
     );
 
+    const setMessageReaction = useCallback(
+        (input: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        }) => {
+            return procedures.setCommentReaction({
+                commentIndex: input.messageIndex,
+                contentVersion: input.contentVersion,
+                pos: input.pos,
+                reaction: input.reaction,
+            });
+        },
+        [procedures],
+    );
+
+    const deleteMessageReaction = useCallback(
+        (input: {messageIndex: number; contentVersion: number; pos: number}) => {
+            return procedures.deleteCommentReaction({
+                commentIndex: input.messageIndex,
+                contentVersion: input.contentVersion,
+                pos: input.pos,
+            });
+        },
+        [procedures],
+    );
+
     const fileAttachmentTarget = useMemo(
         (): FileAttachmentTarget => ({type: "TaskComments", taskId}),
         [taskId],
@@ -302,6 +331,8 @@ export function TaskCommentsView({
                 createMessage={createMessage}
                 updateMessageContent={updateMessageContent}
                 deleteMessage={deleteMessage}
+                setMessageReaction={setMessageReaction}
+                deleteMessageReaction={deleteMessageReaction}
                 startTypingInMessageInput={procedures.startTypingInCommentInput}
                 stopTypingInMessageInput={procedures.stopTypingInCommentInput}
                 isConnected={isConnected}

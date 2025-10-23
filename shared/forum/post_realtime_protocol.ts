@@ -15,6 +15,7 @@ import {
     createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
@@ -79,6 +80,27 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
         deleteComment: {
             input: {
                 commentIndex: Schema.integer,
+            },
+            output: {},
+        },
+
+        /** See `setMessageReaction` in `messaging_realtime_protocol.ts`. */
+        setCommentReaction: {
+            input: {
+                commentIndex: Schema.integer,
+                contentVersion: Schema.integer,
+                pos: Schema.integer,
+                reaction: ReactionOrGenericLikeSchema,
+            },
+            output: {},
+        },
+
+        /** See `deleteMessageReaction` in `messaging_realtime_protocol.ts`. */
+        deleteCommentReaction: {
+            input: {
+                commentIndex: Schema.integer,
+                contentVersion: Schema.integer,
+                pos: Schema.integer,
             },
             output: {},
         },

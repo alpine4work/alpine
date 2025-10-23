@@ -8,6 +8,7 @@ import {
     createDocument,
     createDocumentComment,
     deleteDocumentComment,
+    deleteDocumentCommentReaction,
     getDocument,
     getDocumentCommentAtVersion,
     getDocumentCommentThreadAndInitialCommentsIfExists,
@@ -17,6 +18,7 @@ import {
     getDocumentContentSteps,
     getDocumentPreviewIfExists,
     getResolvedDocumentCommentThreadRanges,
+    setDocumentCommentReaction,
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_actions.js";
@@ -215,6 +217,20 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: (context, input) => {
             return deleteDocumentComment(context.actor.authorizeSession(), input);
+        },
+    },
+
+    setDocumentCommentReaction: {
+        visibility: ["DocumentCollaborationService"],
+        execute: (context, input) => {
+            return setDocumentCommentReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    deleteDocumentCommentReaction: {
+        visibility: ["DocumentCollaborationService"],
+        execute: (context, input) => {
+            return deleteDocumentCommentReaction(context.actor.authorizeSession(), input);
         },
     },
 

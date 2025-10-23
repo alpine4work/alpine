@@ -7,6 +7,7 @@ import {
     completeChatMessageStream,
     createChatForTest,
     deleteChatMessage,
+    deleteChatMessageReaction,
     getChat,
     getChatAccountIds,
     getChatAccountIdsForBotScope,
@@ -23,6 +24,7 @@ import {
     putChatMessageStreamPart,
     sendChatMessage,
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
+    setChatMessageReaction,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
@@ -3697,14 +3699,14 @@ test("will send share notification messages separately to each account", async (
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3715,14 +3717,14 @@ test("will send share notification messages separately to each account", async (
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3778,14 +3780,14 @@ test("will send share notification messages separately to each account", async (
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3796,14 +3798,14 @@ test("will send share notification messages separately to each account", async (
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entity1Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3822,14 +3824,14 @@ test("will send share notification messages separately to each account", async (
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("quxbaz"),
                 contentUpdate: null,
                 fileIds: [entity2Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3840,14 +3842,14 @@ test("will send share notification messages separately to each account", async (
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("quxbaz"),
                 contentUpdate: null,
                 fileIds: [entity2Id],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3981,14 +3983,14 @@ test("processing send share notification message job is idempotent", async () =>
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -3999,14 +4001,14 @@ test("processing send share notification message job is idempotent", async () =>
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -4060,14 +4062,14 @@ test("processing send share notification message job is idempotent", async () =>
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -4078,14 +4080,14 @@ test("processing send share notification message job is idempotent", async () =>
             spaceId: space.id,
             authorId: session1.account.id,
             createdTime: expect.any(Date),
-            payload: {
+            payload: expect.objectContaining({
                 type: "Content",
                 parent: null,
                 content: createSimpleMessageContent("foobar"),
                 contentUpdate: null,
                 fileIds: [entityId],
                 clerical: {type: "ShareNotification", entityType: "Document"},
-            },
+            }),
         }),
     );
 
@@ -4414,20 +4416,6 @@ testMessagingImplementation<ChatId>(context, {
             createdTime: message.createdTime,
         };
     },
-    async putMessageStreamPart(context, {roomKey: chatId, messageIndex, partIndex, payload}) {
-        await putChatMessageStreamPart(context, {
-            chatId,
-            messageIndex,
-            partIndex,
-            payload,
-        });
-    },
-    async completeMessageStream(context, {roomKey: chatId, messageIndex}) {
-        return completeChatMessageStream(context, {
-            chatId,
-            messageIndex,
-        });
-    },
     async getMessage(context, {roomKey: chatId, messageIndex}) {
         return getChatMessage(context, {chatId, messageIndex});
     },
@@ -4444,6 +4432,35 @@ testMessagingImplementation<ChatId>(context, {
     },
     async deleteMessage(context, {roomKey: chatId, messageIndex}) {
         return deleteChatMessage(context, {chatId, messageIndex});
+    },
+    async putMessageStreamPart(context, {roomKey: chatId, messageIndex, partIndex, payload}) {
+        await putChatMessageStreamPart(context, {
+            chatId,
+            messageIndex,
+            partIndex,
+            payload,
+        });
+    },
+    async completeMessageStream(context, {roomKey: chatId, messageIndex}) {
+        return completeChatMessageStream(context, {
+            chatId,
+            messageIndex,
+        });
+    },
+    async setMessageReaction(
+        context,
+        {roomKey: chatId, messageIndex, contentVersion, pos, reaction},
+    ) {
+        return setChatMessageReaction(context, {
+            chatId,
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    },
+    async deleteMessageReaction(context, {roomKey: chatId, messageIndex, contentVersion, pos}) {
+        return deleteChatMessageReaction(context, {chatId, messageIndex, contentVersion, pos});
     },
     async getMessagesFromStart(
         context,

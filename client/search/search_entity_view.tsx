@@ -1,6 +1,6 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import escapeHtml from "escape-html";
-import {ArrowSquareOut, Link as LinkIcon} from "phosphor-react";
+import {Link as LinkIcon} from "phosphor-react";
 import {Fragment, useMemo} from "react";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
@@ -109,8 +109,6 @@ export function SearchEntityView({
         if (onOpenInPeekStack) {
             firstRightClickContextMenuGroup.push({
                 label: "Open in peek",
-                icon: <ArrowSquareOut />,
-                iconPlacement: "end",
                 pressErrorTitle: "Couldn’t open peek",
                 onPress: onOpenInPeekStack,
             });

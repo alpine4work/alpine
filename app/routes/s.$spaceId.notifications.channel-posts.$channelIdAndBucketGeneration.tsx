@@ -268,6 +268,15 @@ function ChannelPostsRoute() {
                 (postId, update) => setPosts(posts => posts.updatePostComments(postId, update)),
                 [setPosts],
             )}
+            onUpdatePostCommentsOptimistically={useCallback(
+                (postId, promise, update) =>
+                    setPostsOptimistically(promise, (posts, promiseValue) =>
+                        posts.updatePostComments(postId, comments =>
+                            update(comments, promiseValue),
+                        ),
+                    ),
+                [setPostsOptimistically],
+            )}
             onLoadMorePosts={async ({limit}) => {
                 const postsResult = await getInboxChannelPostsEntryPosts(context, {
                     spaceId: space.id,

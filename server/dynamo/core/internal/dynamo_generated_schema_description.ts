@@ -1664,6 +1664,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "referenceId": "ec27ed70"
                                                             },
                                                             "optional": true
+                                                        },
+                                                        "reactionsByPos": {
+                                                            "valueSchema": {
+                                                                "type": "Map",
+                                                                "keySchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "valueSchema": {
+                                                                    "type": "Bytes"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },

@@ -2162,7 +2162,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                       DynamoConditionExpression.from({
                           // Verify that the lock version was not changed by a concurrent writer.
                           updateLockVersion:
-                              typeof item.updateLockVersion === "number"
+                              typeof item.updateLockVersion === "number" &&
+                              item.updateLockVersion !== 0
                                   ? DynamoConditionExpression.eq(item.updateLockVersion)
                                   : DynamoConditionExpression.exists().not(),
                       }),
@@ -2244,7 +2245,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // Verify that the lock version was not changed by a concurrent writer.
         const updateLockVersionCondition = DynamoConditionExpression.from<Item>({
             updateLockVersion:
-                typeof item.updateLockVersion === "number"
+                typeof item.updateLockVersion === "number" && item.updateLockVersion !== 0
                     ? DynamoConditionExpression.eq(item.updateLockVersion)
                     : DynamoConditionExpression.exists().not(),
         });
@@ -2382,7 +2383,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // Verify that the lock version was not changed by a concurrent writer.
         const updateLockVersionCondition = DynamoConditionExpression.from({
             updateLockVersion:
-                typeof item.updateLockVersion === "number"
+                typeof item.updateLockVersion === "number" && item.updateLockVersion !== 0
                     ? DynamoConditionExpression.eq(item.updateLockVersion)
                     : DynamoConditionExpression.exists().not(),
         });
@@ -2688,7 +2689,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // Verify that the lock version was not changed by a concurrent writer.
         const updateLockVersionCondition = DynamoConditionExpression.from<Item>({
             updateLockVersion:
-                typeof item.updateLockVersion === "number"
+                typeof item.updateLockVersion === "number" && item.updateLockVersion !== 0
                     ? DynamoConditionExpression.eq(item.updateLockVersion)
                     : DynamoConditionExpression.exists().not(),
         });
@@ -2837,7 +2838,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // Verify that the lock version was not changed by a concurrent writer.
         const updateLockVersionCondition = DynamoConditionExpression.from({
             updateLockVersion:
-                typeof item.updateLockVersion === "number"
+                typeof item.updateLockVersion === "number" && item.updateLockVersion !== 0
                     ? DynamoConditionExpression.eq(item.updateLockVersion)
                     : DynamoConditionExpression.exists().not(),
         });

@@ -1,3 +1,4 @@
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Reaction, getValueByReaction} from "~/shared/reactions/reaction.js";
@@ -91,3 +92,5 @@ export const ReactionSet = createSchemaLazyTransformClass<
         return new Map(map.entries());
     },
 });
+
+export const emptyReactionSet = new ReactionSet(emptyMap);

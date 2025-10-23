@@ -50,7 +50,7 @@ import {
     emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
-import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -298,7 +298,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * All reactions on the post.
                          */
-                        reactions: ReactionSet.schema.default(new ReactionSet(emptyMap)),
+                        reactions: ReactionSet.schema.default(emptyReactionSet),
                     }),
                 },
             ],

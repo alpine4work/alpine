@@ -10,9 +10,11 @@ import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
+    DeleteMessageReactionFunction,
     GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
+    SetMessageReactionFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
@@ -35,9 +37,11 @@ import {
     backfillPostComments,
     createPostComment,
     deletePostComment,
+    deletePostCommentReaction,
     getPostCommentAtVersion,
     getPostCommentReferences,
     getPostRealtimeEvent,
+    setPostCommentReaction,
     updatePostCommentContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
@@ -92,6 +96,8 @@ export class PostRealtimeConnection {
             createMessage,
             updateMessageContent,
             deleteMessage,
+            setMessageReaction,
+            deleteMessageReaction,
             backfillMessages,
             getMessageAtVersion,
             getMessageReferences,
@@ -146,8 +152,23 @@ export class PostRealtimeConnection {
         deleteComment: (context, {commentIndex: messageIndex}) =>
             this._connection.deleteMessage(context, {messageIndex}),
 
+        setCommentReaction: (
+            context,
+            {commentIndex: messageIndex, contentVersion, pos, reaction},
+        ) =>
+            this._connection.setMessageReaction(context, {
+                messageIndex,
+                contentVersion,
+                pos,
+                reaction,
+            }),
+
+        deleteCommentReaction: (context, {commentIndex: messageIndex, contentVersion, pos}) =>
+            this._connection.deleteMessageReaction(context, {messageIndex, contentVersion, pos}),
+
         startTypingInCommentInput: (context, input) =>
             this._connection.startTypingInMessageInput(context, input),
+
         stopTypingInCommentInput: (context, input) =>
             this._connection.stopTypingInMessageInput(context, input),
     };
@@ -245,6 +266,20 @@ const deleteMessage: DeleteMessageFunction<PostId> = (
     return deletePostComment(context, {postId, commentIndex});
 };
 
+const setMessageReaction: SetMessageReactionFunction<PostId> = (
+    context,
+    {roomKey: postId, messageIndex: commentIndex, contentVersion, pos, reaction},
+) => {
+    return setPostCommentReaction(context, {postId, commentIndex, contentVersion, pos, reaction});
+};
+
+const deleteMessageReaction: DeleteMessageReactionFunction<PostId> = (
+    context,
+    {roomKey: postId, messageIndex: commentIndex, contentVersion, pos},
+) => {
+    return deletePostCommentReaction(context, {postId, commentIndex, contentVersion, pos});
+};
+
 const backfillMessages: BackfillMessagesFunction<PostId, PostCommentModel> = async (
     context,
     {
@@ -309,6 +344,7 @@ const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> =
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),
+            reactionsByPos: message.payload.reactionsByPos,
         },
         stream: message.stream,
     });

@@ -11,6 +11,7 @@ import {
     createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {
@@ -118,6 +119,25 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
         deleteComment: {
             input: {
                 commentIndex: Schema.integer,
+            },
+            output: {},
+        },
+
+        setCommentReaction: {
+            input: {
+                commentIndex: Schema.integer,
+                contentVersion: Schema.integer,
+                pos: Schema.integer,
+                reaction: ReactionOrGenericLikeSchema,
+            },
+            output: {},
+        },
+
+        deleteCommentReaction: {
+            input: {
+                commentIndex: Schema.integer,
+                contentVersion: Schema.integer,
+                pos: Schema.integer,
             },
             output: {},
         },

@@ -842,6 +842,26 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * Updates a message with the provided index if the message exists and is
+     * loaded. Does nothing if the message doesn't exist or isn't loaded.
+     *
+     * Won't actually update the message unless the new message's version is
+     * greater than the old message's version.
+     */
+    public updateMessage(
+        messageIndex: number,
+        update: (message: Message) => Message,
+    ): MessageList<Message> {
+        const oldMessage = this.getLoadedMessageIfExists(messageIndex);
+        if (!oldMessage) return this;
+
+        const newMessage = update(oldMessage);
+        if (oldMessage === newMessage) return this;
+
+        return this.setMessage(newMessage);
+    }
+
+    /**
      * Adds an optimistic message to the message list.
      *
      * The optimistic message will be cleared when a new message is added

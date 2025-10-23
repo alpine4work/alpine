@@ -667,6 +667,19 @@ testMessagingRealtimeImplementation<TaskId>(context, {
                     }),
                 deleteMessage: ({messageIndex: commentIndex}) =>
                     connection.procedures.deleteComment({commentIndex}),
+                setMessageReaction: ({messageIndex: commentIndex, contentVersion, pos, reaction}) =>
+                    connection.procedures.setCommentReaction({
+                        commentIndex,
+                        contentVersion,
+                        pos,
+                        reaction,
+                    }),
+                deleteMessageReaction: ({messageIndex: commentIndex, contentVersion, pos}) =>
+                    connection.procedures.deleteCommentReaction({
+                        commentIndex,
+                        contentVersion,
+                        pos,
+                    }),
                 startTypingInMessageInput: ({}) =>
                     connection.procedures.startTypingInCommentInput({}),
                 stopTypingInMessageInput: ({}) =>

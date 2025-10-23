@@ -20,6 +20,7 @@ import {
 } from "~/shared/messaging/message_references.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -212,6 +213,33 @@ export const deleteTaskComment = defineRpc({
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const setTaskCommentReaction = defineRpc({
+    name: "setTaskCommentReaction",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
+        reaction: ReactionOrGenericLikeSchema,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const deleteTaskCommentReaction = defineRpc({
+    name: "deleteTaskCommentReaction",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
     },
     output: {
         version: Schema.integer,

@@ -95,6 +95,7 @@ import {
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prosemirror_nodes_equal_except_text.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -622,11 +623,15 @@ export function ContentView<Content extends ContentWithReferences>({
 
         if (
             !previousHtmlGenerator ||
-            // Force the content HTML to be re-created if `content.doc` changes. If content
-            // changes dramatically then `patchNode()` has some limitations (e.g. doesn't
-            // handle children insertion, removal, and re-ordering well). For all other
-            // changes try patching our HTML.
-            previousContentDoc !== content.doc
+            // Force the content HTML to be re-created if the structure of `content.doc`
+            // changes between renders. If content changes dramatically then `patchNode()`
+            // has some limitations (e.g. doesn't handle children insertion, removal, and
+            // re-ordering well). For all other changes try patching our HTML.
+            //
+            // Ideally we'd always use `patchNode()` to update the DOM so we don't destroy
+            // and re-create DOM nodes if we don't have to but we can't trust our
+            // implementation of `patchNode()` at the moment.
+            !areProsemirrorNodesEqualExceptText(previousContentDoc, content.doc)
         ) {
             // This case happens during a hot reload. We need to remove the children
             // currently in the DOM.

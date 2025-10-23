@@ -40,6 +40,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {withoutClearSelectionOnMouseDownClassName} from "~/client/styles/styles.js";
 import {
     ParsableRemLength,
     RemLength,
@@ -1009,6 +1010,19 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
         return (
             <Box
                 ref={elementRef}
+                // Don't clear the selection when clicking on a blocking overlay cover. Two
+                // cases where this is important:
+                //
+                // 1. If you've right clicked on some text (outside a `<ContentEditor>`) then
+                //    you click to dismiss the right click menu. We should keep the text
+                //    selected. For example, if the text was in a post when the right click
+                //    menu closes the `<MessageViewPointerToolbar>` should appear.
+                //
+                // 2. When you click on the reaction button in `<MessageViewPointerToolbar>`
+                //    then click outside `<ReactionRadialPicker>` to close the radial picker we
+                //    should leave the text selected so the `<MessageViewPointerToolbar>` stays
+                //    visible.
+                className={withoutClearSelectionOnMouseDownClassName}
                 position="absolute"
                 top="0"
                 left="0"
@@ -1039,6 +1053,19 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
         return (
             <Box
                 ref={elementRef}
+                // Don't clear the selection when clicking on a blocking overlay cover. Two
+                // cases where this is important:
+                //
+                // 1. If you've right clicked on some text (outside a `<ContentEditor>`) then
+                //    you click to dismiss the right click menu. We should keep the text
+                //    selected. For example, if the text was in a post when the right click
+                //    menu closes the `<MessageViewPointerToolbar>` should appear.
+                //
+                // 2. When you click on the reaction button in `<MessageViewPointerToolbar>`
+                //    then click outside `<ReactionRadialPicker>` to close the radial picker we
+                //    should leave the text selected so the `<MessageViewPointerToolbar>` stays
+                //    visible.
+                className={withoutClearSelectionOnMouseDownClassName}
                 pointerEvents="none"
                 position="absolute"
                 top="0"

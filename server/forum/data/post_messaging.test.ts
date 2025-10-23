@@ -10,6 +10,7 @@ import {
     completePostCommentStream,
     createPostComment,
     deletePostComment,
+    deletePostCommentReaction,
     getPostComment,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
@@ -17,6 +18,7 @@ import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     putPostCommentStreamPart,
+    setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
@@ -182,6 +184,29 @@ testMessagingImplementation<PostId>(context, {
     },
     async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
         return deletePostComment(context, {postId, commentIndex});
+    },
+    async setMessageReaction(
+        context,
+        {roomKey: postId, messageIndex: commentIndex, contentVersion, pos, reaction},
+    ) {
+        return setPostCommentReaction(context, {
+            postId,
+            commentIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    },
+    async deleteMessageReaction(
+        context,
+        {roomKey: postId, messageIndex: commentIndex, contentVersion, pos},
+    ) {
+        return deletePostCommentReaction(context, {
+            postId,
+            commentIndex,
+            contentVersion,
+            pos,
+        });
     },
     async getMessagesFromStart(
         context,

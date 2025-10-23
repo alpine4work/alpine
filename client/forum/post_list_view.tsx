@@ -57,6 +57,10 @@ import {MessageListMessageShimmer} from "~/client/messaging/message_list_message
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {MessagingViewPointerToolbar} from "~/client/messaging/messaging_view_pointer_toolbar.js";
+import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+} from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {
     JumpToMessageRangeOptions,
@@ -172,6 +176,7 @@ function PostListView(
         posts: postsWithoutHeader,
         onTogglePostComments,
         onUpdatePostComments,
+        onUpdatePostCommentsOptimistically,
         onLoadMorePosts,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
@@ -211,6 +216,21 @@ function PostListView(
                 postId: PostId,
                 update: (
                     postComments: MessageList<PostCommentModel>,
+                ) => MessageList<PostCommentModel>,
+            ) => void
+        >;
+
+        /**
+         * Arbitrarily update the comments for a post optimistically. If the promise
+         * rejects then we undo the optimistic update.
+         */
+        onUpdatePostCommentsOptimistically: Memo<
+            <PromiseValue>(
+                postId: PostId,
+                promise: Promise<PromiseValue>,
+                update: (
+                    postComments: MessageList<PostCommentModel>,
+                    promiseValue: PromiseValue | undefined,
                 ) => MessageList<PostCommentModel>,
             ) => void
         >;
@@ -1080,6 +1100,32 @@ function PostListView(
         );
     }, [routeLayout]);
 
+    const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<PostId>> = useCallback(
+        async (postId, {messageIndex, ...input}) => {
+            const procedures = proceduresByPostIdRef.current.get(postId);
+            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
+
+            await procedures.setCommentReaction({
+                commentIndex: messageIndex,
+                ...input,
+            });
+        },
+        [],
+    );
+
+    const handleDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<PostId>> = useCallback(
+        async (postId, {messageIndex, ...input}) => {
+            const procedures = proceduresByPostIdRef.current.get(postId);
+            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
+
+            await procedures.deleteCommentReaction({
+                commentIndex: messageIndex,
+                ...input,
+            });
+        },
+        [],
+    );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
@@ -1368,6 +1414,11 @@ function PostListView(
                                             window.location.href,
                                         );
                                     }}
+                                    onSetMessageReaction={handleSetMessageReaction}
+                                    onDeleteMessageReaction={handleDeleteMessageReaction}
+                                    onUpdateMessagesOptimistically={
+                                        onUpdatePostCommentsOptimistically
+                                    }
                                     roomDisplayedCreatedTime={item.post.createdTime}
                                     // You shouldn't be able to edit, delete, or reply to comments if you don't
                                     // have `Comment` access on the post.
@@ -1785,6 +1836,9 @@ function PostListView(
             jumpToMessageRangeState,
             jumpToMessageRange,
             jumpToPostRange,
+            handleSetMessageReaction,
+            handleDeleteMessageReaction,
+            onUpdatePostCommentsOptimistically,
             header,
             inputParentByPostId,
             inputRefByPostId,
@@ -1798,6 +1852,7 @@ function PostListView(
     const messagingPointerToolbar = (
         <MessagingViewPointerToolbar<PostId, PostCommentModel>
             viewRef={viewRef}
+            messageNoun="comment"
             getMessagesByRoomKey={useCallback(
                 (postId: string) => posts.getPostByIdIfExists(postId)?.postComments ?? null,
                 [posts],
@@ -1878,6 +1933,9 @@ function PostListView(
                     return newInputParentByPostId;
                 });
             }}
+            onSetMessageReaction={handleSetMessageReaction}
+            onDeleteMessageReaction={handleDeleteMessageReaction}
+            onUpdateMessagesOptimistically={onUpdatePostCommentsOptimistically}
         />
     );
 

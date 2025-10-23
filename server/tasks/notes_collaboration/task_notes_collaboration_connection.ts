@@ -10,9 +10,11 @@ import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
+    DeleteMessageReactionFunction,
     GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
+    SetMessageReactionFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
@@ -48,9 +50,11 @@ import {
     backfillTaskComments,
     createTaskComment,
     deleteTaskComment,
+    deleteTaskCommentReaction,
     getTaskCommentAtVersion,
     getTaskCommentReferences,
     getTaskNotesContentReferences,
+    setTaskCommentReaction,
     updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -130,6 +134,8 @@ export class TaskNotesCollaborationConnection {
             createMessage,
             updateMessageContent,
             deleteMessage,
+            setMessageReaction,
+            deleteMessageReaction,
             backfillMessages,
             getMessageAtVersion,
             getMessageReferences,
@@ -286,8 +292,27 @@ export class TaskNotesCollaborationConnection {
         deleteComment: (context, {commentIndex: messageIndex}) =>
             this._messagingConnection.deleteMessage(context, {messageIndex}),
 
+        setCommentReaction: (
+            context,
+            {commentIndex: messageIndex, contentVersion, pos, reaction},
+        ) =>
+            this._messagingConnection.setMessageReaction(context, {
+                messageIndex,
+                contentVersion,
+                pos,
+                reaction,
+            }),
+
+        deleteCommentReaction: (context, {commentIndex: messageIndex, contentVersion, pos}) =>
+            this._messagingConnection.deleteMessageReaction(context, {
+                messageIndex,
+                contentVersion,
+                pos,
+            }),
+
         startTypingInCommentInput: (context, input) =>
             this._messagingConnection.startTypingInMessageInput(context, input),
+
         stopTypingInCommentInput: (context, input) =>
             this._messagingConnection.stopTypingInMessageInput(context, input),
 
@@ -415,6 +440,20 @@ const deleteMessage: DeleteMessageFunction<TaskId> = (
     return deleteTaskComment(context, {taskId, commentIndex});
 };
 
+const setMessageReaction: SetMessageReactionFunction<TaskId> = (
+    context,
+    {roomKey: taskId, messageIndex: commentIndex, contentVersion, pos, reaction},
+) => {
+    return setTaskCommentReaction(context, {taskId, commentIndex, contentVersion, pos, reaction});
+};
+
+const deleteMessageReaction: DeleteMessageReactionFunction<TaskId> = (
+    context,
+    {roomKey: taskId, messageIndex: commentIndex, contentVersion, pos},
+) => {
+    return deleteTaskCommentReaction(context, {taskId, commentIndex, contentVersion, pos});
+};
+
 const backfillMessages: BackfillMessagesFunction<TaskId, TaskCommentModel> = async (
     context,
     {
@@ -479,6 +518,7 @@ const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> =
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),
+            reactionsByPos: message.payload.reactionsByPos,
         },
         stream: message.stream,
     });

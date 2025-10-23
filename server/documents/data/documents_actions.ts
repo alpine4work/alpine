@@ -133,6 +133,7 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
@@ -147,6 +148,9 @@ import {
     FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
+import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
+import {computeUpdateMessageContentReactions} from "~/shared/messaging/compute_update_message_content_reactions.js";
 import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -164,6 +168,7 @@ import {
     AddMarksAfterRemoveAllStepRange,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
@@ -3159,6 +3164,7 @@ export async function updateDocumentContent(
                             content: createCommentThread.initialCommentContent,
                             contentUpdate: null,
                             fileIds: createCommentThread.initialCommentFileIds,
+                            reactionsByPos: emptyMap,
                         },
                     },
                     {
@@ -4536,6 +4542,7 @@ export async function createDocumentComment(
                     contentUpdate: null,
                     fileIds,
                     clerical: isStream ? {type: "Stream"} : undefined,
+                    reactionsByPos: emptyMap,
                 },
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
@@ -5241,6 +5248,11 @@ export function updateDocumentCommentContent(
                 ...commentItem.payload,
                 content,
                 contentUpdate,
+                reactionsByPos: computeUpdateMessageContentReactions({
+                    oldPayload: commentItem.payload,
+                    newContent: content,
+                    mapping,
+                }),
             },
         });
 
@@ -5392,6 +5404,151 @@ export function deleteDocumentComment(
         return {
             version: transactionEntry.newItem.updateLockVersion ?? 0,
             deletedTime,
+        };
+    });
+}
+
+export function setDocumentCommentReaction(
+    context: ServerAccountActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        contentVersion,
+        pos,
+        reaction,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        contentVersion: number;
+        pos: number;
+        reaction: Reaction | "GenericLike";
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [, commentItem] = await runAllPromises([
+            authorizeDocumentAccess(context, documentId, "Comment"),
+            getDocumentCommentItemIfExistsWithoutAuthorization(
+                context,
+                documentId,
+                commentThreadId,
+                commentIndex,
+            ),
+        ]);
+        if (!commentItem) throw new NotFoundError("Document comment not found");
+
+        const currentTime = new Date();
+
+        const newPayload = computeSetMessageReaction({
+            actorAccountId: context.actor.getPossiblyBotAccountId(),
+            message: commentItem,
+            contentVersion,
+            pos,
+            reaction,
+        });
+
+        const transactionEntry = DocumentsTable.transactionDirectlyUpdateItem({
+            ...omitObject(commentItem, ["index", "version"]),
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Comments",
+            documentId,
+            commentThreadId,
+            commentIndex: commentItem.index,
+            updateLockVersion: commentItem.version,
+            payload: newPayload,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
+            DocumentsTable.transactionCreateOrReplaceItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "MessageUpdates",
+                documentId,
+                commentThreadId,
+                eventTime: currentTime,
+                messageIndex: commentItem.index,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(currentTime, messagingEventExpirationDays),
+            }),
+        ]);
+
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+        };
+    });
+}
+
+export function deleteDocumentCommentReaction(
+    context: ServerAccountActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        contentVersion,
+        pos,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        contentVersion: number;
+        pos: number;
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [, commentItem] = await runAllPromises([
+            authorizeDocumentAccess(context, documentId, "Comment"),
+            getDocumentCommentItemIfExistsWithoutAuthorization(
+                context,
+                documentId,
+                commentThreadId,
+                commentIndex,
+            ),
+        ]);
+        if (!commentItem) throw new NotFoundError("Document comment not found");
+
+        const currentTime = new Date();
+
+        const newPayload = computeDeleteMessageReaction({
+            actorAccountId: context.actor.getPossiblyBotAccountId(),
+            message: commentItem,
+            contentVersion,
+            pos,
+        });
+
+        const transactionEntry = DocumentsTable.transactionDirectlyUpdateItem({
+            ...omitObject(commentItem, ["index", "version"]),
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Comments",
+            documentId,
+            commentThreadId,
+            commentIndex: commentItem.index,
+            updateLockVersion: commentItem.version,
+            payload: newPayload,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `commentIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
+            DocumentsTable.transactionCreateOrReplaceItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "MessageUpdates",
+                documentId,
+                commentThreadId,
+                eventTime: currentTime,
+                messageIndex: commentItem.index,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(currentTime, messagingEventExpirationDays),
+            }),
+        ]);
+
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
         };
     });
 }

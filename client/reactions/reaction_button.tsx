@@ -1,5 +1,5 @@
 import {ThumbsUp} from "phosphor-react";
-import {useRef, useState} from "react";
+import {ReactElement, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
@@ -36,6 +36,81 @@ export function ReactionButton({
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: () => void;
 }) {
+    return (
+        <ReactionButtonBase
+            reactions={reactions}
+            onSetReaction={onSetReaction}
+            onDeleteReaction={onDeleteReaction}
+        >
+            {({currentAccountReaction, isMouseDownFromOverlayOpen}) => (
+                <Button
+                    variant="quietest"
+                    isPressed={isMouseDownFromOverlayOpen}
+                    height={postContentViewFooterButtonHeight}
+                    paddingX="1.5"
+                    icon={({isPressed}) => (
+                        <ReactionButtonIcon
+                            currentAccountReaction={currentAccountReaction}
+                            isPressed={isPressed}
+                        />
+                    )}
+                >
+                    <span style={{fontVariantNumeric: "tabular-nums"}}>
+                        <PrettyNumber number={reactions.get().size} />
+                    </span>
+                </Button>
+            )}
+        </ReactionButtonBase>
+    );
+}
+
+export function ReactionButtonIcon({
+    currentAccountReaction,
+    isPressed,
+}: {
+    currentAccountReaction: Reaction | "GenericLike" | undefined;
+    isPressed: boolean;
+}) {
+    return currentAccountReaction === "GenericLike" ? (
+        <Box
+            color={isPressed ? {light: "theme-60-const", dark: "theme-40-const"} : "theme-50-const"}
+        >
+            <ThumbsUpFill2Icon
+                size={spacing[postContentViewFooterButtonIconSize]}
+                color="currentColor"
+            />
+        </Box>
+    ) : currentAccountReaction !== undefined ? (
+        <Box
+            position="relative"
+            width={postContentViewFooterButtonIconSize}
+            height={postContentViewFooterButtonIconSize}
+        >
+            <Box position="absolute" top="-1.5" left="-1" right="-1" bottom="-1">
+                <ReactionIcon reaction={currentAccountReaction} size="full" />
+            </Box>
+        </Box>
+    ) : (
+        <ThumbsUp size={spacing[postContentViewFooterButtonIconSize]} />
+    );
+}
+
+export function ReactionButtonBase({
+    reactions,
+    onSetReaction,
+    onDeleteReaction,
+    withoutButtonElementRequirement,
+    children,
+}: {
+    reactions: ReactionSet;
+    onSetReaction: (reaction: Reaction | "GenericLike") => void;
+    onDeleteReaction: () => void;
+    withoutButtonElementRequirement?: boolean;
+    children: (props: {
+        currentAccountReaction: Reaction | "GenericLike" | undefined;
+        isMouseDownFromOverlayOpen: boolean;
+    }) => ReactElement;
+}) {
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const radialPickerRef = useRef<ReactionRadialPickerRef>(null);
@@ -55,6 +130,7 @@ export function ReactionButton({
             // Don't move the overlay if it's near the container bounds. We position the
             // overlay relative to the button using the cursor position.
             fallbackPlacements={!isMegaPickerOpen ? emptyArray : undefined}
+            withoutButtonElementRequirement={withoutButtonElementRequirement}
             overlay={({isVisible, onCloseWithAnimation, onCloseWithoutAnimation}) => (
                 <Box>
                     {isMegaPickerOpen ? (
@@ -106,7 +182,7 @@ export function ReactionButton({
             onPointerDown={event => {
                 const spacingScale = getSpacingScaleWithoutListening();
 
-                assert(event.currentTarget instanceof HTMLButtonElement);
+                assert(event.currentTarget instanceof HTMLElement);
                 const buttonElement = event.currentTarget;
                 const buttonRect = buttonElement.getBoundingClientRect();
 
@@ -132,42 +208,7 @@ export function ReactionButton({
                 }
             }}
         >
-            <Button
-                variant="quietest"
-                isPressed={isMouseDownFromOverlayOpen}
-                height={postContentViewFooterButtonHeight}
-                paddingX="1.5"
-                icon={({isPressed}) =>
-                    currentAccountReaction === "GenericLike" ? (
-                        <Box
-                            color={
-                                isPressed
-                                    ? {light: "theme-60-const", dark: "theme-40-const"}
-                                    : "theme-50-const"
-                            }
-                        >
-                            <ThumbsUpFill2Icon
-                                size={spacing[postContentViewFooterButtonIconSize]}
-                            />
-                        </Box>
-                    ) : currentAccountReaction !== undefined ? (
-                        <Box
-                            width={postContentViewFooterButtonIconSize}
-                            height={postContentViewFooterButtonIconSize}
-                        >
-                            <Box position="absolute" inset="-1">
-                                <ReactionIcon reaction={currentAccountReaction} size="full" />
-                            </Box>
-                        </Box>
-                    ) : (
-                        <ThumbsUp size={spacing[postContentViewFooterButtonIconSize]} />
-                    )
-                }
-            >
-                <span style={{fontVariantNumeric: "tabular-nums"}}>
-                    <PrettyNumber number={reactions.get().size} />
-                </span>
-            </Button>
+            {children({currentAccountReaction, isMouseDownFromOverlayOpen})}
         </OverlayTriggerButton>
     );
 }

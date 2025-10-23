@@ -34,6 +34,7 @@ import {
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -262,6 +263,35 @@ export const deleteDocumentComment = defineRpc({
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         commentIndex: Schema.integer,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const setDocumentCommentReaction = defineRpc({
+    name: "setDocumentCommentReaction",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        commentIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
+        reaction: ReactionOrGenericLikeSchema,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const deleteDocumentCommentReaction = defineRpc({
+    name: "deleteDocumentCommentReaction",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        commentIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
     },
     output: {
         version: Schema.integer,

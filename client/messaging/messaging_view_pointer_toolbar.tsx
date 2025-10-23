@@ -1,18 +1,36 @@
 import {useHover, usePress} from "@react-aria/interactions";
 import classNames from "classnames";
 import {ArrowArcRight, IconContext} from "phosphor-react";
-import {Memo, ReactNode, RefObject, useEffect, useRef, useState} from "react";
+import {Memo, ReactNode, Ref, RefObject, forwardRef, useEffect, useRef, useState} from "react";
 import {mergeProps} from "react-aria";
+import {flushSync} from "react-dom";
 import {getContentViewPosFromDom} from "~/client/content/get_content_view_pos_from_dom.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {
+    subscribeToTriggeredOverlayCloseEvent,
+    subscribeToTriggeredOverlayOpenEvent,
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
+import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {getSelectionStartNodeAndEndNode} from "~/client/helpers/get_selection_start_node_and_end_node.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {isMessagingViewPointerToolbarAnimationOutDisabled} from "~/client/messaging/internal/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
+import {useMessagingViewToolbarReactionState} from "~/client/messaging/internal/use_messaging_view_toolbar_reaction_state.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+    deleteMessageReactionWithOptimisticUpdate,
+    setMessageReactionWithOptimisticUpdate,
+} from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
+import {ReactionButtonBase, ReactionButtonIcon} from "~/client/reactions/reaction_button.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
     messagingStyles,
     sprinkles,
@@ -23,32 +41,56 @@ import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.
 import {spacing} from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
+import {finallyMaybePromise} from "~/shared/helpers/async/finally_maybe_promise.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContentPayloadMessagesRangeParent,
+    MessageContentPayloadParent,
+    MessageContentPayloadPostRangeParent,
+} from "~/shared/messaging/message_schema.js";
 
 export function MessagingViewPointerToolbar<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 >({
     viewRef,
+    messageNoun,
     getMessagesByRoomKey,
     getPostByRoomKey = null,
     onReplyToMessagesRange,
+    onSetMessageReaction,
+    onDeleteMessageReaction,
+    onUpdateMessagesOptimistically,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
+    messageNoun: string;
     getMessagesByRoomKey: Memo<(roomKey: string) => MessageList<Message> | null>;
     getPostByRoomKey?: Memo<(roomKey: string) => PostModel | null> | null;
     onReplyToMessagesRange: (
         roomKey: RoomKey,
         parent: Extract<MessageContentPayloadParent, {type: "MessagesRange" | "PostRange"}>,
     ) => MaybePromise<void>;
+    onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
+    onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
+    onUpdateMessagesOptimistically: Memo<
+        <PromiseValue>(
+            roomKey: RoomKey,
+            promise: Promise<PromiseValue>,
+            update: (
+                messages: MessageList<Message>,
+                promiseValue: PromiseValue | undefined,
+            ) => MessageList<Message>,
+        ) => void
+    >;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const platform = usePlatform();
+    const reporter = useReporter();
+    const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const isContextMenuOpen = useIsContextMenuOpen();
 
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -73,12 +115,14 @@ export function MessagingViewPointerToolbar<
             if (event?.type !== "selectionchange") {
                 setState(state);
             } else {
+                const disableAnimationOut = isMessagingViewPointerToolbarAnimationOutDisabled();
+
                 setState(previousState => {
                     if (!state) {
                         if (!previousState) {
                             return previousState;
                         } else {
-                            return {...previousState, isVisible: false};
+                            return {...previousState, isVisible: false, disableAnimationOut};
                         }
                     } else {
                         return state;
@@ -96,6 +140,11 @@ export function MessagingViewPointerToolbar<
             window.removeEventListener("resize", handleSelectionChange);
         };
     }, [getMessagesByRoomKey, getPostByRoomKey, isInitialAppRender, platform, viewRef]);
+
+    const reactionState = useMessagingViewToolbarReactionState({
+        state,
+        getMessagesByRoomKey,
+    });
 
     // NOTE(calebmer): This state is copied from `<ContentEditorPointerToolbar>`.
     {
@@ -217,9 +266,28 @@ export function MessagingViewPointerToolbar<
     // Don't show toolbar if context menu is open.
     if (isContextMenuOpen) return null;
 
+    const hideToolbar = () => {
+        // Immediately hide the toolbar without animation after the reply to message
+        // range call finishes.
+        flushSync(() => {
+            setState({
+                ...state,
+                isVisible: false,
+                disableAnimationOut: true,
+            });
+        });
+
+        // Remove the selection immediately in the same frame we close the pointer
+        // toolbar (closing the pointer toolbar will be this frame because we used
+        // `flushSync()` above). Instead of waiting for the message input to be focused
+        // (which may be rendered on another frame).
+        window.getSelection()?.removeAllRanges();
+    };
+
     return (
         <OverlayAnimated
             isVisible={state.isVisible}
+            disableAnimationOut={state.disableAnimationOut}
             placement="top-start"
             // The pointer toolbar needs to flip to the bottom if it would otherwise
             // conflict with the navigation bar. For example, try opening a post view on
@@ -231,6 +299,7 @@ export function MessagingViewPointerToolbar<
             overlay={
                 <Box
                     ref={toolbarRef}
+                    display="flex"
                     pointerEvents={!state.isVisible ? "none" : undefined}
                     color="grey-100"
                     backgroundColor="grey-0"
@@ -246,10 +315,75 @@ export function MessagingViewPointerToolbar<
                     )}
                 >
                     <MessagingViewPointerToolbarButton
+                        dividerRight={reactionState !== null}
                         icon={<ArrowArcRight />}
                         label="Reply"
-                        onPress={() => onReplyToMessagesRange(state.roomKey, state.parent)}
+                        onPress={() => {
+                            const promise = onReplyToMessagesRange(state.roomKey, state.parent);
+                            return finallyMaybePromise(promise, hideToolbar);
+                        }}
                     />
+                    {reactionState !== null && (
+                        <ReactionButtonBase
+                            withoutButtonElementRequirement={true}
+                            reactions={reactionState.reactions}
+                            onSetReaction={reaction => {
+                                setMessageReactionWithOptimisticUpdate({
+                                    reporter,
+                                    currentAccountId: currentAccount.id,
+                                    messageNoun,
+                                    roomKey: reactionState.roomKey,
+                                    messageIndex: reactionState.messageIndex,
+                                    contentVersion: reactionState.contentVersion,
+                                    pos: reactionState.pos,
+                                    reaction,
+                                    onSetMessageReaction,
+                                    onUpdateMessagesOptimistically,
+                                });
+
+                                // Hide the toolbar after setting/deleting a reaction. Since it's hard to
+                                // preserve selection state after we re-render
+                                // `<ContentViewWithReactionParties>` which splits apart `<ContentView>`s. It's
+                                // easier to change your reaction in the reaction party anyway.
+                                hideToolbar();
+                            }}
+                            onDeleteReaction={() => {
+                                deleteMessageReactionWithOptimisticUpdate({
+                                    reporter,
+                                    currentAccountId: currentAccount.id,
+                                    messageNoun,
+                                    roomKey: reactionState.roomKey,
+                                    messageIndex: reactionState.messageIndex,
+                                    contentVersion: reactionState.contentVersion,
+                                    pos: reactionState.pos,
+                                    onDeleteMessageReaction,
+                                    onUpdateMessagesOptimistically,
+                                });
+
+                                // Hide the toolbar after setting/deleting a reaction. Since it's hard to
+                                // preserve selection state after we re-render
+                                // `<ContentViewWithReactionParties>` which splits apart `<ContentView>`s. It's
+                                // easier to change your reaction in the reaction party anyway.
+                                hideToolbar();
+                            }}
+                        >
+                            {({currentAccountReaction, isMouseDownFromOverlayOpen}) => (
+                                <MessagingViewPointerToolbarButton
+                                    dividerLeft
+                                    icon={
+                                        <ReactionButtonIcon
+                                            currentAccountReaction={currentAccountReaction}
+                                            isPressed={isMouseDownFromOverlayOpen}
+                                        />
+                                    }
+                                    label={
+                                        <PrettyNumber number={reactionState.reactions.get().size} />
+                                    }
+                                    isPressed={isMouseDownFromOverlayOpen}
+                                />
+                            )}
+                        </ReactionButtonBase>
+                    )}
                 </Box>
             }
         >
@@ -267,30 +401,35 @@ export function MessagingViewPointerToolbar<
     );
 }
 
-function MessagingViewPointerToolbarButton({
-    icon,
-    label,
-    dividerLeft,
-    dividerRight,
-    onPress,
-}: {
-    icon: ReactNode;
-    label: string;
-    dividerLeft?: boolean;
-    dividerRight?: boolean;
-    onPress: () => MaybePromise<void>;
-}) {
+const MessagingViewPointerToolbarButton = forwardRef(function MessagingViewPointerToolbarButton(
+    {
+        icon,
+        label,
+        dividerLeft,
+        dividerRight,
+        isPressed: isPressedFromProps = false,
+        onPress,
+    }: {
+        icon: ReactNode;
+        label: ReactNode;
+        dividerLeft?: boolean;
+        dividerRight?: boolean;
+        isPressed?: boolean;
+        onPress?: () => MaybePromise<void>;
+    },
+    ref: Ref<HTMLDivElement>,
+) {
     const localRef = useRef<HTMLDivElement>(null);
 
     const [isPending, setIsPending] = useState(false);
 
-    const {pressProps, isPressed} = usePress({
+    const {pressProps, isPressed: isPressedFromState} = usePress({
         ref: localRef,
         preventFocusOnPress: true,
         onPress: () => {
             if (isPending) return;
 
-            const result = onPress();
+            const result = onPress?.();
 
             // If `onPress` returns a promise then don't allow another press until the
             // promise is resolved.
@@ -301,12 +440,37 @@ function MessagingViewPointerToolbarButton({
         },
     });
 
+    const isPressed = isPressedFromProps || isPressedFromState;
+
     const {hoverProps, isHovered} = useHover({});
+
+    const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
+
+    // Same logic as `<Button>` for rendering a hovered background while a
+    // triggered overlay is open. Since we may use this button component as the
+    // child of `<ReactionButtonBase>` we need to render a hovered background while
+    // the overlay is open.
+    useEffect(() => {
+        const element = assertExists(localRef.current);
+
+        const handleOverlayOpen = () => setIsTriggeredOverlayOpen(true);
+        const handleOverlayClose = () => setIsTriggeredOverlayOpen(false);
+
+        const unsubscribe1 = subscribeToTriggeredOverlayOpenEvent(element, handleOverlayOpen);
+        const unsubscribe2 = subscribeToTriggeredOverlayCloseEvent(element, handleOverlayClose);
+
+        return () => {
+            unsubscribe1();
+            unsubscribe2();
+        };
+    }, []);
+
+    const isHoveredBackground = isHovered || isTriggeredOverlayOpen;
 
     return (
         <div
             {...mergeProps(pressProps, hoverProps)}
-            ref={localRef}
+            ref={useMergedRefs(ref, localRef)}
             // Disable the ability to focus this icon button! The icon buttons in the
             // selection toolbar are only mouse accessible. They are not keyboard
             // accessible. By being focusable then the button steals focus when you click
@@ -336,7 +500,9 @@ function MessagingViewPointerToolbarButton({
                     paddingY="1"
                     borderRadius="1"
                     color="grey-100"
-                    backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                    backgroundColor={
+                        isPressed ? "grey-10" : isHoveredBackground ? "grey-5" : undefined
+                    }
                 >
                     <IconContext.Provider
                         value={{
@@ -351,10 +517,11 @@ function MessagingViewPointerToolbarButton({
             </Box>
         </div>
     );
-}
+});
 
 type MessagingViewPointerToolbarStateBase = {
     readonly isVisible: boolean;
+    readonly disableAnimationOut: boolean;
     readonly startContentElement: Element;
     readonly startNode: Node;
     readonly startOffset: number;
@@ -418,7 +585,21 @@ function getMessagingViewPointerToolbarStateBase(
 
     let endContentElement = start === "Anchor" ? focusContentElement : anchorContentElement;
 
-    if (endContentElement) {
+    if (
+        endContentElement &&
+        // Only use the current `endNode` if the offset isn't at the very beginning. An
+        // offset at the very beginning of a node isn't really a selection at all.
+        // Chrome does this all the time in its underlying `Selection` format: if you
+        // triple click a paragraph then the selection will end at offset 0 in the NEXT
+        // paragraph. But Chrome renders this selection as if it doesn't extend beyond
+        // the paragraph! `trimSelectionInvisibleExtensionIntoAdjacentNodes()` also has
+        // a good documentation comment explaining this behavior.
+        //
+        // So if we have an `endOffset` of 0 we want to go into the `else` branch below
+        // which searches backwards for a selectable text node and treats the selection
+        // as ending there.
+        endOffset > 0
+    ) {
         // Make sure the element exists and that it's not inside a different messaging
         // view rendered on the page.
         if (!offsetParent.contains(endContentElement)) return null;
@@ -447,8 +628,8 @@ function getMessagingViewPointerToolbarStateBase(
                 ) {
                     endNode = previousNode;
                     endOffset = previousNode.data.length;
+                    break;
                 }
-                break;
             }
             previousNode = previousLeafNode(previousNode);
         }
@@ -466,8 +647,12 @@ function getMessagingViewPointerToolbarStateBase(
     const range = document.createRange();
 
     if (startNode instanceof Text) {
+        // We select one character so that if we have a selection at the start of a
+        // wrapped line we get the position of the character on that wrapped line. If
+        // our range is zero-width then we get a position that's split between the end
+        // of the previous line and the start of the next line.
         range.setStart(startNode, startOffset);
-        range.setEnd(startNode, startOffset);
+        range.setEnd(startNode, startOffset + 1);
     }
     // If `startNode` is not a text node then find the first selectable text node
     // after `startNode` for our `range` which we use to compute the pointer
@@ -486,8 +671,8 @@ function getMessagingViewPointerToolbarStateBase(
                 ) {
                     range.setStart(nextNode, 0);
                     range.setEnd(nextNode, 0);
+                    break;
                 }
-                break;
             }
             nextNode = nextLeafNode(nextNode);
         }
@@ -499,7 +684,7 @@ function getMessagingViewPointerToolbarStateBase(
     let clientRects = Array.from(range.getClientRects());
 
     if (endNode instanceof Text) {
-        range.setStart(endNode, endOffset);
+        range.setStart(endNode, endOffset - 1);
         range.setEnd(endNode, endOffset);
     }
     // If `startNode` is not a text node then find the first selectable text node
@@ -523,8 +708,8 @@ function getMessagingViewPointerToolbarStateBase(
                 ) {
                     range.setStart(previousNode, previousNode.data.length);
                     range.setEnd(previousNode, previousNode.data.length);
+                    break;
                 }
-                break;
             }
             previousNode = previousLeafNode(previousNode);
         }
@@ -575,6 +760,7 @@ function getMessagingViewPointerToolbarStateBase(
 
     return {
         isVisible: true,
+        disableAnimationOut: false,
         startContentElement,
         startNode,
         startOffset,
@@ -636,13 +822,12 @@ function previousLeafNode(node: Node): Node | null {
     return null;
 }
 
-type MessagingViewPointerToolbarState<RoomKey extends string> =
+export type MessagingViewPointerToolbarState<RoomKey extends string> =
     MessagingViewPointerToolbarStateBase & {
         readonly roomKey: RoomKey;
-        readonly parent: Extract<
-            MessageContentPayloadParent,
-            {type: "MessagesRange" | "PostRange"}
-        >;
+        readonly parent:
+            | MessageContentPayloadMessagesRangeParent
+            | MessageContentPayloadPostRangeParent;
     };
 
 function getMessagingViewPointerToolbarState<

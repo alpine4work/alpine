@@ -793,28 +793,26 @@ export default function SpaceLayoutRoute() {
             <ContentFileEntityRenderersContext.Provider value={contentFileEntityRenderers}>
                 <GlobalLoadingIndicatorContextProvider>
                     {globalLoadingIndicator => (
-                        <ContextMenuContextProvider>
-                            <SpaceContextProvider
-                                initialSpace={loaderData.space}
-                                currentAccount={
+                        <SpaceContextProvider
+                            initialSpace={loaderData.space}
+                            currentAccount={
+                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
+                            }
+                            currentAccountWithoutSpace={
+                                loaderData.type === "WithAccess"
+                                    ? loaderData.currentAccount
+                                    : loaderData.currentAccountWithoutSpace
+                            }
+                        >
+                            <TaskRealtimeClientContextProvider
+                                spaceId={spaceId}
+                                currentAccountId={
                                     loaderData.type === "WithAccess"
-                                        ? loaderData.currentAccount
-                                        : null
-                                }
-                                currentAccountWithoutSpace={
-                                    loaderData.type === "WithAccess"
-                                        ? loaderData.currentAccount
-                                        : loaderData.currentAccountWithoutSpace
+                                        ? loaderData.currentAccount.id
+                                        : loaderData.currentAccountWithoutSpace?.id ?? null
                                 }
                             >
-                                <TaskRealtimeClientContextProvider
-                                    spaceId={spaceId}
-                                    currentAccountId={
-                                        loaderData.type === "WithAccess"
-                                            ? loaderData.currentAccount.id
-                                            : loaderData.currentAccountWithoutSpace?.id ?? null
-                                    }
-                                >
+                                <ContextMenuContextProvider>
                                     <PeekStackContextProvider
                                         ref={peekStackRef}
                                         // The peek stack component is responsible for rendering our global loading
@@ -840,9 +838,9 @@ export default function SpaceLayoutRoute() {
                                                 initialInbox={loaderData.inbox}
                                             />
                                         )}
-                                </TaskRealtimeClientContextProvider>
-                            </SpaceContextProvider>
-                        </ContextMenuContextProvider>
+                                </ContextMenuContextProvider>
+                            </TaskRealtimeClientContextProvider>
+                        </SpaceContextProvider>
                     )}
                 </GlobalLoadingIndicatorContextProvider>
                 ,

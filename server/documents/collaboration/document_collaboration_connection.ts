@@ -54,6 +54,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.js";
@@ -78,6 +79,7 @@ import {
     backfillDocumentComments,
     createDocumentComment,
     deleteDocumentComment,
+    deleteDocumentCommentReaction,
     getDocumentCommentAtVersion,
     getDocumentCommentReferences,
     getDocumentCommentThreadAndInitialCommentsIfExists,
@@ -86,6 +88,7 @@ import {
     getDocumentPreviewIfExists,
     getOptimisticDocumentCommentReferences,
     getResolvedDocumentCommentThreadRanges,
+    setDocumentCommentReaction,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
@@ -512,6 +515,31 @@ export class DocumentCollaborationConnection {
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
             return connection.deleteMessage(context, {messageIndex});
+        },
+
+        setCommentReaction: async (
+            context,
+            {commentThreadId, commentIndex: messageIndex, contentVersion, pos, reaction},
+        ) => {
+            this._authorizeCommentAccess();
+
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+            return connection.setMessageReaction(context, {
+                messageIndex,
+                contentVersion,
+                pos,
+                reaction,
+            });
+        },
+
+        deleteCommentReaction: async (
+            context,
+            {commentThreadId, commentIndex: messageIndex, contentVersion, pos},
+        ) => {
+            this._authorizeCommentAccess();
+
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+            return connection.deleteMessageReaction(context, {messageIndex, contentVersion, pos});
         },
 
         startTypingInCommentInput: async (context, input) => {
@@ -995,6 +1023,57 @@ export class DocumentCollaborationConnection {
 
                 return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
             },
+            setMessageReaction: async (
+                context,
+                {roomKey, messageIndex: commentIndex, contentVersion, pos, reaction},
+            ) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // Wait for our optimistic comment thread to persist before talking to
+                // the database.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
+                if (optimisticCommentThread) {
+                    await context.tracer.withSpan(
+                        "Waiting for comment thread to persist",
+                        () => optimisticCommentThread.persistedPromise,
+                    );
+                }
+
+                return setDocumentCommentReaction(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    contentVersion,
+                    pos,
+                    reaction,
+                });
+            },
+            deleteMessageReaction: async (
+                context,
+                {roomKey, messageIndex: commentIndex, contentVersion, pos},
+            ) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // Wait for our optimistic comment thread to persist before talking to
+                // the database.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
+                if (optimisticCommentThread) {
+                    await context.tracer.withSpan(
+                        "Waiting for comment thread to persist",
+                        () => optimisticCommentThread.persistedPromise,
+                    );
+                }
+
+                return deleteDocumentCommentReaction(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    contentVersion,
+                    pos,
+                });
+            },
             backfillMessages: async (
                 context,
                 {
@@ -1122,6 +1201,7 @@ export class DocumentCollaborationConnection {
                 },
                 contentUpdate: null,
                 files,
+                reactionsByPos: emptyMap,
             },
             stream: null,
         });
@@ -1192,6 +1272,7 @@ const createMessageModel: CreateMessageModelFunction<
             files: message.payload.fileIds.map(fileId =>
                 assertExists(references.fileById.get(fileId)),
             ),
+            reactionsByPos: message.payload.reactionsByPos,
         },
         stream: message.stream,
     });

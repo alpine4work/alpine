@@ -133,6 +133,15 @@ export function PostView({
                 },
                 [setPosts],
             )}
+            onUpdatePostCommentsOptimistically={useCallback(
+                (postId, promise, update) =>
+                    setPostsOptimistically(promise, (posts, promiseValue) =>
+                        posts.updatePostComments(postId, comments =>
+                            update(comments, promiseValue),
+                        ),
+                    ),
+                [setPostsOptimistically],
+            )}
             shouldBeConnectedToChannelRealtime={false}
             onPostRealtimeEventTransaction={useCallback(
                 eventTransaction => {

@@ -81,6 +81,34 @@ export const allReactionCharacterVariantsByType: {
 } = mapObjectValues(allReactionCharacters, getObjectKeysWithKeyofType) as any;
 
 /**
+ * Are the two reactions equal to one another?
+ */
+export function areReactionsEqual(
+    reaction1: Reaction | "GenericLike" | undefined,
+    reaction2: Reaction | "GenericLike" | undefined,
+): boolean {
+    if (reaction1 === undefined) {
+        if (reaction2 === undefined) return true;
+        return false;
+    } else if (reaction2 === undefined) {
+        return false;
+    }
+
+    if (reaction1 === "GenericLike") {
+        if (reaction2 === "GenericLike") return true;
+        return false;
+    } else if (reaction2 === "GenericLike") {
+        return false;
+    }
+
+    return (
+        reaction1.character.type === reaction2.character.type &&
+        reaction1.character.variant === reaction2.character.variant &&
+        reaction1.emotion === reaction2.emotion
+    );
+}
+
+/**
  * An exhaustive map that lists each of our reaction characters.
  */
 export type ReactionCharacterMap<Value> = {

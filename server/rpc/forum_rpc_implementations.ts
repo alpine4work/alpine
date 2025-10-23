@@ -20,9 +20,11 @@ import {
     backfillPostComments,
     createPostComment,
     deletePostComment,
+    deletePostCommentReaction,
     getPostCommentAtVersion,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {sendChannelShareNotification} from "~/server/forum/data/send_channel_share_notification.js";
@@ -279,6 +281,20 @@ export default implementRpcs(definitions, {
         visibility: ["PostRealtimeService"],
         execute: (context, input) => {
             return deletePostComment(context.actor.authorizeSession(), input);
+        },
+    },
+
+    setPostCommentReaction: {
+        visibility: ["PostRealtimeService"],
+        execute: (context, input) => {
+            return setPostCommentReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    deletePostCommentReaction: {
+        visibility: ["PostRealtimeService"],
+        execute: (context, input) => {
+            return deletePostCommentReaction(context.actor.authorizeSession(), input);
         },
     },
 

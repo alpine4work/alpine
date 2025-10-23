@@ -10,9 +10,8 @@ import {ReactionCharacterSelector} from "~/client/reactions/reaction_character_s
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {colorSchemeVars} from "~/client/styles/styles.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
+import {Reaction, areReactionsEqual} from "~/shared/reactions/reaction.js";
 
 const iconSize = "8";
 const iconGalleryPaddingX = "2";
@@ -131,7 +130,7 @@ function ReactionMegaPickerGalleryIcon({
     onCloseWithoutAnimation: () => void;
 }) {
     const isCurrentAccountReaction = useMemo(
-        () => isDeepEqual(currentAccountReaction, reaction),
+        () => areReactionsEqual(currentAccountReaction, reaction),
         [currentAccountReaction, reaction],
     );
 

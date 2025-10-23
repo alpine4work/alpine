@@ -3,6 +3,7 @@ import classNames from "classnames";
 import {CaretRight, Check, IconContext, SpinnerGap} from "phosphor-react";
 import React, {
     Key,
+    ReactElement,
     ReactNode,
     Ref,
     createRef,
@@ -20,6 +21,10 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {
+    subscribeToTriggeredOverlayCloseEvent,
+    subscribeToTriggeredOverlayOpenEvent,
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -203,16 +208,43 @@ export type MenuCustomAction = {
      * [1]: https://spectrum.adobe.com/page/writing-for-errors
      */
     readonly pressErrorTitle?: string;
+} & (
+    | {
+          /**
+           * Custom renderer for your menu action.
+           */
+          readonly render: (props: {
+              isPressed: boolean;
+              isHovered: boolean;
+              shouldShowPendingSpinner: boolean;
+          }) => ReactNode;
 
-    /**
-     * Custom renderer for your menu action.
-     */
-    readonly render: (props: {
-        isPressed: boolean;
-        isHovered: boolean;
-        shouldShowPendingSpinner: boolean;
-    }) => ReactNode;
-};
+          readonly renderWithStructure?: undefined;
+      }
+    | {
+          /**
+           * Custom renderer for your menu action.
+           *
+           * You're responsible for rendering the menu item's structure! Which is a
+           * `<Box>` element that includes event handlers (e.g. keyboard event handlers)
+           * needed for the menu to operate correctly.
+           *
+           * You must call `renderStructure` and return the result. Otherwise, all sorts
+           * of assumptions the menu component makes may break.
+           *
+           * This is useful if you need to wrap the structure element in an
+           * `<OverlayTriggerButton>` or similar. Otherwise prefer the simpler `render`.
+           */
+          readonly renderWithStructure: (props: {
+              isPressed: boolean;
+              isHovered: boolean;
+              shouldShowPendingSpinner: boolean;
+              renderStructure: (props: {isPressed?: boolean; children: ReactNode}) => ReactElement;
+          }) => ReactElement;
+
+          readonly render?: undefined;
+      }
+);
 
 export type MenuChildrenAction = {
     /**
@@ -1232,6 +1264,9 @@ function MenuCustomItem({
         | {isPending: true; shouldShowPendingSpinner: boolean}
     >({isPending: false, shouldShowPendingSpinner: false});
 
+    const localRef = useRef<HTMLDivElement>(null);
+    const mergedRef = useMergedRefs(menuItemRef, localRef);
+
     const {isPressed, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
         onPress: event => {
@@ -1313,11 +1348,43 @@ function MenuCustomItem({
         };
     }, [pendingState]);
 
-    return (
+    // If this custom menu item is using `renderWithStructure` to wrap the custom
+    // menu item in an `<OverlayTriggerButton>` then we want to listen for
+    // triggered overlay open/close events.
+    //
+    // This is used by `<MessageView>` which renders
+    // `<MessageViewContextMenuReactionButton>` as a custom menu item which opens
+    // an overlay.
+    const [isTriggeredOverlayOpen, setIsTriggeredOverlayOpen] = useState(false);
+
+    useEffect(() => {
+        const element = assertExists(localRef.current);
+
+        const handleOverlayOpen = () => setIsTriggeredOverlayOpen(true);
+        const handleOverlayClose = () => setIsTriggeredOverlayOpen(false);
+
+        const unsubscribe1 = subscribeToTriggeredOverlayOpenEvent(element, handleOverlayOpen);
+        const unsubscribe2 = subscribeToTriggeredOverlayCloseEvent(element, handleOverlayClose);
+
+        return () => {
+            unsubscribe1();
+            unsubscribe2();
+        };
+    }, [isNotFocusable]);
+
+    const isHoveredBackground = isHovered || isTriggeredOverlayOpen;
+
+    const renderStructure = ({
+        isPressed: isPressedOverride,
+        children,
+    }: {
+        isPressed?: boolean;
+        children: ReactNode;
+    }) => (
         <FocusRing isVisible={isFocusRingVisible} offset="inset">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
-                ref={menuItemRef}
+                ref={mergedRef}
                 id={menuItemId}
                 {...(!isNotFocusable
                     ? {
@@ -1330,20 +1397,39 @@ function MenuCustomItem({
                       }
                     : {})}
                 borderRadius="1"
-                backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                backgroundColor={
+                    isPressed || isPressedOverride
+                        ? "grey-10"
+                        : isHoveredBackground
+                        ? "grey-5"
+                        : undefined
+                }
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
                 // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                 aria-disabled={pendingState.isPending ? true : undefined}
             >
-                {action.render({
-                    isPressed,
-                    isHovered,
-                    shouldShowPendingSpinner: pendingState.shouldShowPendingSpinner,
-                })}
+                {children}
             </Box>
         </FocusRing>
     );
+
+    if (action.render !== undefined) {
+        return renderStructure({
+            children: action.render({
+                isPressed,
+                isHovered,
+                shouldShowPendingSpinner: pendingState.shouldShowPendingSpinner,
+            }),
+        });
+    } else {
+        return action.renderWithStructure({
+            isPressed,
+            isHovered,
+            shouldShowPendingSpinner: pendingState.shouldShowPendingSpinner,
+            renderStructure,
+        });
+    }
 }
 
 const MenuChildrenItem = forwardRef(function MenuChildrenItem(

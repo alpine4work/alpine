@@ -1,3 +1,4 @@
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadSchema} from "~/shared/messaging/message_schema.js";
 
@@ -8,6 +9,7 @@ test("serializes message content payload with null `parent` and null `contentUpd
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 
     expect(serializedMessage).toEqual({
@@ -16,6 +18,7 @@ test("serializes message content payload with null `parent` and null `contentUpd
         content: createSimpleMessageContent("Hello, world!").toJSON(),
         contentUpdatedTime: null,
         fileIds: [],
+        reactionsByPos: [],
     });
 
     expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
@@ -24,6 +27,7 @@ test("serializes message content payload with null `parent` and null `contentUpd
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });
 
@@ -34,6 +38,7 @@ test("serializes message content payload with message `parent` and null `content
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 
     expect(serializedMessage).toEqual({
@@ -43,6 +48,7 @@ test("serializes message content payload with message `parent` and null `content
         content: createSimpleMessageContent("Hello, world!").toJSON(),
         contentUpdatedTime: null,
         fileIds: [],
+        reactionsByPos: [],
     });
 
     expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
@@ -51,6 +57,7 @@ test("serializes message content payload with message `parent` and null `content
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });
 
@@ -69,6 +76,7 @@ test("serializes message content payload with message range `parent` and null `c
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 
     expect(serializedMessage).toEqual({
@@ -85,6 +93,7 @@ test("serializes message content payload with message range `parent` and null `c
         content: createSimpleMessageContent("Hello, world!").toJSON(),
         contentUpdatedTime: null,
         fileIds: [],
+        reactionsByPos: [],
     });
 
     expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
@@ -101,6 +110,7 @@ test("serializes message content payload with message range `parent` and null `c
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });
 
@@ -113,6 +123,7 @@ test("serializes message content payload with null `parent` and some `contentUpd
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: {time: currentTime, mappings: []},
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 
     expect(serializedMessage).toEqual({
@@ -122,6 +133,7 @@ test("serializes message content payload with null `parent` and some `contentUpd
         contentUpdatedTime: currentTime.toISOString(),
         contentUpdate: {mappings: []},
         fileIds: [],
+        reactionsByPos: [],
     });
 
     expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
@@ -130,6 +142,7 @@ test("serializes message content payload with null `parent` and some `contentUpd
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: {time: currentTime, mappings: []},
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });
 
@@ -153,6 +166,7 @@ test("deserializes message content payload with missing `parentMessageIndex` and
             mappings: [],
         },
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });
 
@@ -170,6 +184,7 @@ test("deserializes message content payload with null `parentMessageIndex` and mi
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });
 
@@ -185,5 +200,6 @@ test("deserializes message content payload with missing `parentMessageIndex`, mi
         content: createSimpleMessageContent("Hello, world!"),
         contentUpdate: null,
         fileIds: [],
+        reactionsByPos: emptyMap,
     });
 });

@@ -3,10 +3,12 @@ import {
     authorizeChatAccess,
     backfillChatMessages,
     deleteChatMessage,
+    deleteChatMessageReaction,
     getChatMessageAtVersion,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     sendChatMessage,
+    setChatMessageReaction,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
@@ -66,6 +68,20 @@ export default implementRpcs(definitions, {
         visibility: ["ChatRealtimeService"],
         execute: (context, input) => {
             return deleteChatMessage(context.actor.authorizeSession(), input);
+        },
+    },
+
+    setChatMessageReaction: {
+        visibility: ["ChatRealtimeService"],
+        execute: (context, input) => {
+            return setChatMessageReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    deleteChatMessageReaction: {
+        visibility: ["ChatRealtimeService"],
+        execute: (context, input) => {
+            return deleteChatMessageReaction(context.actor.authorizeSession(), input);
         },
     },
 

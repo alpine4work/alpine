@@ -20,6 +20,7 @@ import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
@@ -29,6 +30,11 @@ import {
     getMessageListItemKey,
     renderMessageListItem,
 } from "~/client/messaging/render_message_list_item.js";
+import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+    OnUpdateMessagesOptimisticallyFunction,
+} from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {
     JumpToMessageRangeOptions,
@@ -55,7 +61,9 @@ import {
     BackfillMessagesProcedure,
     CreateMessageProcedure,
     DeleteMessageProcedure,
+    DeleteMessageReactionProcedure,
     MessagingRealtimeEvent,
+    SetMessageReactionProcedure,
     StartTypingInMessageInputProcedure,
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
@@ -201,6 +209,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         createMessage,
         updateMessageContent,
         deleteMessage,
+        setMessageReaction,
+        deleteMessageReaction,
         startTypingInMessageInput,
         stopTypingInMessageInput,
         isConnected,
@@ -334,6 +344,16 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         deleteMessage: Memo<DeleteMessageProcedure>;
 
         /**
+         * Set a reaction on a message.
+         */
+        setMessageReaction: Memo<SetMessageReactionProcedure>;
+
+        /**
+         * Delete a reaction on a message.
+         */
+        deleteMessageReaction: Memo<DeleteMessageReactionProcedure>;
+
+        /**
          * Show a typing indicator to other connected clients for this user.
          */
         startTypingInMessageInput: Memo<StartTypingInMessageInputProcedure>;
@@ -418,17 +438,18 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
 
-    const [messagesWithoutHeader, setMessages] = useState(() => {
-        const messages = MessageList.new<Message>({
-            checkpoint: initialMessagesResult.checkpoint,
-            messageCount: initialMessagesResult.messageCount,
+    const [messagesWithoutHeader, setMessages, setMessagesOptimistically] =
+        useStateWithOptimisticUpdates(() => {
+            const messages = MessageList.new<Message>({
+                checkpoint: initialMessagesResult.checkpoint,
+                messageCount: initialMessagesResult.messageCount,
+            });
+            return messages.loadMessages({
+                messageCount: initialMessagesResult.messageCount,
+                messages: initialMessagesResult.messages,
+                otherReferencedMessages: initialMessagesResult.otherReferencedMessages,
+            });
         });
-        return messages.loadMessages({
-            messageCount: initialMessagesResult.messageCount,
-            messages: initialMessagesResult.messages,
-            otherReferencedMessages: initialMessagesResult.otherReferencedMessages,
-        });
-    });
 
     const state = useMemo(
         () => new MessagingViewState(messagesWithoutHeader, header ?? null),
@@ -582,6 +603,29 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         }),
     });
 
+    const handleSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>> = useCallback(
+        async (roomKey, input) => {
+            await setMessageReaction(input);
+        },
+        [setMessageReaction],
+    );
+
+    const handleDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>> = useCallback(
+        async (roomKey, input) => {
+            await deleteMessageReaction(input);
+        },
+        [deleteMessageReaction],
+    );
+
+    const handleUpdateMessagesOptimistically: Memo<
+        OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>
+    > = useCallback(
+        (roomKey, promise, update) => {
+            setMessagesOptimistically(promise, update);
+        },
+        [setMessagesOptimistically],
+    );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         (index: number) => {
             const item = state.getItem(index);
@@ -628,6 +672,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             });
                         },
                         getMessageUrl,
+                        onSetMessageReaction: handleSetMessageReaction,
+                        onDeleteMessageReaction: handleDeleteMessageReaction,
+                        onUpdateMessagesOptimistically: handleUpdateMessagesOptimistically,
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
@@ -639,6 +686,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             deleteMessage,
             fileAttachmentTarget,
             getMessageUrl,
+            handleDeleteMessageReaction,
+            handleSetMessageReaction,
+            handleUpdateMessagesOptimistically,
             jumpState,
             jumpToMessageRange,
             messageEditing,
@@ -679,13 +729,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     extraChildren={
                         <>
                             {extraChildren}
-                            <MessagingViewPointerToolbar
+                            <MessagingViewPointerToolbar<RoomKey, Message>
                                 viewRef={viewRef}
+                                messageNoun={messageNoun}
                                 getMessagesByRoomKey={useCallback(
                                     () => state.messages,
                                     [state.messages],
                                 )}
                                 onReplyToMessagesRange={(roomKey, parent) => setInputParent(parent)}
+                                onSetMessageReaction={handleSetMessageReaction}
+                                onDeleteMessageReaction={handleDeleteMessageReaction}
+                                onUpdateMessagesOptimistically={handleUpdateMessagesOptimistically}
                             />
                         </>
                     }
@@ -701,7 +755,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     messageNoun={messageNoun}
                     messages={state.messages}
                     isMessageCreationDisabled={isMessageCreationDisabled}
-                    onUpdateMessages={update => setMessages(update)}
+                    onUpdateMessages={setMessages}
                     createMessage={async input => {
                         await createMessage(input);
                     }}

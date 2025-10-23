@@ -86,13 +86,18 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
+import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
+import {computeUpdateMessageContentReactions} from "~/shared/messaging/compute_update_message_content_reactions.js";
 import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClerical,
@@ -102,6 +107,7 @@ import {
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
 import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -824,6 +830,7 @@ function sendChatMessageForAccount(
                         contentUpdate: null,
                         fileIds,
                         clerical,
+                        reactionsByPos: emptyMap,
                     },
                 }),
                 ChatTable.transactionDirectlyUpdateItemAttribute(
@@ -2077,6 +2084,11 @@ export function updateChatMessageContent(
                 ...chatMessageItem.payload,
                 content,
                 contentUpdate,
+                reactionsByPos: computeUpdateMessageContentReactions({
+                    oldPayload: chatMessageItem.payload,
+                    newContent: content,
+                    mapping,
+                }),
             },
         });
 
@@ -2182,6 +2194,135 @@ export function deleteChatMessage(
         return {
             version: transactionEntry.newItem.updateLockVersion ?? 0,
             deletedTime,
+        };
+    });
+}
+
+export function setChatMessageReaction(
+    context: ServerAccountActionContext,
+    {
+        chatId,
+        messageIndex,
+        contentVersion,
+        pos,
+        reaction,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        contentVersion: number;
+        pos: number;
+        reaction: Reaction | "GenericLike";
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [, messageItem] = await runAllPromises([
+            authorizeChatAccessAndReturnItem(context, chatId),
+            getChatMessageItemIfExists(context, chatId, messageIndex),
+        ]);
+
+        if (!messageItem) throw createChatMessageNotFoundError(chatId, messageIndex);
+
+        const currentTime = new Date();
+
+        const newPayload = computeSetMessageReaction({
+            actorAccountId: context.actor.getPossiblyBotAccountId(),
+            message: messageItem,
+            contentVersion,
+            pos,
+            reaction,
+        });
+
+        const transactionEntry = ChatTable.transactionDirectlyUpdateItem({
+            ...omitObject(messageItem, ["index", "version"]),
+            partitionType: "Chat",
+            sortRangeType: "Messages",
+            chatId,
+            messageIndex: messageItem.index,
+            updateLockVersion: messageItem.version,
+            payload: newPayload,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
+            ChatTable.transactionCreateOrReplaceItem({
+                partitionType: "Chat",
+                sortRangeType: "MessageUpdates",
+                chatId,
+                eventTime: currentTime,
+                messageIndex: messageItem.index,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(currentTime, messagingEventExpirationDays),
+            }),
+        ]);
+
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+        };
+    });
+}
+
+export function deleteChatMessageReaction(
+    context: ServerAccountActionContext,
+    {
+        chatId,
+        messageIndex,
+        contentVersion,
+        pos,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        contentVersion: number;
+        pos: number;
+    },
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const [, messageItem] = await runAllPromises([
+            authorizeChatAccessAndReturnItem(context, chatId),
+            getChatMessageItemIfExists(context, chatId, messageIndex),
+        ]);
+
+        if (!messageItem) throw createChatMessageNotFoundError(chatId, messageIndex);
+
+        const currentTime = new Date();
+
+        const newPayload = computeDeleteMessageReaction({
+            actorAccountId: context.actor.getPossiblyBotAccountId(),
+            message: messageItem,
+            contentVersion,
+            pos,
+        });
+
+        const transactionEntry = ChatTable.transactionDirectlyUpdateItem({
+            ...omitObject(messageItem, ["index", "version"]),
+            partitionType: "Chat",
+            sortRangeType: "Messages",
+            chatId,
+            messageIndex: messageItem.index,
+            updateLockVersion: messageItem.version,
+            payload: newPayload,
+        });
+
+        await DynamoTableSchema.executeTransaction(context, [
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
+            ChatTable.transactionCreateOrReplaceItem({
+                partitionType: "Chat",
+                sortRangeType: "MessageUpdates",
+                chatId,
+                eventTime: currentTime,
+                messageIndex: messageItem.index,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(currentTime, messagingEventExpirationDays),
+            }),
+        ]);
+
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
         };
     });
 }

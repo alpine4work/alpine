@@ -15,6 +15,7 @@ import {
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -143,6 +144,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 content,
                 contentUpdate: null,
                 fileIds: [],
+                reactionsByPos: emptyMap,
             };
 
             // If this broadcast fails (or it's never sent, say if the process dies) then

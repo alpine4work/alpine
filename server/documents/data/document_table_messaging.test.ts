@@ -7,6 +7,7 @@ import {
     createDocument,
     createDocumentComment,
     deleteDocumentComment,
+    deleteDocumentCommentReaction,
     getDocument,
     getDocumentComment,
     getDocumentCommentPayload,
@@ -17,6 +18,7 @@ import {
     getDocumentWithOptionalComments,
     getDocumentsTableForTest,
     putDocumentCommentStreamPart,
+    setDocumentCommentReaction,
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_actions.js";
@@ -299,6 +301,35 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+    },
+    async setMessageReaction(
+        context,
+        {roomKey, messageIndex: commentIndex, contentVersion, pos, reaction},
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return setDocumentCommentReaction(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    },
+    async deleteMessageReaction(
+        context,
+        {roomKey, messageIndex: commentIndex, contentVersion, pos},
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return deleteDocumentCommentReaction(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            contentVersion,
+            pos,
+        });
     },
     async getMessagesFromStart(
         context,

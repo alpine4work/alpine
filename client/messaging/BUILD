@@ -27,6 +27,7 @@ ts_project(
         "//client/design",
         "//client/helpers",
         "//client/inbox",
+        "//client/reactions",
         "//client/remix",
         "//client/search/core",
         "//client/shimmer",

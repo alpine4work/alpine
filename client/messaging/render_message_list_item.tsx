@@ -6,6 +6,11 @@ import {MessageListMessageShimmer} from "~/client/messaging/message_list_message
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+    OnUpdateMessagesOptimisticallyFunction,
+} from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
+import {
     JumpMessageState,
     JumpToMessageRangeOptions,
 } from "~/client/messaging/use_jump_to_message_range.js";
@@ -48,6 +53,9 @@ export function renderMessageListItem<
     onReplyToMessage,
     onDeleteMessage,
     getMessageUrl,
+    onSetMessageReaction,
+    onDeleteMessageReaction,
+    onUpdateMessagesOptimistically,
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
@@ -68,6 +76,9 @@ export function renderMessageListItem<
     onReplyToMessage: (message: Message) => void;
     onDeleteMessage: (message: Message) => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
+    onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
+    onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
+    onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
@@ -118,6 +129,9 @@ export function renderMessageListItem<
                             if (item.message.isOptimistic) return;
                             await onDeleteMessage(item.message);
                         }}
+                        onSetMessageReaction={onSetMessageReaction}
+                        onDeleteMessageReaction={onDeleteMessageReaction}
+                        onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}

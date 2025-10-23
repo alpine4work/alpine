@@ -10,11 +10,13 @@ import {
     createTaskComment,
     deleteTaskAndAllChildren,
     deleteTaskComment,
+    deleteTaskCommentReaction,
     duplicateTaskAndAllChildren,
     getTaskCommentAtVersion,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContentWithoutReferences,
+    setTaskCommentReaction,
     updateTaskCommentContent,
     updateTaskGridViewExpansionState,
     updateTaskNotesContent,
@@ -198,6 +200,20 @@ export default implementRpcs(definitions, {
         visibility: ["TaskNotesCollaborationService"],
         execute: (context, input) => {
             return deleteTaskComment(context.actor.authorizeSession(), input);
+        },
+    },
+
+    setTaskCommentReaction: {
+        visibility: ["TaskNotesCollaborationService"],
+        execute: (context, input) => {
+            return setTaskCommentReaction(context.actor.authorizeSession(), input);
+        },
+    },
+
+    deleteTaskCommentReaction: {
+        visibility: ["TaskNotesCollaborationService"],
+        execute: (context, input) => {
+            return deleteTaskCommentReaction(context.actor.authorizeSession(), input);
         },
     },
 

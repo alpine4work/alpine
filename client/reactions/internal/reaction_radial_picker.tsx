@@ -20,7 +20,10 @@ import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/styles/reaction_shared_styles.js";
-import {colorSchemeVars} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    withoutClearSelectionOnMouseDownClassName,
+} from "~/client/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {
     addRemLengths,
@@ -31,10 +34,9 @@ import {
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
-import {Reaction, ReactionEmotion} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionEmotion, areReactionsEqual} from "~/shared/reactions/reaction.js";
 
 const reactionRadialPickerAnimationInitialScale = 0.25;
 
@@ -274,7 +276,7 @@ function ReactionRadialPicker(
 
                 const reaction: Reaction = {character, emotion};
 
-                if (isDeepEqual(reaction, currentAccountReaction)) {
+                if (areReactionsEqual(reaction, currentAccountReaction)) {
                     onDeleteReaction();
                 } else {
                     onSetReaction(reaction);
@@ -296,6 +298,11 @@ function ReactionRadialPicker(
     return (
         <Box
             ref={circleContainerRef}
+            // Don't clear the selection when clicking on the reaction radial picker. So
+            // when you open the reaction radial picker from `<MessageViewPointerToolbar>`
+            // then click on the empty space in the middle of the radial picker we don't
+            // clear the selection and close the `<MessageViewPointerToolbar>`.
+            className={withoutClearSelectionOnMouseDownClassName}
             pointerEvents="none"
             style={{
                 width: `${reactionRadialPickerSizeRem}rem`,
@@ -344,7 +351,7 @@ function ReactionRadialPicker(
 
                                 const reaction: Reaction = {character, emotion};
 
-                                if (isDeepEqual(reaction, currentAccountReaction)) {
+                                if (areReactionsEqual(reaction, currentAccountReaction)) {
                                     onDeleteReaction();
                                 } else {
                                     onSetReaction(reaction);
@@ -487,7 +494,7 @@ function ReactionRadialPicker(
 
                             return (
                                 <Fragment key={index}>
-                                    {isDeepEqual(currentAccountReaction, reaction) && (
+                                    {areReactionsEqual(currentAccountReaction, reaction) && (
                                         <Box
                                             position="absolute"
                                             zIndex="10"

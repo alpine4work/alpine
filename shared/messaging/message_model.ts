@@ -1,16 +1,22 @@
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {Id} from "~/shared/id/id.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClericalSchema,
     MessageContentPayloadContentUpdateSchema,
     MessageContentPayloadParentSchema,
+    MessagePayload,
     MessageStream,
 } from "~/shared/messaging/message_schema.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -86,7 +92,11 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * Clone the model object, replacing any values with those provided in the
      * partial value.
      */
-    clone(partialValue: {payload?: MessagePayloadModel; stream?: MessageStream}): this;
+    clone(partialValue: {
+        version?: number;
+        payload?: MessagePayloadModel;
+        stream?: MessageStream;
+    }): this;
 
     // Available for TypeScript to access this property on a union.
     readonly isOptimistic?: undefined;
@@ -147,6 +157,7 @@ const MessageContentPayloadModelSchema = Schema.object({
     contentUpdate: MessageContentPayloadContentUpdateSchema.nullable(),
     files: Schema.array(MessageContentPayloadModelFileSchema).default([]),
     clerical: MessageContentPayloadClericalSchema.optional(),
+    reactionsByPos: Schema.map(Schema.integer, ReactionSet.schema).default(emptyMap),
 });
 
 const MessageDeletedPayloadModelSchema: Schema<{
@@ -187,20 +198,106 @@ export function areMessagePayloadModelsEqual(
     payload2: MessagePayloadModel,
 ): boolean {
     switch (payload1.type) {
-        case "Content": {
-            if (payload2.type !== "Content") return false;
-            return (
-                isDeepEqual(payload1.parent, payload2.parent) &&
-                payload1.content.doc.eq(payload2.content.doc) &&
-                isDeepEqual(payload1.contentUpdate, payload2.contentUpdate) &&
-                isDeepEqual(payload1.clerical, payload2.clerical)
-            );
-        }
         case "Deleted": {
             if (payload2.type !== "Deleted") return false;
             return payload1.deletedTime.getTime() === payload2.deletedTime.getTime();
         }
+        case "Content": {
+            if (payload2.type !== "Content") return false;
+
+            // TypeScript will error here whenever a new key is added to
+            // `MessageContentPayloadModel`. Forcing developers to look at and update this
+            // function to handle the new key.
+            assertEqualTypes<
+                keyof MessageContentPayloadModel,
+                | "type"
+                | "parent"
+                | "content"
+                | "contentUpdate"
+                | "files"
+                | "clerical"
+                | "reactionsByPos"
+            >();
+
+            if (!isDeepEqual(payload1.parent, payload2.parent)) return false;
+
+            if (!payload1.content.doc.eq(payload2.content.doc)) return false;
+
+            if (!isDeepEqual(payload1.contentUpdate, payload2.contentUpdate)) return false;
+
+            if (!isDeepEqual(payload1.clerical, payload2.clerical)) return false;
+
+            {
+                const files1 = payload1.files.map(file => {
+                    switch (file.type) {
+                        case "File":
+                            return file.file.id;
+                        case "FileEntity":
+                            return file.fileEntityId;
+                        default:
+                            throw exhaustive(file);
+                    }
+                });
+
+                const files2 = payload2.files.map(file => {
+                    switch (file.type) {
+                        case "File":
+                            return file.file.id;
+                        case "FileEntity":
+                            return file.fileEntityId;
+                        default:
+                            throw exhaustive(file);
+                    }
+                });
+
+                if (!isDeepEqual(files1, files2)) return false;
+            }
+
+            {
+                const reactionsByPos1 = new Map(
+                    mapIterable(payload1.reactionsByPos, ([key, value]) => [key, value.get()]),
+                );
+
+                const reactionsByPos2 = new Map(
+                    mapIterable(payload2.reactionsByPos, ([key, value]) => [key, value.get()]),
+                );
+
+                if (!isDeepEqual(reactionsByPos1, reactionsByPos2)) return false;
+            }
+
+            return true;
+        }
         default:
             throw exhaustive(payload1);
+    }
+}
+
+/**
+ * Convert a `MessagePayloadModel` to the more primitive `MessagePayload` which
+ * doesn't have references loaded.
+ */
+export function fromMessagePayloadModel(payload: MessagePayloadModel): MessagePayload {
+    switch (payload.type) {
+        case "Deleted": {
+            return {type: "Deleted", deletedTime: payload.deletedTime};
+        }
+        case "Content": {
+            return {
+                ...omitObject(payload, ["files"]),
+                content: payload.content.doc,
+                fileIds: payload.files.map(file => {
+                    switch (file.type) {
+                        case "File":
+                            return file.file.id;
+                        case "FileEntity":
+                            return file.fileEntityId;
+                        default:
+                            throw exhaustive(file);
+                    }
+                }),
+            };
+        }
+        default:
+            throw exhaustive(payload);
     }
 }

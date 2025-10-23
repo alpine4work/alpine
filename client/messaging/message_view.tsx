@@ -38,8 +38,10 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
+import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/messaging/internal/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageStreamView} from "~/client/messaging/internal/message_stream_view.js";
+import {MessageViewContextMenuReactionButton} from "~/client/messaging/internal/message_view_context_menu_reaction_button.js";
 import {
     MessageViewEditor,
     MessageViewEditorRef,
@@ -48,6 +50,11 @@ import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/sh
 import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {
+    OnDeleteMessageReactionFunction,
+    OnSetMessageReactionFunction,
+    OnUpdateMessagesOptimisticallyFunction,
+} from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {
     JumpMessageState,
     JumpToMessageRangeOptions,
@@ -119,6 +126,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
 /**
@@ -161,6 +169,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onReplyToMessage: onReplyToMessageProp,
     onDeleteMessage,
     getMessageUrl,
+    onSetMessageReaction,
+    onDeleteMessageReaction,
+    onUpdateMessagesOptimistically,
     roomDisplayedCreatedTime,
     readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel,
 }: {
@@ -182,6 +193,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
+    onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
+    onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
+    onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
     roomDisplayedCreatedTime?: Date;
     readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel?: AccessPolicy;
 }) {
@@ -456,6 +470,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             // include no text.
             if (
                 !isReadOnly &&
+                !message.isOptimistic &&
                 message.payload.type === "Content" &&
                 (!isContentEmpty(message.payload.content.doc) ||
                     (message.stream !== null &&
@@ -465,12 +480,78 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 !isContentEmpty(part.payload.content),
                         )))
             ) {
+                const {payload} = message;
+
                 contextMenuActions.push([
                     {
                         label: "Reply",
                         icon: <ArrowArcRight />,
                         iconPlacement: "end",
-                        onPress: events.onReplyToMessage,
+                        onPress: () => {
+                            // Remove the selection at the same time we set the reply on the message input.
+                            // So `<MessagingViewPointerToolbar>` doesn't render as our right click menu
+                            // closes. Also make sure we don't animate out `<MessagingViewPointerToolbar>`
+                            // when we hide it otherwise it'll flash in once the context menu closes and
+                            // animate out now that the selection is removed.
+                            //
+                            // For a video reproducing the bug we're fixing here see:
+                            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/pkfkhjsvv634ebb56kafcsy6rr
+                            disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame();
+                            window.getSelection()?.removeAllRanges();
+
+                            events.onReplyToMessage();
+                        },
+                    },
+                    {
+                        withCustomLayout: true,
+                        // Don't close the context menu on press. Instead we want to open the reaction
+                        // radial picker.
+                        onPress: () => ({withoutClose: true}),
+                        renderWithStructure: ({isPressed, renderStructure}) => {
+                            let pos: number;
+
+                            // The context menu will add a reaction to the end of the message. Find the
+                            // position at the end of the message.
+                            if (message.stream === null) {
+                                pos = payload.content.doc.content.size;
+                            } else {
+                                pos = 0;
+
+                                if (!isContentEmpty(payload.content.doc)) {
+                                    pos += payload.content.doc.content.size;
+                                }
+
+                                const usableStreamPartCount =
+                                    message.stream.parts.length -
+                                    // If the stream is incomplete then we can't react to the last part. Since the
+                                    // last part may still be receiving updates.
+                                    (message.stream.completedTime === null ? 1 : 0);
+
+                                for (let i = 0; i < usableStreamPartCount; i++) {
+                                    const part = message.stream.parts[i]!;
+                                    if (part.payload.type !== "Content") continue;
+                                    pos += part.payload.content.content.size;
+                                }
+                            }
+
+                            const reactions = payload.reactionsByPos.get(pos) ?? emptyReactionSet;
+
+                            return (
+                                <MessageViewContextMenuReactionButton
+                                    isPressed={isPressed}
+                                    renderStructure={renderStructure}
+                                    messageNoun={messageNoun}
+                                    roomKey={message.getRoomKey()}
+                                    messageIndex={message.index}
+                                    contentVersion={payload.contentUpdate?.mappings.length ?? 0}
+                                    pos={pos}
+                                    reactions={reactions}
+                                    onSetMessageReaction={onSetMessageReaction}
+                                    onDeleteMessageReaction={onDeleteMessageReaction}
+                                    onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
+                                />
+                            );
+                        },
                     },
                 ]);
             }
@@ -877,6 +958,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     jumpAnimation={jumpAnimation}
                 />
             );
+        }
+
+        // If there's no content then don't render anything. This is mainly for file
+        // rendering. You could have a message with empty content and just a file. In
+        // that case the entire message should be the file.
+        if (isContentEmpty(message.payload.content.doc)) {
+            return null;
         }
 
         // Render the message as a big emoji message if the content is just emojis.

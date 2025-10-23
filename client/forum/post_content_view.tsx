@@ -505,7 +505,7 @@ function PostContentViewFooter({
                         );
 
                         promise.catch(error => {
-                            reporter.displayError("Couldn’t like post", error);
+                            reporter.displayError("Couldn’t add reaction to post", error);
                         });
 
                         onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
@@ -520,7 +520,7 @@ function PostContentViewFooter({
                         );
 
                         promise.catch(error => {
-                            reporter.displayError("Couldn’t remove like from post", error);
+                            reporter.displayError("Couldn’t remove reaction from post", error);
                         });
 
                         onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {

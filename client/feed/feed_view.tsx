@@ -110,6 +110,15 @@ export function FeedView({
                     },
                     [setFeed],
                 )}
+                onUpdatePostCommentsOptimistically={useCallback(
+                    (postId, promise, update) =>
+                        setFeedOptimistically(promise, (feed, promiseValue) =>
+                            feed.updatePostComments(postId, comments =>
+                                update(comments, promiseValue),
+                            ),
+                        ),
+                    [setFeedOptimistically],
+                )}
                 onLoadMorePosts={async ({limit}) => {
                     const output = await getFeedEntries(context, {
                         spaceId: space.id,

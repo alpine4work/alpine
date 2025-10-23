@@ -20,6 +20,7 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
@@ -39,6 +40,7 @@ import {
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -85,6 +87,37 @@ export type DeleteMessageFunction<RoomKey extends string> = (
     options: {
         roomKey: RoomKey;
         messageIndex: number;
+    },
+) => Promise<{
+    version: number;
+}>;
+
+/**
+ * Sets a reaction at some position on a message.
+ */
+export type SetMessageReactionFunction<RoomKey extends string> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        contentVersion: number;
+        pos: number;
+        reaction: Reaction | "GenericLike";
+    },
+) => Promise<{
+    version: number;
+}>;
+
+/**
+ * Deletes a reaction at some position on a message.
+ */
+export type DeleteMessageReactionFunction<RoomKey extends string> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        contentVersion: number;
+        pos: number;
     },
 ) => Promise<{
     version: number;
@@ -198,6 +231,8 @@ export class MessagingRealtimeConnection<
     private readonly _createMessage: CreateMessageFunction<RoomKey>;
     private readonly _updateMessageContent: UpdateMessageContentFunction<RoomKey>;
     private readonly _deleteMessage: DeleteMessageFunction<RoomKey>;
+    private readonly _setMessageReaction: SetMessageReactionFunction<RoomKey>;
+    private readonly _deleteMessageReaction: DeleteMessageReactionFunction<RoomKey>;
     private readonly _backfillMessages: BackfillMessagesFunction<
         RoomKey,
         Message,
@@ -238,6 +273,8 @@ export class MessagingRealtimeConnection<
         createMessage,
         updateMessageContent,
         deleteMessage,
+        setMessageReaction,
+        deleteMessageReaction,
         backfillMessages,
         getMessageAtVersion,
         getMessageReferences,
@@ -261,6 +298,8 @@ export class MessagingRealtimeConnection<
         createMessage: CreateMessageFunction<RoomKey>;
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
+        setMessageReaction: SetMessageReactionFunction<RoomKey>;
+        deleteMessageReaction: DeleteMessageReactionFunction<RoomKey>;
         backfillMessages: BackfillMessagesFunction<RoomKey, Message, BackfillMessagesExtra>;
         getMessageAtVersion: GetMessageAtVersionFunction<RoomKey, Message>;
         getMessageReferences: GetMessageReferencesFunction<RoomKey>;
@@ -276,6 +315,8 @@ export class MessagingRealtimeConnection<
         this._createMessage = createMessage;
         this._updateMessageContent = updateMessageContent;
         this._deleteMessage = deleteMessage;
+        this._setMessageReaction = setMessageReaction;
+        this._deleteMessageReaction = deleteMessageReaction;
         this._backfillMessages = backfillMessages;
         this._getMessageAtVersion = getMessageAtVersion;
         this._getMessageReferences = getMessageReferences;
@@ -528,6 +569,7 @@ export class MessagingRealtimeConnection<
                 content,
                 contentUpdate: null,
                 fileIds,
+                reactionsByPos: emptyMap,
             };
 
             const message: MessagingRealtimeEventStubNewMessage = {
@@ -624,6 +666,91 @@ export class MessagingRealtimeConnection<
         const {version} = await this._deleteMessage(context, {
             roomKey: this.roomKey,
             messageIndex,
+        });
+
+        const sendOurEventPromise = this._sendEvent(context, {
+            type: "UpdateMessage",
+            messageIndex,
+            version,
+        });
+
+        for (const connection of this._iterateOtherConnections()) {
+            connection._sendEvent(context, {
+                type: "UpdateMessage",
+                messageIndex,
+                version,
+            });
+        }
+
+        // Wait until we send our update message event before finishing the RPC.
+        await sendOurEventPromise;
+
+        return {};
+    }
+
+    public async setMessageReaction(
+        context: WorkerSessionActionContext,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        },
+    ): Promise<{}> {
+        assert(this.accountId === context.actor.getAccountId());
+
+        const {version} = await this._setMessageReaction(context, {
+            roomKey: this.roomKey,
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+
+        const sendOurEventPromise = this._sendEvent(context, {
+            type: "UpdateMessage",
+            messageIndex,
+            version,
+        });
+
+        for (const connection of this._iterateOtherConnections()) {
+            connection._sendEvent(context, {
+                type: "UpdateMessage",
+                messageIndex,
+                version,
+            });
+        }
+
+        // Wait until we send our update message event before finishing the RPC.
+        await sendOurEventPromise;
+
+        return {};
+    }
+
+    public async deleteMessageReaction(
+        context: WorkerSessionActionContext,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+        },
+    ): Promise<{}> {
+        assert(this.accountId === context.actor.getAccountId());
+
+        const {version} = await this._deleteMessageReaction(context, {
+            roomKey: this.roomKey,
+            messageIndex,
+            contentVersion,
+            pos,
         });
 
         const sendOurEventPromise = this._sendEvent(context, {

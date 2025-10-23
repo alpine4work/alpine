@@ -29,8 +29,7 @@ import {
 } from "~/shared/messaging/message_references.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
-import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
+import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -347,6 +346,33 @@ export const deletePostComment = defineRpc({
     },
 });
 
+export const setPostCommentReaction = defineRpc({
+    name: "setPostCommentReaction",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
+        reaction: ReactionOrGenericLikeSchema,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
+export const deletePostCommentReaction = defineRpc({
+    name: "deletePostCommentReaction",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+        contentVersion: Schema.integer,
+        pos: Schema.integer,
+    },
+    output: {
+        version: Schema.integer,
+    },
+});
+
 export const backfillPostComments = defineRpc({
     name: "backfillPostComments",
     input: {
@@ -424,10 +450,7 @@ export const setPostReaction = defineRpc({
     name: "setPostReaction",
     input: {
         postId: Schema.id<PostId>(),
-        reaction: ReactionSchema.nullable().transform<Reaction | "GenericLike">({
-            serialize: value => (value === "GenericLike" ? null : value),
-            deserialize: value => (value === null ? "GenericLike" : value),
-        }),
+        reaction: ReactionOrGenericLikeSchema,
     },
     output: {
         eventTransaction: Schema.array(DynamoGeneralRealtimePostEventSchema),

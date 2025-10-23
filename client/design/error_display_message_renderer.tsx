@@ -210,16 +210,15 @@ export function ErrorDisplayMessageRenderer({
                             backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
                         }}
                     >
-                        {isSingleLine && "("}Error code: {getErrorCode(error)}
+                        {isSingleLine && "("}Error&nbsp;code:&nbsp;{getErrorCode(error)}
                         {!isSingleLine &&
-                            error instanceof ErrorBase &&
                             (() => {
                                 const originalTracerSpan = getErrorOriginalTracerSpan(error);
                                 if (!originalTracerSpan) return;
 
                                 return (
                                     <>
-                                        , trace:{" "}
+                                        , trace:&nbsp;
                                         <span
                                             style={{
                                                 // eslint-disable-next-line string-quotes
